@@ -6,10 +6,15 @@ export default defineConfig({
   plugins: [react(), tailwindcss()],
   server: {
     port: 5173,
+    // Bind to all interfaces so lvh.me works (resolves to 127.0.0.1)
+    host: true,
+    // Allow lvh.me and subdomains for local multi-tenant dev
+    allowedHosts: true,
     proxy: {
       "/api": {
         target: "http://localhost:3000",
-        changeOrigin: true,
+        // Don't override Host — the API needs the subdomain for tenant resolution
+        changeOrigin: false,
       },
     },
   },
