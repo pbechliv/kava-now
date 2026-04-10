@@ -6,6 +6,9 @@ import { categoriesRouter } from "./categories";
 import { seedCatalogRouter } from "./seed-catalog";
 import { customersRouter } from "./customers";
 import { pricingTiersRouter } from "./pricing-tiers";
+import { ordersRouter } from "./orders";
+import { dashboardRouter } from "./dashboard";
+import { settingsRouter } from "./settings";
 import type { AppEnv } from "../../types";
 
 const adminRoutes = new Hono<AppEnv>();
@@ -19,5 +22,8 @@ adminRoutes.route("/categories", categoriesRouter);
 adminRoutes.route("/seed-catalog", seedCatalogRouter);
 adminRoutes.route("/customers", customersRouter);
 adminRoutes.route("/pricing-tiers", pricingTiersRouter);
+adminRoutes.route("/orders", ordersRouter);
+adminRoutes.route("/dashboard", dashboardRouter);
+adminRoutes.route("/settings", settingsRouter);
 
 export { adminRoutes };
