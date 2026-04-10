@@ -26,6 +26,7 @@ import { PricingPage } from "./pages/admin/PricingPage";
 import { OrdersPage } from "./pages/admin/OrdersPage";
 import { OrderDetailPage } from "./pages/admin/OrderDetailPage";
 import { SettingsPage } from "./pages/admin/SettingsPage";
+import { ProductFormPage } from "./pages/admin/ProductFormPage";
 
 // Customer pages
 import { CatalogPage } from "./pages/customer/CatalogPage";
@@ -62,6 +63,8 @@ export function App() {
           >
             <Route path="dashboard" element={<DashboardPage />} />
             <Route path="products" element={<ProductsPage />} />
+            <Route path="products/new" element={<ProductFormPage />} />
+            <Route path="products/:id" element={<ProductFormPage />} />
             <Route path="categories" element={<CategoriesPage />} />
             <Route path="customers" element={<CustomersPage />} />
             <Route path="customers/:id/products" element={<CustomerProductsPage />} />

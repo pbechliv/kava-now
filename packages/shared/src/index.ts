@@ -2,5 +2,7 @@
 // Barrel export file
 
 export * from "./schemas/auth";
+export * from "./schemas/products";
+export * from "./schemas/categories";
 export * from "./types";
 export * from "./constants";
