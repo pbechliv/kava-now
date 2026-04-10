@@ -7,5 +7,6 @@ export * from "./schemas/categories";
 export * from "./schemas/customers";
 export * from "./schemas/pricing";
 export * from "./schemas/customer-products";
+export * from "./schemas/orders";
 export * from "./types";
 export * from "./constants";

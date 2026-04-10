@@ -32,6 +32,7 @@ import { ProductFormPage } from "./pages/admin/ProductFormPage";
 import { CatalogPage } from "./pages/customer/CatalogPage";
 import { CartPage } from "./pages/customer/CartPage";
 import { OrderHistoryPage } from "./pages/customer/OrderHistoryPage";
+import { OrderDetailPage as CustomerOrderDetailPage } from "./pages/customer/OrderDetailPage";
 import { ProfilePage } from "./pages/customer/ProfilePage";
 
 // Other
@@ -87,6 +88,7 @@ export function App() {
             <Route path="/catalog" element={<CatalogPage />} />
             <Route path="/cart" element={<CartPage />} />
             <Route path="/orders" element={<OrderHistoryPage />} />
+            <Route path="/orders/:id" element={<CustomerOrderDetailPage />} />
             <Route path="/profile" element={<ProfilePage />} />
           </Route>
 

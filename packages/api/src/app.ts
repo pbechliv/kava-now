@@ -6,6 +6,7 @@ import { authMiddleware } from "./middleware/auth";
 import { authRoutes } from "./routes/auth";
 import { platformRoutes } from "./routes/platform";
 import { adminRoutes } from "./routes/admin/index";
+import { customerRoutes } from "./routes/customer/index";
 import type { AppEnv } from "./types";
 
 const app = new Hono<AppEnv>();
@@ -29,6 +30,7 @@ app.use("*", authMiddleware);
 app.route("/api/auth", authRoutes);
 app.route("/api/platform", platformRoutes);
 app.route("/api/admin", adminRoutes);
+app.route("/api/customer", customerRoutes);
 
 app.get("/api/health", (c) => {
   return c.json({
