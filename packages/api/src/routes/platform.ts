@@ -3,7 +3,14 @@ import { eq } from "drizzle-orm";
 import { randomBytes } from "node:crypto";
 import { registerSchema } from "@kava-now/shared";
 import { db } from "../db/connection";
-import { kavas, users, categories, magicLinkTokens } from "../db/schema/index";
+import {
+  kavas,
+  users,
+  categories,
+  magicLinkTokens,
+  products,
+  seedProducts,
+} from "../db/schema/index";
 import { DEFAULT_CATEGORIES } from "../db/seed-categories";
 import { sendMagicLink } from "../services/email";
 import { config } from "../config";
@@ -63,13 +70,42 @@ platform.post("/register", async (c) => {
   }
 
   // Seed default categories
-  await db.insert(categories).values(
-    DEFAULT_CATEGORIES.map((catName, index) => ({
-      kavaId: kava.id,
-      name: catName,
-      sortOrder: index,
-    })),
+  const insertedCategories = await db
+    .insert(categories)
+    .values(
+      DEFAULT_CATEGORIES.map((catName, index) => ({
+        kavaId: kava.id,
+        name: catName,
+        sortOrder: index,
+      })),
+    )
+    .returning({ id: categories.id, name: categories.name });
+
+  // Build category name → id map
+  const categoryMap = new Map(
+    insertedCategories.map((c) => [c.name, c.id]),
   );
+
+  // Import all seed products into the kava with default prices
+  const allSeedProducts = await db.select().from(seedProducts);
+
+  if (allSeedProducts.length > 0) {
+    await db.insert(products).values(
+      allSeedProducts.map((sp) => ({
+        kavaId: kava.id,
+        name: sp.name,
+        brand: sp.brand,
+        categoryId: categoryMap.get(sp.categoryName) ?? null,
+        description: sp.description,
+        imageUrl: sp.imageUrl,
+        basePrice: "0.00",
+        unit: sp.unit,
+        volumeMl: sp.volumeMl,
+        alcoholPct: sp.alcoholPct,
+        active: true,
+      })),
+    );
+  }
 
   // Create magic link token for email verification
   const token = randomBytes(32).toString("hex");
