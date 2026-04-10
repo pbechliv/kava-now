@@ -1,0 +1,54 @@
+# =============================================================================
+# KavaNow — Production Caddyfile
+# Caddy auto-provisions TLS certificates (ACME).
+# Wildcard *.kavanow.gr requires a DNS challenge provider — configure via
+# environment variables (see Caddy docs for your DNS provider plugin).
+# =============================================================================
+
+kavanow.gr {
+	# API reverse proxy
+	handle /api/* {
+		reverse_proxy api:3000
+	}
+
+	# SPA — serve static files with index.html fallback
+	handle {
+		root * /srv/web
+		try_files {path} /index.html
+		file_server
+	}
+
+	encode gzip zstd
+
+	header {
+		X-Content-Type-Options nosniff
+		X-Frame-Options DENY
+		Referrer-Policy strict-origin-when-cross-origin
+	}
+}
+
+*.kavanow.gr {
+	# API reverse proxy
+	handle /api/* {
+		reverse_proxy api:3000
+	}
+
+	# SPA — serve static files with index.html fallback
+	handle {
+		root * /srv/web
+		try_files {path} /index.html
+		file_server
+	}
+
+	encode gzip zstd
+
+	header {
+		X-Content-Type-Options nosniff
+		X-Frame-Options DENY
+		Referrer-Policy strict-origin-when-cross-origin
+	}
+
+	tls {
+		dns cloudflare {env.CLOUDFLARE_API_TOKEN}
+	}
+}

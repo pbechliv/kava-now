@@ -1,0 +1,13 @@
+node_modules
+dist
+.git
+.env
+.env.local
+.env.production
+*.log
+.DS_Store
+.vscode
+.idea
+.superpowers
+docs
+postgres-data

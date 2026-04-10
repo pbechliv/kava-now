@@ -1,0 +1,22 @@
+# =============================================================================
+# KavaNow — Local Development Caddyfile
+# No TLS. Uses lvh.me (resolves to 127.0.0.1) for wildcard subdomain testing.
+# Usage: docker compose -f docker-compose.yml up caddy
+#        Then visit http://lvh.me or http://my-kava.lvh.me
+# =============================================================================
+
+http://lvh.me, http://*.lvh.me {
+	# API reverse proxy
+	handle /api/* {
+		reverse_proxy api:3000
+	}
+
+	# SPA — serve static files with index.html fallback
+	handle {
+		root * /srv/web
+		try_files {path} /index.html
+		file_server
+	}
+
+	encode gzip zstd
+}
