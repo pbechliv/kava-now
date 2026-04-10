@@ -72,6 +72,12 @@ auth.get("/verify", async (c) => {
     return c.json({ error: "Δεν βρέθηκε κάβα" }, 400);
   }
 
+  // If already logged in, invalidate the existing session first
+  const existingSessionId = c.get("sessionId");
+  if (existingSessionId) {
+    await lucia.invalidateSession(existingSessionId);
+  }
+
   // Look up unused, unexpired token for this kava
   const [magicLink] = await db
     .select()

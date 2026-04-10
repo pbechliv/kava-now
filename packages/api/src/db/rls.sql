@@ -1,5 +1,6 @@
 -- Row-Level Security policies for multi-tenant isolation
 -- Every tenant-scoped table uses current_setting('app.current_kava_id') to filter rows
+-- This script is idempotent (safe to run multiple times)
 
 -- Enable RLS on all tenant-scoped tables
 ALTER TABLE users ENABLE ROW LEVEL SECURITY;
@@ -22,6 +23,17 @@ ALTER TABLE customer_products FORCE ROW LEVEL SECURITY;
 ALTER TABLE orders FORCE ROW LEVEL SECURITY;
 ALTER TABLE order_items FORCE ROW LEVEL SECURITY;
 ALTER TABLE magic_link_tokens FORCE ROW LEVEL SECURITY;
+
+-- Drop existing policies (idempotent)
+DROP POLICY IF EXISTS tenant_isolation_users ON users;
+DROP POLICY IF EXISTS tenant_isolation_categories ON categories;
+DROP POLICY IF EXISTS tenant_isolation_products ON products;
+DROP POLICY IF EXISTS tenant_isolation_pricing_tiers ON pricing_tiers;
+DROP POLICY IF EXISTS tenant_isolation_customers ON customers;
+DROP POLICY IF EXISTS tenant_isolation_customer_products ON customer_products;
+DROP POLICY IF EXISTS tenant_isolation_orders ON orders;
+DROP POLICY IF EXISTS tenant_isolation_order_items ON order_items;
+DROP POLICY IF EXISTS tenant_isolation_magic_link_tokens ON magic_link_tokens;
 
 -- Users: scoped by kava_id
 CREATE POLICY tenant_isolation_users ON users
