@@ -1,0 +1,22 @@
+import { pgTable, uuid, text, timestamp } from "drizzle-orm/pg-core";
+import { kavas } from "./kavas";
+import { pricingTiers } from "./pricing-tiers";
+
+export const customers = pgTable("customers", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  kavaId: uuid("kava_id")
+    .notNull()
+    .references(() => kavas.id, { onDelete: "cascade" }),
+  name: text("name").notNull(),
+  email: text("email"),
+  address: text("address"),
+  phone: text("phone"),
+  contactPerson: text("contact_person"),
+  pricingTierId: uuid("pricing_tier_id").references(() => pricingTiers.id, {
+    onDelete: "set null",
+  }),
+  notes: text("notes"),
+  createdAt: timestamp("created_at", { withTimezone: true })
+    .notNull()
+    .defaultNow(),
+});
