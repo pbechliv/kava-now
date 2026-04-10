@@ -1,0 +1,25 @@
+node_modules/
+dist/
+.env
+.env.local
+.env.production
+*.log
+
+# Database
+postgres-data/
+
+# Drizzle
+packages/api/drizzle/meta/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Superpowers
+.superpowers/

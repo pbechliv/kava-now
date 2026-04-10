@@ -1,0 +1,27 @@
+{
+  "name": "kava-now",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "pnpm --parallel --filter @kava-now/api --filter @kava-now/web dev",
+    "dev:api": "pnpm --filter @kava-now/api dev",
+    "dev:web": "pnpm --filter @kava-now/web dev",
+    "build": "pnpm --filter @kava-now/shared build && pnpm --parallel --filter @kava-now/api --filter @kava-now/web build",
+    "lint": "oxlint --config oxlint.json packages/",
+    "fmt": "oxfmt --write packages/",
+    "fmt:check": "oxfmt --check packages/",
+    "typecheck": "pnpm -r typecheck",
+    "db:migrate": "pnpm --filter @kava-now/api db:migrate",
+    "db:seed": "pnpm --filter @kava-now/api db:seed",
+    "db:generate": "pnpm --filter @kava-now/api db:generate",
+    "db:reset": "pnpm --filter @kava-now/api db:reset"
+  },
+  "devDependencies": {
+    "oxlint": "^0.16.0",
+    "typescript": "^5.7.0"
+  },
+  "engines": {
+    "node": ">=22"
+  },
+  "packageManager": "pnpm@9.15.0"
+}
