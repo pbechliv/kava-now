@@ -1,0 +1,8 @@
+- generic [ref=e4]:
+  - generic [ref=e5]:
+    - heading "KavaNow" [level=1] [ref=e6]
+    - paragraph [ref=e7]: Η πλατφόρμα παραγγελιών για κάβες
+  - generic [ref=e17]:
+    - img [ref=e19]
+    - heading "Ελέγξτε το email σας" [level=2] [ref=e21]
+    - paragraph [ref=e22]: Ελέγξτε το email σας για τον σύνδεσμο εισόδου

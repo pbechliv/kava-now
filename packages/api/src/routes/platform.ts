@@ -82,7 +82,7 @@ platform.post("/register", async (c) => {
     expiresAt,
   });
 
-  const link = `https://${slug}.${config.baseDomain}/auth/verify?token=${token}`;
+  const link = `${config.protocol}://${slug}.${config.baseDomain}/auth/verify?token=${token}`;
   await sendMagicLink(email, link, name);
 
   return c.json({ success: true, slug });

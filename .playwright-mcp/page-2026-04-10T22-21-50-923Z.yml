@@ -1,0 +1,114 @@
+- generic [ref=e2]:
+  - generic [ref=e68]:
+    - link "MailpitMailpit" [ref=e70] [cursor=pointer]:
+      - /url: /
+      - img "Mailpit" [ref=e71]
+      - text: Mailpit
+    - generic [ref=e72]:
+      - text: 
+      - button " Mark unread" [ref=e73] [cursor=pointer]:
+        - generic [ref=e74]: 
+        - generic [ref=e75]: Mark unread
+      - button " Delete" [ref=e76] [cursor=pointer]:
+        - generic [ref=e77]: 
+        - text: Delete
+    - generic [ref=e78]:
+      - button " Download" [ref=e80] [cursor=pointer]:
+        - generic [ref=e81]: 
+        - text: Download
+      - link "":
+        - /url: /view/false
+        - generic: 
+      - link "" [ref=e82] [cursor=pointer]:
+        - /url: /view/EUzwdJCKGkbJPosppfhofQ
+        - generic "View next message" [ref=e83]: 
+  - generic [ref=e84]:
+    - generic [ref=e85]:
+      - button " Return to inbox" [ref=e87] [cursor=pointer]:
+        - generic [ref=e88]: 
+        - generic [ref=e89]: Return to inbox
+      - generic [ref=e91]:
+        - 'link "noreply@kavanow.gr 9 minutes ago To: panos.bechlivanos@gmail.com Σύνδεση στο panos — KavaNow" [ref=e92] [cursor=pointer]':
+          - /url: /view/kU29jzMdLX2rWFpLKSRc3o
+          - strong [ref=e95]: noreply@kavanow.gr
+          - generic [ref=e96]: 9 minutes ago
+          - generic [ref=e98]: "To: panos.bechlivanos@gmail.com"
+          - generic [ref=e100]: Σύνδεση στο panos — KavaNow
+        - 'link "noreply@kavanow.gr 5 hours ago To: owner@test.gr Σύνδεση στο Κάβα Τεστ — KavaNow" [ref=e101] [cursor=pointer]':
+          - /url: /view/EUzwdJCKGkbJPosppfhofQ
+          - strong [ref=e104]: noreply@kavanow.gr
+          - generic [ref=e105]: 5 hours ago
+          - generic [ref=e107]: "To: owner@test.gr"
+          - generic [ref=e109]: Σύνδεση στο Κάβα Τεστ — KavaNow
+        - 'link "noreply@kavanow.gr 5 hours ago To: owner@test.gr Σύνδεση στο Κάβα Τεστ — KavaNow" [ref=e110] [cursor=pointer]':
+          - /url: /view/W78a6hDicGR3uFR69UfNTd
+          - strong [ref=e113]: noreply@kavanow.gr
+          - generic [ref=e114]: 5 hours ago
+          - generic [ref=e116]: "To: owner@test.gr"
+          - generic [ref=e118]: Σύνδεση στο Κάβα Τεστ — KavaNow
+      - generic [ref=e119]:
+        - button " About" [ref=e120] [cursor=pointer]:
+          - generic [ref=e121]: 
+          - text: About
+        - button "" [ref=e122] [cursor=pointer]:
+          - generic [ref=e123]: 
+        - button "" [ref=e124] [cursor=pointer]:
+          - generic [ref=e125]: 
+    - generic [ref=e128]:
+      - table [ref=e131]:
+        - rowgroup [ref=e132]:
+          - row "From <noreply@kavanow.gr>" [ref=e133]:
+            - rowheader "From" [ref=e134]
+            - cell "<noreply@kavanow.gr>" [ref=e135]:
+              - generic [ref=e137]:
+                - text: <
+                - link "noreply@kavanow.gr" [ref=e138] [cursor=pointer]:
+                  - /url: /search?q=noreply%40kavanow.gr
+                - text: ">"
+          - row "To <panos.bechlivanos@gmail.com>" [ref=e139]:
+            - rowheader "To" [ref=e140]
+            - cell "<panos.bechlivanos@gmail.com>" [ref=e141]:
+              - generic [ref=e143]:
+                - text: <
+                - link "panos.bechlivanos@gmail.com" [ref=e144] [cursor=pointer]:
+                  - /url: /search?q=panos.bechlivanos%40gmail.com
+                - text: ">"
+          - row "Subject Σύνδεση στο panos — KavaNow" [ref=e145]:
+            - rowheader "Subject" [ref=e146]
+            - cell "Σύνδεση στο panos — KavaNow" [ref=e147]:
+              - strong [ref=e148]: Σύνδεση στο panos — KavaNow
+          - row "Date Sat, 11 Apr 2026, 1:12 am (1.9 kB)" [ref=e149]:
+            - rowheader "Date" [ref=e150]
+            - cell "Sat, 11 Apr 2026, 1:12 am (1.9 kB)" [ref=e151]
+          - row "Tags" [ref=e152]:
+            - rowheader "Tags" [ref=e153]
+            - cell [ref=e154]:
+              - combobox "Type a value" [ref=e157]
+      - tablist [ref=e158]:
+        - tab "HTML" [selected] [ref=e160] [cursor=pointer]
+        - tab "HTML Source" [ref=e161] [cursor=pointer]
+        - tab "Text" [ref=e162] [cursor=pointer]
+        - tab "Headers" [ref=e163] [cursor=pointer]
+        - tab "Raw" [ref=e164] [cursor=pointer]
+        - tab "HTML Check 90%" [ref=e165] [cursor=pointer]:
+          - text: HTML Check
+          - generic [ref=e166]: 90%
+        - tab "Link Check" [ref=e167] [cursor=pointer]
+        - generic [ref=e168]:
+          - button "" [ref=e169] [cursor=pointer]:
+            - generic [ref=e170]: 
+          - button "" [ref=e171] [cursor=pointer]:
+            - generic [ref=e172]: 
+          - button "" [disabled]:
+            - generic: 
+      - generic [ref=e173]:
+        - tabpanel "HTML" [ref=e174]:
+          - iframe [ref=e176]:
+            - generic [ref=f1e2]:
+              - heading "Σύνδεση στο panos" [level=2] [ref=f1e3]
+              - paragraph [ref=f1e4]: "Πατήστε τον παρακάτω σύνδεσμο για να συνδεθείτε:"
+              - paragraph [ref=f1e5]:
+                - link "Σύνδεση" [ref=f1e6] [cursor=pointer]:
+                  - /url: https://panos.lvh.me:5173/auth/verify?token=64ef178330ceceb7b4dd1e920fa5ce14f7602c183c1f1887b229c99ae793d734
+              - paragraph [ref=f1e7]: Ο σύνδεσμος λήγει σε 15 λεπτά. Αν δεν ζητήσατε σύνδεση, αγνοήστε αυτό το email.
+        - text:                                                                                                                                                                                                                                                                                                                                                                                                        

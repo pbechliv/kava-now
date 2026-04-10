@@ -1,0 +1,75 @@
+- generic [ref=e2]:
+  - generic [ref=e3]:
+    - link "MailpitMailpit" [ref=e5] [cursor=pointer]:
+      - /url: /
+      - img "Mailpit" [ref=e6]
+      - text: Mailpit
+    - generic [ref=e9]:
+      - textbox "Search" [ref=e11]:
+        - /placeholder: Search mailbox
+      - button "" [ref=e12] [cursor=pointer]:
+        - generic [ref=e13]: 
+    - generic [ref=e14]:
+      - text: 
+      - combobox "The number of messages displayed per page" [ref=e15]:
+        - option "25"
+        - option "50" [selected]
+        - option "100"
+        - option "200"
+      - generic [ref=e16]: 1-3 of 3
+      - button "" [disabled]:
+        - generic: 
+      - button "" [disabled]:
+        - generic: 
+  - text:      
+  - generic [ref=e17]:
+    - generic [ref=e18]:
+      - generic [ref=e20]:
+        - button " Inbox" [ref=e21] [cursor=pointer]:
+          - generic [ref=e22]: 
+          - text: Inbox
+        - button " Mark all read" [disabled]:
+          - generic: 
+          - text: Mark all read
+        - button " Delete all" [ref=e23] [cursor=pointer]:
+          - generic [ref=e24]: 
+          - text: Delete all
+      - generic [ref=e25]:
+        - button " About" [ref=e26] [cursor=pointer]:
+          - generic [ref=e27]: 
+          - text: About
+        - button "" [ref=e28] [cursor=pointer]:
+          - generic [ref=e29]: 
+        - button "" [ref=e30] [cursor=pointer]:
+          - generic [ref=e31]: 
+    - generic [ref=e34]:
+      - 'link "noreply@kavanow.gr To: panos.bechlivanos@gmail.com Σύνδεση στο panos — KavaNow Σύνδεση στο panos Πατήστε τον παρακάτω σύνδεσμο για να συνδεθείτε: Σύνδεση Ο σύνδεσμος λήγει σε 15 λεπτά. Αν δεν ... 1.9 kB 9 minutes ago" [ref=e35] [cursor=pointer]':
+        - /url: /view/kU29jzMdLX2rWFpLKSRc3o
+        - generic [ref=e36]:
+          - generic [ref=e38]: noreply@kavanow.gr
+          - generic [ref=e40]: "To: panos.bechlivanos@gmail.com"
+        - generic [ref=e41]:
+          - generic [ref=e42]: Σύνδεση στο panos — KavaNow
+          - generic [ref=e43]: "Σύνδεση στο panos Πατήστε τον παρακάτω σύνδεσμο για να συνδεθείτε: Σύνδεση Ο σύνδεσμος λήγει σε 15 λεπτά. Αν δεν ..."
+        - generic [ref=e44]: 1.9 kB
+        - generic [ref=e45]: 9 minutes ago
+      - 'link "noreply@kavanow.gr To: owner@test.gr Σύνδεση στο Κάβα Τεστ — KavaNow Σύνδεση στο Κάβα Τεστ Πατήστε τον παρακάτω σύνδεσμο για να συνδεθείτε: Σύνδεση Ο σύνδεσμος λήγει σε 15 λεπτά. ... 1.9 kB 5 hours ago" [ref=e46] [cursor=pointer]':
+        - /url: /view/EUzwdJCKGkbJPosppfhofQ
+        - generic [ref=e47]:
+          - generic [ref=e49]: noreply@kavanow.gr
+          - generic [ref=e51]: "To: owner@test.gr"
+        - generic [ref=e52]:
+          - generic [ref=e53]: Σύνδεση στο Κάβα Τεστ — KavaNow
+          - generic [ref=e54]: "Σύνδεση στο Κάβα Τεστ Πατήστε τον παρακάτω σύνδεσμο για να συνδεθείτε: Σύνδεση Ο σύνδεσμος λήγει σε 15 λεπτά. ..."
+        - generic [ref=e55]: 1.9 kB
+        - generic [ref=e56]: 5 hours ago
+      - 'link "noreply@kavanow.gr To: owner@test.gr Σύνδεση στο Κάβα Τεστ — KavaNow Σύνδεση στο Κάβα Τεστ Πατήστε τον παρακάτω σύνδεσμο για να συνδεθείτε: Σύνδεση Ο σύνδεσμος λήγει σε 15 λεπτά. ... 1.9 kB 5 hours ago" [ref=e57] [cursor=pointer]':
+        - /url: /view/W78a6hDicGR3uFR69UfNTd
+        - generic [ref=e58]:
+          - generic [ref=e60]: noreply@kavanow.gr
+          - generic [ref=e62]: "To: owner@test.gr"
+        - generic [ref=e63]:
+          - generic [ref=e64]: Σύνδεση στο Κάβα Τεστ — KavaNow
+          - generic [ref=e65]: "Σύνδεση στο Κάβα Τεστ Πατήστε τον παρακάτω σύνδεσμο για να συνδεθείτε: Σύνδεση Ο σύνδεσμος λήγει σε 15 λεπτά. ..."
+        - generic [ref=e66]: 1.9 kB
+        - generic [ref=e67]: 5 hours ago

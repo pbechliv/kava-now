@@ -1,0 +1,15 @@
+- generic [ref=e4]:
+  - generic [ref=e5]:
+    - heading "KavaNow" [level=1] [ref=e6]
+    - paragraph [ref=e7]: Η πλατφόρμα παραγγελιών για κάβες
+  - generic [ref=e9]:
+    - heading "Σύνδεση" [level=2] [ref=e10]
+    - generic [ref=e11]:
+      - generic [ref=e12]: Email
+      - textbox "Email" [ref=e13]:
+        - /placeholder: you@example.com
+    - button "Αποστολή συνδέσμου" [ref=e14]
+    - paragraph [ref=e15]:
+      - text: Δεν έχετε λογαριασμό;
+      - link "Εγγραφή" [ref=e16] [cursor=pointer]:
+        - /url: /register

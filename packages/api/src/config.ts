@@ -16,4 +16,7 @@ export const config = {
     from: process.env.SMTP_FROM || "noreply@kavanow.gr",
   },
   isDev: process.env.NODE_ENV !== "production",
+  get protocol() {
+    return this.isDev ? "http" : "https";
+  },
 } as const;

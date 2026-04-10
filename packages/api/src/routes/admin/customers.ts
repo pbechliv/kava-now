@@ -93,7 +93,7 @@ customersRouter.post("/", async (c) => {
         expiresAt,
       });
 
-      const link = `https://${kava.slug}.${config.baseDomain}/auth/verify?token=${token}`;
+      const link = `${config.protocol}://${kava.slug}.${config.baseDomain}/auth/verify?token=${token}`;
       await sendMagicLink(parsed.data.email, link, kava.name);
     } catch (err) {
       // Log but don't fail the customer creation

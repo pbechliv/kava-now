@@ -52,7 +52,7 @@ auth.post("/login", async (c) => {
     expiresAt,
   });
 
-  const link = `https://${kava.slug}.${config.baseDomain}/auth/verify?token=${token}`;
+  const link = `${config.protocol}://${kava.slug}.${config.baseDomain}/auth/verify?token=${token}`;
   await sendMagicLink(email, link, kava.name);
 
   return c.json({ success: true });
@@ -145,9 +145,9 @@ auth.get("/verify", async (c) => {
   // Determine redirect based on role
   let redirect = "/";
   if (user.role === "owner" || user.role === "staff") {
-    redirect = "/dashboard";
+    redirect = "/admin/dashboard";
   } else if (user.role === "customer") {
-    redirect = "/orders";
+    redirect = "/catalog";
   }
 
   return c.json({ success: true, redirect, user: { id: user.id, email: user.email, name: user.name, role: user.role } });
