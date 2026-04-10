@@ -23,3 +23,6 @@ Thumbs.db
 
 # Superpowers
 .superpowers/
+
+# Playwright MCP
+.playwright-mcp/
