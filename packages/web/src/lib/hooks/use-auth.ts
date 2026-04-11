@@ -1,12 +1,12 @@
 import { useQuery } from "@tanstack/react-query";
 import { api } from "../api";
-import type { Kava } from "@kava-now/shared";
+import type { Kava, UserRole } from "@kava-now/shared";
 
 interface AuthUser {
   id: string;
   email: string;
   name: string;
-  role: string;
+  role: UserRole;
   hasPassword: boolean;
 }
 
