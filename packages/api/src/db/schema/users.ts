@@ -16,9 +16,9 @@ export const users = pgTable(
     email: text("email").notNull(),
     name: text("name").notNull(),
     role: userRoleEnum("role").notNull(),
-    kavaId: uuid("kava_id")
-      .notNull()
-      .references(() => kavas.id, { onDelete: "cascade" }),
+    kavaId: uuid("kava_id").references(() => kavas.id, {
+      onDelete: "cascade",
+    }),
     customerId: uuid("customer_id").references(() => customers.id, {
       onDelete: "set null",
     }),

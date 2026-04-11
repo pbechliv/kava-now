@@ -5,9 +5,9 @@ export const magicLinkTokens = pgTable("magic_link_tokens", {
   id: uuid("id").primaryKey().defaultRandom(),
   email: text("email").notNull(),
   token: text("token").notNull().unique(),
-  kavaId: uuid("kava_id")
-    .notNull()
-    .references(() => kavas.id, { onDelete: "cascade" }),
+  kavaId: uuid("kava_id").references(() => kavas.id, {
+    onDelete: "cascade",
+  }),
   expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
   used: boolean("used").notNull().default(false),
   purpose: text("purpose").notNull().default("login"),
