@@ -165,3 +165,30 @@ export async function sendOrderStatusChange(
     html,
   });
 }
+
+export async function sendPasswordReset(
+  email: string,
+  link: string,
+  kavaName: string,
+): Promise<void> {
+  await transporter.sendMail({
+    from: config.smtp.from,
+    to: email,
+    subject: `Επαναφορά κωδικού — ${kavaName}`,
+    html: `
+      <div style="font-family: sans-serif; max-width: 480px; margin: 0 auto;">
+        <h2>Επαναφορά κωδικού</h2>
+        <p>Πατήστε τον παρακάτω σύνδεσμο για να ορίσετε νέο κωδικό:</p>
+        <p>
+          <a href="${link}"
+             style="display: inline-block; padding: 12px 24px; background: #2563eb; color: #fff; text-decoration: none; border-radius: 6px;">
+            Επαναφορά κωδικού
+          </a>
+        </p>
+        <p style="color: #666; font-size: 14px;">
+          Ο σύνδεσμος λήγει σε 15 λεπτά. Αν δεν ζητήσατε επαναφορά κωδικού, αγνοήστε αυτό το email.
+        </p>
+      </div>
+    `,
+  });
+}
