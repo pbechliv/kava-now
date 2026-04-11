@@ -1,6 +1,6 @@
 // TypeScript interfaces matching DB schema (camelCase)
 
-export type UserRole = "owner" | "staff" | "customer";
+export type UserRole = "owner" | "staff" | "customer" | "superadmin";
 export type OrderStatus = "pending" | "confirmed" | "shipped" | "delivered" | "cancelled";
 export type ProductUnit = "bottle" | "case" | "keg";
 

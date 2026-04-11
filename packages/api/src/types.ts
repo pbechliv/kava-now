@@ -9,6 +9,7 @@ export type AppEnv = {
     kava: Kava | null;
     kavaId: string | null;
     isPlatform: boolean;
+    isSuperAdmin: boolean;
     user: User | null;
     sessionId: string | null;
   };

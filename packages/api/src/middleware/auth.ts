@@ -35,7 +35,7 @@ export const authMiddleware = createMiddleware<AppEnv>(async (c, next) => {
     id: user.id,
     email: user.email,
     name: user.name,
-    role: user.role as "owner" | "staff" | "customer",
+    role: user.role as "owner" | "staff" | "customer" | "superadmin",
     kavaId: user.kavaId,
     customerId: user.customerId,
     passwordHash: null,

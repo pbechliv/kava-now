@@ -33,9 +33,9 @@ declare module "lucia" {
     DatabaseUserAttributes: {
       email: string;
       name: string;
-      role: "owner" | "staff" | "customer";
-      kava_id: string;
-      kavaId: string;
+      role: "owner" | "staff" | "customer" | "superadmin";
+      kava_id: string | null;
+      kavaId: string | null;
       customer_id: string | null;
       customerId: string | null;
     };
