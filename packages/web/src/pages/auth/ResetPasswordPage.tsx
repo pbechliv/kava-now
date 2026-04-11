@@ -96,9 +96,15 @@ export function ResetPasswordPage() {
       />
 
       {mutation.error && (
-        <p className="text-sm text-red-600">
-          {mutation.error instanceof Error ? mutation.error.message : "Κάτι πήγε στραβά"}
-        </p>
+        <div className="text-sm text-red-600">
+          <p>{mutation.error instanceof Error ? mutation.error.message : "Κάτι πήγε στραβά"}</p>
+          <Link
+            to="/auth/forgot-password"
+            className="mt-2 inline-block text-amber-600 hover:text-amber-700 font-medium"
+          >
+            Ζητήστε νέο σύνδεσμο επαναφοράς
+          </Link>
+        </div>
       )}
 
       <Button type="submit" className="w-full" loading={mutation.isPending}>

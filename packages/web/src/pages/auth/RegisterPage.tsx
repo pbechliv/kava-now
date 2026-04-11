@@ -21,7 +21,7 @@ export function RegisterPage() {
 
   const mutation = useMutation({
     mutationFn: (data: RegisterInput) =>
-      api.post("/api/platform/register", data),
+      api.post<{ success: boolean; slug: string; hasPassword?: boolean }>("/api/platform/register", data),
   });
 
   const onSubmit = (data: RegisterInput) => {
@@ -29,6 +29,7 @@ export function RegisterPage() {
   };
 
   if (mutation.isSuccess) {
+    const hasPassword = mutation.data?.hasPassword;
     return (
       <div className="text-center">
         <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-green-100">
@@ -38,7 +39,9 @@ export function RegisterPage() {
         </div>
         <h2 className="text-lg font-semibold text-gray-900">Επιτυχής εγγραφή!</h2>
         <p className="mt-2 text-sm text-gray-600">
-          Ελέγξτε το email σας για τον σύνδεσμο εισόδου
+          {hasPassword
+            ? "Μπορείτε τώρα να συνδεθείτε με τον κωδικό σας."
+            : "Ελέγξτε το email σας για τον σύνδεσμο εισόδου"}
         </p>
       </div>
     );
@@ -97,6 +100,10 @@ export function RegisterPage() {
         error={errors.confirmPassword?.message}
         {...reg("confirmPassword")}
       />
+
+      <p className="text-xs text-gray-400">
+        Αν δεν ορίσετε κωδικό, μπορείτε να συνδεθείτε μέσω magic link στο email σας.
+      </p>
 
       {mutation.error && (
         <p className="text-sm text-red-600">
