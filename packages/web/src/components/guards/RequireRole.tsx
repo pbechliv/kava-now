@@ -19,6 +19,9 @@ export function RequireRole({ allowed, children }: RequireRoleProps) {
     if (user.role === "customer") {
       return <Navigate to="/catalog" replace />;
     }
+    if (user.role === "superadmin") {
+      return <Navigate to="/superadmin/kavas" replace />;
+    }
     return <Navigate to="/admin/dashboard" replace />;
   }
 

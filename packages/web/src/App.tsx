@@ -1,11 +1,13 @@
 import { QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router";
 import { queryClient } from "./lib/query-client";
+import { isSuperAdminDomain } from "./lib/is-superadmin";
 
 // Layouts
 import { AuthLayout } from "./components/layouts/AuthLayout";
 import { AdminLayout } from "./components/layouts/AdminLayout";
 import { CustomerLayout } from "./components/layouts/CustomerLayout";
+import { SuperAdminLayout } from "./components/layouts/SuperAdminLayout";
 
 // Guards
 import { RequireAuth } from "./components/guards/RequireAuth";
@@ -37,71 +39,105 @@ import { OrderHistoryPage } from "./pages/customer/OrderHistoryPage";
 import { OrderDetailPage as CustomerOrderDetailPage } from "./pages/customer/OrderDetailPage";
 import { ProfilePage } from "./pages/customer/ProfilePage";
 
+// Superadmin pages
+import { KavasPage } from "./pages/superadmin/KavasPage";
+
 // Other
 import { HomePage } from "./pages/HomePage";
 import { NotFoundPage } from "./pages/NotFoundPage";
 
+function SuperAdminApp() {
+  return (
+    <Routes>
+      <Route element={<AuthLayout />}>
+        <Route path="/login" element={<LoginPage />} />
+        <Route path="/auth/verify" element={<VerifyPage />} />
+        <Route path="/auth/forgot-password" element={<ForgotPasswordPage />} />
+        <Route path="/auth/reset-password" element={<ResetPasswordPage />} />
+      </Route>
+
+      <Route
+        path="/superadmin"
+        element={
+          <RequireAuth>
+            <RequireRole allowed={["superadmin"]}>
+              <SuperAdminLayout />
+            </RequireRole>
+          </RequireAuth>
+        }
+      >
+        <Route path="kavas" element={<KavasPage />} />
+      </Route>
+
+      <Route path="/" element={<HomePage />} />
+      <Route path="*" element={<NotFoundPage />} />
+    </Routes>
+  );
+}
+
+function TenantApp() {
+  return (
+    <Routes>
+      <Route element={<AuthLayout />}>
+        <Route path="/login" element={<LoginPage />} />
+        <Route path="/auth/verify" element={<VerifyPage />} />
+        <Route path="/register" element={<RegisterPage />} />
+        <Route path="/auth/forgot-password" element={<ForgotPasswordPage />} />
+        <Route path="/auth/reset-password" element={<ResetPasswordPage />} />
+      </Route>
+
+      <Route
+        path="/admin"
+        element={
+          <RequireAuth>
+            <RequireRole allowed={["owner", "staff"]}>
+              <AdminLayout />
+            </RequireRole>
+          </RequireAuth>
+        }
+      >
+        <Route path="dashboard" element={<DashboardPage />} />
+        <Route path="products" element={<ProductsPage />} />
+        <Route path="products/new" element={<ProductFormPage />} />
+        <Route path="products/:id" element={<ProductFormPage />} />
+        <Route path="categories" element={<CategoriesPage />} />
+        <Route path="customers" element={<CustomersPage />} />
+        <Route path="customers/:id/products" element={<CustomerProductsPage />} />
+        <Route path="pricing" element={<PricingPage />} />
+        <Route path="orders" element={<OrdersPage />} />
+        <Route path="orders/:id" element={<OrderDetailPage />} />
+        <Route path="settings" element={<SettingsPage />} />
+      </Route>
+
+      <Route
+        element={
+          <RequireAuth>
+            <RequireRole allowed={["customer"]}>
+              <CustomerLayout />
+            </RequireRole>
+          </RequireAuth>
+        }
+      >
+        <Route path="/catalog" element={<CatalogPage />} />
+        <Route path="/cart" element={<CartPage />} />
+        <Route path="/orders" element={<OrderHistoryPage />} />
+        <Route path="/orders/:id" element={<CustomerOrderDetailPage />} />
+        <Route path="/profile" element={<ProfilePage />} />
+      </Route>
+
+      <Route path="/" element={<HomePage />} />
+      <Route path="*" element={<NotFoundPage />} />
+    </Routes>
+  );
+}
+
 export function App() {
+  const isSuperAdmin = isSuperAdminDomain();
+
   return (
     <QueryClientProvider client={queryClient}>
       <BrowserRouter>
-        <Routes>
-          {/* Auth routes */}
-          <Route element={<AuthLayout />}>
-            <Route path="/login" element={<LoginPage />} />
-            <Route path="/auth/verify" element={<VerifyPage />} />
-            <Route path="/register" element={<RegisterPage />} />
-            <Route path="/auth/forgot-password" element={<ForgotPasswordPage />} />
-            <Route path="/auth/reset-password" element={<ResetPasswordPage />} />
-          </Route>
-
-          {/* Admin routes */}
-          <Route
-            path="/admin"
-            element={
-              <RequireAuth>
-                <RequireRole allowed={["owner", "staff"]}>
-                  <AdminLayout />
-                </RequireRole>
-              </RequireAuth>
-            }
-          >
-            <Route path="dashboard" element={<DashboardPage />} />
-            <Route path="products" element={<ProductsPage />} />
-            <Route path="products/new" element={<ProductFormPage />} />
-            <Route path="products/:id" element={<ProductFormPage />} />
-            <Route path="categories" element={<CategoriesPage />} />
-            <Route path="customers" element={<CustomersPage />} />
-            <Route path="customers/:id/products" element={<CustomerProductsPage />} />
-            <Route path="pricing" element={<PricingPage />} />
-            <Route path="orders" element={<OrdersPage />} />
-            <Route path="orders/:id" element={<OrderDetailPage />} />
-            <Route path="settings" element={<SettingsPage />} />
-          </Route>
-
-          {/* Customer routes */}
-          <Route
-            element={
-              <RequireAuth>
-                <RequireRole allowed={["customer"]}>
-                  <CustomerLayout />
-                </RequireRole>
-              </RequireAuth>
-            }
-          >
-            <Route path="/catalog" element={<CatalogPage />} />
-            <Route path="/cart" element={<CartPage />} />
-            <Route path="/orders" element={<OrderHistoryPage />} />
-            <Route path="/orders/:id" element={<CustomerOrderDetailPage />} />
-            <Route path="/profile" element={<ProfilePage />} />
-          </Route>
-
-          {/* Root redirect */}
-          <Route path="/" element={<HomePage />} />
-
-          {/* 404 */}
-          <Route path="*" element={<NotFoundPage />} />
-        </Routes>
+        {isSuperAdmin ? <SuperAdminApp /> : <TenantApp />}
       </BrowserRouter>
     </QueryClientProvider>
   );

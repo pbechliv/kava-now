@@ -12,6 +12,7 @@ export const ROLE_LABELS: Record<UserRole, string> = {
   owner: "Ιδιοκτήτης",
   staff: "Προσωπικό",
   customer: "Πελάτης",
+  superadmin: "Διαχειριστής",
 };
 
 export const UNIT_LABELS: Record<ProductUnit, string> = {
