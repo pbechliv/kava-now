@@ -4,6 +4,9 @@ import { Input } from "../../components/ui/Input";
 import { Button } from "../../components/ui/Button";
 import { Spinner } from "../../components/ui/Spinner";
 import { useSettings, useUpdateSettings } from "../../lib/hooks/use-settings";
+import { useAuth } from "../../lib/hooks/use-auth";
+import { useMutation } from "@tanstack/react-query";
+import { api } from "../../lib/api";
 
 export function SettingsPage() {
   const { data: settings, isLoading } = useSettings();
@@ -17,6 +20,52 @@ export function SettingsPage() {
   const [notificationEmails, setNotificationEmails] = useState<string[]>([]);
   const [newEmail, setNewEmail] = useState("");
   const [emailError, setEmailError] = useState("");
+
+  const { user } = useAuth();
+  const [currentPassword, setCurrentPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmNewPassword, setConfirmNewPassword] = useState("");
+  const [passwordError, setPasswordError] = useState("");
+
+  const changePassword = useMutation({
+    mutationFn: (data: {
+      currentPassword?: string;
+      newPassword: string;
+      confirmNewPassword: string;
+    }) => api.post("/api/auth/change-password", data),
+    onSuccess: () => {
+      setCurrentPassword("");
+      setNewPassword("");
+      setConfirmNewPassword("");
+      setPasswordError("");
+    },
+    onError: (err) => {
+      setPasswordError(
+        err instanceof Error ? err.message : "Κάτι πήγε στραβά",
+      );
+    },
+  });
+
+  const handleChangePassword = (e: React.FormEvent) => {
+    e.preventDefault();
+    setPasswordError("");
+
+    if (newPassword.length < 8) {
+      setPasswordError("Ο κωδικός πρέπει να έχει τουλάχιστον 8 χαρακτήρες");
+      return;
+    }
+
+    if (newPassword !== confirmNewPassword) {
+      setPasswordError("Οι κωδικοί δεν ταιριάζουν");
+      return;
+    }
+
+    changePassword.mutate({
+      ...(user?.hasPassword ? { currentPassword } : {}),
+      newPassword,
+      confirmNewPassword,
+    });
+  };
 
   useEffect(() => {
     if (settings) {
@@ -187,6 +236,55 @@ export function SettingsPage() {
         <div className="flex justify-end">
           <Button type="submit" loading={updateSettings.isPending}>
             Αποθήκευση
+          </Button>
+        </div>
+      </form>
+
+      <form onSubmit={handleChangePassword} className="mt-6 max-w-2xl space-y-6">
+        <Card>
+          <h2 className="text-lg font-semibold text-gray-900 mb-4">
+            {user?.hasPassword ? "Αλλαγή κωδικού" : "Ορισμός κωδικού"}
+          </h2>
+          <div className="space-y-4">
+            {user?.hasPassword && (
+              <Input
+                id="currentPassword"
+                type="password"
+                label="Τρέχων κωδικός"
+                value={currentPassword}
+                onChange={(e) => setCurrentPassword(e.target.value)}
+              />
+            )}
+            <Input
+              id="newPassword"
+              type="password"
+              label="Νέος κωδικός"
+              placeholder="Τουλάχιστον 8 χαρακτήρες"
+              value={newPassword}
+              onChange={(e) => setNewPassword(e.target.value)}
+            />
+            <Input
+              id="confirmNewPassword"
+              type="password"
+              label="Επιβεβαίωση νέου κωδικού"
+              value={confirmNewPassword}
+              onChange={(e) => setConfirmNewPassword(e.target.value)}
+            />
+
+            {passwordError && (
+              <p className="text-sm text-red-600">{passwordError}</p>
+            )}
+
+            {changePassword.isSuccess && (
+              <p className="text-sm text-green-600">
+                Ο κωδικός άλλαξε επιτυχώς
+              </p>
+            )}
+          </div>
+        </Card>
+        <div className="flex justify-end">
+          <Button type="submit" loading={changePassword.isPending}>
+            {user?.hasPassword ? "Αλλαγή κωδικού" : "Ορισμός κωδικού"}
           </Button>
         </div>
       </form>

@@ -1,9 +1,17 @@
 import { useQuery } from "@tanstack/react-query";
 import { api } from "../api";
-import type { User, Kava } from "@kava-now/shared";
+import type { Kava } from "@kava-now/shared";
+
+interface AuthUser {
+  id: string;
+  email: string;
+  name: string;
+  role: string;
+  hasPassword: boolean;
+}
 
 interface AuthMeResponse {
-  user: User;
+  user: AuthUser;
   kava: Kava;
 }
 
