@@ -22,6 +22,7 @@ export const users = pgTable(
     customerId: uuid("customer_id").references(() => customers.id, {
       onDelete: "set null",
     }),
+    passwordHash: text("password_hash"),
     createdAt: timestamp("created_at", { withTimezone: true })
       .notNull()
       .defaultNow(),
