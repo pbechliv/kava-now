@@ -24,6 +24,7 @@ export interface User {
   role: UserRole;
   kavaId: string;
   customerId: string | null;
+  hasPassword: boolean;
   createdAt: string;
 }
 
