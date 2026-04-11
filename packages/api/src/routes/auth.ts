@@ -1,5 +1,5 @@
 import { Hono } from "hono";
-import { eq, and, gt } from "drizzle-orm";
+import { eq, and, gt, isNull } from "drizzle-orm";
 import { randomBytes } from "node:crypto";
 import {
   loginSchema,
@@ -27,22 +27,78 @@ auth.post("/login", async (c) => {
     return c.json({ error: parsed.error.flatten().fieldErrors }, 400);
   }
 
+  const { email, password } = parsed.data;
+  const isSuperAdmin = c.get("isSuperAdmin");
+
+  // Superadmin login (admin subdomain)
+  if (isSuperAdmin) {
+    const [user] = await db
+      .select()
+      .from(users)
+      .where(
+        and(
+          eq(users.email, email),
+          eq(users.role, "superadmin"),
+          isNull(users.kavaId),
+        ),
+      )
+      .limit(1);
+
+    if (password) {
+      if (!user || !user.passwordHash) {
+        return c.json({ error: "Λάθος email ή κωδικός" }, 401);
+      }
+
+      const valid = await verifyPassword(password, user.passwordHash);
+      if (!valid) {
+        return c.json({ error: "Λάθος email ή κωδικός" }, 401);
+      }
+
+      const session = await lucia.createSession(user.id, {});
+      const cookie = lucia.createSessionCookie(session.id);
+      c.header("Set-Cookie", cookie.serialize(), { append: true });
+
+      return c.json({
+        success: true,
+        redirect: "/superadmin/kavas",
+        user: { id: user.id, email: user.email, name: user.name, role: user.role },
+      });
+    }
+
+    // Magic link for superadmin
+    if (!user) {
+      return c.json({ success: true });
+    }
+
+    const token = randomBytes(32).toString("hex");
+    const expiresAt = new Date(Date.now() + 15 * 60 * 1000);
+
+    await db.insert(magicLinkTokens).values({
+      email,
+      token,
+      expiresAt,
+      purpose: "login",
+    });
+
+    const link = `${config.protocol}://admin.${config.baseDomain}/auth/verify?token=${token}`;
+    await sendMagicLink(email, link, "KavaNow");
+
+    return c.json({ success: true });
+  }
+
+  // Tenant login (existing logic)
   const kava = c.get("kava");
 
   if (!kava) {
     return c.json({ error: "Δεν βρέθηκε κάβα" }, 400);
   }
 
-  const { email, password } = parsed.data;
-
-  // Look up user by email + kava_id
   const [user] = await db
     .select()
     .from(users)
     .where(and(eq(users.email, email), eq(users.kavaId, kava.id)))
     .limit(1);
 
-  // Password login
   if (password) {
     if (!user || !user.passwordHash) {
       return c.json({ error: "Λάθος email ή κωδικός" }, 401);
@@ -71,7 +127,6 @@ auth.post("/login", async (c) => {
     });
   }
 
-  // Magic link flow (no password provided)
   if (!user) {
     return c.json({ success: true });
   }
@@ -101,53 +156,83 @@ auth.get("/verify", async (c) => {
     return c.json({ error: "Λείπει το token" }, 400);
   }
 
+  const isSuperAdmin = c.get("isSuperAdmin");
   const kava = c.get("kava");
 
-  if (!kava) {
+  if (!kava && !isSuperAdmin) {
     return c.json({ error: "Δεν βρέθηκε κάβα" }, 400);
   }
 
-  // If already logged in, invalidate the existing session first
   const existingSessionId = c.get("sessionId");
   if (existingSessionId) {
     await lucia.invalidateSession(existingSessionId);
   }
 
-  // Look up unused, unexpired token for this kava
+  const conditions = [
+    eq(magicLinkTokens.token, token),
+    eq(magicLinkTokens.used, false),
+    gt(magicLinkTokens.expiresAt, new Date()),
+    eq(magicLinkTokens.purpose, "login"),
+  ];
+  if (kava) {
+    conditions.push(eq(magicLinkTokens.kavaId, kava.id));
+  } else {
+    conditions.push(isNull(magicLinkTokens.kavaId));
+  }
+
   const [magicLink] = await db
     .select()
     .from(magicLinkTokens)
-    .where(
-      and(
-        eq(magicLinkTokens.token, token),
-        eq(magicLinkTokens.kavaId, kava.id),
-        eq(magicLinkTokens.used, false),
-        gt(magicLinkTokens.expiresAt, new Date()),
-        eq(magicLinkTokens.purpose, "login"),
-      ),
-    )
+    .where(and(...conditions))
     .limit(1);
 
   if (!magicLink) {
     return c.json({ error: "Μη έγκυρο ή ληγμένο token" }, 400);
   }
 
-  // Mark token as used
   await db
     .update(magicLinkTokens)
     .set({ used: true })
     .where(eq(magicLinkTokens.id, magicLink.id));
 
-  // Check if user already exists
+  // For superadmin, look up by email + superadmin role
+  if (isSuperAdmin) {
+    const [user] = await db
+      .select()
+      .from(users)
+      .where(
+        and(
+          eq(users.email, magicLink.email),
+          eq(users.role, "superadmin"),
+          isNull(users.kavaId),
+        ),
+      )
+      .limit(1);
+
+    if (!user) {
+      return c.json({ error: "Δεν βρέθηκε χρήστης" }, 400);
+    }
+
+    const session = await lucia.createSession(user.id, {});
+    const cookie = lucia.createSessionCookie(session.id);
+    c.header("Set-Cookie", cookie.serialize(), { append: true });
+
+    return c.json({
+      success: true,
+      redirect: "/superadmin/kavas",
+      user: { id: user.id, email: user.email, name: user.name, role: user.role },
+    });
+  }
+
+  // Existing tenant verify logic
   let [user] = await db
     .select()
     .from(users)
     .where(
-      and(eq(users.email, magicLink.email), eq(users.kavaId, kava.id)),
+      and(eq(users.email, magicLink.email), eq(users.kavaId, kava!.id)),
     )
     .limit(1);
 
-  // If no user, check for customer with that email and auto-create user
   if (!user) {
     const [customer] = await db
       .select()
@@ -155,7 +240,7 @@ auth.get("/verify", async (c) => {
       .where(
         and(
           eq(customers.email, magicLink.email),
-          eq(customers.kavaId, kava.id),
+          eq(customers.kavaId, kava!.id),
         ),
       )
       .limit(1);
@@ -167,7 +252,7 @@ auth.get("/verify", async (c) => {
           email: magicLink.email,
           name: customer.name,
           role: "customer",
-          kavaId: kava.id,
+          kavaId: kava!.id,
           customerId: customer.id,
         })
         .returning();
@@ -179,12 +264,10 @@ auth.get("/verify", async (c) => {
     return c.json({ error: "Δεν βρέθηκε χρήστης" }, 400);
   }
 
-  // Create session
   const session = await lucia.createSession(user.id, {});
   const cookie = lucia.createSessionCookie(session.id);
   c.header("Set-Cookie", cookie.serialize(), { append: true });
 
-  // Determine redirect based on role
   let redirect = "/";
   if (user.role === "owner" || user.role === "staff") {
     redirect = "/admin/dashboard";
@@ -204,21 +287,28 @@ auth.post("/forgot-password", async (c) => {
     return c.json({ error: parsed.error.flatten().fieldErrors }, 400);
   }
 
+  const { email } = parsed.data;
+  const isSuperAdmin = c.get("isSuperAdmin");
   const kava = c.get("kava");
 
-  if (!kava) {
+  if (!kava && !isSuperAdmin) {
     return c.json({ error: "Δεν βρέθηκε κάβα" }, 400);
   }
 
-  const { email } = parsed.data;
+  const userConditions = [eq(users.email, email)];
+  if (isSuperAdmin) {
+    userConditions.push(eq(users.role, "superadmin"));
+    userConditions.push(isNull(users.kavaId));
+  } else {
+    userConditions.push(eq(users.kavaId, kava!.id));
+  }
 
   const [user] = await db
     .select()
     .from(users)
-    .where(and(eq(users.email, email), eq(users.kavaId, kava.id)))
+    .where(and(...userConditions))
     .limit(1);
 
-  // Always return success to prevent email enumeration
   if (!user) {
     return c.json({ success: true });
   }
@@ -229,13 +319,15 @@ auth.post("/forgot-password", async (c) => {
   await db.insert(magicLinkTokens).values({
     email,
     token,
-    kavaId: kava.id,
+    kavaId: isSuperAdmin ? null : kava!.id,
     expiresAt,
     purpose: "reset",
   });
 
-  const link = `${config.protocol}://${kava.slug}.${config.baseDomain}/auth/reset-password?token=${token}`;
-  await sendPasswordReset(email, link, kava.name);
+  const subdomain = isSuperAdmin ? "admin" : kava!.slug;
+  const name = isSuperAdmin ? "KavaNow" : kava!.name;
+  const link = `${config.protocol}://${subdomain}.${config.baseDomain}/auth/reset-password?token=${token}`;
+  await sendPasswordReset(email, link, name);
 
   return c.json({ success: true });
 });
@@ -249,26 +341,31 @@ auth.post("/reset-password", async (c) => {
     return c.json({ error: parsed.error.flatten().fieldErrors }, 400);
   }
 
+  const isSuperAdmin = c.get("isSuperAdmin");
   const kava = c.get("kava");
 
-  if (!kava) {
+  if (!kava && !isSuperAdmin) {
     return c.json({ error: "Δεν βρέθηκε κάβα" }, 400);
   }
 
   const { token, password } = parsed.data;
 
+  const tokenConditions = [
+    eq(magicLinkTokens.token, token),
+    eq(magicLinkTokens.used, false),
+    eq(magicLinkTokens.purpose, "reset"),
+    gt(magicLinkTokens.expiresAt, new Date()),
+  ];
+  if (kava) {
+    tokenConditions.push(eq(magicLinkTokens.kavaId, kava.id));
+  } else {
+    tokenConditions.push(isNull(magicLinkTokens.kavaId));
+  }
+
   const [magicLink] = await db
     .select()
     .from(magicLinkTokens)
-    .where(
-      and(
-        eq(magicLinkTokens.token, token),
-        eq(magicLinkTokens.kavaId, kava.id),
-        eq(magicLinkTokens.used, false),
-        eq(magicLinkTokens.purpose, "reset"),
-        gt(magicLinkTokens.expiresAt, new Date()),
-      ),
-    )
+    .where(and(...tokenConditions))
     .limit(1);
 
   if (!magicLink) {
@@ -280,12 +377,18 @@ auth.post("/reset-password", async (c) => {
     .set({ used: true })
     .where(eq(magicLinkTokens.id, magicLink.id));
 
+  const userConditions = [eq(users.email, magicLink.email)];
+  if (isSuperAdmin) {
+    userConditions.push(eq(users.role, "superadmin"));
+    userConditions.push(isNull(users.kavaId));
+  } else {
+    userConditions.push(eq(users.kavaId, kava!.id));
+  }
+
   const [user] = await db
     .select()
     .from(users)
-    .where(
-      and(eq(users.email, magicLink.email), eq(users.kavaId, kava.id)),
-    )
+    .where(and(...userConditions))
     .limit(1);
 
   if (!user) {
