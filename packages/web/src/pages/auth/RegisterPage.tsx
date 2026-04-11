@@ -80,6 +80,24 @@ export function RegisterPage() {
         {...reg("email")}
       />
 
+      <Input
+        id="password"
+        type="password"
+        label="Κωδικός (προαιρετικό)"
+        placeholder="Τουλάχιστον 8 χαρακτήρες"
+        error={errors.password?.message}
+        {...reg("password")}
+      />
+
+      <Input
+        id="confirmPassword"
+        type="password"
+        label="Επιβεβαίωση κωδικού"
+        placeholder="Επαναλάβετε τον κωδικό"
+        error={errors.confirmPassword?.message}
+        {...reg("confirmPassword")}
+      />
+
       {mutation.error && (
         <p className="text-sm text-red-600">
           {mutation.error instanceof Error ? mutation.error.message : "Κάτι πήγε στραβά"}
