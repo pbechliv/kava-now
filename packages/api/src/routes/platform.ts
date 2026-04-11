@@ -12,6 +12,7 @@ import {
   seedProducts,
 } from "../db/schema/index";
 import { DEFAULT_CATEGORIES } from "../db/seed-categories";
+import { hashPassword } from "../auth/password";
 import { sendMagicLink } from "../services/email";
 import { config } from "../config";
 import type { AppEnv } from "../types";
@@ -28,6 +29,7 @@ platform.post("/register", async (c) => {
   }
 
   const { name, slug, email } = parsed.data;
+  const { password } = parsed.data;
 
   // Check slug uniqueness
   const [existing] = await db
@@ -62,6 +64,7 @@ platform.post("/register", async (c) => {
       name,
       role: "owner",
       kavaId: kava.id,
+      passwordHash: password ? await hashPassword(password) : null,
     })
     .returning();
 
@@ -107,7 +110,12 @@ platform.post("/register", async (c) => {
     );
   }
 
-  // Create magic link token for email verification
+  if (password) {
+    // Password was set during registration — no magic link needed
+    return c.json({ success: true, slug, hasPassword: true });
+  }
+
+  // No password — send magic link for first login
   const token = randomBytes(32).toString("hex");
   const expiresAt = new Date(Date.now() + 15 * 60 * 1000);
 
@@ -116,6 +124,7 @@ platform.post("/register", async (c) => {
     token,
     kavaId: kava.id,
     expiresAt,
+    purpose: "login",
   });
 
   const link = `${config.protocol}://${slug}.${config.baseDomain}/auth/verify?token=${token}`;
