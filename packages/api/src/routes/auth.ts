@@ -128,7 +128,18 @@ auth.post("/login", async (c) => {
   }
 
   if (!user) {
-    return c.json({ success: true });
+    // Check if email belongs to a customer (no user record yet — created on first verify)
+    const [customer] = await db
+      .select()
+      .from(customers)
+      .where(
+        and(eq(customers.email, email), eq(customers.kavaId, kava.id)),
+      )
+      .limit(1);
+
+    if (!customer) {
+      return c.json({ success: true });
+    }
   }
 
   const token = randomBytes(32).toString("hex");

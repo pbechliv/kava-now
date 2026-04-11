@@ -1,6 +1,7 @@
 import { useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
 import {
   createCustomerSchema,
   type CreateCustomerInput,
@@ -39,7 +40,13 @@ export function CustomerFormModal({ open, customerId, onClose }: Props) {
     reset,
     formState: { errors },
   } = useForm<FormData>({
-    resolver: zodResolver(createCustomerSchema),
+    resolver: zodResolver(
+      createCustomerSchema.extend({
+        pricingTierId: createCustomerSchema.shape.pricingTierId.or(
+          z.literal("").transform(() => null),
+        ),
+      }),
+    ),
   });
 
   useEffect(() => {

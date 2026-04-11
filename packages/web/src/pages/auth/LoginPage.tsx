@@ -1,8 +1,10 @@
 import { useState } from "react";
 import { useForm } from "react-hook-form";
+import { useQuery } from "@tanstack/react-query";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { loginSchema, type LoginInput } from "@kava-now/shared";
 import { useLogin } from "../../lib/hooks/use-login";
+import { api } from "../../lib/api";
 import { Input } from "../../components/ui/Input";
 import { Button } from "../../components/ui/Button";
 import { Link } from "react-router";
@@ -10,6 +12,14 @@ import { Link } from "react-router";
 export function LoginPage() {
   const login = useLogin();
   const [magicLinkSent, setMagicLinkSent] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+
+  const { data: kavaInfo } = useQuery({
+    queryKey: ["kava-info"],
+    queryFn: () => api.get<{ name: string; slug: string }>("/api/kava"),
+    retry: false,
+    staleTime: Infinity,
+  });
   const {
     register,
     handleSubmit,
@@ -59,6 +69,9 @@ export function LoginPage() {
 
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+      {kavaInfo?.name && (
+        <h2 className="text-xl font-bold text-gray-900 text-center">{kavaInfo.name}</h2>
+      )}
       <h2 className="text-lg font-semibold text-gray-900 text-center">Σύνδεση</h2>
 
       <Input
@@ -70,41 +83,71 @@ export function LoginPage() {
         {...register("email")}
       />
 
-      <Input
-        id="password"
-        type="password"
-        label="Κωδικός"
-        placeholder="Εισάγετε τον κωδικό σας"
-        error={errors.password?.message}
-        {...register("password")}
-      />
+      {showPassword ? (
+        <>
+          <Input
+            id="password"
+            type="password"
+            label="Κωδικός"
+            placeholder="Εισάγετε τον κωδικό σας"
+            error={errors.password?.message}
+            {...register("password")}
+          />
 
-      <div className="text-right">
-        <Link
-          to="/auth/forgot-password"
-          className="text-sm text-amber-600 hover:text-amber-700"
-        >
-          Ξεχάσατε τον κωδικό;
-        </Link>
-      </div>
+          <div className="text-right">
+            <Link
+              to="/auth/forgot-password"
+              className="text-sm text-amber-600 hover:text-amber-700"
+            >
+              Ξεχάσατε τον κωδικό;
+            </Link>
+          </div>
 
-      {login.error && (
-        <p className="text-sm text-red-600">
-          {login.error instanceof Error ? login.error.message : "Κάτι πήγε στραβά"}
-        </p>
+          {login.error && (
+            <p className="text-sm text-red-600">
+              {login.error instanceof Error ? login.error.message : "Κάτι πήγε στραβά"}
+            </p>
+          )}
+
+          <Button type="submit" className="w-full" loading={login.isPending}>
+            Σύνδεση
+          </Button>
+
+          <button
+            type="button"
+            onClick={() => setShowPassword(false)}
+            className="w-full text-center text-sm text-gray-500 hover:text-amber-600 transition-colors"
+          >
+            Σύνδεση με σύνδεσμο
+          </button>
+        </>
+      ) : (
+        <>
+          {login.error && (
+            <p className="text-sm text-red-600">
+              {login.error instanceof Error ? login.error.message : "Κάτι πήγε στραβά"}
+            </p>
+          )}
+
+          <Button
+            type="button"
+            className="w-full"
+            loading={login.isPending}
+            onClick={sendMagicLink}
+          >
+            Σύνδεση με σύνδεσμο
+          </Button>
+
+          <Button
+            type="button"
+            variant="secondary"
+            className="w-full"
+            onClick={() => setShowPassword(true)}
+          >
+            Σύνδεση με κωδικό
+          </Button>
+        </>
       )}
-
-      <Button type="submit" className="w-full" loading={login.isPending}>
-        Σύνδεση
-      </Button>
-
-      <button
-        type="button"
-        onClick={sendMagicLink}
-        className="w-full text-center text-sm text-gray-500 hover:text-amber-600 transition-colors"
-      >
-        Αποστολή συνδέσμου εισόδου στο email
-      </button>
 
       <p className="text-center text-sm text-gray-500">
         Δεν έχετε λογαριασμό;{" "}

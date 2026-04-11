@@ -34,6 +34,15 @@ app.route("/api/admin", adminRoutes);
 app.route("/api/customer", customerRoutes);
 app.route("/api/superadmin", superadminRoutes);
 
+// Public kava info (tenant mode only, no auth required)
+app.get("/api/kava", (c) => {
+  const kava = c.get("kava");
+  if (!kava) {
+    return c.json({ error: "Not in tenant mode" }, 404);
+  }
+  return c.json({ name: kava.name, slug: kava.slug });
+});
+
 app.get("/api/health", (c) => {
   return c.json({
     status: "ok",

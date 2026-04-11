@@ -1,7 +1,9 @@
 import { QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route } from "react-router";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router";
 import { queryClient } from "./lib/query-client";
 import { isSuperAdminDomain } from "./lib/is-superadmin";
+import { isPlatformDomain } from "./lib/is-platform";
+import { useAuth } from "./lib/hooks/use-auth";
 
 // Layouts
 import { AuthLayout } from "./components/layouts/AuthLayout";
@@ -42,9 +44,18 @@ import { ProfilePage } from "./pages/customer/ProfilePage";
 // Superadmin pages
 import { KavasPage } from "./pages/superadmin/KavasPage";
 
+// Platform pages
+import { KavaSelectPage } from "./pages/platform/KavaSelectPage";
+
 // Other
 import { HomePage } from "./pages/HomePage";
 import { NotFoundPage } from "./pages/NotFoundPage";
+
+function SuperAdminHome() {
+  const { isAuthenticated, isLoading } = useAuth();
+  if (isLoading) return null;
+  return <Navigate to={isAuthenticated ? "/superadmin/kavas" : "/login"} replace />;
+}
 
 function SuperAdminApp() {
   return (
@@ -69,8 +80,23 @@ function SuperAdminApp() {
         <Route path="kavas" element={<KavasPage />} />
       </Route>
 
-      <Route path="/" element={<HomePage />} />
+      <Route path="/" element={<SuperAdminHome />} />
       <Route path="*" element={<NotFoundPage />} />
+    </Routes>
+  );
+}
+
+function PlatformApp() {
+  return (
+    <Routes>
+      <Route element={<AuthLayout />}>
+        <Route path="/" element={<KavaSelectPage />} />
+        <Route path="/register" element={<RegisterPage />} />
+        <Route path="/auth/verify" element={<VerifyPage />} />
+        <Route path="/auth/forgot-password" element={<ForgotPasswordPage />} />
+        <Route path="/auth/reset-password" element={<ResetPasswordPage />} />
+      </Route>
+      <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   );
 }
@@ -133,11 +159,12 @@ function TenantApp() {
 
 export function App() {
   const isSuperAdmin = isSuperAdminDomain();
+  const isPlatform = isPlatformDomain();
 
   return (
     <QueryClientProvider client={queryClient}>
       <BrowserRouter>
-        {isSuperAdmin ? <SuperAdminApp /> : <TenantApp />}
+        {isSuperAdmin ? <SuperAdminApp /> : isPlatform ? <PlatformApp /> : <TenantApp />}
       </BrowserRouter>
     </QueryClientProvider>
   );

@@ -8,5 +8,6 @@ export * from "./schemas/customers";
 export * from "./schemas/pricing";
 export * from "./schemas/customer-products";
 export * from "./schemas/orders";
+export * from "./schemas/platform";
 export * from "./types";
 export * from "./constants";
