@@ -2,6 +2,7 @@ import "dotenv/config";
 import { drizzle } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
 import { seedProducts } from "./schema/seed-products.js";
+import { users } from "./schema/index.js";
 
 const connectionString =
   process.env.DATABASE_URL ||
@@ -67,6 +68,18 @@ async function main() {
   console.log("Seeding seed_products...");
   await db.insert(seedProducts).values(SEED_DATA).onConflictDoNothing();
   console.log(`Seeded ${SEED_DATA.length} products.`);
+
+  // Seed superadmin user (no password — set via forgot-password flow)
+  console.log("Seeding superadmin user...");
+  await db
+    .insert(users)
+    .values({
+      email: "panos.bechlivanos@gmail.com",
+      name: "Super Admin",
+      role: "superadmin",
+    })
+    .onConflictDoNothing();
+  console.log("Superadmin user seeded.");
 
   await sql.end();
   console.log("Seed complete.");
