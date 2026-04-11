@@ -15,6 +15,8 @@ import { RequireRole } from "./components/guards/RequireRole";
 import { LoginPage } from "./pages/auth/LoginPage";
 import { VerifyPage } from "./pages/auth/VerifyPage";
 import { RegisterPage } from "./pages/auth/RegisterPage";
+import { ForgotPasswordPage } from "./pages/auth/ForgotPasswordPage";
+import { ResetPasswordPage } from "./pages/auth/ResetPasswordPage";
 
 // Admin pages
 import { DashboardPage } from "./pages/admin/DashboardPage";
@@ -49,6 +51,8 @@ export function App() {
             <Route path="/login" element={<LoginPage />} />
             <Route path="/auth/verify" element={<VerifyPage />} />
             <Route path="/register" element={<RegisterPage />} />
+            <Route path="/auth/forgot-password" element={<ForgotPasswordPage />} />
+            <Route path="/auth/reset-password" element={<ResetPasswordPage />} />
           </Route>
 
           {/* Admin routes */}
