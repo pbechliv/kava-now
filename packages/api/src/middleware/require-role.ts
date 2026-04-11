@@ -1,7 +1,7 @@
 import { createMiddleware } from "hono/factory";
 import type { AppEnv } from "../types";
 
-export function requireRole(...roles: Array<"owner" | "staff" | "customer">) {
+export function requireRole(...roles: Array<"owner" | "staff" | "customer" | "superadmin">) {
   return createMiddleware<AppEnv>(async (c, next) => {
     const user = c.get("user");
 
