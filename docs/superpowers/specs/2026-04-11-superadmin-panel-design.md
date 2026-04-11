@@ -22,8 +22,10 @@ In `packages/api/src/middleware/tenant.ts`, add a special case before the kava l
 
 The existing `POST /auth/login` route currently requires a kava to be resolved. For the `admin` subdomain:
 - If `isSuperAdmin` is true on context, look up users where `email = ?` AND `role = 'superadmin'` AND `kavaId IS NULL`.
-- Password login only (no magic link for superadmin — there's no kava to send from).
+- Supports both password login and magic link (magic link uses "KavaNow" as the sender name since there's no kava).
 - On success, create a Lucia session and return `{ success: true, redirect: "/superadmin/kavas" }`.
+
+The `POST /auth/forgot-password` and `POST /auth/reset-password` routes also need to work on the `admin` subdomain — same logic: look up superadmin users with null kavaId, use "KavaNow" as sender name.
 
 The `GET /auth/me` route needs to work for superadmin users too — when the user has no kavaId, return `kava: null`.
 
@@ -82,7 +84,7 @@ A table showing all tenants with columns:
 
 Add a superadmin user to `packages/api/src/db/seed.ts`:
 - Email: `panos.bechlivanos@gmail.com`
-- Password: `110290pb` (hashed with the existing scrypt utility)
+- No password (NULL passwordHash) — user sets password via the forgot-password flow on first use
 - Role: `superadmin`
 - kavaId: `NULL`
 - Name: `Super Admin`
