@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { loginSchema, type LoginInput } from "@kava-now/shared";
@@ -8,19 +9,39 @@ import { Link } from "react-router";
 
 export function LoginPage() {
   const login = useLogin();
+  const [magicLinkSent, setMagicLinkSent] = useState(false);
   const {
     register,
     handleSubmit,
+    getValues,
     formState: { errors },
   } = useForm<LoginInput>({
     resolver: zodResolver(loginSchema),
   });
 
   const onSubmit = (data: LoginInput) => {
-    login.mutate(data);
+    login.mutate(data, {
+      onSuccess: (res) => {
+        // If no redirect, it was a magic link request
+        if (!res.redirect) {
+          setMagicLinkSent(true);
+        }
+      },
+    });
   };
 
-  if (login.isSuccess) {
+  const sendMagicLink = () => {
+    const email = getValues("email");
+    if (!email) return;
+    login.mutate(
+      { email },
+      {
+        onSuccess: () => setMagicLinkSent(true),
+      },
+    );
+  };
+
+  if (magicLinkSent) {
     return (
       <div className="text-center">
         <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-green-100">
@@ -49,6 +70,24 @@ export function LoginPage() {
         {...register("email")}
       />
 
+      <Input
+        id="password"
+        type="password"
+        label="Κωδικός"
+        placeholder="Εισάγετε τον κωδικό σας"
+        error={errors.password?.message}
+        {...register("password")}
+      />
+
+      <div className="text-right">
+        <Link
+          to="/auth/forgot-password"
+          className="text-sm text-amber-600 hover:text-amber-700"
+        >
+          Ξεχάσατε τον κωδικό;
+        </Link>
+      </div>
+
       {login.error && (
         <p className="text-sm text-red-600">
           {login.error instanceof Error ? login.error.message : "Κάτι πήγε στραβά"}
@@ -56,8 +95,16 @@ export function LoginPage() {
       )}
 
       <Button type="submit" className="w-full" loading={login.isPending}>
-        Αποστολή συνδέσμου
+        Σύνδεση
       </Button>
+
+      <button
+        type="button"
+        onClick={sendMagicLink}
+        className="w-full text-center text-sm text-gray-500 hover:text-amber-600 transition-colors"
+      >
+        Αποστολή συνδέσμου εισόδου στο email
+      </button>
 
       <p className="text-center text-sm text-gray-500">
         Δεν έχετε λογαριασμό;{" "}
