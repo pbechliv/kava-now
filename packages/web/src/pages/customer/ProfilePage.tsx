@@ -1,15 +1,28 @@
-import { useState } from "react";
-import { useProfile } from "../../lib/hooks/use-profile";
+import { useEffect, useState } from "react";
+import { useProfile, useUpdateProfile } from "../../lib/hooks/use-profile";
 import { useAuth } from "../../lib/hooks/use-auth";
 import { useMutation } from "@tanstack/react-query";
 import { api } from "../../lib/api";
 import { authClient } from "../../lib/auth-client";
+import { Card } from "../../components/ui/Card";
 import { Input } from "../../components/ui/Input";
 import { Button } from "../../components/ui/Button";
 
 export function ProfilePage() {
   const { data: customer, isLoading } = useProfile();
   const { user } = useAuth();
+  const updateProfile = useUpdateProfile();
+
+  const [phone, setPhone] = useState("");
+  const [address, setAddress] = useState("");
+  const [profileError, setProfileError] = useState("");
+
+  useEffect(() => {
+    if (customer) {
+      setPhone(customer.phone ?? "");
+      setAddress(customer.address ?? "");
+    }
+  }, [customer]);
 
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
@@ -67,6 +80,28 @@ export function ProfilePage() {
     });
   };
 
+  const handleSaveProfile = (e: React.FormEvent) => {
+    e.preventDefault();
+    setProfileError("");
+    if (!customer) return;
+
+    const payload: { phone?: string | null; address?: string | null } = {};
+    if (phone !== (customer.phone ?? "")) {
+      payload.phone = phone || null;
+    }
+    if (address !== (customer.address ?? "")) {
+      payload.address = address || null;
+    }
+    if (Object.keys(payload).length === 0) return;
+
+    updateProfile.mutate(payload, {
+      onError: (err) =>
+        setProfileError(
+          err instanceof Error ? err.message : "Κάτι πήγε στραβά",
+        ),
+    });
+  };
+
   if (isLoading) {
     return (
       <div className="text-center text-sm text-gray-500 py-8">Φόρτωση...</div>
@@ -81,90 +116,122 @@ export function ProfilePage() {
     );
   }
 
-  const fields = [
-    { label: "Επωνυμία", value: customer.name },
-    { label: "Email", value: customer.email },
-    { label: "Τηλέφωνο", value: customer.phone },
-    { label: "Υπεύθυνος επικοινωνίας", value: customer.contactPerson },
-    { label: "Διεύθυνση", value: customer.address },
-  ];
-
   return (
     <div>
       <h1 className="text-2xl font-bold text-gray-900">Προφίλ</h1>
 
-      <div className="mt-6 rounded-lg border border-gray-200 bg-white shadow-sm">
-        <dl className="divide-y divide-gray-100">
-          {fields.map((field) => (
-            <div
-              key={field.label}
-              className="flex flex-col sm:flex-row sm:items-center px-4 py-3"
-            >
-              <dt className="text-sm font-medium text-gray-500 sm:w-48">
-                {field.label}
-              </dt>
-              <dd className="mt-1 sm:mt-0 text-sm text-gray-900">
-                {field.value || (
-                  <span className="text-gray-400">-</span>
-                )}
-              </dd>
-            </div>
-          ))}
-        </dl>
-      </div>
-
-      <div className="mt-8">
-        <h2 className="text-lg font-semibold text-gray-900">
-          {user?.hasPassword ? "Αλλαγή κωδικού" : "Ορισμός κωδικού"}
-        </h2>
-        <form
-          onSubmit={handleChangePassword}
-          className="mt-4 max-w-md space-y-4"
-        >
-          {user?.hasPassword && (
-            <Input
-              id="currentPassword"
-              type="password"
-              label="Τρέχων κωδικός"
-              value={currentPassword}
-              onChange={(e) => setCurrentPassword(e.target.value)}
+      <div className="mt-6 max-w-2xl">
+        <Card>
+          <h2 className="text-lg font-semibold text-gray-900 mb-4">
+            Στοιχεία πελάτη
+          </h2>
+          <dl className="divide-y divide-gray-100 mb-4">
+            <ReadOnlyRow label="Επωνυμία" value={customer.name} />
+            <ReadOnlyRow label="Email" value={customer.email} />
+            <ReadOnlyRow
+              label="Υπεύθυνος επικοινωνίας"
+              value={customer.contactPerson}
             />
-          )}
-          <Input
-            id="newPassword"
-            type="password"
-            label="Νέος κωδικός"
-            placeholder="Τουλάχιστον 8 χαρακτήρες"
-            value={newPassword}
-            onChange={(e) => setNewPassword(e.target.value)}
-          />
-          <Input
-            id="confirmNewPassword"
-            type="password"
-            label="Επιβεβαίωση νέου κωδικού"
-            value={confirmNewPassword}
-            onChange={(e) => setConfirmNewPassword(e.target.value)}
-          />
+          </dl>
+          <p className="text-xs text-gray-400 mb-4">
+            Για αλλαγή επωνυμίας, email ή υπευθύνου επικοινωνίας,
+            επικοινωνήστε με τον προμηθευτή σας.
+          </p>
 
-          {passwordError && (
-            <p className="text-sm text-red-600">{passwordError}</p>
-          )}
-
-          {changePassword.isSuccess && (
-            <p className="text-sm text-green-600">
-              Ο κωδικός άλλαξε επιτυχώς
-            </p>
-          )}
-
-          <Button type="submit" loading={changePassword.isPending}>
-            {user?.hasPassword ? "Αλλαγή κωδικού" : "Ορισμός κωδικού"}
-          </Button>
-        </form>
+          <form onSubmit={handleSaveProfile} className="space-y-4">
+            <Input
+              label="Τηλέφωνο"
+              id="profile-phone"
+              value={phone}
+              onChange={(e) => setPhone(e.target.value)}
+            />
+            <Input
+              label="Διεύθυνση"
+              id="profile-address"
+              value={address}
+              onChange={(e) => setAddress(e.target.value)}
+            />
+            {profileError && (
+              <p className="text-sm text-red-600">{profileError}</p>
+            )}
+            {updateProfile.isSuccess && (
+              <p className="text-sm text-green-600">Τα στοιχεία αποθηκεύτηκαν</p>
+            )}
+            <div className="flex justify-end">
+              <Button type="submit" loading={updateProfile.isPending}>
+                Αποθήκευση
+              </Button>
+            </div>
+          </form>
+        </Card>
       </div>
 
-      <p className="mt-4 text-xs text-gray-400">
-        Για αλλαγές στα στοιχεία σας, επικοινωνήστε με τον προμηθευτή σας.
-      </p>
+      <div className="mt-8 max-w-2xl">
+        <Card>
+          <h2 className="text-lg font-semibold text-gray-900 mb-4">
+            {user?.hasPassword ? "Αλλαγή κωδικού" : "Ορισμός κωδικού"}
+          </h2>
+          <form onSubmit={handleChangePassword} className="space-y-4">
+            {user?.hasPassword && (
+              <Input
+                id="currentPassword"
+                type="password"
+                label="Τρέχων κωδικός"
+                value={currentPassword}
+                onChange={(e) => setCurrentPassword(e.target.value)}
+              />
+            )}
+            <Input
+              id="newPassword"
+              type="password"
+              label="Νέος κωδικός"
+              placeholder="Τουλάχιστον 8 χαρακτήρες"
+              value={newPassword}
+              onChange={(e) => setNewPassword(e.target.value)}
+            />
+            <Input
+              id="confirmNewPassword"
+              type="password"
+              label="Επιβεβαίωση νέου κωδικού"
+              value={confirmNewPassword}
+              onChange={(e) => setConfirmNewPassword(e.target.value)}
+            />
+
+            {passwordError && (
+              <p className="text-sm text-red-600">{passwordError}</p>
+            )}
+
+            {changePassword.isSuccess && (
+              <p className="text-sm text-green-600">
+                Ο κωδικός άλλαξε επιτυχώς
+              </p>
+            )}
+
+            <div className="flex justify-end">
+              <Button type="submit" loading={changePassword.isPending}>
+                {user?.hasPassword ? "Αλλαγή κωδικού" : "Ορισμός κωδικού"}
+              </Button>
+            </div>
+          </form>
+        </Card>
+      </div>
+    </div>
+  );
+}
+
+function ReadOnlyRow({
+  label,
+  value,
+}: {
+  label: string;
+  value: string | null;
+}) {
+  return (
+    <div className="flex flex-col sm:flex-row sm:items-center py-3">
+      <dt className="text-sm font-medium text-gray-500 sm:w-48">{label}</dt>
+      <dd className="mt-1 sm:mt-0 text-sm text-gray-900">
+        {value || <span className="text-gray-400">-</span>}
+      </dd>
     </div>
   );
 }

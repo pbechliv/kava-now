@@ -1,7 +1,14 @@
 import { useState } from "react";
-import { Outlet } from "react-router";
+import { Outlet, NavLink } from "react-router";
 import { useAuth } from "../../lib/hooks/use-auth";
 import { useLogout } from "../../lib/hooks/use-logout";
+
+const navLinkClass = ({ isActive }: { isActive: boolean }) =>
+  `px-3 py-2 text-sm font-medium rounded-md ${
+    isActive
+      ? "bg-amber-50 text-amber-700"
+      : "text-gray-600 hover:text-gray-900 hover:bg-gray-50"
+  }`;
 
 export function SuperAdminLayout() {
   const { user } = useAuth();
@@ -11,7 +18,17 @@ export function SuperAdminLayout() {
   return (
     <div className="min-h-screen bg-gray-50">
       <header className="flex h-16 items-center justify-between border-b border-gray-200 bg-white px-4 lg:px-8">
-        <span className="text-lg font-bold text-amber-600">KavaNow Admin</span>
+        <div className="flex items-center gap-6">
+          <span className="text-lg font-bold text-amber-600">KavaNow Admin</span>
+          <nav className="flex items-center gap-1">
+            <NavLink to="/superadmin/kavas" className={navLinkClass}>
+              Κάβες
+            </NavLink>
+            <NavLink to="/superadmin/settings" className={navLinkClass}>
+              Ρυθμίσεις
+            </NavLink>
+          </nav>
+        </div>
 
         <div className="relative">
           <button

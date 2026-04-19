@@ -44,6 +44,7 @@ import { ProfilePage } from "./pages/customer/ProfilePage";
 // Superadmin pages
 import { KavasPage } from "./pages/superadmin/KavasPage";
 import { NewKavaPage } from "./pages/superadmin/NewKavaPage";
+import { SuperAdminSettingsPage } from "./pages/superadmin/SettingsPage";
 
 // Platform pages
 import { KavaSelectPage } from "./pages/platform/KavaSelectPage";
@@ -79,6 +80,7 @@ function SuperAdminApp() {
       >
         <Route path="kavas" element={<KavasPage />} />
         <Route path="kavas/new" element={<NewKavaPage />} />
+        <Route path="settings" element={<SuperAdminSettingsPage />} />
       </Route>
 
       <Route path="/" element={<SuperAdminHome />} />

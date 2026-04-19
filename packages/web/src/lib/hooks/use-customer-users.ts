@@ -4,6 +4,7 @@ import { api } from "../api";
 export interface CustomerUser {
   id: string;
   email: string;
+  emailVerified: boolean;
   name: string;
   createdAt: string;
   invitedByName: string | null;
@@ -41,5 +42,14 @@ export function useInviteCustomerUser(customerId: string) {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["admin", "customer-users", customerId] });
     },
+  });
+}
+
+export function useResendCustomerUserInvite(customerId: string) {
+  return useMutation({
+    mutationFn: (userId: string) =>
+      api.post<{ success: boolean }>(
+        `/api/admin/customers/${customerId}/users/${userId}/resend-invite`,
+      ),
   });
 }

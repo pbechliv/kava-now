@@ -13,6 +13,7 @@ import { DEFAULT_CATEGORIES } from "../../db/seed-categories";
 import { auth } from "../../auth";
 import { requireAuth } from "../../middleware/require-auth";
 import { requireSuperAdmin } from "../../middleware/require-superadmin";
+import { logAudit } from "../../services/audit";
 import type { AppEnv } from "../../types";
 
 const superadmin = new Hono<AppEnv>();
@@ -129,6 +130,13 @@ superadmin.post("/kavas", async (c) => {
     .set({ role: "owner", kavaId: kava.id })
     .where(and(eq(users.email, authEmail), eq(users.realEmail, realEmail)));
 
+  await logAudit(c, {
+    action: "superadmin.kava.create",
+    targetType: "kava",
+    targetId: kava.id,
+    metadata: { name, slug, ownerEmail: realEmail, hasPassword: !!password },
+  });
+
   return c.json({ success: true, slug, hasPassword: !!password });
 });
 
@@ -146,7 +154,20 @@ superadmin.delete("/kavas/:id", async (c) => {
     return c.json({ error: "Δεν βρέθηκε κάβα" }, 404);
   }
 
+  const [full] = await db
+    .select({ name: kavas.name, slug: kavas.slug })
+    .from(kavas)
+    .where(eq(kavas.id, id))
+    .limit(1);
+
   await db.delete(kavas).where(eq(kavas.id, id));
+
+  await logAudit(c, {
+    action: "superadmin.kava.delete",
+    targetType: "kava",
+    targetId: id,
+    metadata: { name: full?.name, slug: full?.slug },
+  });
 
   return c.json({ success: true });
 });

@@ -4,6 +4,7 @@ import { Link, useParams } from "react-router";
 import {
   useCustomerUsers,
   useInviteCustomerUser,
+  useResendCustomerUserInvite,
   type InviteCustomerUserInput,
 } from "../../lib/hooks/use-customer-users";
 import { useCustomer } from "../../lib/hooks/use-customers";
@@ -17,9 +18,32 @@ export function CustomerUsersPage() {
   const { data: customer } = useCustomer(id);
   const { data, isLoading } = useCustomerUsers(id);
   const invite = useInviteCustomerUser(id);
+  const resend = useResendCustomerUserInvite(id);
   const remove = useDeleteUser();
   const [inviteOpen, setInviteOpen] = useState(false);
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
+  const [resendFeedback, setResendFeedback] = useState<{
+    id: string;
+    kind: "success" | "error";
+    message: string;
+  } | null>(null);
+
+  const handleResend = (userId: string) => {
+    resend.mutate(userId, {
+      onSuccess: () =>
+        setResendFeedback({
+          id: userId,
+          kind: "success",
+          message: "Η πρόσκληση στάλθηκε ξανά",
+        }),
+      onError: (err) =>
+        setResendFeedback({
+          id: userId,
+          kind: "error",
+          message: err instanceof Error ? err.message : "Σφάλμα",
+        }),
+    });
+  };
 
   const {
     register,
@@ -90,6 +114,11 @@ export function CustomerUsersPage() {
                 <tr key={u.id}>
                   <td className="px-4 py-3 text-sm font-medium text-gray-900">
                     {u.name}
+                    {!u.emailVerified && (
+                      <span className="ml-2 inline-flex items-center rounded-full bg-yellow-100 px-2 py-0.5 text-xs text-yellow-800">
+                        Εκκρεμεί
+                      </span>
+                    )}
                   </td>
                   <td className="px-4 py-3 text-sm text-gray-500">{u.email}</td>
                   <td className="px-4 py-3 text-sm text-gray-500">
@@ -120,13 +149,39 @@ export function CustomerUsersPage() {
                         </Button>
                       </div>
                     ) : (
-                      <Button
-                        variant="danger"
-                        size="sm"
-                        onClick={() => setConfirmDeleteId(u.id)}
-                      >
-                        Διαγραφή
-                      </Button>
+                      <div className="flex items-center justify-end gap-2">
+                        {resendFeedback?.id === u.id && (
+                          <span
+                            className={`text-xs ${
+                              resendFeedback.kind === "success"
+                                ? "text-green-600"
+                                : "text-red-600"
+                            }`}
+                          >
+                            {resendFeedback.message}
+                          </span>
+                        )}
+                        {!u.emailVerified && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            loading={
+                              resend.isPending &&
+                              resend.variables === u.id
+                            }
+                            onClick={() => handleResend(u.id)}
+                          >
+                            Επανάληψη πρόσκλησης
+                          </Button>
+                        )}
+                        <Button
+                          variant="danger"
+                          size="sm"
+                          onClick={() => setConfirmDeleteId(u.id)}
+                        >
+                          Διαγραφή
+                        </Button>
+                      </div>
                     )}
                   </td>
                 </tr>

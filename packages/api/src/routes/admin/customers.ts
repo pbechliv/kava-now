@@ -14,8 +14,11 @@ import {
   customerBrandPricing,
   orders,
   users,
+  verifications,
 } from "../../db/schema/index";
 import { inviteUserToKava, InviteConflict } from "../../services/invite-user";
+import { logAudit } from "../../services/audit";
+import { auth } from "../../auth";
 import type { AppEnv } from "../../types";
 
 const customersRouter = new Hono<AppEnv>();
@@ -164,7 +167,7 @@ customersRouter.put("/:id", async (c) => {
   return c.json(customer);
 });
 
-// DELETE /:id — fail if customer has orders
+// DELETE /:id — fail if customer has orders. Linked users cascade at DB level.
 customersRouter.delete("/:id", async (c) => {
   const kavaId = c.get("kavaId")!;
   const id = c.req.param("id");
@@ -183,6 +186,12 @@ customersRouter.delete("/:id", async (c) => {
     );
   }
 
+  // Capture linked user ids for the audit log before the cascade removes them.
+  const linkedUsers = await db
+    .select({ id: users.id, email: users.realEmail })
+    .from(users)
+    .where(and(eq(users.customerId, id), eq(users.kavaId, kavaId)));
+
   const [deleted] = await db
     .delete(customers)
     .where(and(eq(customers.id, id), eq(customers.kavaId, kavaId)))
@@ -191,6 +200,16 @@ customersRouter.delete("/:id", async (c) => {
   if (!deleted) {
     return c.json({ error: "Ο πελάτης δεν βρέθηκε" }, 404);
   }
+
+  await logAudit(c, {
+    action: "customer.delete",
+    targetType: "customer",
+    targetId: id,
+    metadata: {
+      name: deleted.name,
+      deletedUsers: linkedUsers,
+    },
+  });
 
   return c.json({ message: "Ο πελάτης διαγράφηκε" });
 });
@@ -298,6 +317,7 @@ customersRouter.get("/:id/users", async (c) => {
     .select({
       id: users.id,
       email: users.realEmail,
+      emailVerified: users.emailVerified,
       name: users.name,
       createdAt: users.createdAt,
       invitedByName: inviterAlias.name,
@@ -309,6 +329,61 @@ customersRouter.get("/:id/users", async (c) => {
     .orderBy(users.createdAt);
 
   return c.json({ users: rows });
+});
+
+// POST /:customerId/users/:userId/resend-invite — re-issue magic link
+customersRouter.post("/:customerId/users/:userId/resend-invite", async (c) => {
+  const kavaId = c.get("kavaId")!;
+  const customerId = c.req.param("customerId");
+  const userId = c.req.param("userId");
+
+  const [target] = await db
+    .select({
+      id: users.id,
+      authEmail: users.email,
+      realEmail: users.realEmail,
+      emailVerified: users.emailVerified,
+    })
+    .from(users)
+    .where(
+      and(
+        eq(users.id, userId),
+        eq(users.kavaId, kavaId),
+        eq(users.customerId, customerId),
+      ),
+    )
+    .limit(1);
+
+  if (!target) {
+    return c.json({ error: "Δεν βρέθηκε χρήστης" }, 404);
+  }
+
+  if (target.emailVerified) {
+    return c.json({ error: "Ο χρήστης έχει ήδη ενεργοποιηθεί" }, 400);
+  }
+
+  await db
+    .delete(verifications)
+    .where(eq(verifications.identifier, target.authEmail));
+
+  const requestHost =
+    c.req.header("x-forwarded-host") || c.req.header("host") || "";
+  const protocol = requestHost.includes("localhost") ? "http" : "https";
+  const callbackURL = `${protocol}://${requestHost}/welcome`;
+
+  await auth.api.signInMagicLink({
+    body: { email: target.authEmail, callbackURL },
+    headers: c.req.raw.headers,
+  });
+
+  await logAudit(c, {
+    action: "customer.user.invite.resend",
+    targetType: "user",
+    targetId: userId,
+    metadata: { email: target.realEmail, customerId },
+  });
+
+  return c.json({ success: true });
 });
 
 const inviteCustomerUserSchema = z.object({

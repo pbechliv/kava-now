@@ -36,7 +36,7 @@ export const users = pgTable(
       onDelete: "cascade",
     }),
     customerId: uuid("customer_id").references(() => customers.id, {
-      onDelete: "set null",
+      onDelete: "cascade",
     }),
     invitedById: uuid("invited_by_id").references(
       (): AnyPgColumn => users.id,

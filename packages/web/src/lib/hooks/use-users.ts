@@ -4,6 +4,7 @@ import { api } from "../api";
 export interface KavaUser {
   id: string;
   email: string;
+  emailVerified: boolean;
   name: string;
   role: "owner" | "staff" | "customer";
   createdAt: string;
@@ -44,6 +45,29 @@ export function useDeleteUser() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (id: string) => api.delete(`/api/admin/users/${id}`),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["admin", "users"] });
+      queryClient.invalidateQueries({ queryKey: ["admin", "customer-users"] });
+    },
+  });
+}
+
+export function useResendInvite() {
+  return useMutation({
+    mutationFn: (id: string) =>
+      api.post<{ success: boolean }>(
+        `/api/admin/users/${id}/resend-invite`,
+      ),
+  });
+}
+
+export function usePromoteToOwner() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) =>
+      api.post<{ success: boolean }>(
+        `/api/admin/users/${id}/promote-to-owner`,
+      ),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["admin", "users"] });
     },

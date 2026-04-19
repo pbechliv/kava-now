@@ -4,6 +4,8 @@ import {
   useUsers,
   useInviteUser,
   useDeleteUser,
+  useResendInvite,
+  usePromoteToOwner,
   type InviteUserInput,
 } from "../../lib/hooks/use-users";
 import { useAuth } from "../../lib/hooks/use-auth";
@@ -22,8 +24,15 @@ export function UsersPage() {
   const { data, isLoading } = useUsers();
   const invite = useInviteUser();
   const remove = useDeleteUser();
+  const resend = useResendInvite();
+  const promote = usePromoteToOwner();
   const [inviteOpen, setInviteOpen] = useState(false);
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
+  const [resendFeedback, setResendFeedback] = useState<{
+    id: string;
+    kind: "success" | "error";
+    message: string;
+  } | null>(null);
 
   const {
     register,
@@ -41,6 +50,23 @@ export function UsersPage() {
     });
   };
 
+  const handleResend = (id: string) => {
+    resend.mutate(id, {
+      onSuccess: () =>
+        setResendFeedback({
+          id,
+          kind: "success",
+          message: "Η πρόσκληση στάλθηκε ξανά",
+        }),
+      onError: (err) =>
+        setResendFeedback({
+          id,
+          kind: "error",
+          message: err instanceof Error ? err.message : "Σφάλμα",
+        }),
+    });
+  };
+
   if (isLoading) {
     return (
       <div className="flex justify-center py-12">
@@ -50,6 +76,7 @@ export function UsersPage() {
   }
 
   const users = data?.users ?? [];
+  const canPromote = me?.role === "owner";
 
   return (
     <div>
@@ -84,6 +111,11 @@ export function UsersPage() {
                   {u.name}
                   {u.id === me?.id && (
                     <span className="ml-2 text-xs text-gray-500">(εσείς)</span>
+                  )}
+                  {!u.emailVerified && (
+                    <span className="ml-2 inline-flex items-center rounded-full bg-yellow-100 px-2 py-0.5 text-xs text-yellow-800">
+                      Εκκρεμεί
+                    </span>
                   )}
                 </td>
                 <td className="px-4 py-3 text-sm text-gray-500">{u.email}</td>
@@ -123,13 +155,52 @@ export function UsersPage() {
                         </Button>
                       </div>
                     ) : (
-                      <Button
-                        variant="danger"
-                        size="sm"
-                        onClick={() => setConfirmDeleteId(u.id)}
-                      >
-                        Διαγραφή
-                      </Button>
+                      <div className="flex items-center justify-end gap-2">
+                        {resendFeedback?.id === u.id && (
+                          <span
+                            className={`text-xs ${
+                              resendFeedback.kind === "success"
+                                ? "text-green-600"
+                                : "text-red-600"
+                            }`}
+                          >
+                            {resendFeedback.message}
+                          </span>
+                        )}
+                        {!u.emailVerified && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            loading={
+                              resend.isPending &&
+                              resend.variables === u.id
+                            }
+                            onClick={() => handleResend(u.id)}
+                          >
+                            Επανάληψη πρόσκλησης
+                          </Button>
+                        )}
+                        {canPromote && u.role === "staff" && (
+                          <Button
+                            variant="secondary"
+                            size="sm"
+                            loading={
+                              promote.isPending &&
+                              promote.variables === u.id
+                            }
+                            onClick={() => promote.mutate(u.id)}
+                          >
+                            Μετατροπή σε ιδιοκτήτη
+                          </Button>
+                        )}
+                        <Button
+                          variant="danger"
+                          size="sm"
+                          onClick={() => setConfirmDeleteId(u.id)}
+                        >
+                          Διαγραφή
+                        </Button>
+                      </div>
                     ))}
                 </td>
               </tr>
