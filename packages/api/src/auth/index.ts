@@ -12,6 +12,10 @@ import { config } from "../config";
 import { sendMagicLink, sendPasswordReset } from "../services/email";
 
 const baseDomainHost = config.baseDomain.split(":")[0] || "";
+// Browsers and the Public Suffix List reject cookies with Domain=.localhost,
+// so cross-subdomain cookies are unusable on localhost dev. Each subdomain
+// keeps its own host-only cookie in that case.
+const enableCrossSubDomainCookies = baseDomainHost !== "localhost";
 
 export const auth = betterAuth({
   database: drizzleAdapter(db, {
@@ -60,10 +64,12 @@ export const auth = betterAuth({
     database: {
       generateId: false,
     },
-    crossSubDomainCookies: {
-      enabled: true,
-      domain: `.${baseDomainHost}`,
-    },
+    ...(enableCrossSubDomainCookies && {
+      crossSubDomainCookies: {
+        enabled: true,
+        domain: `.${baseDomainHost}`,
+      },
+    }),
     useSecureCookies: !config.isDev,
   },
   trustedOrigins: [

@@ -5,13 +5,18 @@ import { resolve } from "node:path";
 
 process.loadEnvFile(resolve(__dirname, "../../.env"));
 
+const baseDomain = process.env.BASE_DOMAIN || "lvh.me:5173";
+
 export default defineConfig({
   plugins: [react(), tailwindcss()],
+  define: {
+    "import.meta.env.VITE_BASE_DOMAIN": JSON.stringify(baseDomain),
+  },
   server: {
     port: 5173,
-    // Bind to all interfaces so lvh.me works (resolves to 127.0.0.1)
+    // Bind to all interfaces so wildcard subdomains (lvh.me, *.localhost) resolve
     host: true,
-    // Allow lvh.me and subdomains for local multi-tenant dev
+    // Allow any subdomain for local multi-tenant dev
     allowedHosts: true,
     proxy: {
       "/api": {

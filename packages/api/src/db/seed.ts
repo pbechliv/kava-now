@@ -1,8 +1,10 @@
 import "../load-env";
 import { drizzle } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
+import { eq } from "drizzle-orm";
 import { seedProducts } from "./schema/seed-products.js";
 import { users } from "./schema/index.js";
+import { auth } from "../auth/index.js";
 
 const connectionString =
   process.env.DATABASE_URL ||
@@ -69,17 +71,33 @@ async function main() {
   await db.insert(seedProducts).values(SEED_DATA).onConflictDoNothing();
   console.log(`Seeded ${SEED_DATA.length} products.`);
 
-  // Seed superadmin user (no password — set via forgot-password flow)
+  // Seed superadmin via better-auth so they get a usable credential account.
+  // Default dev password is logged below; reset via /forgot-password in prod.
   console.log("Seeding superadmin user...");
-  await db
-    .insert(users)
-    .values({
-      email: "panos.bechlivanos@gmail.com",
-      name: "Super Admin",
-      role: "superadmin",
-    })
-    .onConflictDoNothing();
-  console.log("Superadmin user seeded.");
+  const superadminEmail = "panos.bechlivanos@gmail.com";
+  const superadminPassword = "supersecret";
+
+  const [existing] = await db
+    .select({ id: users.id })
+    .from(users)
+    .where(eq(users.email, superadminEmail))
+    .limit(1);
+
+  if (!existing) {
+    await auth.api.signUpEmail({
+      body: {
+        email: superadminEmail,
+        password: superadminPassword,
+        name: "Super Admin",
+      },
+    });
+    // Promote role (signUpEmail defaults to "customer")
+    await db
+      .update(users)
+      .set({ role: "superadmin", emailVerified: true })
+      .where(eq(users.email, superadminEmail));
+  }
+  console.log(`Superadmin: ${superadminEmail} / ${superadminPassword}`);
 
   await sql.end();
   console.log("Seed complete.");
