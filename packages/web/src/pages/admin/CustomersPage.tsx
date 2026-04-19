@@ -4,7 +4,6 @@ import { Button } from "../../components/ui/Button";
 import { Input } from "../../components/ui/Input";
 import { Spinner } from "../../components/ui/Spinner";
 import { EmptyState } from "../../components/ui/EmptyState";
-import { Badge } from "../../components/ui/Badge";
 import {
   useCustomers,
   useDeleteCustomer,
@@ -73,7 +72,6 @@ export function CustomersPage() {
                   <th className="px-4 py-3 font-medium">Email</th>
                   <th className="px-4 py-3 font-medium">Τηλέφωνο</th>
                   <th className="px-4 py-3 font-medium">Υπεύθυνος</th>
-                  <th className="px-4 py-3 font-medium">Τιμοκατάλογος</th>
                   <th className="px-4 py-3 font-medium text-right">
                     Ενέργειες
                   </th>
@@ -97,13 +95,6 @@ export function CustomersPage() {
                     <td className="px-4 py-3 text-gray-600">
                       {customer.contactPerson ?? "-"}
                     </td>
-                    <td className="px-4 py-3">
-                      {customer.pricingTierName ? (
-                        <Badge color="amber">{customer.pricingTierName}</Badge>
-                      ) : (
-                        <span className="text-gray-400">-</span>
-                      )}
-                    </td>
                     <td className="px-4 py-3 text-right">
                       <div className="flex justify-end gap-2">
                         <Button
@@ -118,11 +109,11 @@ export function CustomersPage() {
                           size="sm"
                           onClick={() =>
                             navigate(
-                              `/admin/customers/${customer.id}/products`,
+                              `/admin/customers/${customer.id}/brand-pricing`,
                             )
                           }
                         >
-                          Προϊόντα
+                          Τιμολόγηση
                         </Button>
                         <Button
                           variant="ghost"

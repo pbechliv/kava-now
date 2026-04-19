@@ -2,7 +2,7 @@ import { z } from "zod";
 
 export const createProductSchema = z.object({
   name: z.string().min(1, "Το όνομα είναι υποχρεωτικό"),
-  brand: z.string().optional(),
+  brand: z.string().min(1, "Η μάρκα είναι υποχρεωτική"),
   categoryId: z.string().uuid().optional().nullable(),
   description: z.string().optional(),
   basePrice: z
@@ -17,7 +17,7 @@ export const createProductSchema = z.object({
 
 export const updateProductSchema = z.object({
   name: z.string().min(1, "Το όνομα είναι υποχρεωτικό").optional(),
-  brand: z.string().optional().nullable(),
+  brand: z.string().min(1, "Η μάρκα είναι υποχρεωτική").optional(),
   categoryId: z.string().uuid().optional().nullable(),
   description: z.string().optional().nullable(),
   basePrice: z

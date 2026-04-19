@@ -6,9 +6,8 @@ import {
   orders,
   orderItems,
   products,
-  customerProducts,
   customers,
-  pricingTiers,
+  customerBrandPricing,
 } from "../../db/schema/index";
 import { resolvePrice } from "../../services/pricing";
 import { sendOrderNotification } from "../../services/email";
@@ -36,57 +35,62 @@ ordersRouter.post("/", async (c) => {
   const { items, notes } = parsed.data;
   const productIds = items.map((i) => i.productId);
 
-  // Verify all products are assigned to this customer and are active
-  const assignedProducts = await db
+  // Verify all products are active
+  const activeProducts = await db
     .select({
-      productId: customerProducts.productId,
-      customPrice: customerProducts.customPrice,
+      id: products.id,
       basePrice: products.basePrice,
-      productName: products.name,
+      name: products.name,
+      brand: products.brand,
     })
-    .from(customerProducts)
-    .innerJoin(products, eq(customerProducts.productId, products.id))
+    .from(products)
     .where(
       and(
-        eq(customerProducts.customerId, customerId),
-        eq(customerProducts.active, true),
         eq(products.active, true),
-        inArray(customerProducts.productId, productIds),
+        inArray(products.id, productIds),
       ),
     );
 
-  const assignedMap = new Map(
-    assignedProducts.map((p) => [p.productId, p]),
-  );
+  const productMap = new Map(activeProducts.map((p) => [p.id, p]));
 
-  // Check all requested products exist in assigned set
+  // Check all requested products exist and are active
   for (const item of items) {
-    if (!assignedMap.has(item.productId)) {
+    if (!productMap.has(item.productId)) {
       return c.json(
         {
-          error: `Το προϊόν ${item.productId} δεν είναι διαθέσιμο στον κατάλογό σας`,
+          error: `Το προϊόν ${item.productId} δεν είναι διαθέσιμο`,
         },
         400,
       );
     }
   }
 
-  // Get customer's pricing tier discount
+  // Get customer info and brand pricing
   const [customer] = await db
     .select({
       id: customers.id,
       name: customers.name,
       email: customers.email,
-      discountPct: pricingTiers.discountPct,
     })
     .from(customers)
-    .leftJoin(pricingTiers, eq(customers.pricingTierId, pricingTiers.id))
     .where(eq(customers.id, customerId))
     .limit(1);
 
   if (!customer) {
     return c.json({ error: "Ο πελάτης δεν βρέθηκε" }, 404);
   }
+
+  const brandPricing = await db
+    .select({
+      brand: customerBrandPricing.brand,
+      discountPct: customerBrandPricing.discountPct,
+    })
+    .from(customerBrandPricing)
+    .where(eq(customerBrandPricing.customerId, customerId));
+
+  const brandDiscountMap = new Map(
+    brandPricing.map((bp) => [bp.brand, bp.discountPct]),
+  );
 
   // Create order + items in transaction
   const result = await db.transaction(async (tx) => {
@@ -102,11 +106,10 @@ ordersRouter.post("/", async (c) => {
     if (!order) throw new Error("Failed to create order");
 
     const itemValues = items.map((item) => {
-      const assigned = assignedMap.get(item.productId)!;
+      const product = productMap.get(item.productId)!;
       const unitPrice = resolvePrice(
-        assigned.basePrice,
-        customer.discountPct,
-        assigned.customPrice,
+        product.basePrice,
+        brandDiscountMap.get(product.brand) ?? null,
       );
 
       return {
@@ -114,7 +117,7 @@ ordersRouter.post("/", async (c) => {
         productId: item.productId,
         quantity: item.quantity,
         unitPrice: String(unitPrice),
-        productName: assigned.productName,
+        productName: product.name,
       };
     });
 
@@ -223,39 +226,28 @@ ordersRouter.post("/:id/reorder", async (c) => {
 
   const productIds = originalItems.map((i) => i.productId);
 
-  // Get current product data and customer pricing
-  const assignedProducts = await db
+  // Get current product data
+  const activeProducts = await db
     .select({
-      productId: customerProducts.productId,
-      customPrice: customerProducts.customPrice,
+      id: products.id,
       basePrice: products.basePrice,
-      productName: products.name,
+      name: products.name,
+      brand: products.brand,
       active: products.active,
-      cpActive: customerProducts.active,
     })
-    .from(customerProducts)
-    .innerJoin(products, eq(customerProducts.productId, products.id))
-    .where(
-      and(
-        eq(customerProducts.customerId, customerId),
-        inArray(customerProducts.productId, productIds),
-      ),
-    );
+    .from(products)
+    .where(inArray(products.id, productIds));
 
-  const assignedMap = new Map(
-    assignedProducts.map((p) => [p.productId, p]),
-  );
+  const productMap = new Map(activeProducts.map((p) => [p.id, p]));
 
-  // Get customer's pricing tier discount
+  // Get customer info and brand pricing
   const [customer] = await db
     .select({
       id: customers.id,
       name: customers.name,
       email: customers.email,
-      discountPct: pricingTiers.discountPct,
     })
     .from(customers)
-    .leftJoin(pricingTiers, eq(customers.pricingTierId, pricingTiers.id))
     .where(eq(customers.id, customerId))
     .limit(1);
 
@@ -263,10 +255,22 @@ ordersRouter.post("/:id/reorder", async (c) => {
     return c.json({ error: "Ο πελάτης δεν βρέθηκε" }, 404);
   }
 
+  const brandPricing = await db
+    .select({
+      brand: customerBrandPricing.brand,
+      discountPct: customerBrandPricing.discountPct,
+    })
+    .from(customerBrandPricing)
+    .where(eq(customerBrandPricing.customerId, customerId));
+
+  const brandDiscountMap = new Map(
+    brandPricing.map((bp) => [bp.brand, bp.discountPct]),
+  );
+
   // Filter out items for products no longer available
   const validItems = originalItems.filter((item) => {
-    const assigned = assignedMap.get(item.productId);
-    return assigned && assigned.active && assigned.cpActive;
+    const product = productMap.get(item.productId);
+    return product && product.active;
   });
 
   if (validItems.length === 0) {
@@ -292,11 +296,10 @@ ordersRouter.post("/:id/reorder", async (c) => {
     if (!newOrder) throw new Error("Failed to create order");
 
     const itemValues = validItems.map((item) => {
-      const assigned = assignedMap.get(item.productId)!;
+      const product = productMap.get(item.productId)!;
       const unitPrice = resolvePrice(
-        assigned.basePrice,
-        customer.discountPct,
-        assigned.customPrice,
+        product.basePrice,
+        brandDiscountMap.get(product.brand) ?? null,
       );
 
       return {
@@ -304,7 +307,7 @@ ordersRouter.post("/:id/reorder", async (c) => {
         productId: item.productId,
         quantity: item.quantity,
         unitPrice: String(unitPrice),
-        productName: assigned.productName,
+        productName: product.name,
       };
     });
 

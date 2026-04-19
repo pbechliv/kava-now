@@ -41,7 +41,7 @@ export interface Product {
   id: string;
   kavaId: string;
   name: string;
-  brand: string | null;
+  brand: string;
   categoryId: string | null;
   description: string | null;
   imageUrl: string | null;
@@ -54,14 +54,6 @@ export interface Product {
   createdAt: string;
 }
 
-export interface PricingTier {
-  id: string;
-  kavaId: string;
-  name: string;
-  discountPct: number;
-  createdAt: string;
-}
-
 export interface Customer {
   id: string;
   kavaId: string;
@@ -70,16 +62,14 @@ export interface Customer {
   address: string | null;
   phone: string | null;
   contactPerson: string | null;
-  pricingTierId: string | null;
   notes: string | null;
   createdAt: string;
 }
 
-export interface CustomerProduct {
+export interface CustomerBrandPricing {
   customerId: string;
-  productId: string;
-  customPrice: number | null;
-  active: boolean;
+  brand: string;
+  discountPct: number;
 }
 
 export interface Order {

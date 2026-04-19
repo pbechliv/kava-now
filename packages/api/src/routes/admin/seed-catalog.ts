@@ -80,7 +80,7 @@ seedCatalogRouter.post("/import", async (c) => {
   const productValues = seeds.map((seed) => ({
     kavaId,
     name: seed.name,
-    brand: seed.brand,
+    brand: seed.brand ?? seed.name,
     categoryId: categoryMap.get(seed.categoryName) ?? null,
     description: seed.description,
     imageUrl: seed.imageUrl,

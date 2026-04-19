@@ -27,8 +27,7 @@ import { DashboardPage } from "./pages/admin/DashboardPage";
 import { ProductsPage } from "./pages/admin/ProductsPage";
 import { CategoriesPage } from "./pages/admin/CategoriesPage";
 import { CustomersPage } from "./pages/admin/CustomersPage";
-import { CustomerProductsPage } from "./pages/admin/CustomerProductsPage";
-import { PricingPage } from "./pages/admin/PricingPage";
+import { CustomerBrandPricingPage } from "./pages/admin/CustomerBrandPricingPage";
 import { OrdersPage } from "./pages/admin/OrdersPage";
 import { OrderDetailPage } from "./pages/admin/OrderDetailPage";
 import { SettingsPage } from "./pages/admin/SettingsPage";
@@ -128,8 +127,7 @@ function TenantApp() {
         <Route path="products/:id" element={<ProductFormPage />} />
         <Route path="categories" element={<CategoriesPage />} />
         <Route path="customers" element={<CustomersPage />} />
-        <Route path="customers/:id/products" element={<CustomerProductsPage />} />
-        <Route path="pricing" element={<PricingPage />} />
+        <Route path="customers/:id/brand-pricing" element={<CustomerBrandPricingPage />} />
         <Route path="orders" element={<OrdersPage />} />
         <Route path="orders/:id" element={<OrderDetailPage />} />
         <Route path="settings" element={<SettingsPage />} />

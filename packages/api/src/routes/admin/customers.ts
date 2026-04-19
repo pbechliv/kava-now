@@ -4,23 +4,34 @@ import { randomBytes } from "node:crypto";
 import {
   createCustomerSchema,
   updateCustomerSchema,
-  assignProductsSchema,
+  updateCustomerBrandPricingSchema,
 } from "@kava-now/shared";
 import { db } from "../../db/connection";
 import {
   customers,
-  pricingTiers,
   products,
-  customerProducts,
+  customerBrandPricing,
   orders,
   magicLinkTokens,
 } from "../../db/schema/index";
 import { sendMagicLink } from "../../services/email";
 import { config } from "../../config";
-import { resolvePrice } from "../../services/pricing";
 import type { AppEnv } from "../../types";
 
 const customersRouter = new Hono<AppEnv>();
+
+// GET /brands — list distinct brands for this kava's products
+customersRouter.get("/brands", async (c) => {
+  const kavaId = c.get("kavaId")!;
+
+  const brands = await db
+    .selectDistinct({ brand: products.brand })
+    .from(products)
+    .where(and(eq(products.kavaId, kavaId), eq(products.active, true)))
+    .orderBy(products.brand);
+
+  return c.json(brands.map((b) => b.brand));
+});
 
 // GET / — list customers with optional ?search
 customersRouter.get("/", async (c) => {
@@ -48,13 +59,10 @@ customersRouter.get("/", async (c) => {
       address: customers.address,
       phone: customers.phone,
       contactPerson: customers.contactPerson,
-      pricingTierId: customers.pricingTierId,
       notes: customers.notes,
       createdAt: customers.createdAt,
-      pricingTierName: pricingTiers.name,
     })
     .from(customers)
-    .leftJoin(pricingTiers, eq(customers.pricingTierId, pricingTiers.id))
     .where(and(...conditions))
     .orderBy(customers.name);
 
@@ -104,7 +112,7 @@ customersRouter.post("/", async (c) => {
   return c.json(customer, 201);
 });
 
-// GET /:id — single customer with tier info
+// GET /:id — single customer
 customersRouter.get("/:id", async (c) => {
   const kavaId = c.get("kavaId")!;
   const id = c.req.param("id");
@@ -118,13 +126,10 @@ customersRouter.get("/:id", async (c) => {
       address: customers.address,
       phone: customers.phone,
       contactPerson: customers.contactPerson,
-      pricingTierId: customers.pricingTierId,
       notes: customers.notes,
       createdAt: customers.createdAt,
-      pricingTierName: pricingTiers.name,
     })
     .from(customers)
-    .leftJoin(pricingTiers, eq(customers.pricingTierId, pricingTiers.id))
     .where(and(eq(customers.id, id), eq(customers.kavaId, kavaId)))
     .limit(1);
 
@@ -190,20 +195,15 @@ customersRouter.delete("/:id", async (c) => {
   return c.json({ message: "Ο πελάτης διαγράφηκε" });
 });
 
-// GET /:id/products — list all products with assignment info + resolved prices
-customersRouter.get("/:id/products", async (c) => {
+// GET /:id/brand-pricing — list all brands with this customer's discounts
+customersRouter.get("/:id/brand-pricing", async (c) => {
   const kavaId = c.get("kavaId")!;
   const id = c.req.param("id");
 
-  // Get customer with tier discount
+  // Verify customer exists
   const [customer] = await db
-    .select({
-      id: customers.id,
-      pricingTierId: customers.pricingTierId,
-      discountPct: pricingTiers.discountPct,
-    })
+    .select({ id: customers.id })
     .from(customers)
-    .leftJoin(pricingTiers, eq(customers.pricingTierId, pricingTiers.id))
     .where(and(eq(customers.id, id), eq(customers.kavaId, kavaId)))
     .limit(1);
 
@@ -211,48 +211,35 @@ customersRouter.get("/:id/products", async (c) => {
     return c.json({ error: "Ο πελάτης δεν βρέθηκε" }, 404);
   }
 
-  // Get all active products for this kava
-  const allProducts = await db
-    .select()
+  // Get all distinct brands for this kava
+  const brands = await db
+    .selectDistinct({ brand: products.brand })
     .from(products)
     .where(and(eq(products.kavaId, kavaId), eq(products.active, true)))
-    .orderBy(products.name);
+    .orderBy(products.brand);
 
-  // Get assignments for this customer
-  const assignments = await db
+  // Get existing brand pricing for this customer
+  const pricing = await db
     .select()
-    .from(customerProducts)
-    .where(eq(customerProducts.customerId, id));
+    .from(customerBrandPricing)
+    .where(eq(customerBrandPricing.customerId, id));
 
-  const assignmentMap = new Map(
-    assignments.map((a) => [a.productId, a]),
-  );
+  const pricingMap = new Map(pricing.map((p) => [p.brand, p.discountPct]));
 
-  const result = allProducts.map((product) => {
-    const assignment = assignmentMap.get(product.id);
-    const assigned = !!assignment;
-    const customPrice = assignment?.customPrice ?? null;
-    const resolvedPriceValue = assigned
-      ? resolvePrice(product.basePrice, customer.discountPct, customPrice)
-      : resolvePrice(product.basePrice, customer.discountPct, null);
-
-    return {
-      product,
-      assigned,
-      customPrice: customPrice != null ? Number(customPrice) : null,
-      resolvedPrice: resolvedPriceValue,
-    };
-  });
+  const result = brands.map((b) => ({
+    brand: b.brand,
+    discountPct: pricingMap.has(b.brand) ? Number(pricingMap.get(b.brand)) : 0,
+  }));
 
   return c.json(result);
 });
 
-// PUT /:id/products — bulk update product assignments
-customersRouter.put("/:id/products", async (c) => {
+// PUT /:id/brand-pricing — bulk update brand discounts for customer
+customersRouter.put("/:id/brand-pricing", async (c) => {
   const kavaId = c.get("kavaId")!;
   const id = c.req.param("id");
   const body = await c.req.json();
-  const parsed = assignProductsSchema.safeParse(body);
+  const parsed = updateCustomerBrandPricingSchema.safeParse(body);
 
   if (!parsed.success) {
     return c.json({ error: parsed.error.flatten().fieldErrors }, 400);
@@ -269,24 +256,26 @@ customersRouter.put("/:id/products", async (c) => {
     return c.json({ error: "Ο πελάτης δεν βρέθηκε" }, 404);
   }
 
-  // Delete all existing assignments
+  // Delete all existing brand pricing for this customer
   await db
-    .delete(customerProducts)
-    .where(eq(customerProducts.customerId, id));
+    .delete(customerBrandPricing)
+    .where(eq(customerBrandPricing.customerId, id));
 
-  // Insert new ones
-  if (parsed.data.assignments.length > 0) {
-    await db.insert(customerProducts).values(
-      parsed.data.assignments.map((a) => ({
+  // Insert new ones (only those with non-zero discount)
+  const withDiscount = parsed.data.assignments.filter(
+    (a) => a.discountPct > 0,
+  );
+  if (withDiscount.length > 0) {
+    await db.insert(customerBrandPricing).values(
+      withDiscount.map((a) => ({
         customerId: id,
-        productId: a.productId,
-        customPrice: a.customPrice != null ? String(a.customPrice) : null,
-        active: a.active ?? true,
+        brand: a.brand,
+        discountPct: String(a.discountPct),
       })),
     );
   }
 
-  return c.json({ message: "Τα προϊόντα ενημερώθηκαν" });
+  return c.json({ message: "Η τιμολόγηση ενημερώθηκε" });
 });
 
 export { customersRouter };

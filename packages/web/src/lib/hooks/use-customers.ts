@@ -6,10 +6,6 @@ import type {
   UpdateCustomerInput,
 } from "@kava-now/shared";
 
-interface CustomerWithTier extends Customer {
-  pricingTierName: string | null;
-}
-
 export function useCustomers(search?: string) {
   const params = new URLSearchParams();
   if (search) params.set("search", search);
@@ -19,14 +15,14 @@ export function useCustomers(search?: string) {
 
   return useQuery({
     queryKey: ["admin", "customers", search],
-    queryFn: () => api.get<CustomerWithTier[]>(path),
+    queryFn: () => api.get<Customer[]>(path),
   });
 }
 
 export function useCustomer(id: string | undefined) {
   return useQuery({
     queryKey: ["admin", "customers", id],
-    queryFn: () => api.get<CustomerWithTier>(`/api/admin/customers/${id}`),
+    queryFn: () => api.get<Customer>(`/api/admin/customers/${id}`),
     enabled: !!id,
   });
 }

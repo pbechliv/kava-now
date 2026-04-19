@@ -1,7 +1,6 @@
 import { useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { z } from "zod";
 import {
   createCustomerSchema,
   type CreateCustomerInput,
@@ -15,7 +14,6 @@ import {
   useCreateCustomer,
   useUpdateCustomer,
 } from "../../lib/hooks/use-customers";
-import { usePricingTiers } from "../../lib/hooks/use-pricing-tiers";
 
 interface Props {
   open: boolean;
@@ -30,7 +28,6 @@ export function CustomerFormModal({ open, customerId, onClose }: Props) {
   const { data: customer, isLoading: customerLoading } = useCustomer(
     isEdit ? customerId : undefined,
   );
-  const { data: tiers } = usePricingTiers();
   const createMutation = useCreateCustomer();
   const updateMutation = useUpdateCustomer();
 
@@ -40,13 +37,7 @@ export function CustomerFormModal({ open, customerId, onClose }: Props) {
     reset,
     formState: { errors },
   } = useForm<FormData>({
-    resolver: zodResolver(
-      createCustomerSchema.extend({
-        pricingTierId: createCustomerSchema.shape.pricingTierId.or(
-          z.literal("").transform(() => null),
-        ),
-      }),
-    ),
+    resolver: zodResolver(createCustomerSchema),
   });
 
   useEffect(() => {
@@ -57,7 +48,6 @@ export function CustomerFormModal({ open, customerId, onClose }: Props) {
         address: null,
         phone: null,
         contactPerson: null,
-        pricingTierId: null,
         notes: null,
       });
     }
@@ -71,7 +61,6 @@ export function CustomerFormModal({ open, customerId, onClose }: Props) {
         address: customer.address,
         phone: customer.phone,
         contactPerson: customer.contactPerson,
-        pricingTierId: customer.pricingTierId,
         notes: customer.notes,
       });
     }
@@ -85,7 +74,6 @@ export function CustomerFormModal({ open, customerId, onClose }: Props) {
       address: data.address || null,
       phone: data.phone || null,
       contactPerson: data.contactPerson || null,
-      pricingTierId: data.pricingTierId || null,
       notes: data.notes || null,
     };
 
@@ -163,27 +151,6 @@ export function CustomerFormModal({ open, customerId, onClose }: Props) {
               {...register("address")}
               error={errors.address?.message}
             />
-
-            <div>
-              <label
-                htmlFor="customer-pricingTierId"
-                className="block text-sm font-medium text-gray-700 mb-1"
-              >
-                Τιμοκατάλογος
-              </label>
-              <select
-                id="customer-pricingTierId"
-                {...register("pricingTierId")}
-                className="block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-amber-500 focus:outline-none focus:ring-2 focus:ring-amber-500"
-              >
-                <option value="">Χωρίς τιμοκατάλογο</option>
-                {tiers?.map((tier) => (
-                  <option key={tier.id} value={tier.id}>
-                    {tier.name} ({Number(tier.discountPct)}%)
-                  </option>
-                ))}
-              </select>
-            </div>
 
             <div>
               <label

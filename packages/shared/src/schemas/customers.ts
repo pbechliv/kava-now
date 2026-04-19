@@ -6,7 +6,6 @@ export const createCustomerSchema = z.object({
   address: z.string().optional().nullable(),
   phone: z.string().optional().nullable(),
   contactPerson: z.string().optional().nullable(),
-  pricingTierId: z.string().uuid().optional().nullable(),
   notes: z.string().optional().nullable(),
 });
 
@@ -16,7 +15,6 @@ export const updateCustomerSchema = z.object({
   address: z.string().optional().nullable(),
   phone: z.string().optional().nullable(),
   contactPerson: z.string().optional().nullable(),
-  pricingTierId: z.string().uuid().optional().nullable(),
   notes: z.string().optional().nullable(),
 });
 

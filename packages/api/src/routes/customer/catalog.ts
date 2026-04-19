@@ -4,16 +4,15 @@ import { db } from "../../db/connection";
 import {
   products,
   categories,
-  customerProducts,
   customers,
-  pricingTiers,
+  customerBrandPricing,
 } from "../../db/schema/index";
 import { resolvePrice } from "../../services/pricing";
 import type { AppEnv } from "../../types";
 
 const catalogRouter = new Hono<AppEnv>();
 
-// GET / — products assigned to the authenticated customer
+// GET / — all active products with per-brand pricing for the authenticated customer
 catalogRouter.get("/", async (c) => {
   const user = c.get("user")!;
   const customerId = user.customerId;
@@ -22,15 +21,10 @@ catalogRouter.get("/", async (c) => {
     return c.json({ error: "Δεν βρέθηκε λογαριασμός πελάτη" }, 400);
   }
 
-  // Fetch customer's pricing tier discount
+  // Verify customer exists
   const [customer] = await db
-    .select({
-      id: customers.id,
-      pricingTierId: customers.pricingTierId,
-      discountPct: pricingTiers.discountPct,
-    })
+    .select({ id: customers.id })
     .from(customers)
-    .leftJoin(pricingTiers, eq(customers.pricingTierId, pricingTiers.id))
     .where(eq(customers.id, customerId))
     .limit(1);
 
@@ -38,14 +32,23 @@ catalogRouter.get("/", async (c) => {
     return c.json({ error: "Ο πελάτης δεν βρέθηκε" }, 404);
   }
 
+  // Fetch customer's brand pricing
+  const brandPricing = await db
+    .select({
+      brand: customerBrandPricing.brand,
+      discountPct: customerBrandPricing.discountPct,
+    })
+    .from(customerBrandPricing)
+    .where(eq(customerBrandPricing.customerId, customerId));
+
+  const brandDiscountMap = new Map(
+    brandPricing.map((bp) => [bp.brand, bp.discountPct]),
+  );
+
   const categoryId = c.req.query("categoryId");
   const search = c.req.query("search");
 
-  const conditions = [
-    eq(customerProducts.customerId, customerId),
-    eq(customerProducts.active, true),
-    eq(products.active, true),
-  ];
+  const conditions = [eq(products.active, true)];
 
   if (categoryId) {
     conditions.push(eq(products.categoryId, categoryId));
@@ -71,10 +74,8 @@ catalogRouter.get("/", async (c) => {
       categoryId: products.categoryId,
       categoryName: categories.name,
       basePrice: products.basePrice,
-      customPrice: customerProducts.customPrice,
     })
-    .from(customerProducts)
-    .innerJoin(products, eq(customerProducts.productId, products.id))
+    .from(products)
     .leftJoin(categories, eq(products.categoryId, categories.id))
     .where(and(...conditions))
     .orderBy(products.name);
@@ -92,8 +93,7 @@ catalogRouter.get("/", async (c) => {
     categoryName: row.categoryName,
     resolvedPrice: resolvePrice(
       row.basePrice,
-      customer.discountPct,
-      row.customPrice,
+      brandDiscountMap.get(row.brand) ?? null,
     ),
   }));
 

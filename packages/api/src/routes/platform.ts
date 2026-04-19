@@ -102,7 +102,7 @@ platform.post("/register", async (c) => {
         allSeedProducts.map((sp) => ({
           kavaId: kava.id,
           name: sp.name,
-          brand: sp.brand,
+          brand: sp.brand ?? sp.name,
           categoryId: categoryMap.get(sp.categoryName) ?? null,
           description: sp.description,
           imageUrl: sp.imageUrl,

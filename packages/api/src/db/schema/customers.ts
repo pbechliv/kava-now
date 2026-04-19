@@ -1,6 +1,5 @@
 import { pgTable, uuid, text, timestamp } from "drizzle-orm/pg-core";
 import { kavas } from "./kavas";
-import { pricingTiers } from "./pricing-tiers";
 
 export const customers = pgTable("customers", {
   id: uuid("id").primaryKey().defaultRandom(),
@@ -12,9 +11,6 @@ export const customers = pgTable("customers", {
   address: text("address"),
   phone: text("phone"),
   contactPerson: text("contact_person"),
-  pricingTierId: uuid("pricing_tier_id").references(() => pricingTiers.id, {
-    onDelete: "set null",
-  }),
   notes: text("notes"),
   createdAt: timestamp("created_at", { withTimezone: true })
     .notNull()

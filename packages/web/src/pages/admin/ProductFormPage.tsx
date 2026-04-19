@@ -41,7 +41,7 @@ export function ProductFormPage() {
     if (product && isEdit) {
       reset({
         name: product.name,
-        brand: product.brand ?? undefined,
+        brand: product.brand,
         categoryId: product.categoryId,
         description: product.description ?? undefined,
         basePrice: Number(product.basePrice),
@@ -94,7 +94,7 @@ export function ProductFormPage() {
           />
 
           <Input
-            label="Brand"
+            label="Μάρκα *"
             id="brand"
             {...register("brand")}
             error={errors.brand?.message}

@@ -20,7 +20,7 @@ export const products = pgTable(
       .notNull()
       .references(() => kavas.id, { onDelete: "cascade" }),
     name: text("name").notNull(),
-    brand: text("brand"),
+    brand: text("brand").notNull(),
     categoryId: uuid("category_id").references(() => categories.id, {
       onDelete: "set null",
     }),

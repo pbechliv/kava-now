@@ -5,7 +5,7 @@ import type { ProductUnit } from "@kava-now/shared";
 export interface CatalogProduct {
   id: string;
   name: string;
-  brand: string | null;
+  brand: string;
   description: string | null;
   imageUrl: string | null;
   unit: ProductUnit;

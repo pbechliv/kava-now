@@ -6,9 +6,8 @@
 ALTER TABLE users ENABLE ROW LEVEL SECURITY;
 ALTER TABLE categories ENABLE ROW LEVEL SECURITY;
 ALTER TABLE products ENABLE ROW LEVEL SECURITY;
-ALTER TABLE pricing_tiers ENABLE ROW LEVEL SECURITY;
 ALTER TABLE customers ENABLE ROW LEVEL SECURITY;
-ALTER TABLE customer_products ENABLE ROW LEVEL SECURITY;
+ALTER TABLE customer_brand_pricing ENABLE ROW LEVEL SECURITY;
 ALTER TABLE orders ENABLE ROW LEVEL SECURITY;
 ALTER TABLE order_items ENABLE ROW LEVEL SECURITY;
 ALTER TABLE magic_link_tokens ENABLE ROW LEVEL SECURITY;
@@ -17,9 +16,8 @@ ALTER TABLE magic_link_tokens ENABLE ROW LEVEL SECURITY;
 ALTER TABLE users FORCE ROW LEVEL SECURITY;
 ALTER TABLE categories FORCE ROW LEVEL SECURITY;
 ALTER TABLE products FORCE ROW LEVEL SECURITY;
-ALTER TABLE pricing_tiers FORCE ROW LEVEL SECURITY;
 ALTER TABLE customers FORCE ROW LEVEL SECURITY;
-ALTER TABLE customer_products FORCE ROW LEVEL SECURITY;
+ALTER TABLE customer_brand_pricing FORCE ROW LEVEL SECURITY;
 ALTER TABLE orders FORCE ROW LEVEL SECURITY;
 ALTER TABLE order_items FORCE ROW LEVEL SECURITY;
 ALTER TABLE magic_link_tokens FORCE ROW LEVEL SECURITY;
@@ -28,9 +26,8 @@ ALTER TABLE magic_link_tokens FORCE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS tenant_isolation_users ON users;
 DROP POLICY IF EXISTS tenant_isolation_categories ON categories;
 DROP POLICY IF EXISTS tenant_isolation_products ON products;
-DROP POLICY IF EXISTS tenant_isolation_pricing_tiers ON pricing_tiers;
 DROP POLICY IF EXISTS tenant_isolation_customers ON customers;
-DROP POLICY IF EXISTS tenant_isolation_customer_products ON customer_products;
+DROP POLICY IF EXISTS tenant_isolation_customer_brand_pricing ON customer_brand_pricing;
 DROP POLICY IF EXISTS tenant_isolation_orders ON orders;
 DROP POLICY IF EXISTS tenant_isolation_order_items ON order_items;
 DROP POLICY IF EXISTS tenant_isolation_magic_link_tokens ON magic_link_tokens;
@@ -50,18 +47,13 @@ CREATE POLICY tenant_isolation_products ON products
   USING (kava_id = current_setting('app.current_kava_id', true)::uuid)
   WITH CHECK (kava_id = current_setting('app.current_kava_id', true)::uuid);
 
--- Pricing Tiers: scoped by kava_id
-CREATE POLICY tenant_isolation_pricing_tiers ON pricing_tiers
-  USING (kava_id = current_setting('app.current_kava_id', true)::uuid)
-  WITH CHECK (kava_id = current_setting('app.current_kava_id', true)::uuid);
-
 -- Customers: scoped by kava_id
 CREATE POLICY tenant_isolation_customers ON customers
   USING (kava_id = current_setting('app.current_kava_id', true)::uuid)
   WITH CHECK (kava_id = current_setting('app.current_kava_id', true)::uuid);
 
--- Customer Products: scoped via customer's kava_id
-CREATE POLICY tenant_isolation_customer_products ON customer_products
+-- Customer Brand Pricing: scoped via customer's kava_id
+CREATE POLICY tenant_isolation_customer_brand_pricing ON customer_brand_pricing
   USING (
     customer_id IN (
       SELECT id FROM customers
