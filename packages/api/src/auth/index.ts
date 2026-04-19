@@ -86,6 +86,12 @@ export const auth = betterAuth({
   ],
   plugins: [
     magicLink({
+      // Browsers and link-safety scanners frequently pre-fetch links, which
+      // would consume a single-attempt token before the user actually clicks.
+      // Allow a few attempts and hash the token at rest.
+      allowedAttempts: 3,
+      storeToken: "hashed",
+      expiresIn: 60 * 60, // 1 hour, generous for invites
       sendMagicLink: async ({ email, url }, ctx) => {
         // The plugin builds `url` from auth.baseURL (a static fallback). For
         // multi-tenant subdomains we rewrite the host using the request that
