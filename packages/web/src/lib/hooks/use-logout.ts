@@ -1,11 +1,11 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { api } from "../api";
+import { authClient } from "../auth-client";
 
 export function useLogout() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: () => api.post("/api/auth/sign-out"),
+    mutationFn: () => authClient.signOut(),
     onSuccess: () => {
       queryClient.clear();
       window.location.href = "/login";

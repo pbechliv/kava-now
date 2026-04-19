@@ -5,7 +5,7 @@ import {
   type ForgotPasswordInput,
 } from "@kava-now/shared";
 import { useMutation } from "@tanstack/react-query";
-import { api } from "../../lib/api";
+import { authClient } from "../../lib/auth-client";
 import { authEmailFor } from "../../lib/auth-email";
 import { Input } from "../../components/ui/Input";
 import { Button } from "../../components/ui/Button";
@@ -21,11 +21,13 @@ export function ForgotPasswordPage() {
   });
 
   const mutation = useMutation({
-    mutationFn: (data: ForgotPasswordInput) =>
-      api.post("/api/auth/request-password-reset", {
+    mutationFn: async (data: ForgotPasswordInput) => {
+      const { error } = await authClient.requestPasswordReset({
         email: authEmailFor(data.email),
         redirectTo: "/auth/reset-password",
-      }),
+      });
+      if (error) throw new Error(error.message ?? "Σφάλμα");
+    },
   });
 
   const onSubmit = (data: ForgotPasswordInput) => {

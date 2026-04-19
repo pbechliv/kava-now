@@ -3,7 +3,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { resetPasswordSchema, type ResetPasswordInput } from "@kava-now/shared";
 import { useMutation } from "@tanstack/react-query";
 import { useSearchParams } from "react-router";
-import { api } from "../../lib/api";
+import { authClient } from "../../lib/auth-client";
 import { Input } from "../../components/ui/Input";
 import { Button } from "../../components/ui/Button";
 import { Link } from "react-router";
@@ -22,11 +22,13 @@ export function ResetPasswordPage() {
   });
 
   const mutation = useMutation({
-    mutationFn: (data: ResetPasswordInput) =>
-      api.post("/api/auth/reset-password", {
+    mutationFn: async (data: ResetPasswordInput) => {
+      const { error } = await authClient.resetPassword({
         newPassword: data.password,
         token: data.token,
-      }),
+      });
+      if (error) throw new Error(error.message ?? "Σφάλμα");
+    },
   });
 
   const onSubmit = (data: ResetPasswordInput) => {

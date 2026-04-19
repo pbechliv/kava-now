@@ -7,6 +7,7 @@ import { useSettings, useUpdateSettings } from "../../lib/hooks/use-settings";
 import { useAuth } from "../../lib/hooks/use-auth";
 import { useMutation } from "@tanstack/react-query";
 import { api } from "../../lib/api";
+import { authClient } from "../../lib/auth-client";
 
 export function SettingsPage() {
   const { data: settings, isLoading } = useSettings();
@@ -28,17 +29,20 @@ export function SettingsPage() {
   const [passwordError, setPasswordError] = useState("");
 
   const changePassword = useMutation({
-    mutationFn: (data: {
+    mutationFn: async (data: {
       currentPassword?: string;
       newPassword: string;
     }) => {
       if (data.currentPassword) {
-        return api.post("/api/auth/change-password", {
+        const { error } = await authClient.changePassword({
           currentPassword: data.currentPassword,
           newPassword: data.newPassword,
         });
+        if (error) throw new Error(error.message ?? "Σφάλμα");
+        return;
       }
-      return api.post("/api/auth/set-password", {
+      // set-password isn't exposed by better-auth's REST API; use our proxy.
+      await api.post("/api/auth/set-password", {
         newPassword: data.newPassword,
       });
     },

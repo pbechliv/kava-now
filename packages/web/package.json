@@ -13,6 +13,7 @@
     "@hookform/resolvers": "^5.2.2",
     "@kava-now/shared": "workspace:*",
     "@tanstack/react-query": "^5.99.1",
+    "better-auth": "^1.6.5",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "react-hook-form": "^7.72.1",
