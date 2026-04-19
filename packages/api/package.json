@@ -18,7 +18,7 @@
     "@kava-now/shared": "workspace:*",
     "@lucia-auth/adapter-drizzle": "^1.1.0",
     "dotenv": "^17.4.2",
-    "drizzle-orm": "^0.39.0",
+    "drizzle-orm": "^0.45.2",
     "hono": "^4.12.14",
     "lucia": "^3.2.0",
     "nodemailer": "^8.0.5",
@@ -30,7 +30,7 @@
     "@hono/vite-dev-server": "^0.25.1",
     "@types/node": "^24.12.2",
     "@types/nodemailer": "^8.0.0",
-    "drizzle-kit": "^0.30.0",
+    "drizzle-kit": "^0.31.10",
     "tsx": "^4.19.0",
     "vite": "^8.0.8"
   }
