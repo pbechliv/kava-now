@@ -23,7 +23,9 @@ export function useLogin() {
       }
       await api.post("/api/auth/sign-in/magic-link", {
         email: data.email,
-        callbackURL: "/",
+        // Absolute URL so better-auth keeps the subdomain in the post-verify
+        // redirect (its static baseURL would otherwise drop it).
+        callbackURL: `${window.location.origin}/`,
       });
       return { magicLinkSent: true };
     },

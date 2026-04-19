@@ -44,7 +44,7 @@ export function KavaSelectPage() {
       <Input
         id="slug"
         type="text"
-        label="Όνομα κάβας (slug)"
+        label="Όνομα κάβας"
         placeholder="my-kava"
         error={errors.slug?.message || (notFound ? "Κάβα δεν βρέθηκε" : undefined)}
         {...register("slug")}
