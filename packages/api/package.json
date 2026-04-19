@@ -17,7 +17,6 @@
     "@hono/node-server": "^1.19.14",
     "@kava-now/shared": "workspace:*",
     "better-auth": "^1.6.5",
-    "dotenv": "^17.4.2",
     "drizzle-orm": "^0.45.2",
     "hono": "^4.12.14",
     "nodemailer": "^8.0.5",

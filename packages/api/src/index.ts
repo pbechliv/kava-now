@@ -1,4 +1,4 @@
-import "dotenv/config";
+import "./load-env";
 import { app } from "./app";
 
 // In dev, @hono/vite-dev-server handles serving.
