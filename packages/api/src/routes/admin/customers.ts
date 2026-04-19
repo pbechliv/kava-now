@@ -1,10 +1,11 @@
 import { Hono } from "hono";
 import { eq, and, ilike, or, sql } from "drizzle-orm";
+import { alias } from "drizzle-orm/pg-core";
+import { z } from "zod";
 import {
   createCustomerSchema,
   updateCustomerSchema,
   updateCustomerBrandPricingSchema,
-  encodeAuthEmail,
 } from "@kava-now/shared";
 import { db } from "../../db/connection";
 import {
@@ -12,8 +13,9 @@ import {
   products,
   customerBrandPricing,
   orders,
+  users,
 } from "../../db/schema/index";
-import { auth } from "../../auth";
+import { inviteUserToKava, InviteConflict } from "../../services/invite-user";
 import type { AppEnv } from "../../types";
 
 const customersRouter = new Hono<AppEnv>();
@@ -67,9 +69,10 @@ customersRouter.get("/", async (c) => {
   return c.json(rows);
 });
 
-// POST / — create customer (optionally send invitation email)
+// POST / — create customer (also creates a customer-user when email is set)
 customersRouter.post("/", async (c) => {
   const kavaId = c.get("kavaId")!;
+  const inviter = c.get("user")!;
   const body = await c.req.json();
   const parsed = createCustomerSchema.safeParse(body);
 
@@ -79,35 +82,34 @@ customersRouter.post("/", async (c) => {
 
   const [customer] = await db
     .insert(customers)
-    .values({
-      ...parsed.data,
-      kavaId,
-    })
+    .values({ ...parsed.data, kavaId })
     .returning();
 
-  // If email is provided, send invitation magic link via better-auth.
-  // NOTE: This auto-creates a `users` row on first verify but with no kavaId
-  // — so the customer can't actually access /catalog. Use the explicit
-  // /admin/users/invite (with role=customer) for a fully-linked invite.
+  // If email provided, also create a linked customer-user + send the
+  // welcome magic link. We don't fail the whole request if email already
+  // belongs to another user in this kava — the customer row is still useful.
+  let userInviteError: string | null = null;
   if (parsed.data.email) {
-    const kava = c.get("kava")!;
-    const requestHost =
-      c.req.header("x-forwarded-host") || c.req.header("host") || "";
-    const protocol = requestHost.includes("localhost") ? "http" : "https";
     try {
-      await auth.api.signInMagicLink({
-        body: {
-          email: encodeAuthEmail(parsed.data.email, kava.slug),
-          callbackURL: `${protocol}://${requestHost}/catalog`,
-        },
-        headers: c.req.raw.headers,
+      await inviteUserToKava({
+        c,
+        kavaId,
+        email: parsed.data.email,
+        name: parsed.data.name,
+        role: "customer",
+        customerId: customer!.id,
+        inviterId: inviter.id,
       });
     } catch (err) {
-      console.error("[customers] Failed to send invitation email:", err);
+      if (err instanceof InviteConflict) {
+        userInviteError = err.message;
+      } else {
+        console.error("[customers] Failed to send invitation email:", err);
+      }
     }
   }
 
-  return c.json(customer, 201);
+  return c.json({ ...customer, userInviteError }, 201);
 });
 
 // GET /:id — single customer
@@ -274,6 +276,86 @@ customersRouter.put("/:id/brand-pricing", async (c) => {
   }
 
   return c.json({ message: "Η τιμολόγηση ενημερώθηκε" });
+});
+
+// GET /:id/users — list users linked to a customer
+customersRouter.get("/:id/users", async (c) => {
+  const kavaId = c.get("kavaId")!;
+  const id = c.req.param("id");
+  const inviterAlias = alias(users, "inviter");
+
+  const [customer] = await db
+    .select({ id: customers.id })
+    .from(customers)
+    .where(and(eq(customers.id, id), eq(customers.kavaId, kavaId)))
+    .limit(1);
+
+  if (!customer) {
+    return c.json({ error: "Ο πελάτης δεν βρέθηκε" }, 404);
+  }
+
+  const rows = await db
+    .select({
+      id: users.id,
+      email: users.realEmail,
+      name: users.name,
+      createdAt: users.createdAt,
+      invitedByName: inviterAlias.name,
+      invitedByEmail: inviterAlias.realEmail,
+    })
+    .from(users)
+    .leftJoin(inviterAlias, eq(users.invitedById, inviterAlias.id))
+    .where(and(eq(users.customerId, id), eq(users.kavaId, kavaId)))
+    .orderBy(users.createdAt);
+
+  return c.json({ users: rows });
+});
+
+const inviteCustomerUserSchema = z.object({
+  email: z.email("Μη έγκυρο email"),
+  name: z.string().min(2, "Το όνομα πρέπει να έχει τουλάχιστον 2 χαρακτήρες"),
+});
+
+// POST /:id/users/invite — add another user account to an existing customer
+customersRouter.post("/:id/users/invite", async (c) => {
+  const kavaId = c.get("kavaId")!;
+  const inviter = c.get("user")!;
+  const id = c.req.param("id");
+  const body = await c.req.json();
+  const parsed = inviteCustomerUserSchema.safeParse(body);
+
+  if (!parsed.success) {
+    return c.json({ error: parsed.error.flatten().fieldErrors }, 400);
+  }
+
+  const [customer] = await db
+    .select({ id: customers.id })
+    .from(customers)
+    .where(and(eq(customers.id, id), eq(customers.kavaId, kavaId)))
+    .limit(1);
+
+  if (!customer) {
+    return c.json({ error: "Ο πελάτης δεν βρέθηκε" }, 404);
+  }
+
+  try {
+    await inviteUserToKava({
+      c,
+      kavaId,
+      email: parsed.data.email,
+      name: parsed.data.name,
+      role: "customer",
+      customerId: customer.id,
+      inviterId: inviter.id,
+    });
+  } catch (err) {
+    if (err instanceof InviteConflict) {
+      return c.json({ error: err.message }, 409);
+    }
+    throw err;
+  }
+
+  return c.json({ success: true });
 });
 
 export { customersRouter };

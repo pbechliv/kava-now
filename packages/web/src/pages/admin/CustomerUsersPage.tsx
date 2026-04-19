@@ -1,26 +1,22 @@
 import { useState } from "react";
 import { useForm } from "react-hook-form";
+import { Link, useParams } from "react-router";
 import {
-  useUsers,
-  useInviteUser,
-  useDeleteUser,
-  type InviteUserInput,
-} from "../../lib/hooks/use-users";
-import { useAuth } from "../../lib/hooks/use-auth";
+  useCustomerUsers,
+  useInviteCustomerUser,
+  type InviteCustomerUserInput,
+} from "../../lib/hooks/use-customer-users";
+import { useCustomer } from "../../lib/hooks/use-customers";
+import { useDeleteUser } from "../../lib/hooks/use-users";
 import { Button } from "../../components/ui/Button";
 import { Input } from "../../components/ui/Input";
 import { Spinner } from "../../components/ui/Spinner";
 
-const ROLE_LABELS: Record<string, string> = {
-  owner: "Ιδιοκτήτης",
-  staff: "Προσωπικό",
-  customer: "Πελάτης",
-};
-
-export function UsersPage() {
-  const { user: me } = useAuth();
-  const { data, isLoading } = useUsers();
-  const invite = useInviteUser();
+export function CustomerUsersPage() {
+  const { id = "" } = useParams<{ id: string }>();
+  const { data: customer } = useCustomer(id);
+  const { data, isLoading } = useCustomerUsers(id);
+  const invite = useInviteCustomerUser(id);
   const remove = useDeleteUser();
   const [inviteOpen, setInviteOpen] = useState(false);
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
@@ -30,9 +26,9 @@ export function UsersPage() {
     handleSubmit,
     reset,
     formState: { errors },
-  } = useForm<InviteUserInput>({ defaultValues: { role: "staff" } });
+  } = useForm<InviteCustomerUserInput>();
 
-  const onInvite = (input: InviteUserInput) => {
+  const onInvite = (input: InviteCustomerUserInput) => {
     invite.mutate(input, {
       onSuccess: () => {
         reset();
@@ -54,52 +50,53 @@ export function UsersPage() {
   return (
     <div>
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-gray-900">Χρήστες</h1>
-        <Button onClick={() => setInviteOpen(true)}>+ Πρόσκληση</Button>
+        <div>
+          <Link
+            to="/admin/customers"
+            className="text-sm text-amber-600 hover:text-amber-700 font-medium"
+          >
+            ← Πίσω στους πελάτες
+          </Link>
+          <h1 className="mt-2 text-2xl font-bold text-gray-900">
+            Χρήστες — {customer?.name ?? "…"}
+          </h1>
+        </div>
+        <Button onClick={() => setInviteOpen(true)}>+ Προσθήκη χρήστη</Button>
       </div>
 
       <div className="mt-6 overflow-hidden rounded-lg border border-gray-200 bg-white shadow-sm">
-        <table className="min-w-full divide-y divide-gray-200">
-          <thead className="bg-gray-50">
-            <tr>
-              <th className="px-4 py-3 text-left text-xs font-medium uppercase text-gray-500">
-                Όνομα
-              </th>
-              <th className="px-4 py-3 text-left text-xs font-medium uppercase text-gray-500">
-                Email
-              </th>
-              <th className="px-4 py-3 text-left text-xs font-medium uppercase text-gray-500">
-                Ρόλος
-              </th>
-              <th className="px-4 py-3 text-left text-xs font-medium uppercase text-gray-500">
-                Προσκλήθηκε από
-              </th>
-              <th className="px-4 py-3" />
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-gray-100">
-            {users.map((u) => (
-              <tr key={u.id}>
-                <td className="px-4 py-3 text-sm font-medium text-gray-900">
-                  {u.name}
-                  {u.id === me?.id && (
-                    <span className="ml-2 text-xs text-gray-500">(εσείς)</span>
-                  )}
-                </td>
-                <td className="px-4 py-3 text-sm text-gray-500">{u.email}</td>
-                <td className="px-4 py-3 text-sm text-gray-700">
-                  {ROLE_LABELS[u.role] ?? u.role}
-                </td>
-                <td className="px-4 py-3 text-sm text-gray-500">
-                  {u.invitedByName ? (
-                    <span title={u.invitedByEmail ?? ""}>{u.invitedByName}</span>
-                  ) : (
-                    <span className="text-gray-300">—</span>
-                  )}
-                </td>
-                <td className="px-4 py-3 text-right">
-                  {u.id !== me?.id &&
-                    (confirmDeleteId === u.id ? (
+        {users.length === 0 ? (
+          <p className="p-6 text-sm text-gray-500">
+            Δεν έχουν προσκληθεί χρήστες ακόμα.
+          </p>
+        ) : (
+          <table className="min-w-full divide-y divide-gray-200">
+            <thead className="bg-gray-50">
+              <tr>
+                <th className="px-4 py-3 text-left text-xs font-medium uppercase text-gray-500">
+                  Όνομα
+                </th>
+                <th className="px-4 py-3 text-left text-xs font-medium uppercase text-gray-500">
+                  Email
+                </th>
+                <th className="px-4 py-3 text-left text-xs font-medium uppercase text-gray-500">
+                  Προσκλήθηκε από
+                </th>
+                <th className="px-4 py-3" />
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-100">
+              {users.map((u) => (
+                <tr key={u.id}>
+                  <td className="px-4 py-3 text-sm font-medium text-gray-900">
+                    {u.name}
+                  </td>
+                  <td className="px-4 py-3 text-sm text-gray-500">{u.email}</td>
+                  <td className="px-4 py-3 text-sm text-gray-500">
+                    {u.invitedByName ?? "—"}
+                  </td>
+                  <td className="px-4 py-3 text-right">
+                    {confirmDeleteId === u.id ? (
                       <div className="flex items-center justify-end gap-2">
                         <span className="text-xs text-red-600">Σίγουρα;</span>
                         <Button
@@ -130,46 +127,40 @@ export function UsersPage() {
                       >
                         Διαγραφή
                       </Button>
-                    ))}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+                    )}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
       </div>
 
       {inviteOpen && (
         <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/40 p-4">
           <div className="w-full max-w-md rounded-lg bg-white p-6 shadow-xl">
             <h2 className="text-lg font-semibold text-gray-900">
-              Πρόσκληση χρήστη
+              Προσθήκη χρήστη
             </h2>
             <p className="mt-1 text-sm text-gray-500">
-              Θα σταλεί email στον χρήστη με σύνδεσμο σύνδεσης.
+              Θα σταλεί email με σύνδεσμο σύνδεσης στον χρήστη.
             </p>
-
             <form onSubmit={handleSubmit(onInvite)} className="mt-4 space-y-4">
               <Input
-                id="invite-name"
+                id="cust-user-name"
                 label="Όνομα"
                 placeholder="Γιάννης Παπαδόπουλος"
                 error={errors.name?.message}
                 {...register("name", { required: "Υποχρεωτικό" })}
               />
               <Input
-                id="invite-email"
+                id="cust-user-email"
                 type="email"
                 label="Email"
                 placeholder="user@example.com"
                 error={errors.email?.message}
                 {...register("email", { required: "Υποχρεωτικό" })}
               />
-              <input type="hidden" {...register("role")} value="staff" />
-              <p className="text-xs text-gray-500">
-                Οι χρήστες πελατών δημιουργούνται από τη σελίδα{" "}
-                <span className="font-medium">Πελάτες</span>.
-              </p>
-
               {invite.error && (
                 <p className="text-sm text-red-600">
                   {invite.error instanceof Error
@@ -177,7 +168,6 @@ export function UsersPage() {
                     : "Σφάλμα"}
                 </p>
               )}
-
               <div className="flex justify-end gap-2">
                 <Button
                   type="button"

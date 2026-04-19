@@ -108,6 +108,15 @@ export function CustomersPage() {
                           variant="ghost"
                           size="sm"
                           onClick={() =>
+                            navigate(`/admin/customers/${customer.id}/users`)
+                          }
+                        >
+                          Χρήστες
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() =>
                             navigate(
                               `/admin/customers/${customer.id}/brand-pricing`,
                             )

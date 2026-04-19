@@ -19,7 +19,7 @@ interface UsersResponse {
 export interface InviteUserInput {
   email: string;
   name: string;
-  role: "staff" | "customer";
+  role: "staff";
 }
 
 export function useUsers() {
