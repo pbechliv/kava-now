@@ -17,7 +17,7 @@
     "db:reset": "pnpm --filter @kava-now/api db:reset"
   },
   "devDependencies": {
-    "oxlint": "^0.16.0",
+    "oxlint": "^1.60.0",
     "typescript": "^5.7.0"
   },
   "engines": {

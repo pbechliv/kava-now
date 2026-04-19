@@ -17,7 +17,7 @@
     "@hono/node-server": "^1.19.14",
     "@kava-now/shared": "workspace:*",
     "@lucia-auth/adapter-drizzle": "^1.1.0",
-    "dotenv": "^16.4.0",
+    "dotenv": "^17.4.2",
     "drizzle-orm": "^0.39.0",
     "hono": "^4.12.14",
     "lucia": "^3.2.0",
@@ -28,7 +28,7 @@
   "devDependencies": {
     "@hono/vite-build": "^1.3.0",
     "@hono/vite-dev-server": "^0.7.0",
-    "@types/node": "^22.0.0",
+    "@types/node": "^24.12.2",
     "@types/nodemailer": "^6.4.0",
     "drizzle-kit": "^0.30.0",
     "tsx": "^4.19.0",
