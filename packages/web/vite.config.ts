@@ -1,6 +1,10 @@
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 import tailwindcss from "@tailwindcss/vite";
+import { config as loadEnv } from "dotenv";
+import { resolve } from "node:path";
+
+loadEnv({ path: resolve(__dirname, "../../.env") });
 
 export default defineConfig({
   plugins: [react(), tailwindcss()],
