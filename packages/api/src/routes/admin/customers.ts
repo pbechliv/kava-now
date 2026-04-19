@@ -4,6 +4,7 @@ import {
   createCustomerSchema,
   updateCustomerSchema,
   updateCustomerBrandPricingSchema,
+  encodeAuthEmail,
 } from "@kava-now/shared";
 import { db } from "../../db/connection";
 import {
@@ -84,13 +85,20 @@ customersRouter.post("/", async (c) => {
     })
     .returning();
 
-  // If email is provided, send invitation magic link via better-auth
+  // If email is provided, send invitation magic link via better-auth.
+  // NOTE: This auto-creates a `users` row on first verify but with no kavaId
+  // — so the customer can't actually access /catalog. Use the explicit
+  // /admin/users/invite (with role=customer) for a fully-linked invite.
   if (parsed.data.email) {
+    const kava = c.get("kava")!;
+    const requestHost =
+      c.req.header("x-forwarded-host") || c.req.header("host") || "";
+    const protocol = requestHost.includes("localhost") ? "http" : "https";
     try {
       await auth.api.signInMagicLink({
         body: {
-          email: parsed.data.email,
-          callbackURL: "/catalog",
+          email: encodeAuthEmail(parsed.data.email, kava.slug),
+          callbackURL: `${protocol}://${requestHost}/catalog`,
         },
         headers: c.req.raw.headers,
       });

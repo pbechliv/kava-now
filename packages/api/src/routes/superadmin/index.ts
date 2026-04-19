@@ -1,6 +1,6 @@
 import { Hono } from "hono";
-import { eq } from "drizzle-orm";
-import { registerSchema } from "@kava-now/shared";
+import { eq, and } from "drizzle-orm";
+import { registerSchema, encodeAuthEmail } from "@kava-now/shared";
 import { db } from "../../db/connection";
 import {
   kavas,
@@ -45,7 +45,8 @@ superadmin.post("/kavas", async (c) => {
     return c.json({ error: parsed.error.flatten().fieldErrors }, 400);
   }
 
-  const { name, slug, email, password } = parsed.data;
+  const { name, slug, email: realEmail, password } = parsed.data;
+  const authEmail = encodeAuthEmail(realEmail, slug);
 
   const [existingKava] = await db
     .select({ id: kavas.id })
@@ -57,23 +58,10 @@ superadmin.post("/kavas", async (c) => {
     return c.json({ error: "Αυτό το slug χρησιμοποιείται ήδη" }, 409);
   }
 
-  const [existingUser] = await db
-    .select({ id: users.id })
-    .from(users)
-    .where(eq(users.email, email))
-    .limit(1);
-
-  if (existingUser) {
-    return c.json(
-      { error: "Αυτό το email χρησιμοποιείται ήδη σε άλλη κάβα" },
-      409,
-    );
-  }
-
   const kava = await db.transaction(async (tx) => {
     const [created] = await tx
       .insert(kavas)
-      .values({ name, slug, email })
+      .values({ name, slug, email: realEmail })
       .returning();
 
     if (!created) throw new Error("Αποτυχία δημιουργίας κάβας");
@@ -118,25 +106,28 @@ superadmin.post("/kavas", async (c) => {
 
   if (password) {
     await auth.api.signUpEmail({
-      body: { email, password, name },
+      body: { email: authEmail, password, name, realEmail },
     });
   } else {
     await db.insert(users).values({
-      email,
+      email: authEmail,
+      realEmail,
       name,
       role: "owner",
       kavaId: kava.id,
     });
     await auth.api.signInMagicLink({
-      body: { email, callbackURL: "/admin/dashboard" },
+      body: { email: authEmail, callbackURL: "/admin/dashboard" },
       headers: c.req.raw.headers,
     });
   }
 
+  // Promote the just-created user to owner + link to kava (signUpEmail
+  // defaults role to "customer" with no kavaId).
   await db
     .update(users)
     .set({ role: "owner", kavaId: kava.id })
-    .where(eq(users.email, email));
+    .where(and(eq(users.email, authEmail), eq(users.realEmail, realEmail)));
 
   return c.json({ success: true, slug, hasPassword: !!password });
 });

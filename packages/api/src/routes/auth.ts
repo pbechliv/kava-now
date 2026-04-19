@@ -2,7 +2,7 @@ import { Hono } from "hono";
 import { eq } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "../db/connection";
-import { accounts } from "../db/schema/index";
+import { accounts, users } from "../db/schema/index";
 import { auth as betterAuth } from "../auth";
 import { requireAuth } from "../middleware/require-auth";
 import type { AppEnv } from "../types";
@@ -39,10 +39,19 @@ auth.get("/me", requireAuth, async (c) => {
     .where(eq(accounts.userId, authUser.id))
     .limit(1);
 
+  // Look up the human-facing email from the row (better-auth's session
+  // includes additionalFields, but explicitly fetching keeps this independent
+  // of better-auth's projection.)
+  const [row] = await db
+    .select({ realEmail: users.realEmail })
+    .from(users)
+    .where(eq(users.id, authUser.id))
+    .limit(1);
+
   return c.json({
     user: {
       id: authUser.id,
-      email: authUser.email,
+      email: row?.realEmail ?? authUser.email,
       name: authUser.name,
       role: authUser.role,
       hasPassword: !!credentialAccount,

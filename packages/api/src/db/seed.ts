@@ -84,11 +84,13 @@ async function main() {
     .limit(1);
 
   if (!existing) {
+    // Superadmin has no kava, so email == realEmail (no slug encoding).
     await auth.api.signUpEmail({
       body: {
         email: superadminEmail,
         password: superadminPassword,
         name: "Super Admin",
+        realEmail: superadminEmail,
       },
     });
     // Promote role (signUpEmail defaults to "customer")

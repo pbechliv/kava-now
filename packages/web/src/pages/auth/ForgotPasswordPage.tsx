@@ -6,6 +6,7 @@ import {
 } from "@kava-now/shared";
 import { useMutation } from "@tanstack/react-query";
 import { api } from "../../lib/api";
+import { authEmailFor } from "../../lib/auth-email";
 import { Input } from "../../components/ui/Input";
 import { Button } from "../../components/ui/Button";
 import { Link } from "react-router";
@@ -22,7 +23,7 @@ export function ForgotPasswordPage() {
   const mutation = useMutation({
     mutationFn: (data: ForgotPasswordInput) =>
       api.post("/api/auth/request-password-reset", {
-        email: data.email,
+        email: authEmailFor(data.email),
         redirectTo: "/auth/reset-password",
       }),
   });

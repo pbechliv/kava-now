@@ -1,6 +1,7 @@
 import { betterAuth } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { magicLink } from "better-auth/plugins";
+import { decodeAuthEmail } from "@kava-now/shared";
 import { db } from "../db/connection";
 import {
   users,
@@ -38,7 +39,9 @@ export const auth = betterAuth({
     enabled: true,
     requireEmailVerification: false,
     sendResetPassword: async ({ user, url }) => {
-      await sendPasswordReset(user.email, url, "KavaNow");
+      // user.email is the synthesized identifier; send to the human address.
+      const realEmail = decodeAuthEmail(user.email);
+      await sendPasswordReset(realEmail, url, "KavaNow");
     },
   },
   session: {
@@ -62,6 +65,13 @@ export const auth = betterAuth({
         type: "string",
         required: false,
         input: false,
+      },
+      // Real email — used for sending mail and display. Set internally
+      // when we synthesize the slug-prefixed `email` identifier.
+      realEmail: {
+        type: "string",
+        required: true,
+        input: true,
       },
     },
   },
@@ -102,7 +112,9 @@ export const auth = betterAuth({
         const finalUrl = requestHost
           ? `${config.protocol}://${requestHost}${new URL(url).pathname}${new URL(url).search}`
           : url;
-        await sendMagicLink(email, finalUrl, "KavaNow");
+        // `email` is the synthesized identifier; send to the human address.
+        const realEmail = decodeAuthEmail(email);
+        await sendMagicLink(realEmail, finalUrl, "KavaNow");
       },
     }),
   ],

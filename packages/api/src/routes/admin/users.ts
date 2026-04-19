@@ -2,8 +2,9 @@ import { Hono } from "hono";
 import { eq, and } from "drizzle-orm";
 import { z } from "zod";
 import { alias } from "drizzle-orm/pg-core";
+import { encodeAuthEmail } from "@kava-now/shared";
 import { db } from "../../db/connection";
-import { users, customers } from "../../db/schema/index";
+import { users, customers, kavas } from "../../db/schema/index";
 import { auth } from "../../auth";
 import type { AppEnv } from "../../types";
 
@@ -25,13 +26,13 @@ usersRouter.get("/", async (c) => {
   const rows = await db
     .select({
       id: users.id,
-      email: users.email,
+      email: users.realEmail,
       name: users.name,
       role: users.role,
       createdAt: users.createdAt,
       invitedById: users.invitedById,
       invitedByName: inviter.name,
-      invitedByEmail: inviter.email,
+      invitedByEmail: inviter.realEmail,
     })
     .from(users)
     .leftJoin(inviter, eq(users.invitedById, inviter.id))
@@ -52,17 +53,31 @@ usersRouter.post("/invite", async (c) => {
     return c.json({ error: parsed.error.flatten().fieldErrors }, 400);
   }
 
-  const { email, name, role } = parsed.data;
+  const { email: realEmail, name, role } = parsed.data;
 
+  const [{ slug: kavaSlug } = { slug: null as string | null }] = await db
+    .select({ slug: kavas.slug })
+    .from(kavas)
+    .where(eq(kavas.id, kavaId))
+    .limit(1);
+
+  if (!kavaSlug) {
+    return c.json({ error: "Δεν βρέθηκε κάβα" }, 404);
+  }
+
+  const authEmail = encodeAuthEmail(realEmail, kavaSlug);
+
+  // Per-kava email uniqueness — only block if this real email already exists
+  // in THIS kava. Same email can be reused across other kavas.
   const [existing] = await db
     .select({ id: users.id })
     .from(users)
-    .where(eq(users.email, email))
+    .where(and(eq(users.realEmail, realEmail), eq(users.kavaId, kavaId)))
     .limit(1);
 
   if (existing) {
     return c.json(
-      { error: "Αυτό το email χρησιμοποιείται ήδη" },
+      { error: "Αυτό το email χρησιμοποιείται ήδη σε αυτήν την κάβα" },
       409,
     );
   }
@@ -73,7 +88,7 @@ usersRouter.post("/invite", async (c) => {
     const [existingCustomer] = await db
       .select({ id: customers.id })
       .from(customers)
-      .where(and(eq(customers.email, email), eq(customers.kavaId, kavaId)))
+      .where(and(eq(customers.email, realEmail), eq(customers.kavaId, kavaId)))
       .limit(1);
 
     if (existingCustomer) {
@@ -81,14 +96,15 @@ usersRouter.post("/invite", async (c) => {
     } else {
       const [newCustomer] = await db
         .insert(customers)
-        .values({ kavaId, name, email })
+        .values({ kavaId, name, email: realEmail })
         .returning({ id: customers.id });
       customerId = newCustomer!.id;
     }
   }
 
   await db.insert(users).values({
-    email,
+    email: authEmail,
+    realEmail,
     name,
     role,
     kavaId,
@@ -106,7 +122,7 @@ usersRouter.post("/invite", async (c) => {
   const callbackURL = `${protocol}://${requestHost}/welcome`;
 
   await auth.api.signInMagicLink({
-    body: { email, callbackURL },
+    body: { email: authEmail, callbackURL },
     headers: c.req.raw.headers,
   });
 
