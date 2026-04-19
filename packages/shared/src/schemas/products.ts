@@ -6,7 +6,7 @@ export const createProductSchema = z.object({
   categoryId: z.string().uuid().optional().nullable(),
   description: z.string().optional(),
   basePrice: z
-    .number({ required_error: "Η τιμή είναι υποχρεωτική" })
+    .number({ error: "Η τιμή είναι υποχρεωτική" })
     .positive("Η τιμή πρέπει να είναι θετικός αριθμός"),
   unit: z.enum(["bottle", "case", "keg"]).optional(),
   volumeMl: z.number().int().positive().optional().nullable(),

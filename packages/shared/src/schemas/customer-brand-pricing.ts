@@ -5,7 +5,7 @@ export const updateCustomerBrandPricingSchema = z.object({
     z.object({
       brand: z.string().min(1, "Η μάρκα είναι υποχρεωτική"),
       discountPct: z
-        .number({ required_error: "Το ποσοστό έκπτωσης είναι υποχρεωτικό" })
+        .number({ error: "Το ποσοστό έκπτωσης είναι υποχρεωτικό" })
         .min(0, "Ελάχιστο 0%")
         .max(100, "Μέγιστο 100%"),
     }),
