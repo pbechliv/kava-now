@@ -17,7 +17,6 @@ import { RequireRole } from "./components/guards/RequireRole";
 
 // Auth pages
 import { LoginPage } from "./pages/auth/LoginPage";
-import { VerifyPage } from "./pages/auth/VerifyPage";
 import { RegisterPage } from "./pages/auth/RegisterPage";
 import { ForgotPasswordPage } from "./pages/auth/ForgotPasswordPage";
 import { ResetPasswordPage } from "./pages/auth/ResetPasswordPage";
@@ -61,7 +60,6 @@ function SuperAdminApp() {
     <Routes>
       <Route element={<AuthLayout />}>
         <Route path="/login" element={<LoginPage />} />
-        <Route path="/auth/verify" element={<VerifyPage />} />
         <Route path="/auth/forgot-password" element={<ForgotPasswordPage />} />
         <Route path="/auth/reset-password" element={<ResetPasswordPage />} />
       </Route>
@@ -91,7 +89,6 @@ function PlatformApp() {
       <Route element={<AuthLayout />}>
         <Route path="/" element={<KavaSelectPage />} />
         <Route path="/register" element={<RegisterPage />} />
-        <Route path="/auth/verify" element={<VerifyPage />} />
         <Route path="/auth/forgot-password" element={<ForgotPasswordPage />} />
         <Route path="/auth/reset-password" element={<ResetPasswordPage />} />
       </Route>
@@ -105,7 +102,6 @@ function TenantApp() {
     <Routes>
       <Route element={<AuthLayout />}>
         <Route path="/login" element={<LoginPage />} />
-        <Route path="/auth/verify" element={<VerifyPage />} />
         <Route path="/register" element={<RegisterPage />} />
         <Route path="/auth/forgot-password" element={<ForgotPasswordPage />} />
         <Route path="/auth/reset-password" element={<ResetPasswordPage />} />

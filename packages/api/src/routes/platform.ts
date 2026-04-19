@@ -1,20 +1,16 @@
 import { Hono } from "hono";
 import { eq } from "drizzle-orm";
-import { randomBytes } from "node:crypto";
 import { registerSchema, kavaSlugSchema } from "@kava-now/shared";
 import { db } from "../db/connection";
 import {
   kavas,
   users,
   categories,
-  magicLinkTokens,
   products,
   seedProducts,
 } from "../db/schema/index";
 import { DEFAULT_CATEGORIES } from "../db/seed-categories";
-import { hashPassword } from "../auth/password";
-import { sendMagicLink } from "../services/email";
-import { config } from "../config";
+import { auth } from "../auth";
 import type { AppEnv } from "../types";
 
 const platform = new Hono<AppEnv>();
@@ -44,63 +40,63 @@ platform.post("/register", async (c) => {
     return c.json({ error: parsed.error.flatten().fieldErrors }, 400);
   }
 
-  const { name, slug, email } = parsed.data;
-  const { password } = parsed.data;
+  const { name, slug, email, password } = parsed.data;
 
   // Check slug uniqueness
-  const [existing] = await db
+  const [existingKava] = await db
     .select({ id: kavas.id })
     .from(kavas)
     .where(eq(kavas.slug, slug))
     .limit(1);
 
-  if (existing) {
+  if (existingKava) {
     return c.json({ error: "Αυτό το slug χρησιμοποιείται ήδη" }, 409);
   }
 
-  // Run all inserts in a transaction to prevent duplicates on double-submit
-  const result = await db.transaction(async (tx) => {
-    // Create kava
-    const [kava] = await tx
+  // Email must be globally unique (better-auth requirement)
+  const [existingUser] = await db
+    .select({ id: users.id })
+    .from(users)
+    .where(eq(users.email, email))
+    .limit(1);
+
+  if (existingUser) {
+    return c.json(
+      { error: "Αυτό το email χρησιμοποιείται ήδη σε άλλη κάβα" },
+      409,
+    );
+  }
+
+  // Create kava + categories + products in a transaction
+  const kava = await db.transaction(async (tx) => {
+    const [created] = await tx
       .insert(kavas)
       .values({ name, slug, email })
       .returning();
 
-    if (!kava) throw new Error("Αποτυχία δημιουργίας κάβας");
+    if (!created) throw new Error("Αποτυχία δημιουργίας κάβας");
 
-    // Create owner user
-    await tx.insert(users).values({
-      email,
-      name,
-      role: "owner",
-      kavaId: kava.id,
-      passwordHash: password ? await hashPassword(password) : null,
-    });
-
-    // Seed default categories
     const insertedCategories = await tx
       .insert(categories)
       .values(
         DEFAULT_CATEGORIES.map((catName, index) => ({
-          kavaId: kava.id,
+          kavaId: created.id,
           name: catName,
           sortOrder: index,
         })),
       )
       .returning({ id: categories.id, name: categories.name });
 
-    // Build category name → id map
     const categoryMap = new Map(
-      insertedCategories.map((c) => [c.name, c.id]),
+      insertedCategories.map((cat) => [cat.name, cat.id]),
     );
 
-    // Import all seed products into the kava with default prices
     const allSeedProducts = await tx.select().from(seedProducts);
 
     if (allSeedProducts.length > 0) {
       await tx.insert(products).values(
         allSeedProducts.map((sp) => ({
-          kavaId: kava.id,
+          kavaId: created.id,
           name: sp.name,
           brand: sp.brand ?? sp.name,
           categoryId: categoryMap.get(sp.categoryName) ?? null,
@@ -115,26 +111,39 @@ platform.post("/register", async (c) => {
       );
     }
 
-    if (!password) {
-      const token = randomBytes(32).toString("hex");
-      const expiresAt = new Date(Date.now() + 15 * 60 * 1000);
-
-      await tx.insert(magicLinkTokens).values({
-        email,
-        token,
-        kavaId: kava.id,
-        expiresAt,
-        purpose: "login",
-      });
-
-      const link = `${config.protocol}://${slug}.${config.baseDomain}/auth/verify?token=${token}`;
-      await sendMagicLink(email, link, name);
-    }
-
-    return { slug, hasPassword: !!password };
+    return created;
   });
 
-  return c.json({ success: true, ...result });
+  // Create the owner user via better-auth, then promote role + kavaId.
+  if (password) {
+    await auth.api.signUpEmail({
+      body: { email, password, name },
+    });
+  } else {
+    // Passwordless: create user row directly, then send magic link
+    await db.insert(users).values({
+      email,
+      name,
+      role: "owner",
+      kavaId: kava.id,
+    });
+
+    await auth.api.signInMagicLink({
+      body: {
+        email,
+        callbackURL: `/admin/dashboard`,
+      },
+      headers: c.req.raw.headers,
+    });
+  }
+
+  // Promote the just-created user to owner + link to kava
+  await db
+    .update(users)
+    .set({ role: "owner", kavaId: kava.id })
+    .where(eq(users.email, email));
+
+  return c.json({ success: true, slug, hasPassword: !!password });
 });
 
 export { platform as platformRoutes };

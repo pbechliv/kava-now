@@ -12,7 +12,7 @@ export default defineConfig({
     allowedHosts: true,
     proxy: {
       "/api": {
-        target: "http://localhost:3000",
+        target: `http://localhost:${process.env.API_PORT || 3000}`,
         // Don't override Host — the API needs the subdomain for tenant resolution
         changeOrigin: false,
       },

@@ -30,7 +30,11 @@ async function request<T>(method: string, path: string, body?: unknown): Promise
 
   if (!res.ok) {
     const data = await res.json().catch(() => ({ error: res.statusText }));
-    throw new ApiError(res.status, (data as { error?: string }).error ?? res.statusText);
+    const typed = data as { error?: string; message?: string };
+    throw new ApiError(
+      res.status,
+      typed.error ?? typed.message ?? res.statusText,
+    );
   }
 
   // Handle 204 No Content

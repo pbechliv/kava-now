@@ -32,8 +32,7 @@ export function LoginPage() {
   const onSubmit = (data: LoginInput) => {
     login.mutate(data, {
       onSuccess: (res) => {
-        // If no redirect, it was a magic link request
-        if (!res.redirect) {
+        if (res.magicLinkSent) {
           setMagicLinkSent(true);
         }
       },

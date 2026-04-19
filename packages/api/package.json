@@ -16,11 +16,10 @@
   "dependencies": {
     "@hono/node-server": "^1.19.14",
     "@kava-now/shared": "workspace:*",
-    "@lucia-auth/adapter-drizzle": "^1.1.0",
+    "better-auth": "^1.6.5",
     "dotenv": "^17.4.2",
     "drizzle-orm": "^0.45.2",
     "hono": "^4.12.14",
-    "lucia": "^3.2.0",
     "nodemailer": "^8.0.5",
     "postgres": "^3.4.0",
     "zod": "^4.3.6"

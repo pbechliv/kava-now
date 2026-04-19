@@ -1,8 +1,10 @@
 import type { InferSelectModel } from "drizzle-orm";
-import type { kavas, users } from "./db/schema/index";
+import type { kavas } from "./db/schema/index";
+import type { auth } from "./auth";
 
 export type Kava = InferSelectModel<typeof kavas>;
-export type User = InferSelectModel<typeof users>;
+export type AuthUser = typeof auth.$Infer.Session.user;
+export type AuthSession = typeof auth.$Infer.Session.session;
 
 export type AppEnv = {
   Variables: {
@@ -10,7 +12,7 @@ export type AppEnv = {
     kavaId: string | null;
     isPlatform: boolean;
     isSuperAdmin: boolean;
-    user: User | null;
-    sessionId: string | null;
+    user: AuthUser | null;
+    session: AuthSession | null;
   };
 };

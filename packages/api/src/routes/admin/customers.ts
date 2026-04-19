@@ -1,6 +1,5 @@
 import { Hono } from "hono";
 import { eq, and, ilike, or, sql } from "drizzle-orm";
-import { randomBytes } from "node:crypto";
 import {
   createCustomerSchema,
   updateCustomerSchema,
@@ -12,10 +11,8 @@ import {
   products,
   customerBrandPricing,
   orders,
-  magicLinkTokens,
 } from "../../db/schema/index";
-import { sendMagicLink } from "../../services/email";
-import { config } from "../../config";
+import { auth } from "../../auth";
 import type { AppEnv } from "../../types";
 
 const customersRouter = new Hono<AppEnv>();
@@ -72,7 +69,6 @@ customersRouter.get("/", async (c) => {
 // POST / — create customer (optionally send invitation email)
 customersRouter.post("/", async (c) => {
   const kavaId = c.get("kavaId")!;
-  const kava = c.get("kava")!;
   const body = await c.req.json();
   const parsed = createCustomerSchema.safeParse(body);
 
@@ -88,23 +84,17 @@ customersRouter.post("/", async (c) => {
     })
     .returning();
 
-  // If email is provided, send invitation magic link
+  // If email is provided, send invitation magic link via better-auth
   if (parsed.data.email) {
     try {
-      const token = randomBytes(32).toString("hex");
-      const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000); // 7 days for invitation
-
-      await db.insert(magicLinkTokens).values({
-        email: parsed.data.email,
-        token,
-        kavaId,
-        expiresAt,
+      await auth.api.signInMagicLink({
+        body: {
+          email: parsed.data.email,
+          callbackURL: "/catalog",
+        },
+        headers: c.req.raw.headers,
       });
-
-      const link = `${config.protocol}://${kava.slug}.${config.baseDomain}/auth/verify?token=${token}`;
-      await sendMagicLink(parsed.data.email, link, kava.name);
     } catch (err) {
-      // Log but don't fail the customer creation
       console.error("[customers] Failed to send invitation email:", err);
     }
   }

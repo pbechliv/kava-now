@@ -2,7 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { api } from "../api";
 import type { Kava, UserRole } from "@kava-now/shared";
 
-interface AuthUser {
+export interface AuthUser {
   id: string;
   email: string;
   name: string;
@@ -10,14 +10,14 @@ interface AuthUser {
   hasPassword: boolean;
 }
 
-interface AuthMeResponse {
+export interface AuthMeResponse {
   user: AuthUser;
-  kava: Kava;
+  kava: Kava | null;
 }
 
 export function useAuth() {
   const { data, isLoading, error } = useQuery({
-    queryKey: ["auth", "me"],
+    queryKey: ["auth"],
     queryFn: () => api.get<AuthMeResponse>("/api/auth/me"),
     retry: false,
   });

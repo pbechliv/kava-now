@@ -1,26 +1,27 @@
 -- Row-Level Security policies for multi-tenant isolation
--- Every tenant-scoped table uses current_setting('app.current_kava_id') to filter rows
+-- Every tenant-scoped data table uses current_setting('app.current_kava_id') to filter rows
 -- This script is idempotent (safe to run multiple times)
+--
+-- NOTE: better-auth owns users, sessions, accounts, verifications — these tables
+-- do NOT have RLS because better-auth queries them globally (by session token,
+-- by user id). Tenant scoping for auth is enforced in application code via
+-- require-role / require-auth middleware (user.kavaId must match subdomain).
 
--- Enable RLS on all tenant-scoped tables
-ALTER TABLE users ENABLE ROW LEVEL SECURITY;
+-- Enable RLS on tenant-scoped data tables
 ALTER TABLE categories ENABLE ROW LEVEL SECURITY;
 ALTER TABLE products ENABLE ROW LEVEL SECURITY;
 ALTER TABLE customers ENABLE ROW LEVEL SECURITY;
 ALTER TABLE customer_brand_pricing ENABLE ROW LEVEL SECURITY;
 ALTER TABLE orders ENABLE ROW LEVEL SECURITY;
 ALTER TABLE order_items ENABLE ROW LEVEL SECURITY;
-ALTER TABLE magic_link_tokens ENABLE ROW LEVEL SECURITY;
 
 -- Force RLS even for table owners (superuser bypass still works)
-ALTER TABLE users FORCE ROW LEVEL SECURITY;
 ALTER TABLE categories FORCE ROW LEVEL SECURITY;
 ALTER TABLE products FORCE ROW LEVEL SECURITY;
 ALTER TABLE customers FORCE ROW LEVEL SECURITY;
 ALTER TABLE customer_brand_pricing FORCE ROW LEVEL SECURITY;
 ALTER TABLE orders FORCE ROW LEVEL SECURITY;
 ALTER TABLE order_items FORCE ROW LEVEL SECURITY;
-ALTER TABLE magic_link_tokens FORCE ROW LEVEL SECURITY;
 
 -- Drop existing policies (idempotent)
 DROP POLICY IF EXISTS tenant_isolation_users ON users;
@@ -30,12 +31,6 @@ DROP POLICY IF EXISTS tenant_isolation_customers ON customers;
 DROP POLICY IF EXISTS tenant_isolation_customer_brand_pricing ON customer_brand_pricing;
 DROP POLICY IF EXISTS tenant_isolation_orders ON orders;
 DROP POLICY IF EXISTS tenant_isolation_order_items ON order_items;
-DROP POLICY IF EXISTS tenant_isolation_magic_link_tokens ON magic_link_tokens;
-
--- Users: scoped by kava_id
-CREATE POLICY tenant_isolation_users ON users
-  USING (kava_id = current_setting('app.current_kava_id', true)::uuid)
-  WITH CHECK (kava_id = current_setting('app.current_kava_id', true)::uuid);
 
 -- Categories: scoped by kava_id
 CREATE POLICY tenant_isolation_categories ON categories
@@ -87,12 +82,11 @@ CREATE POLICY tenant_isolation_order_items ON order_items
     )
   );
 
--- Magic Link Tokens: scoped by kava_id
-CREATE POLICY tenant_isolation_magic_link_tokens ON magic_link_tokens
-  USING (kava_id = current_setting('app.current_kava_id', true)::uuid)
-  WITH CHECK (kava_id = current_setting('app.current_kava_id', true)::uuid);
+-- Disable RLS on auth tables if it was previously enabled
+ALTER TABLE users DISABLE ROW LEVEL SECURITY;
 
--- Note: kavas, sessions, and seed_products do NOT have RLS
+-- Note: kavas, sessions, accounts, verifications, and seed_products do NOT have RLS
 -- - kavas: needed for tenant lookup before RLS var is set
--- - sessions: keyed by user_id, not kava_id (Lucia manages these)
+-- - sessions/accounts/verifications: owned by better-auth, queried globally by token
+-- - users: owned by better-auth — tenant scoping enforced in application code
 -- - seed_products: platform-wide catalog, shared across all tenants

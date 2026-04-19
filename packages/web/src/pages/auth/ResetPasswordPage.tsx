@@ -23,7 +23,10 @@ export function ResetPasswordPage() {
 
   const mutation = useMutation({
     mutationFn: (data: ResetPasswordInput) =>
-      api.post("/api/auth/reset-password", data),
+      api.post("/api/auth/reset-password", {
+        newPassword: data.password,
+        token: data.token,
+      }),
   });
 
   const onSubmit = (data: ResetPasswordInput) => {

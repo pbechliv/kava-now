@@ -21,7 +21,10 @@ export function ForgotPasswordPage() {
 
   const mutation = useMutation({
     mutationFn: (data: ForgotPasswordInput) =>
-      api.post("/api/auth/forgot-password", data),
+      api.post("/api/auth/request-password-reset", {
+        email: data.email,
+        redirectTo: "/auth/reset-password",
+      }),
   });
 
   const onSubmit = (data: ForgotPasswordInput) => {

@@ -3,6 +3,7 @@ import { cors } from "hono/cors";
 import { logger } from "hono/logger";
 import { tenantMiddleware } from "./middleware/tenant";
 import { authMiddleware } from "./middleware/auth";
+import { auth } from "./auth";
 import { authRoutes } from "./routes/auth";
 import { platformRoutes } from "./routes/platform";
 import { adminRoutes } from "./routes/admin/index";
@@ -27,8 +28,13 @@ app.use("*", tenantMiddleware);
 // Auth session resolution (after tenant)
 app.use("*", authMiddleware);
 
-// Routes
+// Custom auth routes (register BEFORE better-auth catch-all so /me matches first)
 app.route("/api/auth", authRoutes);
+
+// better-auth handler — owns /api/auth/{sign-in, sign-out, sign-up,
+// get-session, forget-password, reset-password, magic-link/*, etc.}
+app.on(["POST", "GET"], "/api/auth/*", (c) => auth.handler(c.req.raw));
+
 app.route("/api/platform", platformRoutes);
 app.route("/api/admin", adminRoutes);
 app.route("/api/customer", customerRoutes);

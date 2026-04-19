@@ -21,7 +21,7 @@ export const tenantMiddleware = createMiddleware<AppEnv>(async (c, next) => {
     c.set("kava", null);
     c.set("kavaId", null);
     c.set("user", null);
-    c.set("sessionId", null);
+    c.set("session", null);
     return next();
   }
 
@@ -37,7 +37,7 @@ export const tenantMiddleware = createMiddleware<AppEnv>(async (c, next) => {
     c.set("kava", null);
     c.set("kavaId", null);
     c.set("user", null);
-    c.set("sessionId", null);
+    c.set("session", null);
     return next();
   }
 
@@ -48,7 +48,7 @@ export const tenantMiddleware = createMiddleware<AppEnv>(async (c, next) => {
     c.set("kava", null);
     c.set("kavaId", null);
     c.set("user", null);
-    c.set("sessionId", null);
+    c.set("session", null);
     return next();
   }
 
@@ -68,7 +68,7 @@ export const tenantMiddleware = createMiddleware<AppEnv>(async (c, next) => {
   c.set("kava", kava);
   c.set("kavaId", kava.id);
   c.set("user", null);
-  c.set("sessionId", null);
+  c.set("session", null);
 
   // Set PostgreSQL session variable for RLS
   await queryClient`SELECT set_config('app.current_kava_id', ${kava.id}, false)`;

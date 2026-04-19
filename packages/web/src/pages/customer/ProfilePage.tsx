@@ -19,8 +19,17 @@ export function ProfilePage() {
     mutationFn: (data: {
       currentPassword?: string;
       newPassword: string;
-      confirmNewPassword: string;
-    }) => api.post("/api/auth/change-password", data),
+    }) => {
+      if (data.currentPassword) {
+        return api.post("/api/auth/change-password", {
+          currentPassword: data.currentPassword,
+          newPassword: data.newPassword,
+        });
+      }
+      return api.post("/api/auth/set-password", {
+        newPassword: data.newPassword,
+      });
+    },
     onSuccess: () => {
       setCurrentPassword("");
       setNewPassword("");
@@ -51,7 +60,6 @@ export function ProfilePage() {
     changePassword.mutate({
       ...(user?.hasPassword ? { currentPassword } : {}),
       newPassword,
-      confirmNewPassword,
     });
   };
 

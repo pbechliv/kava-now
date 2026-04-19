@@ -2,13 +2,15 @@ import { defineConfig } from "vite";
 import devServer from "@hono/vite-dev-server";
 import build from "@hono/vite-build/node";
 
+const apiPort = Number(process.env.API_PORT) || 3000;
+
 export default defineConfig(({ mode }) => {
   if (mode === "production") {
     return {
       plugins: [
         build({
           entry: "./src/index.ts",
-          port: 3000,
+          port: apiPort,
         }),
       ],
     };
@@ -16,7 +18,10 @@ export default defineConfig(({ mode }) => {
 
   return {
     server: {
-      port: 3000,
+      port: apiPort,
+      strictPort: true,
+      host: true,
+      allowedHosts: true,
     },
     plugins: [
       devServer({
