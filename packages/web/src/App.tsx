@@ -19,6 +19,7 @@ import { RequireRole } from "./components/guards/RequireRole";
 import { LoginPage } from "./pages/auth/LoginPage";
 import { ForgotPasswordPage } from "./pages/auth/ForgotPasswordPage";
 import { ResetPasswordPage } from "./pages/auth/ResetPasswordPage";
+import { WelcomePage } from "./pages/auth/WelcomePage";
 
 // Admin pages
 import { DashboardPage } from "./pages/admin/DashboardPage";
@@ -30,6 +31,7 @@ import { OrdersPage } from "./pages/admin/OrdersPage";
 import { OrderDetailPage } from "./pages/admin/OrderDetailPage";
 import { SettingsPage } from "./pages/admin/SettingsPage";
 import { ProductFormPage } from "./pages/admin/ProductFormPage";
+import { UsersPage } from "./pages/admin/UsersPage";
 
 // Customer pages
 import { CatalogPage } from "./pages/customer/CatalogPage";
@@ -104,6 +106,7 @@ function TenantApp() {
         <Route path="/login" element={<LoginPage />} />
         <Route path="/auth/forgot-password" element={<ForgotPasswordPage />} />
         <Route path="/auth/reset-password" element={<ResetPasswordPage />} />
+        <Route path="/welcome" element={<WelcomePage />} />
       </Route>
 
       <Route
@@ -123,6 +126,7 @@ function TenantApp() {
         <Route path="categories" element={<CategoriesPage />} />
         <Route path="customers" element={<CustomersPage />} />
         <Route path="customers/:id/brand-pricing" element={<CustomerBrandPricingPage />} />
+        <Route path="users" element={<UsersPage />} />
         <Route path="orders" element={<OrdersPage />} />
         <Route path="orders/:id" element={<OrderDetailPage />} />
         <Route path="settings" element={<SettingsPage />} />

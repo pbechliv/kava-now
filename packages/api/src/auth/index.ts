@@ -17,7 +17,13 @@ const baseDomainHost = config.baseDomain.split(":")[0] || "";
 // keeps its own host-only cookie in that case.
 const enableCrossSubDomainCookies = baseDomainHost !== "localhost";
 
+// Better-auth needs a baseURL to construct callback URLs. We don't know the
+// real subdomain at instance-creation time (multi-tenant), so we provide a
+// placeholder and rewrite the host in plugin callbacks using the request.
+const fallbackBaseURL = `${config.protocol}://${config.baseDomain}`;
+
 export const auth = betterAuth({
+  baseURL: fallbackBaseURL,
   database: drizzleAdapter(db, {
     provider: "pg",
     schema: {
@@ -80,8 +86,17 @@ export const auth = betterAuth({
   ],
   plugins: [
     magicLink({
-      sendMagicLink: async ({ email, url }) => {
-        await sendMagicLink(email, url, "KavaNow");
+      sendMagicLink: async ({ email, url }, ctx) => {
+        // The plugin builds `url` from auth.baseURL (a static fallback). For
+        // multi-tenant subdomains we rewrite the host using the request that
+        // triggered the link, so it points back to the right kava.
+        const requestHost =
+          ctx?.headers?.get?.("x-forwarded-host") ||
+          ctx?.headers?.get?.("host");
+        const finalUrl = requestHost
+          ? `${config.protocol}://${requestHost}${new URL(url).pathname}${new URL(url).search}`
+          : url;
+        await sendMagicLink(email, finalUrl, "KavaNow");
       },
     }),
   ],

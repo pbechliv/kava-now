@@ -8,6 +8,7 @@ const navItems = [
   { to: "/admin/products", label: "Προϊόντα", icon: BoxIcon },
   { to: "/admin/categories", label: "Κατηγορίες", icon: TagIcon },
   { to: "/admin/customers", label: "Πελάτες", icon: UsersIcon },
+  { to: "/admin/users", label: "Χρήστες", icon: UsersIcon },
   { to: "/admin/orders", label: "Παραγγελίες", icon: ClipboardIcon },
   { to: "/admin/settings", label: "Ρυθμίσεις", icon: GearIcon },
 ];

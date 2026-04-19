@@ -1,3 +1,4 @@
+import { type AnyPgColumn } from "drizzle-orm/pg-core";
 import {
   pgTable,
   uuid,
@@ -29,4 +30,8 @@ export const users = pgTable("users", {
   customerId: uuid("customer_id").references(() => customers.id, {
     onDelete: "set null",
   }),
+  invitedById: uuid("invited_by_id").references(
+    (): AnyPgColumn => users.id,
+    { onDelete: "set null" },
+  ),
 });

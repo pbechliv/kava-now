@@ -8,6 +8,7 @@ import { customersRouter } from "./customers";
 import { ordersRouter } from "./orders";
 import { dashboardRouter } from "./dashboard";
 import { settingsRouter } from "./settings";
+import { usersRouter } from "./users";
 import type { AppEnv } from "../../types";
 
 const adminRoutes = new Hono<AppEnv>();
@@ -23,5 +24,6 @@ adminRoutes.route("/customers", customersRouter);
 adminRoutes.route("/orders", ordersRouter);
 adminRoutes.route("/dashboard", dashboardRouter);
 adminRoutes.route("/settings", settingsRouter);
+adminRoutes.route("/users", usersRouter);
 
 export { adminRoutes };
