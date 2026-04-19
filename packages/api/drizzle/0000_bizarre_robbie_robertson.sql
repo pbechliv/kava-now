@@ -157,4 +157,5 @@ ALTER TABLE "order_items" ADD CONSTRAINT "order_items_product_id_products_id_fk"
 CREATE INDEX "sessions_user_id_idx" ON "sessions" USING btree ("user_id");--> statement-breakpoint
 CREATE INDEX "accounts_user_id_idx" ON "accounts" USING btree ("user_id");--> statement-breakpoint
 CREATE INDEX "verifications_identifier_idx" ON "verifications" USING btree ("identifier");--> statement-breakpoint
-CREATE UNIQUE INDEX "products_kava_name_brand_idx" ON "products" USING btree ("kava_id","name","brand");
+CREATE UNIQUE INDEX "products_kava_name_brand_idx" ON "products" USING btree ("kava_id","name","brand");--> statement-breakpoint
+CREATE UNIQUE INDEX "seed_products_name_brand_idx" ON "seed_products" USING btree ("name","brand");

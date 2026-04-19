@@ -5,7 +5,6 @@ import { kavaSlugSchema, type KavaSlugInput } from "@kava-now/shared";
 import { api } from "../../lib/api";
 import { Input } from "../../components/ui/Input";
 import { Button } from "../../components/ui/Button";
-import { Link } from "react-router";
 
 export function KavaSelectPage() {
   const [checking, setChecking] = useState(false);
@@ -54,16 +53,6 @@ export function KavaSelectPage() {
       <Button type="submit" className="w-full" loading={checking}>
         Συνέχεια
       </Button>
-
-      <p className="text-center text-sm text-gray-500">
-        Δεν έχετε κάβα;{" "}
-        <Link
-          to="/register"
-          className="text-amber-600 hover:text-amber-700 font-medium"
-        >
-          Δημιουργήστε μία
-        </Link>
-      </p>
     </form>
   );
 }
