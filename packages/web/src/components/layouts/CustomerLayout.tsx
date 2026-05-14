@@ -22,9 +22,7 @@ export function CustomerLayout() {
         <div className="mx-auto flex h-16 max-w-5xl items-center justify-between px-4">
           <div className="flex items-center gap-2">
             <span className="text-lg font-bold text-amber-600">KavaNow</span>
-            {kava && (
-              <span className="hidden sm:inline text-sm text-gray-500">/ {kava.name}</span>
-            )}
+            {kava && <span className="hidden sm:inline text-sm text-gray-500">/ {kava.name}</span>}
           </div>
 
           {/* Desktop nav */}
@@ -63,8 +61,18 @@ export function CustomerLayout() {
               className="md:hidden p-2 text-gray-600"
               onClick={() => setMenuOpen(!menuOpen)}
             >
-              <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d={menuOpen ? "M6 18L18 6M6 6l12 12" : "M4 6h16M4 12h16M4 18h16"} />
+              <svg
+                className="h-6 w-6"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+                strokeWidth={2}
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d={menuOpen ? "M6 18L18 6M6 6l12 12" : "M4 6h16M4 12h16M4 18h16"}
+                />
               </svg>
             </button>
           </div>
@@ -81,9 +89,7 @@ export function CustomerLayout() {
                 onClick={() => setMenuOpen(false)}
                 className={({ isActive }) =>
                   `block rounded-lg px-3 py-2 text-sm font-medium ${
-                    isActive
-                      ? "bg-amber-50 text-amber-700"
-                      : "text-gray-600 hover:bg-gray-100"
+                    isActive ? "bg-amber-50 text-amber-700" : "text-gray-600 hover:bg-gray-100"
                   }`
                 }
               >

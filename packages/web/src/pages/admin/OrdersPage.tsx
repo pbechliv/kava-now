@@ -19,9 +19,7 @@ const STATUS_TABS: { label: string; value: OrderStatus | undefined }[] = [
 ];
 
 export function OrdersPage() {
-  const [statusFilter, setStatusFilter] = useState<OrderStatus | undefined>(
-    undefined,
-  );
+  const [statusFilter, setStatusFilter] = useState<OrderStatus | undefined>(undefined);
   const [customerFilter, setCustomerFilter] = useState<string>("");
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
@@ -59,9 +57,7 @@ export function OrdersPage() {
       {/* Filters row */}
       <div className="mt-4 flex flex-wrap items-end gap-4">
         <div className="w-56">
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            Πελάτης
-          </label>
+          <label className="block text-sm font-medium text-gray-700 mb-1">Πελάτης</label>
           <select
             value={customerFilter}
             onChange={(e) => setCustomerFilter(e.target.value)}
@@ -109,9 +105,7 @@ export function OrdersPage() {
                   <th className="px-4 py-3 font-medium">#</th>
                   <th className="px-4 py-3 font-medium">Πελάτης</th>
                   <th className="px-4 py-3 font-medium">Ημερομηνία</th>
-                  <th className="px-4 py-3 font-medium text-center">
-                    Προϊόντα
-                  </th>
+                  <th className="px-4 py-3 font-medium text-center">Προϊόντα</th>
                   <th className="px-4 py-3 font-medium text-right">Σύνολο</th>
                   <th className="px-4 py-3 font-medium">Κατάσταση</th>
                   <th className="px-4 py-3 font-medium" />
@@ -119,10 +113,7 @@ export function OrdersPage() {
               </thead>
               <tbody>
                 {orders.map((order) => (
-                  <tr
-                    key={order.id}
-                    className="border-b last:border-0 hover:bg-gray-50"
-                  >
+                  <tr key={order.id} className="border-b last:border-0 hover:bg-gray-50">
                     <td className="px-4 py-3 font-mono text-xs text-gray-500">
                       {order.id.slice(0, 8)}
                     </td>
@@ -132,9 +123,7 @@ export function OrdersPage() {
                     <td className="px-4 py-3 text-gray-600">
                       {new Date(order.createdAt).toLocaleDateString("el-GR")}
                     </td>
-                    <td className="px-4 py-3 text-center text-gray-600">
-                      {order.itemCount}
-                    </td>
+                    <td className="px-4 py-3 text-center text-gray-600">{order.itemCount}</td>
                     <td className="px-4 py-3 text-right text-gray-900">
                       {Number(order.total).toFixed(2)}&euro;
                     </td>

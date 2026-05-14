@@ -122,9 +122,7 @@ export const useCartStore = create<CartState>()(
     }),
     {
       name: "kavanow-cart",
-      storage: createJSONStorage(() =>
-        createScopedStorage(() => _currentSlug),
-      ),
+      storage: createJSONStorage(() => createScopedStorage(() => _currentSlug)),
       partialize: (state) => ({ items: state.items }),
     },
   ),

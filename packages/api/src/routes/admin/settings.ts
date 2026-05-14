@@ -28,14 +28,7 @@ settingsRouter.put("/", async (c) => {
   const kavaId = c.get("kavaId")!;
   const body = await c.req.json();
 
-  const {
-    name,
-    address,
-    phone,
-    email,
-    notificationEmails,
-    logoUrl,
-  } = body as {
+  const { name, address, phone, email, notificationEmails, logoUrl } = body as {
     name?: string;
     address?: string | null;
     phone?: string | null;
@@ -47,17 +40,11 @@ settingsRouter.put("/", async (c) => {
   // Validate notificationEmails
   if (notificationEmails !== undefined) {
     if (!Array.isArray(notificationEmails)) {
-      return c.json(
-        { error: "Τα email ειδοποιήσεων πρέπει να είναι πίνακας" },
-        400,
-      );
+      return c.json({ error: "Τα email ειδοποιήσεων πρέπει να είναι πίνακας" }, 400);
     }
     for (const e of notificationEmails) {
       if (typeof e !== "string" || !EMAIL_REGEX.test(e)) {
-        return c.json(
-          { error: `Μη έγκυρο email ειδοποίησης: ${e}` },
-          400,
-        );
+        return c.json({ error: `Μη έγκυρο email ειδοποίησης: ${e}` }, 400);
       }
     }
   }
@@ -68,19 +55,14 @@ settingsRouter.put("/", async (c) => {
   if (address !== undefined) updateData.address = address;
   if (phone !== undefined) updateData.phone = phone;
   if (email !== undefined) updateData.email = email;
-  if (notificationEmails !== undefined)
-    updateData.notificationEmails = notificationEmails;
+  if (notificationEmails !== undefined) updateData.notificationEmails = notificationEmails;
   if (logoUrl !== undefined) updateData.logoUrl = logoUrl;
 
   if (Object.keys(updateData).length === 0) {
     return c.json({ error: "Δεν δόθηκαν πεδία για ενημέρωση" }, 400);
   }
 
-  const [updated] = await db
-    .update(kavas)
-    .set(updateData)
-    .where(eq(kavas.id, kavaId))
-    .returning();
+  const [updated] = await db.update(kavas).set(updateData).where(eq(kavas.id, kavaId)).returning();
 
   if (!updated) {
     return c.json({ error: "Αποτυχία ενημέρωσης" }, 500);

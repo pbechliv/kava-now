@@ -1,10 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "../api";
-import type {
-  Customer,
-  CreateCustomerInput,
-  UpdateCustomerInput,
-} from "@kava-now/shared";
+import type { Customer, CreateCustomerInput, UpdateCustomerInput } from "@kava-now/shared";
 
 export function useCustomers(search?: string) {
   const params = new URLSearchParams();
@@ -31,8 +27,7 @@ export function useCreateCustomer() {
   const qc = useQueryClient();
 
   return useMutation({
-    mutationFn: (data: CreateCustomerInput) =>
-      api.post<Customer>("/api/admin/customers", data),
+    mutationFn: (data: CreateCustomerInput) => api.post<Customer>("/api/admin/customers", data),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["admin", "customers"] });
     },

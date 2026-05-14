@@ -12,7 +12,5 @@ export const customers = pgTable("customers", {
   phone: text("phone"),
   contactPerson: text("contact_person"),
   notes: text("notes"),
-  createdAt: timestamp("created_at", { withTimezone: true })
-    .notNull()
-    .defaultNow(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });

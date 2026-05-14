@@ -12,10 +12,7 @@ const SYNTH_DOMAIN = "kava.internal";
 const SLUG_SEPARATOR = "--";
 const AT_REPLACEMENT = "_at_";
 
-export function encodeAuthEmail(
-  realEmail: string,
-  kavaSlug: string | null,
-): string {
+export function encodeAuthEmail(realEmail: string, kavaSlug: string | null): string {
   if (!kavaSlug) return realEmail;
   const safeReal = realEmail.replace("@", AT_REPLACEMENT);
   return `${safeReal}${SLUG_SEPARATOR}${kavaSlug}@${SYNTH_DOMAIN}`;

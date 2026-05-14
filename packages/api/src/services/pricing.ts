@@ -7,10 +7,7 @@
  * All parameters arrive as strings (Drizzle numeric columns) and the
  * function returns a plain number rounded to 2 decimals.
  */
-export function resolvePrice(
-  basePrice: string,
-  discountPct: string | null,
-): number {
+export function resolvePrice(basePrice: string, discountPct: string | null): number {
   const base = Number(basePrice);
 
   if (discountPct !== null) {

@@ -2,13 +2,7 @@ import { Hono } from "hono";
 import { eq, and } from "drizzle-orm";
 import { registerSchema, encodeAuthEmail } from "@kava-now/shared";
 import { db } from "../../db/connection";
-import {
-  kavas,
-  users,
-  categories,
-  products,
-  seedProducts,
-} from "../../db/schema/index";
+import { kavas, users, categories, products, seedProducts } from "../../db/schema/index";
 import { DEFAULT_CATEGORIES } from "../../db/seed-categories";
 import { auth } from "../../auth";
 import { requireAuth } from "../../middleware/require-auth";
@@ -60,10 +54,7 @@ superadmin.post("/kavas", async (c) => {
   }
 
   const kava = await db.transaction(async (tx) => {
-    const [created] = await tx
-      .insert(kavas)
-      .values({ name, slug, email: realEmail })
-      .returning();
+    const [created] = await tx.insert(kavas).values({ name, slug, email: realEmail }).returning();
 
     if (!created) throw new Error("Αποτυχία δημιουργίας κάβας");
 
@@ -78,9 +69,7 @@ superadmin.post("/kavas", async (c) => {
       )
       .returning({ id: categories.id, name: categories.name });
 
-    const categoryMap = new Map(
-      insertedCategories.map((cat) => [cat.name, cat.id]),
-    );
+    const categoryMap = new Map(insertedCategories.map((cat) => [cat.name, cat.id]));
 
     const allSeedProducts = await tx.select().from(seedProducts);
 
@@ -144,11 +133,7 @@ superadmin.post("/kavas", async (c) => {
 superadmin.delete("/kavas/:id", async (c) => {
   const id = c.req.param("id");
 
-  const [kava] = await db
-    .select({ id: kavas.id })
-    .from(kavas)
-    .where(eq(kavas.id, id))
-    .limit(1);
+  const [kava] = await db.select({ id: kavas.id }).from(kavas).where(eq(kavas.id, id)).limit(1);
 
   if (!kava) {
     return c.json({ error: "Δεν βρέθηκε κάβα" }, 404);

@@ -16,8 +16,7 @@ export function WelcomePage() {
   const [error, setError] = useState("");
 
   const setPasswordMutation = useMutation({
-    mutationFn: (newPassword: string) =>
-      api.post("/api/auth/set-password", { newPassword }),
+    mutationFn: (newPassword: string) => api.post("/api/auth/set-password", { newPassword }),
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ["auth"] });
       goToDashboard();
@@ -51,14 +50,8 @@ export function WelcomePage() {
   if (user.hasPassword) {
     return (
       <div className="text-center">
-        <h2 className="text-lg font-semibold text-gray-900">
-          Καλώς ήρθατε, {user.name}!
-        </h2>
-        {kava && (
-          <p className="mt-2 text-sm text-gray-600">
-            Έχετε συνδεθεί στο {kava.name}.
-          </p>
-        )}
+        <h2 className="text-lg font-semibold text-gray-900">Καλώς ήρθατε, {user.name}!</h2>
+        {kava && <p className="mt-2 text-sm text-gray-600">Έχετε συνδεθεί στο {kava.name}.</p>}
         <Button className="mt-6" onClick={goToDashboard}>
           Συνέχεια
         </Button>
@@ -92,8 +85,7 @@ export function WelcomePage() {
         </p>
       )}
       <p className="mt-4 text-sm text-gray-600 text-center">
-        Ορίστε έναν κωδικό για να συνδέεστε χωρίς magic link στο μέλλον
-        (προαιρετικό).
+        Ορίστε έναν κωδικό για να συνδέεστε χωρίς magic link στο μέλλον (προαιρετικό).
       </p>
 
       <form onSubmit={onSubmit} className="mt-6 space-y-4">
@@ -116,11 +108,7 @@ export function WelcomePage() {
 
         {error && <p className="text-sm text-red-600">{error}</p>}
 
-        <Button
-          type="submit"
-          className="w-full"
-          loading={setPasswordMutation.isPending}
-        >
+        <Button type="submit" className="w-full" loading={setPasswordMutation.isPending}>
           Ορισμός κωδικού & Συνέχεια
         </Button>
 

@@ -19,6 +19,7 @@ The refactor is real but contained (~1 day focused). If you'd rather skip it, a 
 Tick boxes as phases complete. Each phase is independently shippable — `pnpm dev` must stay green after every phase lands.
 
 **Phase 0 — Accounts & domain**
+
 - [ ] Domain registered and nameservers pointed at Cloudflare
 - [ ] `wrangler login` done on dev machine; `wrangler whoami` works
 - [ ] Neon project created in Frankfurt, direct (non-pooled) URL captured
@@ -27,12 +28,14 @@ Tick boxes as phases complete. Each phase is independently shippable — `pnpm d
 - [ ] GitHub Actions secrets set: `CF_API_TOKEN`, `CF_ACCOUNT_ID`, `PROD_DATABASE_URL`, `STAGING_DATABASE_URL`, `RESEND_API_KEY`
 
 **Phase 1 — Mail swap (dual-transport, still Node build)**
+
 - [ ] `resend` package added to `packages/api`
 - [ ] [`packages/api/src/services/email.ts`](packages/api/src/services/email.ts) picks transport: Resend when `RESEND_API_KEY` is set, else existing nodemailer→Mailpit for dev
 - [ ] `.env.example` documents `RESEND_API_KEY`
 - [ ] Manual smoke: magic link + order notification via Resend in a dev run pointing at Resend sandbox
 
 **Phase 2 — DB refactor to per-request Client (still Node, still `postgres.js`)**
+
 - [ ] [`packages/api/src/db/connection.ts`](packages/api/src/db/connection.ts) exports a `createRequestDb(databaseUrl)` factory; module-level `db` kept as a thin wrapper for CLI scripts only
 - [ ] `tenantMiddleware` sets per-request `db` in `c.var.db` and releases the client on response
 - [ ] All 18 route/service files (listed in Refactor §4) read `db` from context
@@ -40,6 +43,7 @@ Tick boxes as phases complete. Each phase is independently shippable — `pnpm d
 - [ ] `pnpm dev` green, multi-tenant flow (login → product list → order) passes end-to-end against local Docker Postgres
 
 **Phase 3 — Workers preset + wrangler + driver swap**
+
 - [ ] [`packages/api/vite.config.ts`](packages/api/vite.config.ts) switched to `@hono/vite-build/cloudflare-workers`
 - [ ] `packages/api/wrangler.toml` committed with bindings, `nodejs_compat`, Rate Limiting binding
 - [ ] Request path swapped: `postgres.js` → `@neondatabase/serverless` in `createRequestDb` (CLI scripts keep `postgres.js`)
@@ -47,12 +51,14 @@ Tick boxes as phases complete. Each phase is independently shippable — `pnpm d
 - [ ] `wrangler dev` boots; `http://demo.lvh.me:8787` flows work locally (Vite proxy updated to point at 8787)
 
 **Phase 4 — Frontend on Pages + DNS**
+
 - [ ] Cloudflare Pages project connected to the repo; build succeeds
 - [ ] Pages Function at `packages/web/functions/api/[[path]].ts` binds the Worker for `/api/*`
 - [ ] Wildcard custom domain `*.<domain>` + bare `<domain>` attached to the Pages project
 - [ ] Universal SSL active for the wildcard
 
 **Phase 5 — Prod cutover**
+
 - [ ] Migrations run against prod Neon (via GHA or locally)
 - [ ] Superadmin bootstrapped (see "Initial Prod Bootstrap")
 - [ ] Worker secrets set: `wrangler secret put DATABASE_URL` / `RESEND_API_KEY` / `COOKIE_SECRET`
@@ -63,15 +69,15 @@ Tick boxes as phases complete. Each phase is independently shippable — `pnpm d
 
 ## Stack
 
-| Layer | Choice | Region | Cost |
-|---|---|---|---|
-| Domain registrar | Cloudflare Registrar (`.com` ≈ $10/yr) or Hetzner/Gandi for `.eu`/`.de`. `.gr` via Papaki. | — | ~$10/yr |
-| DNS + CDN | Cloudflare | EU edges | $0 |
-| Frontend (SPA) | **Cloudflare Pages** | EU edges | $0 |
-| API | **Cloudflare Workers** (Hono, `@hono/vite-build/cloudflare-workers`) | Global edge incl. EU | $0 (100k req/day free) |
-| Postgres | **Neon** free tier, Frankfurt, `@neondatabase/serverless` WebSocket driver | `eu-central-1` | $0 |
-| Mail | **Resend** free (100/day, 3k/mo) | US-HQ, EU endpoint available on paid | $0 |
-| Rate limit store | Cloudflare Workers **Rate Limiting binding** (native) | — | $0 |
+| Layer            | Choice                                                                                     | Region                               | Cost                   |
+| ---------------- | ------------------------------------------------------------------------------------------ | ------------------------------------ | ---------------------- |
+| Domain registrar | Cloudflare Registrar (`.com` ≈ $10/yr) or Hetzner/Gandi for `.eu`/`.de`. `.gr` via Papaki. | —                                    | ~$10/yr                |
+| DNS + CDN        | Cloudflare                                                                                 | EU edges                             | $0                     |
+| Frontend (SPA)   | **Cloudflare Pages**                                                                       | EU edges                             | $0                     |
+| API              | **Cloudflare Workers** (Hono, `@hono/vite-build/cloudflare-workers`)                       | Global edge incl. EU                 | $0 (100k req/day free) |
+| Postgres         | **Neon** free tier, Frankfurt, `@neondatabase/serverless` WebSocket driver                 | `eu-central-1`                       | $0                     |
+| Mail             | **Resend** free (100/day, 3k/mo)                                                           | US-HQ, EU endpoint available on paid | $0                     |
+| Rate limit store | Cloudflare Workers **Rate Limiting binding** (native)                                      | —                                    | $0                     |
 
 Projected total: **$0/mo** + domain (~$10/yr).
 
@@ -157,7 +163,11 @@ export function createAuth(db: AppDb, env: Env) {
   return betterAuth({
     database: drizzleAdapter(db, { provider: "pg", usePlural: true }),
     emailAndPassword: { enabled: true },
-    plugins: [magicLink({ /* ...same options as today... */ })],
+    plugins: [
+      magicLink({
+        /* ...same options as today... */
+      }),
+    ],
     user: { additionalFields: { role: {}, kavaId: {}, customerId: {}, realEmail: {} } },
     // cookie + trustedOrigins: compute from env.BASE_DOMAIN, same logic as today
   });
@@ -180,7 +190,9 @@ import nodemailer from "nodemailer";
 import { config } from "../config";
 
 const resend = config.resendApiKey ? new Resend(config.resendApiKey) : null;
-const smtp = !resend ? nodemailer.createTransport({ host: config.smtp.host, port: config.smtp.port, /* ... */ }) : null;
+const smtp = !resend
+  ? nodemailer.createTransport({ host: config.smtp.host, port: config.smtp.port /* ... */ })
+  : null;
 
 async function send({ to, subject, html }) {
   if (resend) return resend.emails.send({ from: config.smtp.from, to, subject, html });
@@ -235,18 +247,22 @@ Both are compatible with the existing Docker Compose Mailpit service for mail in
 ## Environment Variables
 
 **Worker secrets** (via `wrangler secret put`):
+
 - `DATABASE_URL` — Neon direct URL (`postgresql://user:pass@ep-xxx.eu-central-1.aws.neon.tech/neondb?sslmode=require`, no `-pooler`).
 - `RESEND_API_KEY`.
 - `COOKIE_SECRET` — 32+ random bytes.
 
 **Worker vars** (in `wrangler.toml` `[vars]`):
+
 - `BASE_DOMAIN` — e.g. `kavanow.eu`.
 - `NODE_ENV=production`.
 
 **Cloudflare Pages build env**:
+
 - `VITE_BASE_DOMAIN` — same as `BASE_DOMAIN`, injected at build time.
 
 **GitHub Actions secrets**:
+
 - `CF_API_TOKEN` — scoped to Workers:Edit + Pages:Edit + Account:Read.
 - `CF_ACCOUNT_ID`.
 - `PROD_DATABASE_URL`, `STAGING_DATABASE_URL`.
@@ -297,12 +313,14 @@ A deploy to a Worker "preview" environment (Workers has per-branch preview URLs)
 Two workflows.
 
 **`.github/workflows/ci.yml`** — runs on every PR:
+
 - `pnpm install --frozen-lockfile`
 - `pnpm lint`, `pnpm fmt:check`, `pnpm typecheck`
 - `pnpm -C packages/api db:migrate` against `STAGING_DATABASE_URL` (catches bad migrations before merge)
 - Optionally: `wrangler deploy --env preview` to a Workers preview environment for smoke testing
 
 **`.github/workflows/deploy.yml`** — runs on push to `main`:
+
 - Build + migrate against `PROD_DATABASE_URL`
 - `wrangler deploy` (Workers) using `CF_API_TOKEN` + `CF_ACCOUNT_ID`
 - Cloudflare Pages auto-deploys on push (configured in the Pages dashboard, no GHA step needed)
@@ -318,6 +336,7 @@ Keep migrations and Worker deploy in the same workflow — if the migration fail
 **Pages.** Cloudflare Pages keeps deploy history in the dashboard; click "Rollback to this deployment" on the desired entry. Custom domains reattach automatically.
 
 **Database.** Drizzle does not generate down migrations. Recovery paths:
+
 - **Neon point-in-time restore** — free tier retains 24 h of history; restore to a new branch, verify, then swap `DATABASE_URL`. This is the primary recovery path.
 - **Manual revert SQL** — write and apply an inverse migration for schema changes. Keep migrations additive where possible (nullable columns, new tables) so reverts are just a `DROP`.
 - **Pre-deploy dump** — for risky migrations, `pg_dump` the prod DB immediately before; the dump lives in GHA artifacts for 90 days.

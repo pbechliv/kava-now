@@ -1,9 +1,6 @@
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import {
-  forgotPasswordSchema,
-  type ForgotPasswordInput,
-} from "@kava-now/shared";
+import { forgotPasswordSchema, type ForgotPasswordInput } from "@kava-now/shared";
 import { useMutation } from "@tanstack/react-query";
 import { authClient } from "../../lib/auth-client";
 import { authEmailFor } from "../../lib/auth-email";
@@ -38,8 +35,18 @@ export function ForgotPasswordPage() {
     return (
       <div className="text-center">
         <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-green-100">
-          <svg className="h-6 w-6 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M21.75 6.75v10.5a2.25 2.25 0 01-2.25 2.25h-15a2.25 2.25 0 01-2.25-2.25V6.75m19.5 0A2.25 2.25 0 0019.5 4.5h-15a2.25 2.25 0 00-2.25 2.25m19.5 0v.243a2.25 2.25 0 01-1.07 1.916l-7.5 4.615a2.25 2.25 0 01-2.36 0L3.32 8.91a2.25 2.25 0 01-1.07-1.916V6.75" />
+          <svg
+            className="h-6 w-6 text-green-600"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+            strokeWidth={2}
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              d="M21.75 6.75v10.5a2.25 2.25 0 01-2.25 2.25h-15a2.25 2.25 0 01-2.25-2.25V6.75m19.5 0A2.25 2.25 0 0019.5 4.5h-15a2.25 2.25 0 00-2.25 2.25m19.5 0v.243a2.25 2.25 0 01-1.07 1.916l-7.5 4.615a2.25 2.25 0 01-2.36 0L3.32 8.91a2.25 2.25 0 01-1.07-1.916V6.75"
+            />
           </svg>
         </div>
         <h2 className="text-lg font-semibold text-gray-900">Ελέγξτε το email σας</h2>
@@ -58,9 +65,7 @@ export function ForgotPasswordPage() {
 
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-      <h2 className="text-lg font-semibold text-gray-900 text-center">
-        Επαναφορά κωδικού
-      </h2>
+      <h2 className="text-lg font-semibold text-gray-900 text-center">Επαναφορά κωδικού</h2>
       <p className="text-sm text-gray-500 text-center">
         Εισάγετε το email σας και θα σας στείλουμε σύνδεσμο επαναφοράς.
       </p>

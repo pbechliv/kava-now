@@ -9,11 +9,7 @@ import {
 import { Button } from "../../components/ui/Button";
 import { Input } from "../../components/ui/Input";
 import { Spinner } from "../../components/ui/Spinner";
-import {
-  useCustomer,
-  useCreateCustomer,
-  useUpdateCustomer,
-} from "../../lib/hooks/use-customers";
+import { useCustomer, useCreateCustomer, useUpdateCustomer } from "../../lib/hooks/use-customers";
 
 interface Props {
   open: boolean;
@@ -104,10 +100,7 @@ export function CustomerFormModal({ open, customerId, onClose }: Props) {
             <Spinner />
           </div>
         ) : (
-          <form
-            onSubmit={handleSubmit(onSubmit)}
-            className="mt-4 space-y-4"
-          >
+          <form onSubmit={handleSubmit(onSubmit)} className="mt-4 space-y-4">
             <Input
               label="Όνομα *"
               id="customer-name"
@@ -124,9 +117,7 @@ export function CustomerFormModal({ open, customerId, onClose }: Props) {
                 error={errors.email?.message}
               />
               {!isEdit && (
-                <p className="mt-1 text-xs text-gray-500">
-                  Θα σταλεί πρόσκληση μέσω email
-                </p>
+                <p className="mt-1 text-xs text-gray-500">Θα σταλεί πρόσκληση μέσω email</p>
               )}
             </div>
 
@@ -177,11 +168,7 @@ export function CustomerFormModal({ open, customerId, onClose }: Props) {
               <Button type="submit" loading={isPending}>
                 {isEdit ? "Αποθήκευση" : "Δημιουργία"}
               </Button>
-              <Button
-                type="button"
-                variant="secondary"
-                onClick={onClose}
-              >
+              <Button type="button" variant="secondary" onClick={onClose}>
                 Ακύρωση
               </Button>
             </div>

@@ -84,9 +84,7 @@ export function CategoriesPage() {
           />
         </div>
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            Γονική κατηγορία
-          </label>
+          <label className="block text-sm font-medium text-gray-700 mb-1">Γονική κατηγορία</label>
           <select
             value={newParentId}
             onChange={(e) => setNewParentId(e.target.value)}
@@ -137,10 +135,7 @@ export function CategoriesPage() {
                     {editingId === cat.id ? (
                       <>
                         <td className="px-4 py-2">
-                          <Input
-                            value={editName}
-                            onChange={(e) => setEditName(e.target.value)}
-                          />
+                          <Input value={editName} onChange={(e) => setEditName(e.target.value)} />
                         </td>
                         <td className="px-4 py-2">
                           <select
@@ -162,9 +157,7 @@ export function CategoriesPage() {
                           <input
                             type="number"
                             value={editSortOrder}
-                            onChange={(e) =>
-                              setEditSortOrder(Number(e.target.value))
-                            }
+                            onChange={(e) => setEditSortOrder(Number(e.target.value))}
                             className="w-20 rounded-lg border border-gray-300 px-2 py-2 text-center text-sm shadow-sm focus:border-amber-500 focus:outline-none focus:ring-2 focus:ring-amber-500"
                           />
                         </td>
@@ -178,11 +171,7 @@ export function CategoriesPage() {
                             >
                               Αποθήκευση
                             </Button>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => setEditingId(null)}
-                            >
+                            <Button variant="ghost" size="sm" onClick={() => setEditingId(null)}>
                               Ακύρωση
                             </Button>
                           </div>
@@ -190,22 +179,12 @@ export function CategoriesPage() {
                       </>
                     ) : (
                       <>
-                        <td className="px-4 py-3 font-medium text-gray-900">
-                          {cat.name}
-                        </td>
-                        <td className="px-4 py-3 text-gray-600">
-                          {cat.parentName ?? "-"}
-                        </td>
-                        <td className="px-4 py-3 text-center text-gray-600">
-                          {cat.sortOrder}
-                        </td>
+                        <td className="px-4 py-3 font-medium text-gray-900">{cat.name}</td>
+                        <td className="px-4 py-3 text-gray-600">{cat.parentName ?? "-"}</td>
+                        <td className="px-4 py-3 text-center text-gray-600">{cat.sortOrder}</td>
                         <td className="px-4 py-3 text-right">
                           <div className="flex justify-end gap-2">
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => startEdit(cat)}
-                            >
+                            <Button variant="ghost" size="sm" onClick={() => startEdit(cat)}>
                               Επεξεργασία
                             </Button>
                             <Button

@@ -43,8 +43,7 @@ export function useDeleteKava() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (id: string) =>
-      api.delete(`/api/superadmin/kavas/${id}`),
+    mutationFn: (id: string) => api.delete(`/api/superadmin/kavas/${id}`),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["superadmin", "kavas"] });
     },

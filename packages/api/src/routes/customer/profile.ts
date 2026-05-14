@@ -17,11 +17,7 @@ profileRouter.get("/", async (c) => {
     return c.json({ error: "Δεν βρέθηκε λογαριασμός πελάτη" }, 400);
   }
 
-  const [customer] = await db
-    .select()
-    .from(customers)
-    .where(eq(customers.id, customerId))
-    .limit(1);
+  const [customer] = await db.select().from(customers).where(eq(customers.id, customerId)).limit(1);
 
   if (!customer) {
     return c.json({ error: "Ο πελάτης δεν βρέθηκε" }, 404);

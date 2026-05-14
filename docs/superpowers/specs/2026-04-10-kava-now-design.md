@@ -10,16 +10,16 @@ This is a **multi-tenant platform**: any kava can sign up and create their own w
 
 ## Tech Stack
 
-| Layer | Technology |
-|-------|-----------|
-| Frontend | Vite + React, React Router, TanStack Query, Zustand (cart), Tailwind CSS, React Hook Form + Zod |
-| Backend | Hono (Node.js), Drizzle ORM, Lucia Auth |
-| Database | PostgreSQL with Row-Level Security |
-| Email | Nodemailer (SMTP) |
+| Layer      | Technology                                                                                                |
+| ---------- | --------------------------------------------------------------------------------------------------------- |
+| Frontend   | Vite + React, React Router, TanStack Query, Zustand (cart), Tailwind CSS, React Hook Form + Zod           |
+| Backend    | Hono (Node.js), Drizzle ORM, Lucia Auth                                                                   |
+| Database   | PostgreSQL with Row-Level Security                                                                        |
+| Email      | Nodemailer (SMTP)                                                                                         |
 | Deployment | Docker + Docker Compose, Caddy (reverse proxy, auto SSL, wildcard subdomains), VPS (Hetzner/DigitalOcean) |
-| Monorepo | pnpm workspaces |
-| Shared | Zod schemas & TypeScript types shared between FE/BE |
-| Language | Greek-only UI |
+| Monorepo   | pnpm workspaces                                                                                           |
+| Shared     | Zod schemas & TypeScript types shared between FE/BE                                                       |
+| Language   | Greek-only UI                                                                                             |
 
 ---
 
@@ -28,6 +28,7 @@ This is a **multi-tenant platform**: any kava can sign up and create their own w
 **Approach:** Shared database with tenant column (`kava_id` on every table) + PostgreSQL Row-Level Security.
 
 **Tenant resolution flow:**
+
 1. Extract subdomain from `Host` header → `slug`
 2. Lookup kava by slug → `kava_id`
 3. Set PostgreSQL session variable: `SET app.current_kava_id = '{kava_id}'`
@@ -42,37 +43,47 @@ Each kava gets a subdomain: `{slug}.kavanow.gr`
 ### Core Entities
 
 **KAVA** (Tenant)
+
 - `id` (UUID, PK), `name`, `slug` (unique), `logo_url`, `address`, `phone`, `email`, `notification_emails` (text[]), `settings` (jsonb), `created_at`
 
 **USER**
+
 - `id` (UUID, PK), `email` (unique), `name`, `role` (enum: owner, staff, customer), `kava_id` (FK), `customer_id` (FK, nullable — links customer-role users to their CUSTOMER record), `created_at`
 
 **CATEGORY**
+
 - `id` (UUID, PK), `kava_id` (FK), `name`, `parent_id` (FK, self-ref for subcategories), `sort_order`, `created_at`
 - Default categories seeded on kava creation: Κρασιά, Μπύρες, Αποστάγματα, Λικέρ, Αναψυκτικά, Νερά, Χυμοί
 
 **PRODUCT**
+
 - `id` (UUID, PK), `kava_id` (FK), `name`, `brand`, `category_id` (FK), `description`, `image_url`, `sku` (optional), `base_price` (decimal), `unit` (enum: bottle, case, keg), `volume_ml` (int, optional), `alcohol_pct` (decimal, optional), `active` (boolean), `created_at`
 
 **PRICING_TIER**
+
 - `id` (UUID, PK), `kava_id` (FK), `name` (e.g., "Χρυσός", "Ασημένιος"), `discount_pct` (decimal), `created_at`
 
 **CUSTOMER** (Bar/Restaurant)
+
 - `id` (UUID, PK), `kava_id` (FK), `name`, `address`, `phone`, `contact_person`, `pricing_tier_id` (FK, nullable), `notes`, `created_at`
 
 **CUSTOMER_PRODUCT** (Assignment join table)
+
 - `customer_id` (FK), `product_id` (FK), `custom_price` (decimal, nullable), `active` (boolean)
 - PK: (customer_id, product_id)
 
 **ORDER**
+
 - `id` (UUID, PK), `kava_id` (FK), `customer_id` (FK), `status` (enum: pending, confirmed, shipped, delivered, cancelled), `notes` (text, optional), `created_at`
 
 **ORDER_ITEM**
+
 - `id` (UUID, PK), `order_id` (FK), `product_id` (FK), `quantity` (int), `unit_price` (decimal — snapshot at order time), `product_name` (text — snapshot)
 
 ### Seed Catalog
 
 **SEED_PRODUCT** (No kava_id — platform-wide)
+
 - `id` (UUID, PK), `name`, `brand`, `category_name`, `description`, `image_url`, `volume_ml`, `alcohol_pct`, `unit`
 - Pre-populated with common Greek market drinks
 - When a kava "imports" a seed product, it's cloned into their PRODUCT table with their own price
@@ -80,14 +91,17 @@ Each kava gets a subdomain: `{slug}.kavanow.gr`
 ### Auth Tables (Lucia)
 
 **SESSION**
+
 - `id` (text, PK), `user_id` (FK), `expires_at` (timestamp)
 
 **MAGIC_LINK_TOKEN**
+
 - `id` (UUID, PK), `email`, `token` (text, unique), `kava_id` (FK), `expires_at` (timestamp), `used` (boolean)
 
 ### Price Resolution
 
 When displaying a price to a customer, resolve in this order:
+
 1. `CUSTOMER_PRODUCT.custom_price` (per-product override) — if set, use it
 2. `PRODUCT.base_price * (1 - PRICING_TIER.discount_pct / 100)` — if customer has a tier
 3. `PRODUCT.base_price` — fallback
@@ -99,6 +113,7 @@ When displaying a price to a customer, resolve in this order:
 **Method:** Passwordless magic links via email, self-hosted with Lucia.
 
 **Flow:**
+
 1. User enters email on `{slug}.kavanow.gr/login`
 2. Backend creates a single-use token (stored in `MAGIC_LINK_TOKEN`, expires in 15 minutes)
 3. Email sent with link: `https://{slug}.kavanow.gr/auth/verify?token=abc123`
@@ -106,9 +121,11 @@ When displaying a price to a customer, resolve in this order:
 5. Redirect based on role: `owner/staff` → `/admin/dashboard`, `customer` → `/catalog`
 
 **Kava owner signup:**
+
 - Registration form at `kavanow.gr/register` → creates kava + owner user → sends magic link to verify email
 
 **Customer invitation:**
+
 - Kava admin adds a customer with email → system sends magic link → customer clicks → account auto-created and linked to the customer record
 
 ---
@@ -118,6 +135,7 @@ When displaying a price to a customer, resolve in this order:
 ### Two Portals (same SPA, route-based)
 
 **Kava Admin Portal** (`/admin/*`) — for kava owners and staff:
+
 - **Dashboard** — order summary, recent orders, notifications
 - **Προϊόντα (Products)** — CRUD, add from seed catalog
 - **Κατηγορίες (Categories)** — manage product categories & subcategories
@@ -128,6 +146,7 @@ When displaying a price to a customer, resolve in this order:
 - **Ρυθμίσεις (Settings)** — kava details, notification emails, staff management
 
 **Customer Portal** (`/catalog`, `/cart`, `/orders`) — for bars/restaurants:
+
 - **Κατάλογος (Catalog)** — browse assigned products by category with search/filter, quantity inputs
 - **Καλάθι (Cart)** — review quantities, add notes, submit order
 - **Ιστορικό (Order History)** — past orders with 1-click reorder
@@ -175,66 +194,69 @@ All API routes prefixed with `/api`. Tenant resolved via subdomain middleware on
 
 ### Platform (`/api/platform`) — served from main domain `kavanow.gr`
 
-| Method | Path | Description |
-|--------|------|-------------|
-| POST | `/platform/register` | Kava signup (name, slug, email) → creates kava + owner, sends magic link |
+| Method | Path                 | Description                                                              |
+| ------ | -------------------- | ------------------------------------------------------------------------ |
+| POST   | `/platform/register` | Kava signup (name, slug, email) → creates kava + owner, sends magic link |
 
 ### Auth (`/api/auth`) — served from tenant subdomain `{slug}.kavanow.gr`
 
-| Method | Path | Description |
-|--------|------|-------------|
-| POST | `/auth/login` | Request magic link (email) |
-| GET | `/auth/verify` | Verify magic link token, create session |
-| POST | `/auth/logout` | Destroy session |
-| GET | `/auth/me` | Current user + kava info |
+| Method | Path           | Description                             |
+| ------ | -------------- | --------------------------------------- |
+| POST   | `/auth/login`  | Request magic link (email)              |
+| GET    | `/auth/verify` | Verify magic link token, create session |
+| POST   | `/auth/logout` | Destroy session                         |
+| GET    | `/auth/me`     | Current user + kava info                |
 
 ### Admin (`/api/admin`) — requires role: owner or staff
 
-| Method | Path | Description |
-|--------|------|-------------|
-| GET | `/admin/dashboard/stats` | Order counts, recent activity |
-| GET/POST | `/admin/products` | List / create products |
-| GET/PUT/DELETE | `/admin/products/:id` | Read / update / delete product |
-| GET/POST | `/admin/categories` | List / create categories |
-| PUT/DELETE | `/admin/categories/:id` | Update / delete category |
-| GET/POST | `/admin/customers` | List / create customers (+ send invite) |
-| GET/PUT/DELETE | `/admin/customers/:id` | Read / update / delete customer |
-| GET/PUT | `/admin/customers/:id/products` | Get / update product assignments for customer |
-| GET/POST | `/admin/pricing-tiers` | List / create pricing tiers |
-| PUT/DELETE | `/admin/pricing-tiers/:id` | Update / delete tier |
-| GET | `/admin/orders` | List orders (filterable by status, customer, date) |
-| GET | `/admin/orders/:id` | Order details |
-| PUT | `/admin/orders/:id/status` | Update order status |
-| GET | `/admin/seed-catalog` | Browse seed product catalog |
-| POST | `/admin/seed-catalog/import` | Clone seed product(s) into kava's products |
-| GET/PUT | `/admin/settings` | Kava settings |
+| Method         | Path                            | Description                                        |
+| -------------- | ------------------------------- | -------------------------------------------------- |
+| GET            | `/admin/dashboard/stats`        | Order counts, recent activity                      |
+| GET/POST       | `/admin/products`               | List / create products                             |
+| GET/PUT/DELETE | `/admin/products/:id`           | Read / update / delete product                     |
+| GET/POST       | `/admin/categories`             | List / create categories                           |
+| PUT/DELETE     | `/admin/categories/:id`         | Update / delete category                           |
+| GET/POST       | `/admin/customers`              | List / create customers (+ send invite)            |
+| GET/PUT/DELETE | `/admin/customers/:id`          | Read / update / delete customer                    |
+| GET/PUT        | `/admin/customers/:id/products` | Get / update product assignments for customer      |
+| GET/POST       | `/admin/pricing-tiers`          | List / create pricing tiers                        |
+| PUT/DELETE     | `/admin/pricing-tiers/:id`      | Update / delete tier                               |
+| GET            | `/admin/orders`                 | List orders (filterable by status, customer, date) |
+| GET            | `/admin/orders/:id`             | Order details                                      |
+| PUT            | `/admin/orders/:id/status`      | Update order status                                |
+| GET            | `/admin/seed-catalog`           | Browse seed product catalog                        |
+| POST           | `/admin/seed-catalog/import`    | Clone seed product(s) into kava's products         |
+| GET/PUT        | `/admin/settings`               | Kava settings                                      |
 
 ### Customer (`/api/customer`) — requires role: customer
 
-| Method | Path | Description |
-|--------|------|-------------|
-| GET | `/customer/catalog` | Assigned products with resolved prices |
-| GET | `/customer/catalog?category=:id` | Filter by category |
-| POST | `/customer/orders` | Submit new order |
-| GET | `/customer/orders` | Order history |
-| GET | `/customer/orders/:id` | Order details |
-| POST | `/customer/orders/:id/reorder` | Clone order items into a new order |
-| GET | `/customer/profile` | Business profile |
+| Method | Path                             | Description                            |
+| ------ | -------------------------------- | -------------------------------------- |
+| GET    | `/customer/catalog`              | Assigned products with resolved prices |
+| GET    | `/customer/catalog?category=:id` | Filter by category                     |
+| POST   | `/customer/orders`               | Submit new order                       |
+| GET    | `/customer/orders`               | Order history                          |
+| GET    | `/customer/orders/:id`           | Order details                          |
+| POST   | `/customer/orders/:id/reorder`   | Clone order items into a new order     |
+| GET    | `/customer/profile`              | Business profile                       |
 
 ---
 
 ## Notifications
 
 **Order placed** (customer → kava):
+
 - Email sent to all addresses in `kava.notification_emails`
 - Contains: customer name, order items summary, total, link to order in admin
 - Order appears in admin dashboard with "Νέα" badge
 
 **Magic link** (system → user):
+
 - Login/invitation email with verification link
 - 15-minute expiry, single-use
 
 **Order status change** (kava → customer):
+
 - Email sent to customer's email when status changes (confirmed, shipped, delivered)
 
 ---
@@ -279,6 +301,7 @@ kava-now/
 ## MVP Scope Summary
 
 **In scope:**
+
 - Multi-tenant workspaces with subdomain routing
 - Passwordless auth (magic links) via Lucia
 - Product CRUD + seed catalog selection
@@ -293,6 +316,7 @@ kava-now/
 - Docker-based deployment with Caddy
 
 **Out of scope (future):**
+
 - Payment processing
 - CSV/bulk product import
 - Barcode scanning

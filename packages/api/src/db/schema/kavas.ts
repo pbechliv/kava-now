@@ -8,12 +8,7 @@ export const kavas = pgTable("kavas", {
   address: text("address"),
   phone: text("phone"),
   email: text("email").notNull(),
-  notificationEmails: text("notification_emails")
-    .array()
-    .notNull()
-    .default([]),
+  notificationEmails: text("notification_emails").array().notNull().default([]),
   settings: jsonb("settings").notNull().default({}),
-  createdAt: timestamp("created_at", { withTimezone: true })
-    .notNull()
-    .defaultNow(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });

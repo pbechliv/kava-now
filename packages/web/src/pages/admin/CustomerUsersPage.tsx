@@ -90,9 +90,7 @@ export function CustomerUsersPage() {
 
       <div className="mt-6 overflow-hidden rounded-lg border border-gray-200 bg-white shadow-sm">
         {users.length === 0 ? (
-          <p className="p-6 text-sm text-gray-500">
-            Δεν έχουν προσκληθεί χρήστες ακόμα.
-          </p>
+          <p className="p-6 text-sm text-gray-500">Δεν έχουν προσκληθεί χρήστες ακόμα.</p>
         ) : (
           <table className="min-w-full divide-y divide-gray-200">
             <thead className="bg-gray-50">
@@ -121,9 +119,7 @@ export function CustomerUsersPage() {
                     )}
                   </td>
                   <td className="px-4 py-3 text-sm text-gray-500">{u.email}</td>
-                  <td className="px-4 py-3 text-sm text-gray-500">
-                    {u.invitedByName ?? "—"}
-                  </td>
+                  <td className="px-4 py-3 text-sm text-gray-500">{u.invitedByName ?? "—"}</td>
                   <td className="px-4 py-3 text-right">
                     {confirmDeleteId === u.id ? (
                       <div className="flex items-center justify-end gap-2">
@@ -140,11 +136,7 @@ export function CustomerUsersPage() {
                         >
                           Ναι
                         </Button>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => setConfirmDeleteId(null)}
-                        >
+                        <Button variant="ghost" size="sm" onClick={() => setConfirmDeleteId(null)}>
                           Όχι
                         </Button>
                       </div>
@@ -153,9 +145,7 @@ export function CustomerUsersPage() {
                         {resendFeedback?.id === u.id && (
                           <span
                             className={`text-xs ${
-                              resendFeedback.kind === "success"
-                                ? "text-green-600"
-                                : "text-red-600"
+                              resendFeedback.kind === "success" ? "text-green-600" : "text-red-600"
                             }`}
                           >
                             {resendFeedback.message}
@@ -165,20 +155,13 @@ export function CustomerUsersPage() {
                           <Button
                             variant="ghost"
                             size="sm"
-                            loading={
-                              resend.isPending &&
-                              resend.variables === u.id
-                            }
+                            loading={resend.isPending && resend.variables === u.id}
                             onClick={() => handleResend(u.id)}
                           >
                             Επανάληψη πρόσκλησης
                           </Button>
                         )}
-                        <Button
-                          variant="danger"
-                          size="sm"
-                          onClick={() => setConfirmDeleteId(u.id)}
-                        >
+                        <Button variant="danger" size="sm" onClick={() => setConfirmDeleteId(u.id)}>
                           Διαγραφή
                         </Button>
                       </div>
@@ -194,9 +177,7 @@ export function CustomerUsersPage() {
       {inviteOpen && (
         <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/40 p-4">
           <div className="w-full max-w-md rounded-lg bg-white p-6 shadow-xl">
-            <h2 className="text-lg font-semibold text-gray-900">
-              Προσθήκη χρήστη
-            </h2>
+            <h2 className="text-lg font-semibold text-gray-900">Προσθήκη χρήστη</h2>
             <p className="mt-1 text-sm text-gray-500">
               Θα σταλεί email με σύνδεσμο σύνδεσης στον χρήστη.
             </p>
@@ -218,9 +199,7 @@ export function CustomerUsersPage() {
               />
               {invite.error && (
                 <p className="text-sm text-red-600">
-                  {invite.error instanceof Error
-                    ? invite.error.message
-                    : "Σφάλμα"}
+                  {invite.error instanceof Error ? invite.error.message : "Σφάλμα"}
                 </p>
               )}
               <div className="flex justify-end gap-2">

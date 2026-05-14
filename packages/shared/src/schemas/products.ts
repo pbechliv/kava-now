@@ -20,10 +20,7 @@ export const updateProductSchema = z.object({
   brand: z.string().min(1, "Η μάρκα είναι υποχρεωτική").optional(),
   categoryId: z.string().uuid().optional().nullable(),
   description: z.string().optional().nullable(),
-  basePrice: z
-    .number()
-    .positive("Η τιμή πρέπει να είναι θετικός αριθμός")
-    .optional(),
+  basePrice: z.number().positive("Η τιμή πρέπει να είναι θετικός αριθμός").optional(),
   unit: z.enum(["bottle", "case", "keg"]).optional(),
   volumeMl: z.number().int().positive().optional().nullable(),
   alcoholPct: z.number().min(0).max(100).optional().nullable(),

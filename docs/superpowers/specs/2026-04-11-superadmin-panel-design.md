@@ -5,9 +5,11 @@ A platform-level admin panel accessible at `admin.<domain>` for managing tenants
 ## Database Changes
 
 ### `user_role` enum
+
 Add `'superadmin'` value.
 
 ### `users` table
+
 Make `kavaId` nullable. Superadmin users have `kavaId = NULL` since they are platform-level, not tied to any tenant. The existing unique index `users_email_kava_id_idx` on `(email, kava_id)` must handle nulls — PostgreSQL treats each NULL as distinct in unique indexes, so this works without changes. However, to prevent duplicate superadmin emails, add a partial unique index: `CREATE UNIQUE INDEX users_email_superadmin_idx ON users (email) WHERE kava_id IS NULL`.
 
 One new Drizzle migration covers both changes.
@@ -21,6 +23,7 @@ In `packages/api/src/middleware/tenant.ts`, add a special case before the kava l
 ### Auth Changes
 
 The existing `POST /auth/login` route currently requires a kava to be resolved. For the `admin` subdomain:
+
 - If `isSuperAdmin` is true on context, look up users where `email = ?` AND `role = 'superadmin'` AND `kavaId IS NULL`.
 - Supports both password login and magic link (magic link uses "KavaNow" as the sender name since there's no kava).
 - On success, create a Lucia session and return `{ success: true, redirect: "/superadmin/kavas" }`.
@@ -42,6 +45,7 @@ Hard-deletes the kava by ID. All related data (users, products, orders, etc.) is
 ### Guard Middleware
 
 `packages/api/src/middleware/require-superadmin.ts`:
+
 ```
 if user.role !== 'superadmin' → 403 Forbidden
 ```
@@ -57,6 +61,7 @@ The app needs to detect when it's running on the `admin` subdomain. A utility fu
 In `App.tsx`, add a conditional branch: if on `admin` subdomain, render superadmin routes instead of the normal tenant routes.
 
 **Superadmin routes (under AuthLayout for login, SuperAdminLayout for panel):**
+
 - `/login` — existing LoginPage (works as-is, API handles admin subdomain)
 - `/superadmin/kavas` — tenant list page
 
@@ -67,6 +72,7 @@ Simple layout: header with "KavaNow Admin" title and logout button. Renders `<Ou
 ### KavasPage (`/superadmin/kavas`)
 
 A table showing all tenants with columns:
+
 - Name
 - Slug
 - Email
@@ -83,6 +89,7 @@ A table showing all tenants with columns:
 ## Seed Script
 
 Add a superadmin user to `packages/api/src/db/seed.ts`:
+
 - Email: `panos.bechlivanos@gmail.com`
 - No password (NULL passwordHash) — user sets password via the forgot-password flow on first use
 - Role: `superadmin`

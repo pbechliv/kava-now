@@ -13,7 +13,5 @@ export const orders = pgTable("orders", {
     .references(() => customers.id, { onDelete: "cascade" }),
   status: orderStatusEnum("status").notNull().default("pending"),
   notes: text("notes"),
-  createdAt: timestamp("created_at", { withTimezone: true })
-    .notNull()
-    .defaultNow(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });

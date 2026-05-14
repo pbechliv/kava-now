@@ -2,8 +2,7 @@ import "../load-env";
 import postgres from "postgres";
 
 const connectionString =
-  process.env.DATABASE_URL ||
-  "postgresql://postgres:postgres@localhost:5432/kavanow";
+  process.env.DATABASE_URL || "postgresql://postgres:postgres@localhost:5432/kavanow";
 
 async function main() {
   // Connect to the default 'postgres' database to drop/create kavanow

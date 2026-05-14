@@ -4,11 +4,21 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-KavaNow is a multi-tenant SaaS platform for kava bar/shop management. pnpm monorepo with three packages:
+KavaNow is a multi-tenant SaaS platform for kava bar/shop management. pnpm 11 monorepo with three packages:
 
-- **`packages/api`** — Hono server (Vite-powered dev, `@hono/vite-build` production) with Drizzle ORM, **better-auth**, PostgreSQL
+- **`packages/api`** — Hono server (Vite+-powered dev, `@hono/vite-build` production) with Drizzle ORM, **better-auth**, PostgreSQL
 - **`packages/web`** — React 19 SPA with React Router 7, TanStack Query, Zustand, Tailwind 4, `better-auth/react` client
 - **`packages/shared`** — Zod schemas, TypeScript types, and `encodeAuthEmail`/`decodeAuthEmail` helpers (raw TS, no build step, imported via `workspace:*`)
+
+## Toolchain (Vite+)
+
+The repo uses **[Vite+](https://viteplus.dev)** (`vp` CLI, installed under `~/.vite-plus`) as a unified frontend toolchain wrapping Vite, Vitest, Oxlint, Oxfmt, and Rolldown. Install once with `curl -fsSL https://vite.plus | bash`.
+
+`pnpm-workspace.yaml` uses pnpm catalogs to pin `vite`/`vitest` to the Vite+-vendored builds (`@voidzero-dev/vite-plus-core`, `@voidzero-dev/vite-plus-test`) and overrides any transitive `vite`/`vitest` to those catalog entries. A `zod` override (`^4.4.3`) dedupes zod across better-auth's transitive deps — without it, TS emits "cannot be named without a reference to `$strip` from zod@..." errors. Build-script approval is restricted to `esbuild` via `pnpm.onlyBuiltDependencies`.
+
+The repo-root `vite.config.ts` is **only** for `vp fmt`/`vp lint` configuration. Per-package builds live in `packages/api/vite.config.ts` and `packages/web/vite.config.ts` (both `import { defineConfig } from "vite-plus"`). Do **not** run `vp build` from the repo root — it has no entry. Use `pnpm build` or run inside a workspace.
+
+Oxlint reads rules from `.oxlintrc.json` (renamed from the legacy `oxlint.json` so `vp lint` can pick it up without a `--config` flag — `vp lint` doesn't accept one). Oxfmt ignores come from `.oxfmtignore` (passed via `--ignore-path`) and exclude `**/dist/**`, `**/drizzle/meta/**` (drizzle-kit owns those), and lock/min files.
 
 ## Commands
 
@@ -20,7 +30,7 @@ docker compose -f docker-compose.dev.yml up -d
 
 # Run API (port 3000) + Web (port 5173) together
 pnpm dev
-pnpm dev:api    # API only (vite dev server with @hono/vite-dev-server)
+pnpm dev:api    # API only (vp dev with @hono/vite-dev-server)
 pnpm dev:web    # Web only
 ```
 
@@ -40,16 +50,17 @@ Scripts run via `tsx`: `packages/api/src/db/{migrate,seed,reset}.ts`. Drizzle co
 ### Quality Checks
 
 ```bash
-pnpm lint            # oxlint across packages/
-pnpm fmt             # oxfmt auto-format
-pnpm fmt:check       # Check formatting
-pnpm typecheck       # TypeScript check all packages (tsc --noEmit, pnpm -r)
+pnpm lint            # vp lint (oxlint) across packages/
+pnpm fmt             # vp fmt (oxfmt) auto-format
+pnpm fmt:check       # vp fmt --check
+pnpm typecheck       # tsc --noEmit across packages (pnpm -r)
+vp check             # Combined lint + fmt + typecheck (Vite+'s validation loop). Add --fix to auto-fix.
 ```
 
 ### Build
 
 ```bash
-pnpm build           # Build shared first, then API + Web in parallel
+pnpm build           # Build shared (if present) first, then API + Web in parallel (each `vp build`)
 ```
 
 ## Architecture
@@ -57,6 +68,7 @@ pnpm build           # Build shared first, then API + Web in parallel
 ### Multi-Tenancy
 
 Subdomain-based tenant resolution. In dev, use `lvh.me:5173` (resolves to 127.0.0.1):
+
 - `demo.lvh.me:5173` — tenant "demo"
 - `admin.lvh.me:5173` — superadmin domain
 - `lvh.me:5173` — platform mode (no tenant)
@@ -70,6 +82,7 @@ Subdomain-based tenant resolution. In dev, use `lvh.me:5173` (resolves to 127.0.
 ### Authentication (better-auth)
 
 Auth instance in `packages/api/src/auth/index.ts` uses `betterAuth()` with:
+
 - `drizzleAdapter(db, { provider: "pg", usePlural: true })` mapped to `users`, `sessions`, `accounts`, `verifications` tables
 - `emailAndPassword` enabled (no verification required)
 - `magicLink` plugin with `allowedAttempts: 3` and `storeToken: "hashed"` — multiple attempts are required because browsers/link scanners pre-fetch emailed URLs and would burn a single-use token before the user clicks (see commit `f0832b9`)
@@ -79,6 +92,7 @@ Auth instance in `packages/api/src/auth/index.ts` uses `betterAuth()` with:
 - Magic-link emails: the plugin's generated URL uses the static fallback `baseURL`, so `sendMagicLink` rewrites the host using the request's `x-forwarded-host`/`host` to point back to the correct tenant subdomain
 
 **Per-kava email uniqueness via synthesized identifier** (`packages/shared/src/auth-email.ts`):
+
 - better-auth requires `users.email` to be globally unique, but real emails can legitimately repeat across kavas.
 - `encodeAuthEmail(realEmail, kavaSlug)` produces `<local>_at_<domain>--<slug>@kava.internal`, stored in `users.email`.
 - The real, human-facing email lives in `users.realEmail` with a composite unique index `(realEmail, kavaId)`.
@@ -87,6 +101,7 @@ Auth instance in `packages/api/src/auth/index.ts` uses `betterAuth()` with:
 - Any API that accepts a login/invite email must call `encodeAuthEmail(realEmail, kava.slug)` before handing it to `auth.api.*` or writing it to `users.email`.
 
 **Route mounting order matters** (`packages/api/src/app.ts`):
+
 1. `tenantMiddleware`, then `authMiddleware` (which populates `user`/`session` via `auth.api.getSession({ headers })`)
 2. Custom `/api/auth` routes (`/me`, `PATCH /me`, `/set-password`) registered **before** the better-auth catch-all so they are matched first
 3. Rate limits on `/api/auth/sign-in/*`, `/api/auth/sign-in`, `/api/auth/magic-link`, `/api/auth/forget-password` (middleware from `packages/api/src/middleware/rate-limit.ts`)
@@ -99,6 +114,7 @@ Auth instance in `packages/api/src/auth/index.ts` uses `betterAuth()` with:
 ### Superadmin
 
 Global role for platform management at the `admin` subdomain:
+
 - Backend: `packages/api/src/routes/superadmin/index.ts` — `GET /kavas`, `POST /kavas` (creates kava + owner, optionally with password, seeds default categories and products from `seed_products`), `DELETE /kavas/:id`. Guarded by `requireAuth` + `requireSuperAdmin`.
 - Frontend: `SuperAdminApp` branch in `App.tsx` (`SuperAdminLayout`, `KavasPage`, `NewKavaPage`, `SettingsPage`).
 - Seeding: `pnpm db:seed` creates a superadmin (`role: "superadmin"`, `kavaId: null`).

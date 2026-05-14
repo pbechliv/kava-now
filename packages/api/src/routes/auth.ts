@@ -81,10 +81,7 @@ auth.get("/me", requireAuth, async (c) => {
 });
 
 const updateMeSchema = z.object({
-  name: z
-    .string()
-    .min(2, "Το όνομα πρέπει να έχει τουλάχιστον 2 χαρακτήρες")
-    .optional(),
+  name: z.string().min(2, "Το όνομα πρέπει να έχει τουλάχιστον 2 χαρακτήρες").optional(),
   email: z.email("Μη έγκυρο email").optional(),
 });
 
@@ -147,8 +144,7 @@ auth.patch("/me", requireAuth, async (c) => {
         if (collision) {
           return c.json(
             {
-              error:
-                "Αυτό το email χρησιμοποιείται ήδη σε αυτήν την κάβα",
+              error: "Αυτό το email χρησιμοποιείται ήδη σε αυτήν την κάβα",
             },
             409,
           );
@@ -174,10 +170,7 @@ auth.patch("/me", requireAuth, async (c) => {
     // friendly error rather than a 500.
     const message = err instanceof Error ? err.message : "";
     if (message.includes("unique") || message.includes("duplicate")) {
-      return c.json(
-        { error: "Αυτό το email χρησιμοποιείται ήδη" },
-        409,
-      );
+      return c.json({ error: "Αυτό το email χρησιμοποιείται ήδη" }, 409);
     }
     throw err;
   }

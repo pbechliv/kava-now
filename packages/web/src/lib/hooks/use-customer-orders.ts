@@ -54,8 +54,7 @@ export function useReorder(orderId: string) {
   const qc = useQueryClient();
 
   return useMutation({
-    mutationFn: () =>
-      api.post<CreateOrderResponse>(`/api/customer/orders/${orderId}/reorder`),
+    mutationFn: () => api.post<CreateOrderResponse>(`/api/customer/orders/${orderId}/reorder`),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["customer", "orders"] });
     },

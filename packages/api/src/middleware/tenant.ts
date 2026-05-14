@@ -26,10 +26,7 @@ export const tenantMiddleware = createMiddleware<AppEnv>(async (c, next) => {
   }
 
   // Extract subdomain
-  const subdomain = hostWithoutPort.replace(
-    `.${baseDomainWithoutPort}`,
-    "",
-  );
+  const subdomain = hostWithoutPort.replace(`.${baseDomainWithoutPort}`, "");
 
   if (!subdomain || subdomain === hostWithoutPort) {
     c.set("isPlatform", true);
@@ -53,11 +50,7 @@ export const tenantMiddleware = createMiddleware<AppEnv>(async (c, next) => {
   }
 
   // Look up kava by slug
-  const [kava] = await db
-    .select()
-    .from(kavas)
-    .where(eq(kavas.slug, subdomain))
-    .limit(1);
+  const [kava] = await db.select().from(kavas).where(eq(kavas.slug, subdomain)).limit(1);
 
   if (!kava) {
     return c.json({ error: "Κάβα δεν βρέθηκε" }, 404);

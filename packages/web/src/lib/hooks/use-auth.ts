@@ -40,8 +40,7 @@ export interface UpdateMeInput {
 export function useUpdateMe() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (input: UpdateMeInput) =>
-      api.patch<{ success: boolean }>("/api/auth/me", input),
+    mutationFn: (input: UpdateMeInput) => api.patch<{ success: boolean }>("/api/auth/me", input),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["auth"] });
     },

@@ -1,10 +1,4 @@
-import {
-  pgTable,
-  uuid,
-  text,
-  timestamp,
-  index,
-} from "drizzle-orm/pg-core";
+import { pgTable, uuid, text, timestamp, index } from "drizzle-orm/pg-core";
 import { users } from "./users";
 
 export const accounts = pgTable(
@@ -27,9 +21,7 @@ export const accounts = pgTable(
     }),
     scope: text("scope"),
     password: text("password"),
-    createdAt: timestamp("created_at", { withTimezone: true })
-      .notNull()
-      .defaultNow(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true })
       .notNull()
       .defaultNow()

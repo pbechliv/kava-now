@@ -1,9 +1,6 @@
 import { useState } from "react";
 import { Link } from "react-router";
-import {
-  useSuperAdminKavas,
-  useDeleteKava,
-} from "../../lib/hooks/use-superadmin-kavas";
+import { useSuperAdminKavas, useDeleteKava } from "../../lib/hooks/use-superadmin-kavas";
 import { Button } from "../../components/ui/Button";
 import { Spinner } from "../../components/ui/Spinner";
 
@@ -56,15 +53,9 @@ export function KavasPage() {
             <tbody className="divide-y divide-gray-100">
               {kavas.map((kava) => (
                 <tr key={kava.id}>
-                  <td className="px-4 py-3 text-sm font-medium text-gray-900">
-                    {kava.name}
-                  </td>
-                  <td className="px-4 py-3 text-sm text-gray-500">
-                    {kava.slug}
-                  </td>
-                  <td className="px-4 py-3 text-sm text-gray-500">
-                    {kava.email}
-                  </td>
+                  <td className="px-4 py-3 text-sm font-medium text-gray-900">{kava.name}</td>
+                  <td className="px-4 py-3 text-sm text-gray-500">{kava.slug}</td>
+                  <td className="px-4 py-3 text-sm text-gray-500">{kava.email}</td>
                   <td className="px-4 py-3 text-sm text-gray-500">
                     {new Date(kava.createdAt).toLocaleDateString("el-GR")}
                   </td>
@@ -84,20 +75,12 @@ export function KavasPage() {
                         >
                           Ναι
                         </Button>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => setConfirmId(null)}
-                        >
+                        <Button variant="ghost" size="sm" onClick={() => setConfirmId(null)}>
                           Όχι
                         </Button>
                       </div>
                     ) : (
-                      <Button
-                        variant="danger"
-                        size="sm"
-                        onClick={() => setConfirmId(kava.id)}
-                      >
+                      <Button variant="danger" size="sm" onClick={() => setConfirmId(kava.id)}>
                         Διαγραφή
                       </Button>
                     )}

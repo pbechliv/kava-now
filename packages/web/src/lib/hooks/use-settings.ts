@@ -32,8 +32,7 @@ export function useUpdateSettings() {
   const qc = useQueryClient();
 
   return useMutation({
-    mutationFn: (data: UpdateSettingsInput) =>
-      api.put<KavaSettings>("/api/admin/settings", data),
+    mutationFn: (data: UpdateSettingsInput) => api.put<KavaSettings>("/api/admin/settings", data),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["admin", "settings"] });
     },

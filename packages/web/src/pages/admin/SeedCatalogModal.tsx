@@ -60,14 +60,15 @@ export function SeedCatalogModal({ open, onClose }: SeedCatalogModalProps) {
       <div className="w-full max-w-2xl rounded-xl bg-white shadow-xl max-h-[80vh] flex flex-col">
         {/* Header */}
         <div className="flex items-center justify-between border-b px-6 py-4">
-          <h2 className="text-lg font-semibold text-gray-900">
-            Εισαγωγή από Κατάλογο
-          </h2>
-          <button
-            onClick={handleClose}
-            className="text-gray-400 hover:text-gray-600"
-          >
-            <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+          <h2 className="text-lg font-semibold text-gray-900">Εισαγωγή από Κατάλογο</h2>
+          <button onClick={handleClose} className="text-gray-400 hover:text-gray-600">
+            <svg
+              className="h-5 w-5"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+              strokeWidth={2}
+            >
               <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
             </svg>
           </button>
@@ -96,9 +97,7 @@ export function SeedCatalogModal({ open, onClose }: SeedCatalogModalProps) {
               <Spinner />
             </div>
           ) : !seeds || seeds.length === 0 ? (
-            <p className="text-center text-sm text-gray-500 py-8">
-              Δεν βρέθηκαν προϊόντα
-            </p>
+            <p className="text-center text-sm text-gray-500 py-8">Δεν βρέθηκαν προϊόντα</p>
           ) : (
             <table className="w-full text-sm">
               <thead>
@@ -128,14 +127,10 @@ export function SeedCatalogModal({ open, onClose }: SeedCatalogModalProps) {
                         className="rounded border-gray-300"
                       />
                     </td>
-                    <td className="py-2 font-medium text-gray-900">
-                      {seed.name}
-                    </td>
+                    <td className="py-2 font-medium text-gray-900">{seed.name}</td>
                     <td className="py-2 text-gray-600">{seed.brand ?? "-"}</td>
                     <td className="py-2 text-gray-600">{seed.categoryName}</td>
-                    <td className="py-2 text-gray-600">
-                      {UNIT_LABELS[seed.unit]}
-                    </td>
+                    <td className="py-2 text-gray-600">{UNIT_LABELS[seed.unit]}</td>
                   </tr>
                 ))}
               </tbody>
@@ -146,9 +141,7 @@ export function SeedCatalogModal({ open, onClose }: SeedCatalogModalProps) {
         {/* Footer */}
         <div className="flex items-center justify-between border-t px-6 py-4">
           <span className="text-sm text-gray-500">
-            {selected.size > 0
-              ? `${selected.size} επιλεγμένα`
-              : "Κανένα επιλεγμένο"}
+            {selected.size > 0 ? `${selected.size} επιλεγμένα` : "Κανένα επιλεγμένο"}
           </span>
           <div className="flex gap-3">
             <Button variant="secondary" onClick={handleClose}>

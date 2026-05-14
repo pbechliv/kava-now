@@ -30,10 +30,7 @@ export function ProfilePage() {
   const [passwordError, setPasswordError] = useState("");
 
   const changePassword = useMutation({
-    mutationFn: async (data: {
-      currentPassword?: string;
-      newPassword: string;
-    }) => {
+    mutationFn: async (data: { currentPassword?: string; newPassword: string }) => {
       if (data.currentPassword) {
         const { error } = await authClient.changePassword({
           currentPassword: data.currentPassword,
@@ -54,9 +51,7 @@ export function ProfilePage() {
       setPasswordError("");
     },
     onError: (err) => {
-      setPasswordError(
-        err instanceof Error ? err.message : "Κάτι πήγε στραβά",
-      );
+      setPasswordError(err instanceof Error ? err.message : "Κάτι πήγε στραβά");
     },
   });
 
@@ -95,25 +90,16 @@ export function ProfilePage() {
     if (Object.keys(payload).length === 0) return;
 
     updateProfile.mutate(payload, {
-      onError: (err) =>
-        setProfileError(
-          err instanceof Error ? err.message : "Κάτι πήγε στραβά",
-        ),
+      onError: (err) => setProfileError(err instanceof Error ? err.message : "Κάτι πήγε στραβά"),
     });
   };
 
   if (isLoading) {
-    return (
-      <div className="text-center text-sm text-gray-500 py-8">Φόρτωση...</div>
-    );
+    return <div className="text-center text-sm text-gray-500 py-8">Φόρτωση...</div>;
   }
 
   if (!customer) {
-    return (
-      <div className="text-center text-sm text-gray-500 py-8">
-        Δεν βρέθηκε προφίλ πελάτη.
-      </div>
-    );
+    return <div className="text-center text-sm text-gray-500 py-8">Δεν βρέθηκε προφίλ πελάτη.</div>;
   }
 
   return (
@@ -122,20 +108,15 @@ export function ProfilePage() {
 
       <div className="mt-6 max-w-2xl">
         <Card>
-          <h2 className="text-lg font-semibold text-gray-900 mb-4">
-            Στοιχεία πελάτη
-          </h2>
+          <h2 className="text-lg font-semibold text-gray-900 mb-4">Στοιχεία πελάτη</h2>
           <dl className="divide-y divide-gray-100 mb-4">
             <ReadOnlyRow label="Επωνυμία" value={customer.name} />
             <ReadOnlyRow label="Email" value={customer.email} />
-            <ReadOnlyRow
-              label="Υπεύθυνος επικοινωνίας"
-              value={customer.contactPerson}
-            />
+            <ReadOnlyRow label="Υπεύθυνος επικοινωνίας" value={customer.contactPerson} />
           </dl>
           <p className="text-xs text-gray-400 mb-4">
-            Για αλλαγή επωνυμίας, email ή υπευθύνου επικοινωνίας,
-            επικοινωνήστε με τον προμηθευτή σας.
+            Για αλλαγή επωνυμίας, email ή υπευθύνου επικοινωνίας, επικοινωνήστε με τον προμηθευτή
+            σας.
           </p>
 
           <form onSubmit={handleSaveProfile} className="space-y-4">
@@ -151,9 +132,7 @@ export function ProfilePage() {
               value={address}
               onChange={(e) => setAddress(e.target.value)}
             />
-            {profileError && (
-              <p className="text-sm text-red-600">{profileError}</p>
-            )}
+            {profileError && <p className="text-sm text-red-600">{profileError}</p>}
             {updateProfile.isSuccess && (
               <p className="text-sm text-green-600">Τα στοιχεία αποθηκεύτηκαν</p>
             )}
@@ -197,14 +176,10 @@ export function ProfilePage() {
               onChange={(e) => setConfirmNewPassword(e.target.value)}
             />
 
-            {passwordError && (
-              <p className="text-sm text-red-600">{passwordError}</p>
-            )}
+            {passwordError && <p className="text-sm text-red-600">{passwordError}</p>}
 
             {changePassword.isSuccess && (
-              <p className="text-sm text-green-600">
-                Ο κωδικός άλλαξε επιτυχώς
-              </p>
+              <p className="text-sm text-green-600">Ο κωδικός άλλαξε επιτυχώς</p>
             )}
 
             <div className="flex justify-end">
@@ -219,13 +194,7 @@ export function ProfilePage() {
   );
 }
 
-function ReadOnlyRow({
-  label,
-  value,
-}: {
-  label: string;
-  value: string | null;
-}) {
+function ReadOnlyRow({ label, value }: { label: string; value: string | null }) {
   return (
     <div className="flex flex-col sm:flex-row sm:items-center py-3">
       <dt className="text-sm font-medium text-gray-500 sm:w-48">{label}</dt>

@@ -39,8 +39,7 @@ export function useCreateProduct() {
   const qc = useQueryClient();
 
   return useMutation({
-    mutationFn: (data: CreateProductInput) =>
-      api.post<Product>("/api/admin/products", data),
+    mutationFn: (data: CreateProductInput) => api.post<Product>("/api/admin/products", data),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["admin", "products"] });
     },

@@ -16,52 +16,41 @@ dashboardRouter.get("/stats", async (c) => {
   weekAgo.setDate(weekAgo.getDate() - 7);
 
   // Run efficient COUNT queries in parallel
-  const [
-    [ordersToday],
-    [pendingOrders],
-    [ordersThisWeek],
-    [totalCustomers],
-    recentOrders,
-  ] = await Promise.all([
-    db
-      .select({ count: sql<number>`count(*)::int` })
-      .from(orders)
-      .where(
-        and(eq(orders.kavaId, kavaId), gte(orders.createdAt, todayStart)),
-      ),
-    db
-      .select({ count: sql<number>`count(*)::int` })
-      .from(orders)
-      .where(
-        and(eq(orders.kavaId, kavaId), eq(orders.status, "pending")),
-      ),
-    db
-      .select({ count: sql<number>`count(*)::int` })
-      .from(orders)
-      .where(
-        and(eq(orders.kavaId, kavaId), gte(orders.createdAt, weekAgo)),
-      ),
-    db
-      .select({ count: sql<number>`count(*)::int` })
-      .from(customers)
-      .where(eq(customers.kavaId, kavaId)),
-    db
-      .select({
-        id: orders.id,
-        status: orders.status,
-        createdAt: orders.createdAt,
-        customerName: customers.name,
-        itemCount: sql<number>`count(${orderItems.id})::int`,
-        total: sql<number>`coalesce(sum(${orderItems.quantity} * ${orderItems.unitPrice}::numeric), 0)::numeric`,
-      })
-      .from(orders)
-      .leftJoin(customers, eq(orders.customerId, customers.id))
-      .leftJoin(orderItems, eq(orders.id, orderItems.orderId))
-      .where(eq(orders.kavaId, kavaId))
-      .groupBy(orders.id, customers.name)
-      .orderBy(sql`${orders.createdAt} desc`)
-      .limit(5),
-  ]);
+  const [[ordersToday], [pendingOrders], [ordersThisWeek], [totalCustomers], recentOrders] =
+    await Promise.all([
+      db
+        .select({ count: sql<number>`count(*)::int` })
+        .from(orders)
+        .where(and(eq(orders.kavaId, kavaId), gte(orders.createdAt, todayStart))),
+      db
+        .select({ count: sql<number>`count(*)::int` })
+        .from(orders)
+        .where(and(eq(orders.kavaId, kavaId), eq(orders.status, "pending"))),
+      db
+        .select({ count: sql<number>`count(*)::int` })
+        .from(orders)
+        .where(and(eq(orders.kavaId, kavaId), gte(orders.createdAt, weekAgo))),
+      db
+        .select({ count: sql<number>`count(*)::int` })
+        .from(customers)
+        .where(eq(customers.kavaId, kavaId)),
+      db
+        .select({
+          id: orders.id,
+          status: orders.status,
+          createdAt: orders.createdAt,
+          customerName: customers.name,
+          itemCount: sql<number>`count(${orderItems.id})::int`,
+          total: sql<number>`coalesce(sum(${orderItems.quantity} * ${orderItems.unitPrice}::numeric), 0)::numeric`,
+        })
+        .from(orders)
+        .leftJoin(customers, eq(orders.customerId, customers.id))
+        .leftJoin(orderItems, eq(orders.id, orderItems.orderId))
+        .where(eq(orders.kavaId, kavaId))
+        .groupBy(orders.id, customers.name)
+        .orderBy(sql`${orders.createdAt} desc`)
+        .limit(5),
+    ]);
 
   return c.json({
     ordersToday: ordersToday?.count ?? 0,

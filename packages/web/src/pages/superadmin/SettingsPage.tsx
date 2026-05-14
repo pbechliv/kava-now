@@ -18,16 +18,10 @@ export function SuperAdminSettingsPage() {
 
       <div className="mt-4 border-b border-gray-200">
         <nav className="flex gap-1 -mb-px" aria-label="Tabs">
-          <TabButton
-            active={tab === "profile"}
-            onClick={() => setTab("profile")}
-          >
+          <TabButton active={tab === "profile"} onClick={() => setTab("profile")}>
             Προφίλ
           </TabButton>
-          <TabButton
-            active={tab === "password"}
-            onClick={() => setTab("password")}
-          >
+          <TabButton active={tab === "password"} onClick={() => setTab("password")}>
             Κωδικός
           </TabButton>
         </nav>
@@ -83,17 +77,14 @@ function ProfileTab() {
     if (Object.keys(payload).length === 0) return;
 
     updateMe.mutate(payload, {
-      onError: (err) =>
-        setError(err instanceof Error ? err.message : "Κάτι πήγε στραβά"),
+      onError: (err) => setError(err instanceof Error ? err.message : "Κάτι πήγε στραβά"),
     });
   };
 
   return (
     <form onSubmit={handleSubmit} className="max-w-2xl space-y-6">
       <Card>
-        <h2 className="text-lg font-semibold text-gray-900 mb-4">
-          Τα στοιχεία μου
-        </h2>
+        <h2 className="text-lg font-semibold text-gray-900 mb-4">Τα στοιχεία μου</h2>
         <div className="space-y-4">
           <Input
             label="Όνομα"
@@ -111,9 +102,7 @@ function ProfileTab() {
             required
           />
           {error && <p className="text-sm text-red-600">{error}</p>}
-          {updateMe.isSuccess && (
-            <p className="text-sm text-green-600">Το προφίλ ενημερώθηκε</p>
-          )}
+          {updateMe.isSuccess && <p className="text-sm text-green-600">Το προφίλ ενημερώθηκε</p>}
         </div>
       </Card>
       <div className="flex justify-end">
@@ -133,10 +122,7 @@ function PasswordTab() {
   const [passwordError, setPasswordError] = useState("");
 
   const changePassword = useMutation({
-    mutationFn: async (data: {
-      currentPassword?: string;
-      newPassword: string;
-    }) => {
+    mutationFn: async (data: { currentPassword?: string; newPassword: string }) => {
       if (data.currentPassword) {
         const { error } = await authClient.changePassword({
           currentPassword: data.currentPassword,
@@ -156,9 +142,7 @@ function PasswordTab() {
       setPasswordError("");
     },
     onError: (err) => {
-      setPasswordError(
-        err instanceof Error ? err.message : "Κάτι πήγε στραβά",
-      );
+      setPasswordError(err instanceof Error ? err.message : "Κάτι πήγε στραβά");
     },
   });
 
@@ -214,14 +198,10 @@ function PasswordTab() {
             onChange={(e) => setConfirmNewPassword(e.target.value)}
           />
 
-          {passwordError && (
-            <p className="text-sm text-red-600">{passwordError}</p>
-          )}
+          {passwordError && <p className="text-sm text-red-600">{passwordError}</p>}
 
           {changePassword.isSuccess && (
-            <p className="text-sm text-green-600">
-              Ο κωδικός άλλαξε επιτυχώς
-            </p>
+            <p className="text-sm text-green-600">Ο κωδικός άλλαξε επιτυχώς</p>
           )}
         </div>
       </Card>

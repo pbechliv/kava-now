@@ -42,9 +42,7 @@ export function ProductsPage() {
           <Button variant="secondary" onClick={() => setSeedModalOpen(true)}>
             Εισαγωγή από Κατάλογο
           </Button>
-          <Button onClick={() => navigate("/admin/products/new")}>
-            Νέο Προϊόν
-          </Button>
+          <Button onClick={() => navigate("/admin/products/new")}>Νέο Προϊόν</Button>
         </div>
       </div>
 
@@ -100,26 +98,16 @@ export function ProductsPage() {
               <tbody>
                 {products.map((product) => (
                   <tr key={product.id} className="border-b last:border-0 hover:bg-gray-50">
-                    <td className="px-4 py-3 font-medium text-gray-900">
-                      {product.name}
-                    </td>
-                    <td className="px-4 py-3 text-gray-600">
-                      {product.brand ?? "-"}
-                    </td>
-                    <td className="px-4 py-3 text-gray-600">
-                      {product.categoryName ?? "-"}
-                    </td>
+                    <td className="px-4 py-3 font-medium text-gray-900">{product.name}</td>
+                    <td className="px-4 py-3 text-gray-600">{product.brand ?? "-"}</td>
+                    <td className="px-4 py-3 text-gray-600">{product.categoryName ?? "-"}</td>
                     <td className="px-4 py-3 text-right text-gray-900">
                       {Number(product.basePrice).toFixed(2)} &euro;
                     </td>
-                    <td className="px-4 py-3 text-gray-600">
-                      {UNIT_LABELS[product.unit]}
-                    </td>
+                    <td className="px-4 py-3 text-gray-600">{UNIT_LABELS[product.unit]}</td>
                     <td className="px-4 py-3 text-center">
                       <button
-                        onClick={() =>
-                          handleToggleActive(product.id, product.active)
-                        }
+                        onClick={() => handleToggleActive(product.id, product.active)}
                         className="inline-flex"
                       >
                         <Badge color={product.active ? "green" : "gray"}>
@@ -132,9 +120,7 @@ export function ProductsPage() {
                         <Button
                           variant="ghost"
                           size="sm"
-                          onClick={() =>
-                            navigate(`/admin/products/${product.id}`)
-                          }
+                          onClick={() => navigate(`/admin/products/${product.id}`)}
                         >
                           Επεξεργασία
                         </Button>
@@ -142,9 +128,7 @@ export function ProductsPage() {
                           variant="ghost"
                           size="sm"
                           className="text-red-600 hover:text-red-700 hover:bg-red-50"
-                          onClick={() =>
-                            handleDelete(product.id, product.name)
-                          }
+                          onClick={() => handleDelete(product.id, product.name)}
                         >
                           Διαγραφή
                         </Button>
@@ -158,10 +142,7 @@ export function ProductsPage() {
         )}
       </div>
 
-      <SeedCatalogModal
-        open={seedModalOpen}
-        onClose={() => setSeedModalOpen(false)}
-      />
+      <SeedCatalogModal open={seedModalOpen} onClose={() => setSeedModalOpen(false)} />
     </div>
   );
 }

@@ -6,9 +6,7 @@ export function AuthLayout() {
       <div className="w-full max-w-md">
         <div className="mb-8 text-center">
           <h1 className="text-3xl font-bold text-amber-600">KavaNow</h1>
-          <p className="mt-1 text-sm text-gray-500">
-            Η πλατφόρμα παραγγελιών για κάβες
-          </p>
+          <p className="mt-1 text-sm text-gray-500">Η πλατφόρμα παραγγελιών για κάβες</p>
         </div>
         <div className="rounded-xl bg-white p-8 shadow-sm border border-gray-100">
           <Outlet />

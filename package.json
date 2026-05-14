@@ -6,10 +6,10 @@
     "dev": "pnpm --parallel --filter @kava-now/api --filter @kava-now/web dev",
     "dev:api": "pnpm --filter @kava-now/api dev",
     "dev:web": "pnpm --filter @kava-now/web dev",
-    "build": "pnpm --filter @kava-now/shared build && pnpm --parallel --filter @kava-now/api --filter @kava-now/web build",
-    "lint": "oxlint --config oxlint.json packages/",
-    "fmt": "oxfmt --write packages/",
-    "fmt:check": "oxfmt --check packages/",
+    "build": "pnpm --filter @kava-now/shared --if-present build && pnpm --parallel --filter @kava-now/api --filter @kava-now/web build",
+    "lint": "vp lint packages/",
+    "fmt": "vp fmt --write --ignore-path .oxfmtignore packages/",
+    "fmt:check": "vp fmt --check --ignore-path .oxfmtignore packages/",
     "typecheck": "pnpm -r typecheck",
     "db:migrate": "pnpm --filter @kava-now/api db:migrate",
     "db:seed": "pnpm --filter @kava-now/api db:seed",
@@ -17,11 +17,16 @@
     "db:reset": "pnpm --filter @kava-now/api db:reset"
   },
   "devDependencies": {
-    "oxlint": "^1.60.0",
-    "typescript": "^6.0.3"
+    "typescript": "^6.0.3",
+    "vite-plus": "catalog:"
   },
   "engines": {
     "node": ">=22"
   },
-  "packageManager": "pnpm@9.15.0"
+  "packageManager": "pnpm@11.1.2",
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "esbuild"
+    ]
+  }
 }

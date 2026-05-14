@@ -15,11 +15,13 @@
 ## File Map
 
 **Create:**
+
 - `packages/api/src/auth/password.ts` — scrypt hash/verify utility
 - `packages/web/src/pages/auth/ForgotPasswordPage.tsx` — forgot password form
 - `packages/web/src/pages/auth/ResetPasswordPage.tsx` — reset password form
 
 **Modify:**
+
 - `packages/api/src/db/schema/users.ts` — add `passwordHash` column
 - `packages/api/src/db/schema/magic-links.ts` — add `purpose` column
 - `packages/shared/src/schemas/auth.ts` — update loginSchema/registerSchema, add new schemas
@@ -40,6 +42,7 @@
 ### Task 1: Database Schema Changes
 
 **Files:**
+
 - Modify: `packages/api/src/db/schema/users.ts`
 - Modify: `packages/api/src/db/schema/magic-links.ts`
 
@@ -81,6 +84,7 @@ git commit -m "feat: add passwordHash to users and purpose to magic_link_tokens"
 ### Task 2: Password Hashing Utility
 
 **Files:**
+
 - Create: `packages/api/src/auth/password.ts`
 
 - [ ] **Step 1: Create the password utility**
@@ -103,10 +107,7 @@ export function hashPassword(password: string): Promise<string> {
   });
 }
 
-export function verifyPassword(
-  password: string,
-  stored: string,
-): Promise<boolean> {
+export function verifyPassword(password: string, stored: string): Promise<boolean> {
   return new Promise((resolve, reject) => {
     const [saltHex, keyHex] = stored.split(":");
     if (!saltHex || !keyHex) return resolve(false);
@@ -132,6 +133,7 @@ git commit -m "feat: add scrypt password hash/verify utility"
 ### Task 3: Shared Schemas
 
 **Files:**
+
 - Modify: `packages/shared/src/schemas/auth.ts`
 - Modify: `packages/shared/src/types/index.ts`
 
@@ -164,15 +166,11 @@ export const loginSchema = z.object({
   password: z.string().optional(),
 });
 
-const passwordField = z
-  .string()
-  .min(8, "Ο κωδικός πρέπει να έχει τουλάχιστον 8 χαρακτήρες");
+const passwordField = z.string().min(8, "Ο κωδικός πρέπει να έχει τουλάχιστον 8 χαρακτήρες");
 
 export const registerSchema = z
   .object({
-    name: z
-      .string()
-      .min(2, "Το όνομα πρέπει να έχει τουλάχιστον 2 χαρακτήρες"),
+    name: z.string().min(2, "Το όνομα πρέπει να έχει τουλάχιστον 2 χαρακτήρες"),
     slug: z
       .string()
       .min(3, "Το slug πρέπει να έχει τουλάχιστον 3 χαρακτήρες")
@@ -181,10 +179,7 @@ export const registerSchema = z
         /^[a-z0-9][a-z0-9-]*[a-z0-9]$/,
         "Το slug πρέπει να περιέχει μόνο πεζά γράμματα, αριθμούς και παύλες",
       )
-      .refine(
-        (val) => !RESERVED_SLUGS.includes(val),
-        "Αυτό το slug είναι δεσμευμένο",
-      ),
+      .refine((val) => !RESERVED_SLUGS.includes(val), "Αυτό το slug είναι δεσμευμένο"),
     email: z.string().email("Μη έγκυρη διεύθυνση email"),
     password: passwordField.optional(),
     confirmPassword: z.string().optional(),
@@ -274,6 +269,7 @@ git commit -m "feat: add password auth schemas and hasPassword to User type"
 ### Task 4: Email Service — Password Reset Email
 
 **Files:**
+
 - Modify: `packages/api/src/services/email.ts`
 
 - [ ] **Step 1: Add `sendPasswordReset` function**
@@ -321,6 +317,7 @@ git commit -m "feat: add sendPasswordReset email function"
 ### Task 5: API Auth Routes — Password Login, Forgot, Reset, Change
 
 **Files:**
+
 - Modify: `packages/api/src/routes/auth.ts`
 
 - [ ] **Step 1: Add imports for password utilities and new schemas**
@@ -522,17 +519,12 @@ auth.post("/reset-password", async (c) => {
     return c.json({ error: "Μη έγκυρο ή ληγμένο token" }, 400);
   }
 
-  await db
-    .update(magicLinkTokens)
-    .set({ used: true })
-    .where(eq(magicLinkTokens.id, magicLink.id));
+  await db.update(magicLinkTokens).set({ used: true }).where(eq(magicLinkTokens.id, magicLink.id));
 
   const [user] = await db
     .select()
     .from(users)
-    .where(
-      and(eq(users.email, magicLink.email), eq(users.kavaId, kava.id)),
-    )
+    .where(and(eq(users.email, magicLink.email), eq(users.kavaId, kava.id)))
     .limit(1);
 
   if (!user) {
@@ -540,10 +532,7 @@ auth.post("/reset-password", async (c) => {
   }
 
   const passwordHash = await hashPassword(password);
-  await db
-    .update(users)
-    .set({ passwordHash })
-    .where(eq(users.id, user.id));
+  await db.update(users).set({ passwordHash }).where(eq(users.id, user.id));
 
   return c.json({ success: true });
 });
@@ -567,11 +556,7 @@ auth.post("/change-password", requireAuth, async (c) => {
   const { currentPassword, newPassword } = parsed.data;
 
   // Fetch the full user record with passwordHash
-  const [user] = await db
-    .select()
-    .from(users)
-    .where(eq(users.id, authUser.id))
-    .limit(1);
+  const [user] = await db.select().from(users).where(eq(users.id, authUser.id)).limit(1);
 
   if (!user) {
     return c.json({ error: "Δεν βρέθηκε χρήστης" }, 400);
@@ -589,10 +574,7 @@ auth.post("/change-password", requireAuth, async (c) => {
   }
 
   const passwordHash = await hashPassword(newPassword);
-  await db
-    .update(users)
-    .set({ passwordHash })
-    .where(eq(users.id, user.id));
+  await db.update(users).set({ passwordHash }).where(eq(users.id, user.id));
 
   return c.json({ success: true });
 });
@@ -653,6 +635,7 @@ git commit -m "feat: add password login, forgot/reset/change password API routes
 ### Task 6: Platform Register — Optional Password
 
 **Files:**
+
 - Modify: `packages/api/src/routes/platform.ts`
 
 - [ ] **Step 1: Add password hashing import**
@@ -701,27 +684,27 @@ to:
 After the owner user is created and seed products are imported, replace the magic link token creation + email block at the end with conditional logic:
 
 ```ts
-  if (password) {
-    // Password was set during registration — no magic link needed
-    return c.json({ success: true, slug, hasPassword: true });
-  }
+if (password) {
+  // Password was set during registration — no magic link needed
+  return c.json({ success: true, slug, hasPassword: true });
+}
 
-  // No password — send magic link for first login
-  const token = randomBytes(32).toString("hex");
-  const expiresAt = new Date(Date.now() + 15 * 60 * 1000);
+// No password — send magic link for first login
+const token = randomBytes(32).toString("hex");
+const expiresAt = new Date(Date.now() + 15 * 60 * 1000);
 
-  await db.insert(magicLinkTokens).values({
-    email,
-    token,
-    kavaId: kava.id,
-    expiresAt,
-    purpose: "login",
-  });
+await db.insert(magicLinkTokens).values({
+  email,
+  token,
+  kavaId: kava.id,
+  expiresAt,
+  purpose: "login",
+});
 
-  const link = `${config.protocol}://${slug}.${config.baseDomain}/auth/verify?token=${token}`;
-  await sendMagicLink(email, link, name);
+const link = `${config.protocol}://${slug}.${config.baseDomain}/auth/verify?token=${token}`;
+await sendMagicLink(email, link, name);
 
-  return c.json({ success: true, slug });
+return c.json({ success: true, slug });
 ```
 
 - [ ] **Step 4: Commit**
@@ -736,6 +719,7 @@ git commit -m "feat: support optional password on kava registration"
 ### Task 7: Frontend — Update Login Page
 
 **Files:**
+
 - Modify: `packages/web/src/lib/hooks/use-login.ts`
 - Modify: `packages/web/src/pages/auth/LoginPage.tsx`
 
@@ -760,8 +744,7 @@ export function useLogin() {
   const navigate = useNavigate();
 
   return useMutation({
-    mutationFn: (data: LoginInput) =>
-      api.post<LoginResponse>("/api/auth/login", data),
+    mutationFn: (data: LoginInput) => api.post<LoginResponse>("/api/auth/login", data),
     onSuccess: (data) => {
       if (data.redirect) {
         queryClient.invalidateQueries({ queryKey: ["auth"] });
@@ -824,14 +807,22 @@ export function LoginPage() {
     return (
       <div className="text-center">
         <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-green-100">
-          <svg className="h-6 w-6 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M21.75 6.75v10.5a2.25 2.25 0 01-2.25 2.25h-15a2.25 2.25 0 01-2.25-2.25V6.75m19.5 0A2.25 2.25 0 0019.5 4.5h-15a2.25 2.25 0 00-2.25 2.25m19.5 0v.243a2.25 2.25 0 01-1.07 1.916l-7.5 4.615a2.25 2.25 0 01-2.36 0L3.32 8.91a2.25 2.25 0 01-1.07-1.916V6.75" />
+          <svg
+            className="h-6 w-6 text-green-600"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+            strokeWidth={2}
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              d="M21.75 6.75v10.5a2.25 2.25 0 01-2.25 2.25h-15a2.25 2.25 0 01-2.25-2.25V6.75m19.5 0A2.25 2.25 0 0019.5 4.5h-15a2.25 2.25 0 00-2.25 2.25m19.5 0v.243a2.25 2.25 0 01-1.07 1.916l-7.5 4.615a2.25 2.25 0 01-2.36 0L3.32 8.91a2.25 2.25 0 01-1.07-1.916V6.75"
+            />
           </svg>
         </div>
         <h2 className="text-lg font-semibold text-gray-900">Ελέγξτε το email σας</h2>
-        <p className="mt-2 text-sm text-gray-600">
-          Ελέγξτε το email σας για τον σύνδεσμο εισόδου
-        </p>
+        <p className="mt-2 text-sm text-gray-600">Ελέγξτε το email σας για τον σύνδεσμο εισόδου</p>
       </div>
     );
   }
@@ -859,10 +850,7 @@ export function LoginPage() {
       />
 
       <div className="text-right">
-        <Link
-          to="/auth/forgot-password"
-          className="text-sm text-amber-600 hover:text-amber-700"
-        >
+        <Link to="/auth/forgot-password" className="text-sm text-amber-600 hover:text-amber-700">
           Ξεχάσατε τον κωδικό;
         </Link>
       </div>
@@ -908,6 +896,7 @@ git commit -m "feat: update login page with password field and magic link option
 ### Task 8: Frontend — Forgot Password & Reset Password Pages
 
 **Files:**
+
 - Create: `packages/web/src/pages/auth/ForgotPasswordPage.tsx`
 - Create: `packages/web/src/pages/auth/ResetPasswordPage.tsx`
 - Modify: `packages/web/src/App.tsx`
@@ -919,10 +908,7 @@ Create `packages/web/src/pages/auth/ForgotPasswordPage.tsx`:
 ```tsx
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import {
-  forgotPasswordSchema,
-  type ForgotPasswordInput,
-} from "@kava-now/shared";
+import { forgotPasswordSchema, type ForgotPasswordInput } from "@kava-now/shared";
 import { useMutation } from "@tanstack/react-query";
 import { api } from "../../lib/api";
 import { Input } from "../../components/ui/Input";
@@ -939,8 +925,7 @@ export function ForgotPasswordPage() {
   });
 
   const mutation = useMutation({
-    mutationFn: (data: ForgotPasswordInput) =>
-      api.post("/api/auth/forgot-password", data),
+    mutationFn: (data: ForgotPasswordInput) => api.post("/api/auth/forgot-password", data),
   });
 
   const onSubmit = (data: ForgotPasswordInput) => {
@@ -951,8 +936,18 @@ export function ForgotPasswordPage() {
     return (
       <div className="text-center">
         <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-green-100">
-          <svg className="h-6 w-6 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M21.75 6.75v10.5a2.25 2.25 0 01-2.25 2.25h-15a2.25 2.25 0 01-2.25-2.25V6.75m19.5 0A2.25 2.25 0 0019.5 4.5h-15a2.25 2.25 0 00-2.25 2.25m19.5 0v.243a2.25 2.25 0 01-1.07 1.916l-7.5 4.615a2.25 2.25 0 01-2.36 0L3.32 8.91a2.25 2.25 0 01-1.07-1.916V6.75" />
+          <svg
+            className="h-6 w-6 text-green-600"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+            strokeWidth={2}
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              d="M21.75 6.75v10.5a2.25 2.25 0 01-2.25 2.25h-15a2.25 2.25 0 01-2.25-2.25V6.75m19.5 0A2.25 2.25 0 0019.5 4.5h-15a2.25 2.25 0 00-2.25 2.25m19.5 0v.243a2.25 2.25 0 01-1.07 1.916l-7.5 4.615a2.25 2.25 0 01-2.36 0L3.32 8.91a2.25 2.25 0 01-1.07-1.916V6.75"
+            />
           </svg>
         </div>
         <h2 className="text-lg font-semibold text-gray-900">Ελέγξτε το email σας</h2>
@@ -971,9 +966,7 @@ export function ForgotPasswordPage() {
 
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-      <h2 className="text-lg font-semibold text-gray-900 text-center">
-        Επαναφορά κωδικού
-      </h2>
+      <h2 className="text-lg font-semibold text-gray-900 text-center">Επαναφορά κωδικού</h2>
       <p className="text-sm text-gray-500 text-center">
         Εισάγετε το email σας και θα σας στείλουμε σύνδεσμο επαναφοράς.
       </p>
@@ -1036,8 +1029,7 @@ export function ResetPasswordPage() {
   });
 
   const mutation = useMutation({
-    mutationFn: (data: ResetPasswordInput) =>
-      api.post("/api/auth/reset-password", data),
+    mutationFn: (data: ResetPasswordInput) => api.post("/api/auth/reset-password", data),
   });
 
   const onSubmit = (data: ResetPasswordInput) => {
@@ -1048,9 +1040,7 @@ export function ResetPasswordPage() {
     return (
       <div className="text-center">
         <h2 className="text-lg font-semibold text-gray-900">Μη έγκυρος σύνδεσμος</h2>
-        <p className="mt-2 text-sm text-gray-600">
-          Ο σύνδεσμος επαναφοράς δεν είναι έγκυρος.
-        </p>
+        <p className="mt-2 text-sm text-gray-600">Ο σύνδεσμος επαναφοράς δεν είναι έγκυρος.</p>
         <Link
           to="/auth/forgot-password"
           className="mt-4 inline-block text-sm text-amber-600 hover:text-amber-700 font-medium"
@@ -1065,7 +1055,13 @@ export function ResetPasswordPage() {
     return (
       <div className="text-center">
         <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-green-100">
-          <svg className="h-6 w-6 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+          <svg
+            className="h-6 w-6 text-green-600"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+            strokeWidth={2}
+          >
             <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
           </svg>
         </div>
@@ -1085,9 +1081,7 @@ export function ResetPasswordPage() {
 
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-      <h2 className="text-lg font-semibold text-gray-900 text-center">
-        Νέος κωδικός
-      </h2>
+      <h2 className="text-lg font-semibold text-gray-900 text-center">Νέος κωδικός</h2>
 
       <input type="hidden" {...register("token")} />
 
@@ -1151,6 +1145,7 @@ git commit -m "feat: add forgot password and reset password pages"
 ### Task 9: Frontend — Update Register Page
 
 **Files:**
+
 - Modify: `packages/web/src/pages/auth/RegisterPage.tsx`
 
 - [ ] **Step 1: Add optional password fields to RegisterPage**
@@ -1182,21 +1177,25 @@ In `packages/web/src/pages/auth/RegisterPage.tsx`, add the password and confirm 
 In the `mutation.isSuccess` block, update the success message to account for password registration. Replace the success return block:
 
 ```tsx
-  if (mutation.isSuccess) {
-    return (
-      <div className="text-center">
-        <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-green-100">
-          <svg className="h-6 w-6 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
-          </svg>
-        </div>
-        <h2 className="text-lg font-semibold text-gray-900">Επιτυχής εγγραφή!</h2>
-        <p className="mt-2 text-sm text-gray-600">
-          Ελέγξτε το email σας για τον σύνδεσμο εισόδου
-        </p>
+if (mutation.isSuccess) {
+  return (
+    <div className="text-center">
+      <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-green-100">
+        <svg
+          className="h-6 w-6 text-green-600"
+          fill="none"
+          viewBox="0 0 24 24"
+          stroke="currentColor"
+          strokeWidth={2}
+        >
+          <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
+        </svg>
       </div>
-    );
-  }
+      <h2 className="text-lg font-semibold text-gray-900">Επιτυχής εγγραφή!</h2>
+      <p className="mt-2 text-sm text-gray-600">Ελέγξτε το email σας για τον σύνδεσμο εισόδου</p>
+    </div>
+  );
+}
 ```
 
 This message is still appropriate: even with a password, the user navigates to their subdomain to log in. The message serves as confirmation that registration worked.
@@ -1213,6 +1212,7 @@ git commit -m "feat: add optional password fields to registration form"
 ### Task 10: Frontend — Change Password in Profile & Settings
 
 **Files:**
+
 - Modify: `packages/web/src/lib/hooks/use-auth.ts`
 - Modify: `packages/web/src/pages/customer/ProfilePage.tsx`
 - Modify: `packages/web/src/pages/admin/SettingsPage.tsx`
@@ -1291,9 +1291,7 @@ export function ProfilePage() {
       setPasswordError("");
     },
     onError: (err) => {
-      setPasswordError(
-        err instanceof Error ? err.message : "Κάτι πήγε στραβά",
-      );
+      setPasswordError(err instanceof Error ? err.message : "Κάτι πήγε στραβά");
     },
   });
 
@@ -1319,17 +1317,11 @@ export function ProfilePage() {
   };
 
   if (isLoading) {
-    return (
-      <div className="text-center text-sm text-gray-500 py-8">Φόρτωση...</div>
-    );
+    return <div className="text-center text-sm text-gray-500 py-8">Φόρτωση...</div>;
   }
 
   if (!customer) {
-    return (
-      <div className="text-center text-sm text-gray-500 py-8">
-        Δεν βρέθηκε προφίλ πελάτη.
-      </div>
-    );
+    return <div className="text-center text-sm text-gray-500 py-8">Δεν βρέθηκε προφίλ πελάτη.</div>;
   }
 
   const fields = [
@@ -1347,17 +1339,10 @@ export function ProfilePage() {
       <div className="mt-6 rounded-lg border border-gray-200 bg-white shadow-sm">
         <dl className="divide-y divide-gray-100">
           {fields.map((field) => (
-            <div
-              key={field.label}
-              className="flex flex-col sm:flex-row sm:items-center px-4 py-3"
-            >
-              <dt className="text-sm font-medium text-gray-500 sm:w-48">
-                {field.label}
-              </dt>
+            <div key={field.label} className="flex flex-col sm:flex-row sm:items-center px-4 py-3">
+              <dt className="text-sm font-medium text-gray-500 sm:w-48">{field.label}</dt>
               <dd className="mt-1 sm:mt-0 text-sm text-gray-900">
-                {field.value || (
-                  <span className="text-gray-400">-</span>
-                )}
+                {field.value || <span className="text-gray-400">-</span>}
               </dd>
             </div>
           ))}
@@ -1368,10 +1353,7 @@ export function ProfilePage() {
         <h2 className="text-lg font-semibold text-gray-900">
           {user?.hasPassword ? "Αλλαγή κωδικού" : "Ορισμός κωδικού"}
         </h2>
-        <form
-          onSubmit={handleChangePassword}
-          className="mt-4 max-w-md space-y-4"
-        >
+        <form onSubmit={handleChangePassword} className="mt-4 max-w-md space-y-4">
           {user?.hasPassword && (
             <Input
               id="currentPassword"
@@ -1397,14 +1379,10 @@ export function ProfilePage() {
             onChange={(e) => setConfirmNewPassword(e.target.value)}
           />
 
-          {passwordError && (
-            <p className="text-sm text-red-600">{passwordError}</p>
-          )}
+          {passwordError && <p className="text-sm text-red-600">{passwordError}</p>}
 
           {changePassword.isSuccess && (
-            <p className="text-sm text-green-600">
-              Ο κωδικός άλλαξε επιτυχώς
-            </p>
+            <p className="text-sm text-green-600">Ο κωδικός άλλαξε επιτυχώς</p>
           )}
 
           <Button type="submit" loading={changePassword.isPending}>
@@ -1434,104 +1412,98 @@ import { api } from "../../lib/api";
 Inside the `SettingsPage` component, after the existing state declarations, add:
 
 ```tsx
-  const { user } = useAuth();
-  const [currentPassword, setCurrentPassword] = useState("");
-  const [newPassword, setNewPassword] = useState("");
-  const [confirmNewPassword, setConfirmNewPassword] = useState("");
-  const [passwordError, setPasswordError] = useState("");
+const { user } = useAuth();
+const [currentPassword, setCurrentPassword] = useState("");
+const [newPassword, setNewPassword] = useState("");
+const [confirmNewPassword, setConfirmNewPassword] = useState("");
+const [passwordError, setPasswordError] = useState("");
 
-  const changePassword = useMutation({
-    mutationFn: (data: {
-      currentPassword?: string;
-      newPassword: string;
-      confirmNewPassword: string;
-    }) => api.post("/api/auth/change-password", data),
-    onSuccess: () => {
-      setCurrentPassword("");
-      setNewPassword("");
-      setConfirmNewPassword("");
-      setPasswordError("");
-    },
-    onError: (err) => {
-      setPasswordError(
-        err instanceof Error ? err.message : "Κάτι πήγε στραβά",
-      );
-    },
-  });
-
-  const handleChangePassword = (e: React.FormEvent) => {
-    e.preventDefault();
+const changePassword = useMutation({
+  mutationFn: (data: {
+    currentPassword?: string;
+    newPassword: string;
+    confirmNewPassword: string;
+  }) => api.post("/api/auth/change-password", data),
+  onSuccess: () => {
+    setCurrentPassword("");
+    setNewPassword("");
+    setConfirmNewPassword("");
     setPasswordError("");
+  },
+  onError: (err) => {
+    setPasswordError(err instanceof Error ? err.message : "Κάτι πήγε στραβά");
+  },
+});
 
-    if (newPassword.length < 8) {
-      setPasswordError("Ο κωδικός πρέπει να έχει τουλάχιστον 8 χαρακτήρες");
-      return;
-    }
+const handleChangePassword = (e: React.FormEvent) => {
+  e.preventDefault();
+  setPasswordError("");
 
-    if (newPassword !== confirmNewPassword) {
-      setPasswordError("Οι κωδικοί δεν ταιριάζουν");
-      return;
-    }
+  if (newPassword.length < 8) {
+    setPasswordError("Ο κωδικός πρέπει να έχει τουλάχιστον 8 χαρακτήρες");
+    return;
+  }
 
-    changePassword.mutate({
-      ...(user?.hasPassword ? { currentPassword } : {}),
-      newPassword,
-      confirmNewPassword,
-    });
-  };
+  if (newPassword !== confirmNewPassword) {
+    setPasswordError("Οι κωδικοί δεν ταιριάζουν");
+    return;
+  }
+
+  changePassword.mutate({
+    ...(user?.hasPassword ? { currentPassword } : {}),
+    newPassword,
+    confirmNewPassword,
+  });
+};
 ```
 
 Then, after the closing `</form>` of the existing settings form (before the closing `</div>`), add:
 
 ```tsx
-      <form onSubmit={handleChangePassword} className="mt-6 max-w-2xl space-y-6">
-        <Card>
-          <h2 className="text-lg font-semibold text-gray-900 mb-4">
-            {user?.hasPassword ? "Αλλαγή κωδικού" : "Ορισμός κωδικού"}
-          </h2>
-          <div className="space-y-4">
-            {user?.hasPassword && (
-              <Input
-                id="currentPassword"
-                type="password"
-                label="Τρέχων κωδικός"
-                value={currentPassword}
-                onChange={(e) => setCurrentPassword(e.target.value)}
-              />
-            )}
-            <Input
-              id="newPassword"
-              type="password"
-              label="Νέος κωδικός"
-              placeholder="Τουλάχιστον 8 χαρακτήρες"
-              value={newPassword}
-              onChange={(e) => setNewPassword(e.target.value)}
-            />
-            <Input
-              id="confirmNewPassword"
-              type="password"
-              label="Επιβεβαίωση νέου κωδικού"
-              value={confirmNewPassword}
-              onChange={(e) => setConfirmNewPassword(e.target.value)}
-            />
+<form onSubmit={handleChangePassword} className="mt-6 max-w-2xl space-y-6">
+  <Card>
+    <h2 className="text-lg font-semibold text-gray-900 mb-4">
+      {user?.hasPassword ? "Αλλαγή κωδικού" : "Ορισμός κωδικού"}
+    </h2>
+    <div className="space-y-4">
+      {user?.hasPassword && (
+        <Input
+          id="currentPassword"
+          type="password"
+          label="Τρέχων κωδικός"
+          value={currentPassword}
+          onChange={(e) => setCurrentPassword(e.target.value)}
+        />
+      )}
+      <Input
+        id="newPassword"
+        type="password"
+        label="Νέος κωδικός"
+        placeholder="Τουλάχιστον 8 χαρακτήρες"
+        value={newPassword}
+        onChange={(e) => setNewPassword(e.target.value)}
+      />
+      <Input
+        id="confirmNewPassword"
+        type="password"
+        label="Επιβεβαίωση νέου κωδικού"
+        value={confirmNewPassword}
+        onChange={(e) => setConfirmNewPassword(e.target.value)}
+      />
 
-            {passwordError && (
-              <p className="text-sm text-red-600">{passwordError}</p>
-            )}
+      {passwordError && <p className="text-sm text-red-600">{passwordError}</p>}
 
-            {changePassword.isSuccess && (
-              <p className="text-sm text-green-600">
-                Ο κωδικός άλλαξε επιτυχώς
-              </p>
-            )}
-          </div>
-        </Card>
-        <div className="flex justify-end">
-          <Button type="submit" loading={changePassword.isPending}>
-            {user?.hasPassword ? "Αλλαγή κωδικού" : "Ορισμός κωδικού"}
-          </Button>
-        </div>
-      </form>
+      {changePassword.isSuccess && (
+        <p className="text-sm text-green-600">Ο κωδικός άλλαξε επιτυχώς</p>
+      )}
+    </div>
+  </Card>
+  <div className="flex justify-end">
+    <Button type="submit" loading={changePassword.isPending}>
+      {user?.hasPassword ? "Αλλαγή κωδικού" : "Ορισμός κωδικού"}
+    </Button>
+  </div>
+</form>
 ```
 
 Note: The `useMutation` import and `api` import are already available — `useMutation` is pulled in from `@tanstack/react-query`, and `api` from `../../lib/api`. The `useState` import is already present too.

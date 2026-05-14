@@ -1,8 +1,5 @@
 import { useParams, useNavigate } from "react-router";
-import {
-  useCustomerOrder,
-  useReorder,
-} from "../../lib/hooks/use-customer-orders";
+import { useCustomerOrder, useReorder } from "../../lib/hooks/use-customer-orders";
 import { ORDER_STATUS_LABELS } from "@kava-now/shared";
 import type { OrderStatus } from "@kava-now/shared";
 
@@ -29,23 +26,14 @@ export function OrderDetailPage() {
   };
 
   if (isLoading) {
-    return (
-      <div className="text-center text-sm text-gray-500 py-8">Φόρτωση...</div>
-    );
+    return <div className="text-center text-sm text-gray-500 py-8">Φόρτωση...</div>;
   }
 
   if (!order) {
-    return (
-      <div className="text-center text-sm text-gray-500 py-8">
-        Η παραγγελία δεν βρέθηκε.
-      </div>
-    );
+    return <div className="text-center text-sm text-gray-500 py-8">Η παραγγελία δεν βρέθηκε.</div>;
   }
 
-  const total = order.items.reduce(
-    (sum, item) => sum + Number(item.unitPrice) * item.quantity,
-    0,
-  );
+  const total = order.items.reduce((sum, item) => sum + Number(item.unitPrice) * item.quantity, 0);
 
   return (
     <div>
@@ -60,9 +48,7 @@ export function OrderDetailPage() {
       {/* Header */}
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">
-            Παραγγελία #{order.id.slice(0, 8)}
-          </h1>
+          <h1 className="text-2xl font-bold text-gray-900">Παραγγελία #{order.id.slice(0, 8)}</h1>
           <p className="mt-1 text-sm text-gray-500">
             {new Date(order.createdAt).toLocaleDateString("el-GR", {
               year: "numeric",
@@ -110,12 +96,8 @@ export function OrderDetailPage() {
           <tbody>
             {order.items.map((item) => (
               <tr key={item.id} className="border-b border-gray-100">
-                <td className="py-3 pr-4 font-medium text-gray-900">
-                  {item.productName}
-                </td>
-                <td className="py-3 pr-4 text-center text-gray-700">
-                  {item.quantity}
-                </td>
+                <td className="py-3 pr-4 font-medium text-gray-900">{item.productName}</td>
+                <td className="py-3 pr-4 text-center text-gray-700">{item.quantity}</td>
                 <td className="py-3 pr-4 text-right text-gray-700">
                   {Number(item.unitPrice).toFixed(2)}&euro;
                 </td>
@@ -127,15 +109,10 @@ export function OrderDetailPage() {
           </tbody>
           <tfoot>
             <tr>
-              <td
-                colSpan={3}
-                className="py-3 pr-4 text-right font-bold text-gray-900"
-              >
+              <td colSpan={3} className="py-3 pr-4 text-right font-bold text-gray-900">
                 Σύνολο:
               </td>
-              <td className="py-3 text-right font-bold text-gray-900">
-                {total.toFixed(2)}&euro;
-              </td>
+              <td className="py-3 text-right font-bold text-gray-900">{total.toFixed(2)}&euro;</td>
             </tr>
           </tfoot>
         </table>

@@ -3,12 +3,7 @@ import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { magicLink } from "better-auth/plugins";
 import { decodeAuthEmail } from "@kava-now/shared";
 import { db } from "../db/connection";
-import {
-  users,
-  sessions,
-  accounts,
-  verifications,
-} from "../db/schema/index";
+import { users, sessions, accounts, verifications } from "../db/schema/index";
 import { config } from "../config";
 import { sendMagicLink, sendPasswordReset } from "../services/email";
 
@@ -106,9 +101,7 @@ export const auth = betterAuth({
         // The plugin builds `url` from auth.baseURL (a static fallback). For
         // multi-tenant subdomains we rewrite the host using the request that
         // triggered the link, so it points back to the right kava.
-        const requestHost =
-          ctx?.headers?.get?.("x-forwarded-host") ||
-          ctx?.headers?.get?.("host");
+        const requestHost = ctx?.headers?.get?.("x-forwarded-host") || ctx?.headers?.get?.("host");
         const finalUrl = requestHost
           ? `${config.protocol}://${requestHost}${new URL(url).pathname}${new URL(url).search}`
           : url;

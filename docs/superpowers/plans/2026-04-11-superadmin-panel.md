@@ -15,6 +15,7 @@
 ## File Map
 
 **Create:**
+
 - `packages/api/src/middleware/require-superadmin.ts` — guard middleware
 - `packages/api/src/routes/superadmin/index.ts` — superadmin API routes
 - `packages/web/src/lib/is-superadmin.ts` — subdomain detection utility
@@ -23,6 +24,7 @@
 - `packages/web/src/lib/hooks/use-superadmin-kavas.ts` — data hooks
 
 **Modify:**
+
 - `packages/api/src/db/schema/enums.ts` — add `superadmin` to role enum
 - `packages/api/src/db/schema/users.ts` — make `kavaId` nullable
 - `packages/api/src/db/schema/magic-links.ts` — make `kavaId` nullable
@@ -42,6 +44,7 @@
 ### Task 1: Database Schema Changes
 
 **Files:**
+
 - Modify: `packages/api/src/db/schema/enums.ts`
 - Modify: `packages/api/src/db/schema/users.ts`
 - Modify: `packages/api/src/db/schema/magic-links.ts`
@@ -51,22 +54,13 @@
 In `packages/api/src/db/schema/enums.ts`, change:
 
 ```ts
-export const userRoleEnum = pgEnum("user_role", [
-  "owner",
-  "staff",
-  "customer",
-]);
+export const userRoleEnum = pgEnum("user_role", ["owner", "staff", "customer"]);
 ```
 
 to:
 
 ```ts
-export const userRoleEnum = pgEnum("user_role", [
-  "owner",
-  "staff",
-  "customer",
-  "superadmin",
-]);
+export const userRoleEnum = pgEnum("user_role", ["owner", "staff", "customer", "superadmin"]);
 ```
 
 - [ ] **Step 2: Make `kavaId` nullable on users**
@@ -127,6 +121,7 @@ git commit -m "feat: add superadmin role, make kavaId nullable on users and magi
 ### Task 2: Shared Types + AppEnv + Lucia
 
 **Files:**
+
 - Modify: `packages/shared/src/types/index.ts`
 - Modify: `packages/api/src/types.ts`
 - Modify: `packages/api/src/auth/lucia.ts`
@@ -235,6 +230,7 @@ git commit -m "feat: add superadmin to types, AppEnv, and Lucia declarations"
 ### Task 3: Tenant Middleware — Handle `admin` Subdomain
 
 **Files:**
+
 - Modify: `packages/api/src/middleware/tenant.ts`
 
 - [ ] **Step 1: Add `admin` subdomain handling**
@@ -272,10 +268,7 @@ export const tenantMiddleware = createMiddleware<AppEnv>(async (c, next) => {
   }
 
   // Extract subdomain
-  const subdomain = hostWithoutPort.replace(
-    `.${baseDomainWithoutPort}`,
-    "",
-  );
+  const subdomain = hostWithoutPort.replace(`.${baseDomainWithoutPort}`, "");
 
   if (!subdomain || subdomain === hostWithoutPort) {
     c.set("isPlatform", true);
@@ -299,11 +292,7 @@ export const tenantMiddleware = createMiddleware<AppEnv>(async (c, next) => {
   }
 
   // Look up kava by slug
-  const [kava] = await db
-    .select()
-    .from(kavas)
-    .where(eq(kavas.slug, subdomain))
-    .limit(1);
+  const [kava] = await db.select().from(kavas).where(eq(kavas.slug, subdomain)).limit(1);
 
   if (!kava) {
     return c.json({ error: "Κάβα δεν βρέθηκε" }, 404);
@@ -335,6 +324,7 @@ git commit -m "feat: handle admin subdomain in tenant middleware"
 ### Task 4: Auth Routes — Superadmin Support
 
 **Files:**
+
 - Modify: `packages/api/src/routes/auth.ts`
 
 - [ ] **Step 1: Update login route to handle superadmin**
@@ -367,13 +357,7 @@ auth.post("/login", async (c) => {
     const [user] = await db
       .select()
       .from(users)
-      .where(
-        and(
-          eq(users.email, email),
-          eq(users.role, "superadmin"),
-          isNull(users.kavaId),
-        ),
-      )
+      .where(and(eq(users.email, email), eq(users.role, "superadmin"), isNull(users.kavaId)))
       .limit(1);
 
     // Password login
@@ -530,10 +514,7 @@ auth.get("/verify", async (c) => {
     return c.json({ error: "Μη έγκυρο ή ληγμένο token" }, 400);
   }
 
-  await db
-    .update(magicLinkTokens)
-    .set({ used: true })
-    .where(eq(magicLinkTokens.id, magicLink.id));
+  await db.update(magicLinkTokens).set({ used: true }).where(eq(magicLinkTokens.id, magicLink.id));
 
   // For superadmin, look up by email + superadmin role
   if (isSuperAdmin) {
@@ -541,11 +522,7 @@ auth.get("/verify", async (c) => {
       .select()
       .from(users)
       .where(
-        and(
-          eq(users.email, magicLink.email),
-          eq(users.role, "superadmin"),
-          isNull(users.kavaId),
-        ),
+        and(eq(users.email, magicLink.email), eq(users.role, "superadmin"), isNull(users.kavaId)),
       )
       .limit(1);
 
@@ -568,21 +545,14 @@ auth.get("/verify", async (c) => {
   let [user] = await db
     .select()
     .from(users)
-    .where(
-      and(eq(users.email, magicLink.email), eq(users.kavaId, kava!.id)),
-    )
+    .where(and(eq(users.email, magicLink.email), eq(users.kavaId, kava!.id)))
     .limit(1);
 
   if (!user) {
     const [customer] = await db
       .select()
       .from(customers)
-      .where(
-        and(
-          eq(customers.email, magicLink.email),
-          eq(customers.kavaId, kava!.id),
-        ),
-      )
+      .where(and(eq(customers.email, magicLink.email), eq(customers.kavaId, kava!.id)))
       .limit(1);
 
     if (customer) {
@@ -615,7 +585,11 @@ auth.get("/verify", async (c) => {
     redirect = "/catalog";
   }
 
-  return c.json({ success: true, redirect, user: { id: user.id, email: user.email, name: user.name, role: user.role } });
+  return c.json({
+    success: true,
+    redirect,
+    user: { id: user.id, email: user.email, name: user.name, role: user.role },
+  });
 });
 ```
 
@@ -725,10 +699,7 @@ auth.post("/reset-password", async (c) => {
     return c.json({ error: "Μη έγκυρο ή ληγμένο token" }, 400);
   }
 
-  await db
-    .update(magicLinkTokens)
-    .set({ used: true })
-    .where(eq(magicLinkTokens.id, magicLink.id));
+  await db.update(magicLinkTokens).set({ used: true }).where(eq(magicLinkTokens.id, magicLink.id));
 
   const userConditions = [eq(users.email, magicLink.email)];
   if (isSuperAdmin) {
@@ -749,10 +720,7 @@ auth.post("/reset-password", async (c) => {
   }
 
   const passwordHash = await hashPassword(password);
-  await db
-    .update(users)
-    .set({ passwordHash })
-    .where(eq(users.id, user.id));
+  await db.update(users).set({ passwordHash }).where(eq(users.id, user.id));
 
   return c.json({ success: true });
 });
@@ -770,6 +738,7 @@ git commit -m "feat: support superadmin login, verify, forgot/reset password on 
 ### Task 5: Superadmin API Routes + Guard Middleware
 
 **Files:**
+
 - Create: `packages/api/src/middleware/require-superadmin.ts`
 - Create: `packages/api/src/routes/superadmin/index.ts`
 - Modify: `packages/api/src/app.ts`
@@ -831,11 +800,7 @@ superadmin.get("/kavas", async (c) => {
 superadmin.delete("/kavas/:id", async (c) => {
   const id = c.req.param("id");
 
-  const [kava] = await db
-    .select({ id: kavas.id })
-    .from(kavas)
-    .where(eq(kavas.id, id))
-    .limit(1);
+  const [kava] = await db.select({ id: kavas.id }).from(kavas).where(eq(kavas.id, id)).limit(1);
 
   if (!kava) {
     return c.json({ error: "Δεν βρέθηκε κάβα" }, 404);
@@ -875,6 +840,7 @@ git commit -m "feat: add superadmin API routes for listing and deleting tenants"
 ### Task 6: Seed Superadmin User
 
 **Files:**
+
 - Modify: `packages/api/src/db/seed.ts`
 
 - [ ] **Step 1: Add superadmin user to seed script**
@@ -888,17 +854,17 @@ import { users } from "./schema/index.js";
 Then, after the `db.insert(seedProducts)` block and before `await sql.end();`, add:
 
 ```ts
-  // Seed superadmin user (no password — set via forgot-password flow)
-  console.log("Seeding superadmin user...");
-  await db
-    .insert(users)
-    .values({
-      email: "panos.bechlivanos@gmail.com",
-      name: "Super Admin",
-      role: "superadmin",
-    })
-    .onConflictDoNothing();
-  console.log("Superadmin user seeded.");
+// Seed superadmin user (no password — set via forgot-password flow)
+console.log("Seeding superadmin user...");
+await db
+  .insert(users)
+  .values({
+    email: "panos.bechlivanos@gmail.com",
+    name: "Super Admin",
+    role: "superadmin",
+  })
+  .onConflictDoNothing();
+console.log("Superadmin user seeded.");
 ```
 
 Note: `kavaId` is omitted (defaults to null since it's now nullable). `onConflictDoNothing` prevents errors on re-runs.
@@ -921,6 +887,7 @@ git commit -m "feat: seed superadmin user in db seed script"
 ### Task 7: Frontend — Subdomain Detection + Routing
 
 **Files:**
+
 - Create: `packages/web/src/lib/is-superadmin.ts`
 - Create: `packages/web/src/components/layouts/SuperAdminLayout.tsx`
 - Create: `packages/web/src/pages/superadmin/KavasPage.tsx`
@@ -967,7 +934,13 @@ export function SuperAdminLayout() {
             onClick={() => setUserMenuOpen(!userMenuOpen)}
           >
             <span>{user?.name}</span>
-            <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <svg
+              className="h-4 w-4"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+              strokeWidth={2}
+            >
               <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
             </svg>
           </button>
@@ -1030,8 +1003,7 @@ export function useDeleteKava() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (id: string) =>
-      api.delete(`/api/superadmin/kavas/${id}`),
+    mutationFn: (id: string) => api.delete(`/api/superadmin/kavas/${id}`),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["superadmin", "kavas"] });
     },
@@ -1045,10 +1017,7 @@ Create `packages/web/src/pages/superadmin/KavasPage.tsx`:
 
 ```tsx
 import { useState } from "react";
-import {
-  useSuperAdminKavas,
-  useDeleteKava,
-} from "../../lib/hooks/use-superadmin-kavas";
+import { useSuperAdminKavas, useDeleteKava } from "../../lib/hooks/use-superadmin-kavas";
 import { Button } from "../../components/ui/Button";
 import { Spinner } from "../../components/ui/Spinner";
 
@@ -1096,15 +1065,9 @@ export function KavasPage() {
             <tbody className="divide-y divide-gray-100">
               {kavas.map((kava) => (
                 <tr key={kava.id}>
-                  <td className="px-4 py-3 text-sm font-medium text-gray-900">
-                    {kava.name}
-                  </td>
-                  <td className="px-4 py-3 text-sm text-gray-500">
-                    {kava.slug}
-                  </td>
-                  <td className="px-4 py-3 text-sm text-gray-500">
-                    {kava.email}
-                  </td>
+                  <td className="px-4 py-3 text-sm font-medium text-gray-900">{kava.name}</td>
+                  <td className="px-4 py-3 text-sm text-gray-500">{kava.slug}</td>
+                  <td className="px-4 py-3 text-sm text-gray-500">{kava.email}</td>
                   <td className="px-4 py-3 text-sm text-gray-500">
                     {new Date(kava.createdAt).toLocaleDateString("el-GR")}
                   </td>
@@ -1124,20 +1087,12 @@ export function KavasPage() {
                         >
                           Ναι
                         </Button>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => setConfirmId(null)}
-                        >
+                        <Button variant="ghost" size="sm" onClick={() => setConfirmId(null)}>
                           Όχι
                         </Button>
                       </div>
                     ) : (
-                      <Button
-                        variant="danger"
-                        size="sm"
-                        onClick={() => setConfirmId(kava.id)}
-                      >
+                      <Button variant="danger" size="sm" onClick={() => setConfirmId(kava.id)}>
                         Διαγραφή
                       </Button>
                     )}
@@ -1318,9 +1273,7 @@ export function App() {
 
   return (
     <QueryClientProvider client={queryClient}>
-      <BrowserRouter>
-        {isSuperAdmin ? <SuperAdminApp /> : <TenantApp />}
-      </BrowserRouter>
+      <BrowserRouter>{isSuperAdmin ? <SuperAdminApp /> : <TenantApp />}</BrowserRouter>
     </QueryClientProvider>
   );
 }

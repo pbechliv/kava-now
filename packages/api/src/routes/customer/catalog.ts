@@ -1,12 +1,7 @@
 import { Hono } from "hono";
 import { eq, and, ilike, or } from "drizzle-orm";
 import { db } from "../../db/connection";
-import {
-  products,
-  categories,
-  customers,
-  customerBrandPricing,
-} from "../../db/schema/index";
+import { products, categories, customers, customerBrandPricing } from "../../db/schema/index";
 import { resolvePrice } from "../../services/pricing";
 import type { AppEnv } from "../../types";
 
@@ -41,9 +36,7 @@ catalogRouter.get("/", async (c) => {
     .from(customerBrandPricing)
     .where(eq(customerBrandPricing.customerId, customerId));
 
-  const brandDiscountMap = new Map(
-    brandPricing.map((bp) => [bp.brand, bp.discountPct]),
-  );
+  const brandDiscountMap = new Map(brandPricing.map((bp) => [bp.brand, bp.discountPct]));
 
   const categoryId = c.req.query("categoryId");
   const search = c.req.query("search");
@@ -56,9 +49,7 @@ catalogRouter.get("/", async (c) => {
 
   if (search) {
     const pattern = `%${search}%`;
-    conditions.push(
-      or(ilike(products.name, pattern), ilike(products.brand, pattern))!,
-    );
+    conditions.push(or(ilike(products.name, pattern), ilike(products.brand, pattern))!);
   }
 
   const rows = await db
@@ -91,10 +82,7 @@ catalogRouter.get("/", async (c) => {
     alcoholPct: row.alcoholPct,
     categoryId: row.categoryId,
     categoryName: row.categoryName,
-    resolvedPrice: resolvePrice(
-      row.basePrice,
-      brandDiscountMap.get(row.brand) ?? null,
-    ),
+    resolvedPrice: resolvePrice(row.basePrice, brandDiscountMap.get(row.brand) ?? null),
   }));
 
   return c.json(result);

@@ -30,6 +30,7 @@ Add a `kavaExistsSchema` with `slug: z.string().min(1)` for query param validati
 **New file: `packages/web/src/pages/KavaSelectPage.tsx`**
 
 A simple page with:
+
 - Heading: "Enter your kava name" (or similar)
 - Text input for the kava slug
 - "Continue" button
@@ -37,6 +38,7 @@ A simple page with:
 - Link at the bottom: "Don't have a kava yet? Register here" → `/register`
 
 **Behavior:**
+
 1. User types slug and clicks Continue
 2. Frontend calls `GET /api/platform/kava-exists?slug={input}`
 3. If `exists: true` → redirect to `{slug}.{baseDomain}/login`
@@ -59,12 +61,14 @@ GET /api/kava  (tenant mode only)
 - Returns 404 if not in tenant mode
 
 **Frontend changes to `LoginPage.tsx`:**
+
 - Fetch kava info on mount via `GET /api/kava`
 - Display kava name prominently (large heading above the form)
 
 ### Routing Changes in `packages/web/src/App.tsx`
 
 In the `TenantApp` component, when in platform mode (`isPlatform`):
+
 - The root route `/` renders `KavaSelectPage` instead of `HomePage`
 - Login, register, verify, forgot-password, and reset-password routes remain for the registration flow
 - `HomePage` still handles redirects for tenant-mode users

@@ -62,8 +62,7 @@ export async function inviteUserToKava({
     invitedById: inviterId,
   });
 
-  const requestHost =
-    c.req.header("x-forwarded-host") || c.req.header("host") || "";
+  const requestHost = c.req.header("x-forwarded-host") || c.req.header("host") || "";
   const protocol = requestHost.includes("localhost") ? "http" : "https";
   const callbackURL = `${protocol}://${requestHost}/welcome`;
 

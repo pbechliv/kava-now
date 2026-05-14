@@ -109,9 +109,7 @@ export function UsersPage() {
               <tr key={u.id}>
                 <td className="px-4 py-3 text-sm font-medium text-gray-900">
                   {u.name}
-                  {u.id === me?.id && (
-                    <span className="ml-2 text-xs text-gray-500">(εσείς)</span>
-                  )}
+                  {u.id === me?.id && <span className="ml-2 text-xs text-gray-500">(εσείς)</span>}
                   {!u.emailVerified && (
                     <span className="ml-2 inline-flex items-center rounded-full bg-yellow-100 px-2 py-0.5 text-xs text-yellow-800">
                       Εκκρεμεί
@@ -119,9 +117,7 @@ export function UsersPage() {
                   )}
                 </td>
                 <td className="px-4 py-3 text-sm text-gray-500">{u.email}</td>
-                <td className="px-4 py-3 text-sm text-gray-700">
-                  {ROLE_LABELS[u.role] ?? u.role}
-                </td>
+                <td className="px-4 py-3 text-sm text-gray-700">{ROLE_LABELS[u.role] ?? u.role}</td>
                 <td className="px-4 py-3 text-sm text-gray-500">
                   {u.invitedByName ? (
                     <span title={u.invitedByEmail ?? ""}>{u.invitedByName}</span>
@@ -146,11 +142,7 @@ export function UsersPage() {
                         >
                           Ναι
                         </Button>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => setConfirmDeleteId(null)}
-                        >
+                        <Button variant="ghost" size="sm" onClick={() => setConfirmDeleteId(null)}>
                           Όχι
                         </Button>
                       </div>
@@ -159,9 +151,7 @@ export function UsersPage() {
                         {resendFeedback?.id === u.id && (
                           <span
                             className={`text-xs ${
-                              resendFeedback.kind === "success"
-                                ? "text-green-600"
-                                : "text-red-600"
+                              resendFeedback.kind === "success" ? "text-green-600" : "text-red-600"
                             }`}
                           >
                             {resendFeedback.message}
@@ -171,10 +161,7 @@ export function UsersPage() {
                           <Button
                             variant="ghost"
                             size="sm"
-                            loading={
-                              resend.isPending &&
-                              resend.variables === u.id
-                            }
+                            loading={resend.isPending && resend.variables === u.id}
                             onClick={() => handleResend(u.id)}
                           >
                             Επανάληψη πρόσκλησης
@@ -184,20 +171,13 @@ export function UsersPage() {
                           <Button
                             variant="secondary"
                             size="sm"
-                            loading={
-                              promote.isPending &&
-                              promote.variables === u.id
-                            }
+                            loading={promote.isPending && promote.variables === u.id}
                             onClick={() => promote.mutate(u.id)}
                           >
                             Μετατροπή σε ιδιοκτήτη
                           </Button>
                         )}
-                        <Button
-                          variant="danger"
-                          size="sm"
-                          onClick={() => setConfirmDeleteId(u.id)}
-                        >
+                        <Button variant="danger" size="sm" onClick={() => setConfirmDeleteId(u.id)}>
                           Διαγραφή
                         </Button>
                       </div>
@@ -212,9 +192,7 @@ export function UsersPage() {
       {inviteOpen && (
         <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/40 p-4">
           <div className="w-full max-w-md rounded-lg bg-white p-6 shadow-xl">
-            <h2 className="text-lg font-semibold text-gray-900">
-              Πρόσκληση χρήστη
-            </h2>
+            <h2 className="text-lg font-semibold text-gray-900">Πρόσκληση χρήστη</h2>
             <p className="mt-1 text-sm text-gray-500">
               Θα σταλεί email στον χρήστη με σύνδεσμο σύνδεσης.
             </p>
@@ -243,9 +221,7 @@ export function UsersPage() {
 
               {invite.error && (
                 <p className="text-sm text-red-600">
-                  {invite.error instanceof Error
-                    ? invite.error.message
-                    : "Σφάλμα"}
+                  {invite.error instanceof Error ? invite.error.message : "Σφάλμα"}
                 </p>
               )}
 

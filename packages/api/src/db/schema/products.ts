@@ -32,15 +32,9 @@ export const products = pgTable(
     volumeMl: integer("volume_ml"),
     alcoholPct: numeric("alcohol_pct", { precision: 4, scale: 1 }),
     active: boolean("active").notNull().default(true),
-    createdAt: timestamp("created_at", { withTimezone: true })
-      .notNull()
-      .defaultNow(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (table) => [
-    uniqueIndex("products_kava_name_brand_idx").on(
-      table.kavaId,
-      table.name,
-      table.brand,
-    ),
+    uniqueIndex("products_kava_name_brand_idx").on(table.kavaId, table.name, table.brand),
   ],
 );

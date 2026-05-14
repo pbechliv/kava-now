@@ -4,10 +4,7 @@ import { Button } from "../../components/ui/Button";
 import { Input } from "../../components/ui/Input";
 import { Spinner } from "../../components/ui/Spinner";
 import { EmptyState } from "../../components/ui/EmptyState";
-import {
-  useCustomers,
-  useDeleteCustomer,
-} from "../../lib/hooks/use-customers";
+import { useCustomers, useDeleteCustomer } from "../../lib/hooks/use-customers";
 import { CustomerFormModal } from "./CustomerFormModal";
 
 export function CustomersPage() {
@@ -72,55 +69,32 @@ export function CustomersPage() {
                   <th className="px-4 py-3 font-medium">Email</th>
                   <th className="px-4 py-3 font-medium">Τηλέφωνο</th>
                   <th className="px-4 py-3 font-medium">Υπεύθυνος</th>
-                  <th className="px-4 py-3 font-medium text-right">
-                    Ενέργειες
-                  </th>
+                  <th className="px-4 py-3 font-medium text-right">Ενέργειες</th>
                 </tr>
               </thead>
               <tbody>
                 {customers.map((customer) => (
-                  <tr
-                    key={customer.id}
-                    className="border-b last:border-0 hover:bg-gray-50"
-                  >
-                    <td className="px-4 py-3 font-medium text-gray-900">
-                      {customer.name}
-                    </td>
-                    <td className="px-4 py-3 text-gray-600">
-                      {customer.email ?? "-"}
-                    </td>
-                    <td className="px-4 py-3 text-gray-600">
-                      {customer.phone ?? "-"}
-                    </td>
-                    <td className="px-4 py-3 text-gray-600">
-                      {customer.contactPerson ?? "-"}
-                    </td>
+                  <tr key={customer.id} className="border-b last:border-0 hover:bg-gray-50">
+                    <td className="px-4 py-3 font-medium text-gray-900">{customer.name}</td>
+                    <td className="px-4 py-3 text-gray-600">{customer.email ?? "-"}</td>
+                    <td className="px-4 py-3 text-gray-600">{customer.phone ?? "-"}</td>
+                    <td className="px-4 py-3 text-gray-600">{customer.contactPerson ?? "-"}</td>
                     <td className="px-4 py-3 text-right">
                       <div className="flex justify-end gap-2">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => handleEdit(customer.id)}
-                        >
+                        <Button variant="ghost" size="sm" onClick={() => handleEdit(customer.id)}>
                           Επεξεργασία
                         </Button>
                         <Button
                           variant="ghost"
                           size="sm"
-                          onClick={() =>
-                            navigate(`/admin/customers/${customer.id}/users`)
-                          }
+                          onClick={() => navigate(`/admin/customers/${customer.id}/users`)}
                         >
                           Χρήστες
                         </Button>
                         <Button
                           variant="ghost"
                           size="sm"
-                          onClick={() =>
-                            navigate(
-                              `/admin/customers/${customer.id}/brand-pricing`,
-                            )
-                          }
+                          onClick={() => navigate(`/admin/customers/${customer.id}/brand-pricing`)}
                         >
                           Τιμολόγηση
                         </Button>
@@ -128,9 +102,7 @@ export function CustomersPage() {
                           variant="ghost"
                           size="sm"
                           className="text-red-600 hover:text-red-700 hover:bg-red-50"
-                          onClick={() =>
-                            handleDelete(customer.id, customer.name)
-                          }
+                          onClick={() => handleDelete(customer.id, customer.name)}
                         >
                           Διαγραφή
                         </Button>

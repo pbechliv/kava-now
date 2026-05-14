@@ -44,12 +44,7 @@ ordersRouter.post("/", async (c) => {
       brand: products.brand,
     })
     .from(products)
-    .where(
-      and(
-        eq(products.active, true),
-        inArray(products.id, productIds),
-      ),
-    );
+    .where(and(eq(products.active, true), inArray(products.id, productIds)));
 
   const productMap = new Map(activeProducts.map((p) => [p.id, p]));
 
@@ -88,9 +83,7 @@ ordersRouter.post("/", async (c) => {
     .from(customerBrandPricing)
     .where(eq(customerBrandPricing.customerId, customerId));
 
-  const brandDiscountMap = new Map(
-    brandPricing.map((bp) => [bp.brand, bp.discountPct]),
-  );
+  const brandDiscountMap = new Map(brandPricing.map((bp) => [bp.brand, bp.discountPct]));
 
   // Create order + items in transaction
   const result = await db.transaction(async (tx) => {
@@ -121,17 +114,14 @@ ordersRouter.post("/", async (c) => {
       };
     });
 
-    const createdItems = await tx
-      .insert(orderItems)
-      .values(itemValues)
-      .returning();
+    const createdItems = await tx.insert(orderItems).values(itemValues).returning();
 
     return { order, items: createdItems };
   });
 
   // Send notification email (fire and forget)
-  sendOrderNotification(kava, customer, result.order, result.items).catch(
-    (err) => console.error("[email] Failed to send order notification:", err),
+  sendOrderNotification(kava, customer, result.order, result.items).catch((err) =>
+    console.error("[email] Failed to send order notification:", err),
   );
 
   return c.json(result, 201);
@@ -184,10 +174,7 @@ ordersRouter.get("/:id", async (c) => {
     return c.json({ error: "Η παραγγελία δεν βρέθηκε" }, 404);
   }
 
-  const items = await db
-    .select()
-    .from(orderItems)
-    .where(eq(orderItems.orderId, orderId));
+  const items = await db.select().from(orderItems).where(eq(orderItems.orderId, orderId));
 
   return c.json({ ...order, items });
 });
@@ -215,10 +202,7 @@ ordersRouter.post("/:id/reorder", async (c) => {
   }
 
   // Get original items
-  const originalItems = await db
-    .select()
-    .from(orderItems)
-    .where(eq(orderItems.orderId, orderId));
+  const originalItems = await db.select().from(orderItems).where(eq(orderItems.orderId, orderId));
 
   if (originalItems.length === 0) {
     return c.json({ error: "Η παραγγελία δεν περιέχει προϊόντα" }, 400);
@@ -263,9 +247,7 @@ ordersRouter.post("/:id/reorder", async (c) => {
     .from(customerBrandPricing)
     .where(eq(customerBrandPricing.customerId, customerId));
 
-  const brandDiscountMap = new Map(
-    brandPricing.map((bp) => [bp.brand, bp.discountPct]),
-  );
+  const brandDiscountMap = new Map(brandPricing.map((bp) => [bp.brand, bp.discountPct]));
 
   // Filter out items for products no longer available
   const validItems = originalItems.filter((item) => {
@@ -276,8 +258,7 @@ ordersRouter.post("/:id/reorder", async (c) => {
   if (validItems.length === 0) {
     return c.json(
       {
-        error:
-          "Κανένα προϊόν από την αρχική παραγγελία δεν είναι πλέον διαθέσιμο",
+        error: "Κανένα προϊόν από την αρχική παραγγελία δεν είναι πλέον διαθέσιμο",
       },
       400,
     );
@@ -311,17 +292,14 @@ ordersRouter.post("/:id/reorder", async (c) => {
       };
     });
 
-    const createdItems = await tx
-      .insert(orderItems)
-      .values(itemValues)
-      .returning();
+    const createdItems = await tx.insert(orderItems).values(itemValues).returning();
 
     return { order: newOrder, items: createdItems };
   });
 
   // Send notification email (fire and forget)
-  sendOrderNotification(kava, customer, result.order, result.items).catch(
-    (err) => console.error("[email] Failed to send order notification:", err),
+  sendOrderNotification(kava, customer, result.order, result.items).catch((err) =>
+    console.error("[email] Failed to send order notification:", err),
   );
 
   return c.json(result, 201);

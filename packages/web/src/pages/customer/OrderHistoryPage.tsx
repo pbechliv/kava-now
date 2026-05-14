@@ -17,18 +17,12 @@ export function OrderHistoryPage() {
 
   return (
     <div>
-      <h1 className="text-2xl font-bold text-gray-900">
-        Ιστορικό Παραγγελιών
-      </h1>
+      <h1 className="text-2xl font-bold text-gray-900">Ιστορικό Παραγγελιών</h1>
 
       {isLoading ? (
-        <div className="mt-8 text-center text-sm text-gray-500">
-          Φόρτωση...
-        </div>
+        <div className="mt-8 text-center text-sm text-gray-500">Φόρτωση...</div>
       ) : !orders || orders.length === 0 ? (
-        <div className="mt-8 text-center text-sm text-gray-500">
-          Δεν υπάρχουν παραγγελίες.
-        </div>
+        <div className="mt-8 text-center text-sm text-gray-500">Δεν υπάρχουν παραγγελίες.</div>
       ) : (
         <div className="mt-4 space-y-3">
           {orders.map((order) => (
@@ -38,14 +32,11 @@ export function OrderHistoryPage() {
             >
               <div className="flex-1">
                 <div className="flex items-center gap-3">
-                  <span className="text-sm font-medium text-gray-900">
-                    #{order.id.slice(0, 8)}
-                  </span>
+                  <span className="text-sm font-medium text-gray-900">#{order.id.slice(0, 8)}</span>
                   <span
                     className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${statusColors[order.status as OrderStatus] || "bg-gray-100 text-gray-800"}`}
                   >
-                    {ORDER_STATUS_LABELS[order.status as OrderStatus] ||
-                      order.status}
+                    {ORDER_STATUS_LABELS[order.status as OrderStatus] || order.status}
                   </span>
                 </div>
                 <div className="mt-1 text-sm text-gray-500">
@@ -58,11 +49,8 @@ export function OrderHistoryPage() {
                   })}
                 </div>
                 <div className="mt-1 text-sm text-gray-600">
-                  {order.itemCount} {order.itemCount === 1 ? "προϊόν" : "προϊόντα"}{" "}
-                  &middot;{" "}
-                  <span className="font-medium">
-                    {order.totalAmount.toFixed(2)}&euro;
-                  </span>
+                  {order.itemCount} {order.itemCount === 1 ? "προϊόν" : "προϊόντα"} &middot;{" "}
+                  <span className="font-medium">{order.totalAmount.toFixed(2)}&euro;</span>
                 </div>
               </div>
               <div className="flex gap-2">

@@ -17,8 +17,7 @@ export function useCreateCategory() {
   const qc = useQueryClient();
 
   return useMutation({
-    mutationFn: (data: CreateCategoryInput) =>
-      api.post<Category>("/api/admin/categories", data),
+    mutationFn: (data: CreateCategoryInput) => api.post<Category>("/api/admin/categories", data),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["admin", "categories"] });
     },

@@ -34,9 +34,7 @@ export function DashboardPage() {
         {statCards.map((stat) => (
           <Card key={stat.label}>
             <p className="text-sm font-medium text-gray-500">{stat.label}</p>
-            <p className="mt-1 text-3xl font-bold text-gray-900">
-              {stat.value}
-            </p>
+            <p className="mt-1 text-3xl font-bold text-gray-900">{stat.value}</p>
           </Card>
         ))}
       </div>
@@ -44,9 +42,7 @@ export function DashboardPage() {
       {/* Recent orders */}
       <div className="mt-8">
         <div className="flex items-center justify-between">
-          <h2 className="text-lg font-semibold text-gray-900">
-            Πρόσφατες Παραγγελίες
-          </h2>
+          <h2 className="text-lg font-semibold text-gray-900">Πρόσφατες Παραγγελίες</h2>
           <Link
             to="/admin/orders"
             className="text-sm font-medium text-amber-600 hover:text-amber-700"
@@ -69,28 +65,20 @@ export function DashboardPage() {
             <tbody>
               {stats.recentOrders.length === 0 ? (
                 <tr>
-                  <td
-                    colSpan={5}
-                    className="px-4 py-8 text-center text-gray-400"
-                  >
+                  <td colSpan={5} className="px-4 py-8 text-center text-gray-400">
                     Δεν υπάρχουν παραγγελίες
                   </td>
                 </tr>
               ) : (
                 stats.recentOrders.map((order) => (
-                  <tr
-                    key={order.id}
-                    className="border-b last:border-0 hover:bg-gray-50"
-                  >
+                  <tr key={order.id} className="border-b last:border-0 hover:bg-gray-50">
                     <td className="px-4 py-3 text-gray-600">
                       {new Date(order.createdAt).toLocaleDateString("el-GR")}
                     </td>
                     <td className="px-4 py-3 font-medium text-gray-900">
                       {order.customerName ?? "-"}
                     </td>
-                    <td className="px-4 py-3 text-center text-gray-600">
-                      {order.itemCount}
-                    </td>
+                    <td className="px-4 py-3 text-center text-gray-600">{order.itemCount}</td>
                     <td className="px-4 py-3 text-right text-gray-900">
                       {Number(order.total).toFixed(2)}&euro;
                     </td>

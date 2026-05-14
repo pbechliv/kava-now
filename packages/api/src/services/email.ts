@@ -6,16 +6,10 @@ import type { OrderStatus } from "@kava-now/shared";
 const transporter = nodemailer.createTransport({
   host: config.smtp.host,
   port: config.smtp.port,
-  ...(config.smtp.user
-    ? { auth: { user: config.smtp.user, pass: config.smtp.pass } }
-    : {}),
+  ...(config.smtp.user ? { auth: { user: config.smtp.user, pass: config.smtp.pass } } : {}),
 });
 
-export async function sendMagicLink(
-  email: string,
-  link: string,
-  kavaName: string,
-): Promise<void> {
+export async function sendMagicLink(email: string, link: string, kavaName: string): Promise<void> {
   await transporter.sendMail({
     from: config.smtp.from,
     to: email,
@@ -76,10 +70,7 @@ export async function sendOrderNotification(
     return;
   }
 
-  const total = items.reduce(
-    (sum, item) => sum + Number(item.unitPrice) * item.quantity,
-    0,
-  );
+  const total = items.reduce((sum, item) => sum + Number(item.unitPrice) * item.quantity, 0);
 
   const itemRows = items
     .map(

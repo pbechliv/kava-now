@@ -23,10 +23,7 @@ export interface InviteCustomerUserInput {
 export function useCustomerUsers(customerId: string | undefined) {
   return useQuery({
     queryKey: ["admin", "customer-users", customerId],
-    queryFn: () =>
-      api.get<CustomerUsersResponse>(
-        `/api/admin/customers/${customerId}/users`,
-      ),
+    queryFn: () => api.get<CustomerUsersResponse>(`/api/admin/customers/${customerId}/users`),
     enabled: !!customerId,
   });
 }
@@ -35,10 +32,7 @@ export function useInviteCustomerUser(customerId: string) {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (input: InviteCustomerUserInput) =>
-      api.post<{ success: boolean }>(
-        `/api/admin/customers/${customerId}/users/invite`,
-        input,
-      ),
+      api.post<{ success: boolean }>(`/api/admin/customers/${customerId}/users/invite`, input),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["admin", "customer-users", customerId] });
     },

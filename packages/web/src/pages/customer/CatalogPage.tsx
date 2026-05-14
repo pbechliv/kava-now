@@ -41,10 +41,13 @@ export function CatalogPage() {
   // Debounce search
   const handleSearchChange = (value: string) => {
     setSearch(value);
-    clearTimeout((window as unknown as Record<string, ReturnType<typeof setTimeout>>).__catalogSearchTimer);
-    (window as unknown as Record<string, ReturnType<typeof setTimeout>>).__catalogSearchTimer = setTimeout(() => {
-      setDebouncedSearch(value);
-    }, 300);
+    clearTimeout(
+      (window as unknown as Record<string, ReturnType<typeof setTimeout>>).__catalogSearchTimer,
+    );
+    (window as unknown as Record<string, ReturnType<typeof setTimeout>>).__catalogSearchTimer =
+      setTimeout(() => {
+        setDebouncedSearch(value);
+      }, 300);
   };
 
   const getQty = (productId: string) => quantities[productId] ?? 1;
@@ -90,9 +93,7 @@ export function CatalogPage() {
           <button
             key={cat.id}
             type="button"
-            onClick={() =>
-              setSelectedCategory(selectedCategory === cat.id ? "" : cat.id)
-            }
+            onClick={() => setSelectedCategory(selectedCategory === cat.id ? "" : cat.id)}
             className={`rounded-full px-3 py-1.5 text-sm font-medium transition-colors ${
               selectedCategory === cat.id
                 ? "bg-amber-600 text-white"
@@ -106,13 +107,9 @@ export function CatalogPage() {
 
       {/* Product grid */}
       {isLoading ? (
-        <div className="mt-8 text-center text-sm text-gray-500">
-          Φόρτωση...
-        </div>
+        <div className="mt-8 text-center text-sm text-gray-500">Φόρτωση...</div>
       ) : !products || products.length === 0 ? (
-        <div className="mt-8 text-center text-sm text-gray-500">
-          Δεν βρέθηκαν προϊόντα.
-        </div>
+        <div className="mt-8 text-center text-sm text-gray-500">Δεν βρέθηκαν προϊόντα.</div>
       ) : (
         <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {products.map((product) => (
@@ -149,17 +146,13 @@ export function CatalogPage() {
                 {product.categoryName || "Χωρίς κατηγορία"}
               </div>
               <h3 className="font-semibold text-gray-900">{product.name}</h3>
-              {product.brand && (
-                <p className="text-sm text-gray-500">{product.brand}</p>
-              )}
+              {product.brand && <p className="text-sm text-gray-500">{product.brand}</p>}
 
               <div className="mt-2 flex items-baseline gap-2">
                 <span className="text-lg font-bold text-amber-600">
                   {product.resolvedPrice.toFixed(2)}&euro;
                 </span>
-                <span className="text-xs text-gray-500">
-                  / {UNIT_LABELS[product.unit]}
-                </span>
+                <span className="text-xs text-gray-500">/ {UNIT_LABELS[product.unit]}</span>
               </div>
 
               {/* Quantity + Add */}
@@ -172,9 +165,7 @@ export function CatalogPage() {
                   >
                     -
                   </button>
-                  <span className="w-8 text-center text-sm">
-                    {getQty(product.id)}
-                  </span>
+                  <span className="w-8 text-center text-sm">{getQty(product.id)}</span>
                   <button
                     type="button"
                     onClick={() => setQty(product.id, getQty(product.id) + 1)}

@@ -1,11 +1,6 @@
 import { pgEnum } from "drizzle-orm/pg-core";
 
-export const userRoleEnum = pgEnum("user_role", [
-  "owner",
-  "staff",
-  "customer",
-  "superadmin",
-]);
+export const userRoleEnum = pgEnum("user_role", ["owner", "staff", "customer", "superadmin"]);
 
 export const orderStatusEnum = pgEnum("order_status", [
   "pending",
@@ -15,8 +10,4 @@ export const orderStatusEnum = pgEnum("order_status", [
   "cancelled",
 ]);
 
-export const productUnitEnum = pgEnum("product_unit", [
-  "bottle",
-  "case",
-  "keg",
-]);
+export const productUnitEnum = pgEnum("product_unit", ["bottle", "case", "keg"]);

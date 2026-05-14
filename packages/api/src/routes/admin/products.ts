@@ -22,9 +22,7 @@ productsRouter.get("/", async (c) => {
 
   if (search) {
     const pattern = `%${search}%`;
-    conditions.push(
-      or(ilike(products.name, pattern), ilike(products.brand, pattern))!,
-    );
+    conditions.push(or(ilike(products.name, pattern), ilike(products.brand, pattern))!);
   }
 
   if (active === "true") {

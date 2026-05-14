@@ -8,13 +8,7 @@ import type { OrderStatus } from "@kava-now/shared";
 
 const ordersRouter = new Hono<AppEnv>();
 
-const VALID_STATUSES: OrderStatus[] = [
-  "pending",
-  "confirmed",
-  "shipped",
-  "delivered",
-  "cancelled",
-];
+const VALID_STATUSES: OrderStatus[] = ["pending", "confirmed", "shipped", "delivered", "cancelled"];
 
 // Status transition rules: key = current, value = allowed next statuses
 const ALLOWED_TRANSITIONS: Record<OrderStatus, OrderStatus[]> = {
@@ -108,10 +102,7 @@ ordersRouter.get("/:id", async (c) => {
     .from(orderItems)
     .where(eq(orderItems.orderId, id));
 
-  const total = items.reduce(
-    (sum, item) => sum + Number(item.unitPrice) * item.quantity,
-    0,
-  );
+  const total = items.reduce((sum, item) => sum + Number(item.unitPrice) * item.quantity, 0);
 
   return c.json({ ...order, items, total });
 });

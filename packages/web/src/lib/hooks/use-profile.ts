@@ -17,8 +17,7 @@ export interface UpdateProfileInput {
 export function useUpdateProfile() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (input: UpdateProfileInput) =>
-      api.patch<Customer>("/api/customer/profile", input),
+    mutationFn: (input: UpdateProfileInput) => api.patch<Customer>("/api/customer/profile", input),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["customer", "profile"] });
     },

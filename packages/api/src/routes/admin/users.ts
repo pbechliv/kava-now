@@ -104,20 +104,14 @@ usersRouter.post("/:id/resend-invite", async (c) => {
   }
 
   if (target.emailVerified) {
-    return c.json(
-      { error: "Ο χρήστης έχει ήδη ενεργοποιηθεί" },
-      400,
-    );
+    return c.json({ error: "Ο χρήστης έχει ήδη ενεργοποιηθεί" }, 400);
   }
 
   // Invalidate any outstanding magic-link tokens so the new email is the only
   // working link. better-auth stores hashed tokens under the same identifier.
-  await db
-    .delete(verifications)
-    .where(eq(verifications.identifier, target.authEmail));
+  await db.delete(verifications).where(eq(verifications.identifier, target.authEmail));
 
-  const requestHost =
-    c.req.header("x-forwarded-host") || c.req.header("host") || "";
+  const requestHost = c.req.header("x-forwarded-host") || c.req.header("host") || "";
   const protocol = requestHost.includes("localhost") ? "http" : "https";
   const callbackURL = `${protocol}://${requestHost}/welcome`;
 
@@ -143,10 +137,7 @@ usersRouter.post("/:id/promote-to-owner", async (c) => {
   const id = c.req.param("id");
 
   if (me.role !== "owner") {
-    return c.json(
-      { error: "Μόνο ιδιοκτήτης μπορεί να προωθήσει σε ιδιοκτήτη" },
-      403,
-    );
+    return c.json({ error: "Μόνο ιδιοκτήτης μπορεί να προωθήσει σε ιδιοκτήτη" }, 403);
   }
 
   const [target] = await db
@@ -164,10 +155,7 @@ usersRouter.post("/:id/promote-to-owner", async (c) => {
   }
 
   if (target.role !== "staff") {
-    return c.json(
-      { error: "Μόνο χρήστες προσωπικού μπορούν να προωθηθούν σε ιδιοκτήτη" },
-      400,
-    );
+    return c.json({ error: "Μόνο χρήστες προσωπικού μπορούν να προωθηθούν σε ιδιοκτήτη" }, 400);
   }
 
   await db.update(users).set({ role: "owner" }).where(eq(users.id, id));
@@ -211,18 +199,11 @@ usersRouter.delete("/:id", async (c) => {
     const [remaining] = await db
       .select({ count: sql<number>`count(*)::int` })
       .from(users)
-      .where(
-        and(
-          eq(users.kavaId, kavaId),
-          eq(users.role, "owner"),
-          ne(users.id, id),
-        ),
-      );
+      .where(and(eq(users.kavaId, kavaId), eq(users.role, "owner"), ne(users.id, id)));
     if (!remaining || remaining.count === 0) {
       return c.json(
         {
-          error:
-            "Δεν μπορείτε να διαγράψετε τον τελευταίο ιδιοκτήτη της κάβας",
+          error: "Δεν μπορείτε να διαγράψετε τον τελευταίο ιδιοκτήτη της κάβας",
         },
         400,
       );

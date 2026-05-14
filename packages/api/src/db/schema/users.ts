@@ -1,12 +1,5 @@
 import { type AnyPgColumn } from "drizzle-orm/pg-core";
-import {
-  pgTable,
-  uuid,
-  text,
-  timestamp,
-  boolean,
-  uniqueIndex,
-} from "drizzle-orm/pg-core";
+import { pgTable, uuid, text, timestamp, boolean, uniqueIndex } from "drizzle-orm/pg-core";
 import { userRoleEnum } from "./enums";
 import { kavas } from "./kavas";
 import { customers } from "./customers";
@@ -24,9 +17,7 @@ export const users = pgTable(
     emailVerified: boolean("email_verified").notNull().default(false),
     name: text("name").notNull(),
     image: text("image"),
-    createdAt: timestamp("created_at", { withTimezone: true })
-      .notNull()
-      .defaultNow(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true })
       .notNull()
       .defaultNow()
@@ -38,12 +29,9 @@ export const users = pgTable(
     customerId: uuid("customer_id").references(() => customers.id, {
       onDelete: "cascade",
     }),
-    invitedById: uuid("invited_by_id").references(
-      (): AnyPgColumn => users.id,
-      { onDelete: "set null" },
-    ),
+    invitedById: uuid("invited_by_id").references((): AnyPgColumn => users.id, {
+      onDelete: "set null",
+    }),
   },
-  (table) => [
-    uniqueIndex("users_real_email_kava_id_idx").on(table.realEmail, table.kavaId),
-  ],
+  (table) => [uniqueIndex("users_real_email_kava_id_idx").on(table.realEmail, table.kavaId)],
 );

@@ -51,7 +51,7 @@ services:
     ports:
       - "80:80"
       - "443:443"
-      - "443:443/udp"  # HTTP/3
+      - "443:443/udp" # HTTP/3
     volumes:
       - caddy-data:/data
       - caddy-config:/config

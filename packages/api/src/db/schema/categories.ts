@@ -9,7 +9,5 @@ export const categories = pgTable("categories", {
   name: text("name").notNull(),
   parentId: uuid("parent_id"),
   sortOrder: integer("sort_order").notNull().default(0),
-  createdAt: timestamp("created_at", { withTimezone: true })
-    .notNull()
-    .defaultNow(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });

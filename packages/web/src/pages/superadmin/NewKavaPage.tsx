@@ -56,9 +56,7 @@ export function NewKavaPage() {
             error={errors.slug?.message}
             {...register("slug")}
           />
-          {slug && (
-            <p className="mt-1 text-xs text-gray-500">{slug}.kavanow.gr</p>
-          )}
+          {slug && <p className="mt-1 text-xs text-gray-500">{slug}.kavanow.gr</p>}
         </div>
 
         <Input
@@ -89,15 +87,12 @@ export function NewKavaPage() {
         />
 
         <p className="text-xs text-gray-400">
-          Αν δεν ορίσετε κωδικό, ο ιδιοκτήτης θα λάβει σύνδεσμο σύνδεσης στο
-          email του.
+          Αν δεν ορίσετε κωδικό, ο ιδιοκτήτης θα λάβει σύνδεσμο σύνδεσης στο email του.
         </p>
 
         {createKava.error && (
           <p className="text-sm text-red-600">
-            {createKava.error instanceof Error
-              ? createKava.error.message
-              : "Κάτι πήγε στραβά"}
+            {createKava.error instanceof Error ? createKava.error.message : "Κάτι πήγε στραβά"}
           </p>
         )}
 

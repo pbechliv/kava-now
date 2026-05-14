@@ -10,10 +10,7 @@ export interface BrandPricingRow {
 export function useCustomerBrandPricing(customerId: string | undefined) {
   return useQuery({
     queryKey: ["admin", "customers", customerId, "brand-pricing"],
-    queryFn: () =>
-      api.get<BrandPricingRow[]>(
-        `/api/admin/customers/${customerId}/brand-pricing`,
-      ),
+    queryFn: () => api.get<BrandPricingRow[]>(`/api/admin/customers/${customerId}/brand-pricing`),
     enabled: !!customerId,
   });
 }

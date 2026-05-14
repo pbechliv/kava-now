@@ -1,4 +1,4 @@
-import { defineConfig } from "vite";
+import { defineConfig } from "vite-plus";
 import devServer from "@hono/vite-dev-server";
 import build from "@hono/vite-build/node";
 import { resolve } from "node:path";

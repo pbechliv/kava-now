@@ -9,8 +9,7 @@ import { fileURLToPath } from "node:url";
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
 const connectionString =
-  process.env.DATABASE_URL ||
-  "postgresql://postgres:postgres@localhost:5432/kavanow";
+  process.env.DATABASE_URL || "postgresql://postgres:postgres@localhost:5432/kavanow";
 
 async function main() {
   const sql = postgres(connectionString, { max: 1 });

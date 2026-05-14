@@ -4,10 +4,7 @@ import { Card } from "../../components/ui/Card";
 import { Button } from "../../components/ui/Button";
 import { Spinner } from "../../components/ui/Spinner";
 import { Badge, STATUS_BADGE_COLOR } from "../../components/ui/Badge";
-import {
-  useAdminOrder,
-  useUpdateOrderStatus,
-} from "../../lib/hooks/use-admin-orders";
+import { useAdminOrder, useUpdateOrderStatus } from "../../lib/hooks/use-admin-orders";
 import { ORDER_STATUS_LABELS } from "@kava-now/shared";
 import type { OrderStatus } from "@kava-now/shared";
 
@@ -34,41 +31,27 @@ export function OrderDetailPage() {
   }
 
   if (!order) {
-    return (
-      <div className="text-center py-12 text-gray-500">
-        Η παραγγελία δεν βρέθηκε
-      </div>
-    );
+    return <div className="text-center py-12 text-gray-500">Η παραγγελία δεν βρέθηκε</div>;
   }
 
   const allowedNext = ALLOWED_TRANSITIONS[order.status] ?? [];
 
   const handleStatusChange = () => {
     if (!selectedStatus || !id) return;
-    updateStatus.mutate(
-      { id, status: selectedStatus },
-      { onSuccess: () => setSelectedStatus("") },
-    );
+    updateStatus.mutate({ id, status: selectedStatus }, { onSuccess: () => setSelectedStatus("") });
   };
 
   return (
     <div>
       {/* Back link */}
-      <Link
-        to="/admin/orders"
-        className="text-sm text-amber-600 hover:text-amber-700"
-      >
+      <Link to="/admin/orders" className="text-sm text-amber-600 hover:text-amber-700">
         &larr; Πίσω στις παραγγελίες
       </Link>
 
       {/* Order header */}
       <div className="mt-4 flex flex-wrap items-center gap-4">
-        <h1 className="text-2xl font-bold text-gray-900">
-          Παραγγελία #{order.id.slice(0, 8)}
-        </h1>
-        <Badge color={STATUS_BADGE_COLOR[order.status]}>
-          {ORDER_STATUS_LABELS[order.status]}
-        </Badge>
+        <h1 className="text-2xl font-bold text-gray-900">Παραγγελία #{order.id.slice(0, 8)}</h1>
+        <Badge color={STATUS_BADGE_COLOR[order.status]}>{ORDER_STATUS_LABELS[order.status]}</Badge>
       </div>
       <p className="mt-1 text-sm text-gray-500">
         {new Date(order.createdAt).toLocaleString("el-GR")}
@@ -77,20 +60,12 @@ export function OrderDetailPage() {
       <div className="mt-6 grid grid-cols-1 gap-6 lg:grid-cols-3">
         {/* Customer info */}
         <Card>
-          <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wide">
-            Πελάτης
-          </h2>
-          <p className="mt-2 text-lg font-medium text-gray-900">
-            {order.customerName ?? "-"}
-          </p>
+          <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wide">Πελάτης</h2>
+          <p className="mt-2 text-lg font-medium text-gray-900">{order.customerName ?? "-"}</p>
           {order.customerPhone && (
-            <p className="mt-1 text-sm text-gray-600">
-              {order.customerPhone}
-            </p>
+            <p className="mt-1 text-sm text-gray-600">{order.customerPhone}</p>
           )}
-          {order.customerEmail && (
-            <p className="text-sm text-gray-600">{order.customerEmail}</p>
-          )}
+          {order.customerEmail && <p className="text-sm text-gray-600">{order.customerEmail}</p>}
         </Card>
 
         {/* Status change */}
@@ -106,9 +81,7 @@ export function OrderDetailPage() {
             <div className="mt-2 flex items-center gap-3">
               <select
                 value={selectedStatus}
-                onChange={(e) =>
-                  setSelectedStatus(e.target.value as OrderStatus)
-                }
+                onChange={(e) => setSelectedStatus(e.target.value as OrderStatus)}
                 className="rounded-lg border border-gray-300 px-3 py-2 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-amber-500"
               >
                 <option value="">Επιλέξτε...</option>
@@ -141,23 +114,14 @@ export function OrderDetailPage() {
                 <th className="px-4 py-3 font-medium">Προϊόν</th>
                 <th className="px-4 py-3 font-medium text-center">Ποσότητα</th>
                 <th className="px-4 py-3 font-medium text-right">Τιμή</th>
-                <th className="px-4 py-3 font-medium text-right">
-                  Υποσύνολο
-                </th>
+                <th className="px-4 py-3 font-medium text-right">Υποσύνολο</th>
               </tr>
             </thead>
             <tbody>
               {order.items.map((item) => (
-                <tr
-                  key={item.id}
-                  className="border-b last:border-0 hover:bg-gray-50"
-                >
-                  <td className="px-4 py-3 font-medium text-gray-900">
-                    {item.productName}
-                  </td>
-                  <td className="px-4 py-3 text-center text-gray-600">
-                    {item.quantity}
-                  </td>
+                <tr key={item.id} className="border-b last:border-0 hover:bg-gray-50">
+                  <td className="px-4 py-3 font-medium text-gray-900">{item.productName}</td>
+                  <td className="px-4 py-3 text-center text-gray-600">{item.quantity}</td>
                   <td className="px-4 py-3 text-right text-gray-600">
                     {Number(item.unitPrice).toFixed(2)}&euro;
                   </td>
@@ -169,10 +133,7 @@ export function OrderDetailPage() {
             </tbody>
             <tfoot>
               <tr className="bg-gray-50">
-                <td
-                  colSpan={3}
-                  className="px-4 py-3 text-right font-semibold text-gray-900"
-                >
+                <td colSpan={3} className="px-4 py-3 text-right font-semibold text-gray-900">
                   Σύνολο
                 </td>
                 <td className="px-4 py-3 text-right font-semibold text-gray-900">
@@ -190,9 +151,7 @@ export function OrderDetailPage() {
           <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wide">
             Σημειώσεις
           </h2>
-          <p className="mt-2 text-sm text-gray-700 whitespace-pre-wrap">
-            {order.notes}
-          </p>
+          <p className="mt-2 text-sm text-gray-700 whitespace-pre-wrap">{order.notes}</p>
         </Card>
       )}
     </div>

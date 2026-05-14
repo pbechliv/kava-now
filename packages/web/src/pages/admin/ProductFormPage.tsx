@@ -21,9 +21,7 @@ export function ProductFormPage() {
   const { id } = useParams();
   const isEdit = !!id && id !== "new";
 
-  const { data: product, isLoading: productLoading } = useProduct(
-    isEdit ? id : undefined,
-  );
+  const { data: product, isLoading: productLoading } = useProduct(isEdit ? id : undefined);
   const { data: categories } = useCategories();
   const createMutation = useCreateProduct();
   const updateMutation = useUpdateProduct();
@@ -86,25 +84,12 @@ export function ProductFormPage() {
         className="mt-6 max-w-2xl space-y-6 rounded-xl border border-gray-100 bg-white p-6 shadow-sm"
       >
         <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
-          <Input
-            label="Όνομα *"
-            id="name"
-            {...register("name")}
-            error={errors.name?.message}
-          />
+          <Input label="Όνομα *" id="name" {...register("name")} error={errors.name?.message} />
 
-          <Input
-            label="Μάρκα *"
-            id="brand"
-            {...register("brand")}
-            error={errors.brand?.message}
-          />
+          <Input label="Μάρκα *" id="brand" {...register("brand")} error={errors.brand?.message} />
 
           <div>
-            <label
-              htmlFor="categoryId"
-              className="block text-sm font-medium text-gray-700 mb-1"
-            >
+            <label htmlFor="categoryId" className="block text-sm font-medium text-gray-700 mb-1">
               Κατηγορία
             </label>
             <select
@@ -132,10 +117,7 @@ export function ProductFormPage() {
           />
 
           <div>
-            <label
-              htmlFor="unit"
-              className="block text-sm font-medium text-gray-700 mb-1"
-            >
+            <label htmlFor="unit" className="block text-sm font-medium text-gray-700 mb-1">
               Μονάδα
             </label>
             <select
@@ -143,22 +125,15 @@ export function ProductFormPage() {
               {...register("unit")}
               className="block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-amber-500 focus:outline-none focus:ring-2 focus:ring-amber-500"
             >
-              {(Object.entries(UNIT_LABELS) as [string, string][]).map(
-                ([value, label]) => (
-                  <option key={value} value={value}>
-                    {label}
-                  </option>
-                ),
-              )}
+              {(Object.entries(UNIT_LABELS) as [string, string][]).map(([value, label]) => (
+                <option key={value} value={value}>
+                  {label}
+                </option>
+              ))}
             </select>
           </div>
 
-          <Input
-            label="SKU"
-            id="sku"
-            {...register("sku")}
-            error={errors.sku?.message}
-          />
+          <Input label="SKU" id="sku" {...register("sku")} error={errors.sku?.message} />
 
           <Input
             label="Όγκος (ml)"
@@ -188,10 +163,7 @@ export function ProductFormPage() {
           </div>
 
           <div className="sm:col-span-2">
-            <label
-              htmlFor="description"
-              className="block text-sm font-medium text-gray-700 mb-1"
-            >
+            <label htmlFor="description" className="block text-sm font-medium text-gray-700 mb-1">
               Περιγραφή
             </label>
             <textarea
@@ -213,11 +185,7 @@ export function ProductFormPage() {
           <Button type="submit" loading={isPending}>
             {isEdit ? "Αποθήκευση" : "Δημιουργία"}
           </Button>
-          <Button
-            type="button"
-            variant="secondary"
-            onClick={() => navigate("/admin/products")}
-          >
+          <Button type="button" variant="secondary" onClick={() => navigate("/admin/products")}>
             Ακύρωση
           </Button>
         </div>

@@ -39,9 +39,7 @@ export function ResetPasswordPage() {
     return (
       <div className="text-center">
         <h2 className="text-lg font-semibold text-gray-900">Μη έγκυρος σύνδεσμος</h2>
-        <p className="mt-2 text-sm text-gray-600">
-          Ο σύνδεσμος επαναφοράς δεν είναι έγκυρος.
-        </p>
+        <p className="mt-2 text-sm text-gray-600">Ο σύνδεσμος επαναφοράς δεν είναι έγκυρος.</p>
         <Link
           to="/auth/forgot-password"
           className="mt-4 inline-block text-sm text-amber-600 hover:text-amber-700 font-medium"
@@ -56,7 +54,13 @@ export function ResetPasswordPage() {
     return (
       <div className="text-center">
         <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-green-100">
-          <svg className="h-6 w-6 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+          <svg
+            className="h-6 w-6 text-green-600"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+            strokeWidth={2}
+          >
             <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
           </svg>
         </div>
@@ -76,9 +80,7 @@ export function ResetPasswordPage() {
 
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-      <h2 className="text-lg font-semibold text-gray-900 text-center">
-        Νέος κωδικός
-      </h2>
+      <h2 className="text-lg font-semibold text-gray-900 text-center">Νέος κωδικός</h2>
 
       <input type="hidden" {...register("token")} />
 

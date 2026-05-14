@@ -37,9 +37,7 @@ export function KavaSelectPage() {
 
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-      <h2 className="text-lg font-semibold text-gray-900 text-center">
-        Βρείτε την κάβα σας
-      </h2>
+      <h2 className="text-lg font-semibold text-gray-900 text-center">Βρείτε την κάβα σας</h2>
 
       <Input
         id="slug"

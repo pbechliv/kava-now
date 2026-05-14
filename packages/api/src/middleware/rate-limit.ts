@@ -72,10 +72,7 @@ export function rateLimit(config: {
         for (const limit of config.perExtra.limits) {
           const bk = `${config.key}:x:${extra}:${limit.windowMs}`;
           if (!hitBucket(bk, limit, now)) {
-            return c.json(
-              { error: "Πάρα πολλές αιτήσεις. Δοκιμάστε ξανά αργότερα." },
-              429,
-            );
+            return c.json({ error: "Πάρα πολλές αιτήσεις. Δοκιμάστε ξανά αργότερα." }, 429);
           }
         }
       }

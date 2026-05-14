@@ -1,8 +1,6 @@
 import { encodeAuthEmail } from "@kava-now/shared";
 
-const baseDomainHost = (
-  import.meta.env.VITE_BASE_DOMAIN || "lvh.me:5173"
-).split(":")[0]!;
+const baseDomainHost = (import.meta.env.VITE_BASE_DOMAIN || "lvh.me:5173").split(":")[0]!;
 
 /**
  * Returns the subdomain ("admin", "demo", ...) of the current host, or null

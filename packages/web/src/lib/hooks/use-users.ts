@@ -55,9 +55,7 @@ export function useDeleteUser() {
 export function useResendInvite() {
   return useMutation({
     mutationFn: (id: string) =>
-      api.post<{ success: boolean }>(
-        `/api/admin/users/${id}/resend-invite`,
-      ),
+      api.post<{ success: boolean }>(`/api/admin/users/${id}/resend-invite`),
   });
 }
 
@@ -65,9 +63,7 @@ export function usePromoteToOwner() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (id: string) =>
-      api.post<{ success: boolean }>(
-        `/api/admin/users/${id}/promote-to-owner`,
-      ),
+      api.post<{ success: boolean }>(`/api/admin/users/${id}/promote-to-owner`),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["admin", "users"] });
     },

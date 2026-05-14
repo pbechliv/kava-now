@@ -1,11 +1,4 @@
-import {
-  pgTable,
-  uuid,
-  text,
-  jsonb,
-  timestamp,
-  index,
-} from "drizzle-orm/pg-core";
+import { pgTable, uuid, text, jsonb, timestamp, index } from "drizzle-orm/pg-core";
 import { kavas } from "./kavas";
 import { users } from "./users";
 
@@ -24,15 +17,10 @@ export const auditLogs = pgTable(
     targetType: text("target_type"),
     targetId: text("target_id"),
     metadata: jsonb("metadata").notNull().default({}),
-    createdAt: timestamp("created_at", { withTimezone: true })
-      .notNull()
-      .defaultNow(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (table) => [
-    index("audit_logs_kava_id_created_at_idx").on(
-      table.kavaId,
-      table.createdAt,
-    ),
+    index("audit_logs_kava_id_created_at_idx").on(table.kavaId, table.createdAt),
     index("audit_logs_actor_user_id_idx").on(table.actorUserId),
   ],
 );

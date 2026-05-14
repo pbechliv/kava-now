@@ -84,28 +84,20 @@ export function CartPage() {
             {cartItems.map((item) => (
               <tr key={item.product.id} className="border-b border-gray-100">
                 <td className="py-3 pr-4">
-                  <div className="font-medium text-gray-900">
-                    {item.product.name}
-                  </div>
+                  <div className="font-medium text-gray-900">{item.product.name}</div>
                   {item.product.brand && (
-                    <div className="text-xs text-gray-500">
-                      {item.product.brand}
-                    </div>
+                    <div className="text-xs text-gray-500">{item.product.brand}</div>
                   )}
                 </td>
                 <td className="py-3 pr-4 text-center text-gray-700">
                   {item.product.resolvedPrice.toFixed(2)}&euro;
-                  <span className="text-xs text-gray-400">
-                    /{UNIT_LABELS[item.product.unit]}
-                  </span>
+                  <span className="text-xs text-gray-400">/{UNIT_LABELS[item.product.unit]}</span>
                 </td>
                 <td className="py-3 pr-4">
                   <div className="flex items-center justify-center gap-1">
                     <button
                       type="button"
-                      onClick={() =>
-                        updateQuantity(item.product.id, item.quantity - 1)
-                      }
+                      onClick={() => updateQuantity(item.product.id, item.quantity - 1)}
                       className="rounded px-2 py-0.5 text-gray-600 hover:bg-gray-100"
                     >
                       -
@@ -115,18 +107,13 @@ export function CartPage() {
                       min={1}
                       value={item.quantity}
                       onChange={(e) =>
-                        updateQuantity(
-                          item.product.id,
-                          parseInt(e.target.value) || 1,
-                        )
+                        updateQuantity(item.product.id, parseInt(e.target.value) || 1)
                       }
                       className="w-12 rounded border border-gray-300 px-1 py-0.5 text-center text-sm"
                     />
                     <button
                       type="button"
-                      onClick={() =>
-                        updateQuantity(item.product.id, item.quantity + 1)
-                      }
+                      onClick={() => updateQuantity(item.product.id, item.quantity + 1)}
                       className="rounded px-2 py-0.5 text-gray-600 hover:bg-gray-100"
                     >
                       +
@@ -150,11 +137,7 @@ export function CartPage() {
                       stroke="currentColor"
                       strokeWidth={2}
                     >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        d="M6 18L18 6M6 6l12 12"
-                      />
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
                     </svg>
                   </button>
                 </td>
@@ -166,10 +149,7 @@ export function CartPage() {
 
       {/* Notes */}
       <div className="mt-6">
-        <label
-          htmlFor="order-notes"
-          className="block text-sm font-medium text-gray-700"
-        >
+        <label htmlFor="order-notes" className="block text-sm font-medium text-gray-700">
           Σημειώσεις παραγγελίας
         </label>
         <textarea
@@ -186,9 +166,7 @@ export function CartPage() {
       <div className="mt-6 flex items-center justify-between rounded-lg bg-gray-50 p-4">
         <div>
           <span className="text-sm text-gray-600">Σύνολο: </span>
-          <span className="text-xl font-bold text-gray-900">
-            {totalPrice().toFixed(2)}&euro;
-          </span>
+          <span className="text-xl font-bold text-gray-900">{totalPrice().toFixed(2)}&euro;</span>
         </div>
         <div className="flex gap-2">
           {confirming && (

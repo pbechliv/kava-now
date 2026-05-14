@@ -12,6 +12,4 @@ export const updateCustomerBrandPricingSchema = z.object({
   ),
 });
 
-export type UpdateCustomerBrandPricingInput = z.infer<
-  typeof updateCustomerBrandPricingSchema
->;
+export type UpdateCustomerBrandPricingInput = z.infer<typeof updateCustomerBrandPricingSchema>;

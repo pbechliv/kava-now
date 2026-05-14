@@ -15,9 +15,7 @@ seedCatalogRouter.get("/", async (c) => {
 
   if (search) {
     const pattern = `%${search}%`;
-    conditions.push(
-      or(ilike(seedProducts.name, pattern), ilike(seedProducts.brand, pattern))!,
-    );
+    conditions.push(or(ilike(seedProducts.name, pattern), ilike(seedProducts.brand, pattern))!);
   }
 
   const rows = await db
@@ -68,10 +66,7 @@ seedCatalogRouter.post("/import", async (c) => {
 
   for (const catName of uniqueCategoryNames) {
     if (!categoryMap.has(catName)) {
-      const [newCat] = await db
-        .insert(categories)
-        .values({ name: catName, kavaId })
-        .returning();
+      const [newCat] = await db.insert(categories).values({ name: catName, kavaId }).returning();
       categoryMap.set(catName, newCat!.id);
     }
   }

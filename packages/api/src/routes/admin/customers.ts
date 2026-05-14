@@ -45,12 +45,7 @@ customersRouter.get("/", async (c) => {
 
   if (search) {
     const pattern = `%${search}%`;
-    conditions.push(
-      or(
-        ilike(customers.name, pattern),
-        ilike(customers.contactPerson, pattern),
-      )!,
-    );
+    conditions.push(or(ilike(customers.name, pattern), ilike(customers.contactPerson, pattern))!);
   }
 
   const rows = await db
@@ -180,10 +175,7 @@ customersRouter.delete("/:id", async (c) => {
     .limit(1);
 
   if (ref && ref.count > 0) {
-    return c.json(
-      { error: "Δεν μπορείτε να διαγράψετε πελάτη με παραγγελίες" },
-      400,
-    );
+    return c.json({ error: "Δεν μπορείτε να διαγράψετε πελάτη με παραγγελίες" }, 400);
   }
 
   // Capture linked user ids for the audit log before the cascade removes them.
@@ -276,14 +268,10 @@ customersRouter.put("/:id/brand-pricing", async (c) => {
   }
 
   // Delete all existing brand pricing for this customer
-  await db
-    .delete(customerBrandPricing)
-    .where(eq(customerBrandPricing.customerId, id));
+  await db.delete(customerBrandPricing).where(eq(customerBrandPricing.customerId, id));
 
   // Insert new ones (only those with non-zero discount)
-  const withDiscount = parsed.data.assignments.filter(
-    (a) => a.discountPct > 0,
-  );
+  const withDiscount = parsed.data.assignments.filter((a) => a.discountPct > 0);
   if (withDiscount.length > 0) {
     await db.insert(customerBrandPricing).values(
       withDiscount.map((a) => ({
@@ -345,13 +333,7 @@ customersRouter.post("/:customerId/users/:userId/resend-invite", async (c) => {
       emailVerified: users.emailVerified,
     })
     .from(users)
-    .where(
-      and(
-        eq(users.id, userId),
-        eq(users.kavaId, kavaId),
-        eq(users.customerId, customerId),
-      ),
-    )
+    .where(and(eq(users.id, userId), eq(users.kavaId, kavaId), eq(users.customerId, customerId)))
     .limit(1);
 
   if (!target) {
@@ -362,12 +344,9 @@ customersRouter.post("/:customerId/users/:userId/resend-invite", async (c) => {
     return c.json({ error: "Ο χρήστης έχει ήδη ενεργοποιηθεί" }, 400);
   }
 
-  await db
-    .delete(verifications)
-    .where(eq(verifications.identifier, target.authEmail));
+  await db.delete(verifications).where(eq(verifications.identifier, target.authEmail));
 
-  const requestHost =
-    c.req.header("x-forwarded-host") || c.req.header("host") || "";
+  const requestHost = c.req.header("x-forwarded-host") || c.req.header("host") || "";
   const protocol = requestHost.includes("localhost") ? "http" : "https";
   const callbackURL = `${protocol}://${requestHost}/welcome`;
 

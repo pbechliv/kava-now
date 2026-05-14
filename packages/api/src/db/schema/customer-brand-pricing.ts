@@ -8,9 +8,7 @@ export const customerBrandPricing = pgTable(
       .notNull()
       .references(() => customers.id, { onDelete: "cascade" }),
     brand: text("brand").notNull(),
-    discountPct: numeric("discount_pct", { precision: 5, scale: 2 })
-      .notNull()
-      .default("0"),
+    discountPct: numeric("discount_pct", { precision: 5, scale: 2 }).notNull().default("0"),
   },
   (table) => [primaryKey({ columns: [table.customerId, table.brand] })],
 );
