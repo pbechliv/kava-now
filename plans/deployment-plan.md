@@ -240,7 +240,7 @@ Both are compatible with the existing Docker Compose Mailpit service for mail in
 
 **Subdomain routing.** `*.lvh.me` resolves to 127.0.0.1 via public DNS; no hosts-file changes. The web app lives at `demo.lvh.me:5173`, `admin.lvh.me:5173`, etc. Wrangler's own dev server on `:8787` is never hit directly by the browser — only via the Vite proxy.
 
-**One-liner.** `pnpm dev` (from the root) should orchestrate both. Phase 3 updates the root `package.json` `dev:api` script from `vite` to `wrangler dev --port 8787`.
+**One-liner.** `pnpm dev` (from the root) should orchestrate both. Phase 3 updates the `dev` script in [`packages/api/package.json`](packages/api/package.json) from `vp dev` to `wrangler dev --port 8787`.
 
 ---
 

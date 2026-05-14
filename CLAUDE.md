@@ -149,20 +149,20 @@ The `postgres` driver (not `pg`) is used. RLS is enforced at the DB level for al
 
 `packages/web/src/App.tsx` branches by subdomain (`isSuperAdminDomain()` / `isPlatformDomain()`):
 
-**`TenantApp`**: `AuthLayout` (`/login`, `/auth/forgot-password`, `/auth/reset-password`, `/welcome`), `AdminLayout` under `/admin/*` (RequireAuth + RequireRole `owner|staff`; pages include products, categories, customers, customer users, customer brand pricing, orders, users, settings, dashboard), and a `CustomerLayout` (RequireRole `customer`) for `/catalog`, `/cart`, `/orders/*`, `/profile`.
+**`TenantApp`**: `AuthLayout` (`/login`, `/auth/forgot-password`, `/auth/reset-password`, `/auth/confirm`, `/welcome`), `AdminLayout` under `/admin/*` (RequireAuth + RequireRole `owner|staff`; pages include products, categories, customers, customer users, customer brand pricing, orders, users, settings, dashboard), and a `CustomerLayout` (RequireRole `customer`) for `/catalog`, `/cart`, `/orders/*`, `/profile`.
 
-**`SuperAdminApp`**: auth routes + `SuperAdminLayout` under `/superadmin/*` (kavas list, new kava, settings).
+**`SuperAdminApp`**: auth routes (`/login`, `/auth/forgot-password`, `/auth/reset-password`, `/auth/confirm`) + `SuperAdminLayout` under `/superadmin/*` (kavas list, new kava, settings).
 
 **`PlatformApp`** (bare domain): `KavaSelectPage` + reset flow.
 
-`packages/web/src/lib/auth-client.ts` uses `createAuthClient` from `better-auth/react` with `magicLinkClient()` and `baseURL: window.location.origin` so requests go through Vite's `/api` proxy preserving the Host header (`changeOrigin: false`) for tenant resolution. **Do not hand-roll fetches to `/api/auth` routes** — use the better-auth client; a recent refactor (`6fc835b`) moved everything onto it.
+`packages/web/src/lib/auth-client.ts` uses `createAuthClient` from `better-auth/react` with `magicLinkClient()` and `baseURL: window.location.origin` so requests go through Vite+'s `/api` proxy preserving the Host header (`changeOrigin: false`) for tenant resolution. **Do not hand-roll fetches to `/api/auth` routes** — use the better-auth client; a recent refactor (`6fc835b`) moved everything onto it.
 
 `RequireAuth` / `RequireRole` guards live in `packages/web/src/components/guards/`. The `useAuth` hook wraps better-auth session + `/api/auth/me`.
 
 ### Environment
 
-- Node >= 22 (`.nvmrc`: 24)
-- pnpm 9.15.0
+- Node >= 24 (`.node-version`: `24.15.0`, latest Active LTS "Krypton"). `.node-version` is the only Node pin — read by `vp env`, nodenv, asdf, fnm, and nvm-as-fallback.
+- pnpm 11.1.2 (declared via `packageManager` in root [package.json](package.json); corepack-managed)
 - Config in `packages/api/src/config.ts`; env loaded by `packages/api/src/load-env.ts` from the repo-root `.env`
 - `.env.example` at the repo root documents `DATABASE_URL`, `BASE_DOMAIN`, `COOKIE_SECRET`, `SMTP_*`, `API_PORT`
 - Both `packages/api/vite.config.ts` and `packages/web/vite.config.ts` call `process.loadEnvFile(...)` pointing at the root `.env` — there is no per-package env file
