@@ -18,7 +18,7 @@ The repo uses **[Vite+](https://viteplus.dev)** (`vp` CLI, installed under `~/.v
 
 The repo-root `vite.config.ts` is **only** for `vp fmt`/`vp lint` configuration. Per-package builds live in `packages/api/vite.config.ts` and `packages/web/vite.config.ts` (both `import { defineConfig } from "vite-plus"`). Do **not** run `vp build` from the repo root — it has no entry. Use `pnpm build` or run inside a workspace.
 
-Oxlint reads rules from `.oxlintrc.json` (renamed from the legacy `oxlint.json` so `vp lint` can pick it up without a `--config` flag — `vp lint` doesn't accept one). Oxfmt ignores come from `.oxfmtignore` (passed via `--ignore-path`) and exclude `**/dist/**`, `**/drizzle/meta/**` (drizzle-kit owns those), and lock/min files.
+Oxlint **rules** (`rules`) and **ignore patterns** (`ignorePatterns`) live in the root [vite.config.ts](vite.config.ts) `lint` block. Oxfmt **ignore patterns** live in the same file's `fmt.ignorePatterns` block (excluding `**/dist/**`, `**/drizzle/meta/**`, lock/min files). No separate `.oxlintrc.json` or `.oxfmtignore` — Vite+ reads everything from `vite.config.ts`.
 
 ## Commands
 
