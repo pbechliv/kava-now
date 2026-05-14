@@ -7,28 +7,35 @@
     "dev": "vp dev",
     "build": "tsc -b && vp build",
     "preview": "vp preview",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "test": "vp test --run",
+    "test:watch": "vp test"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.2.2",
     "@kava-now/shared": "workspace:*",
     "@tanstack/react-query": "^5.100.10",
     "better-auth": "^1.6.11",
+    "papaparse": "^5.5.3",
     "react": "^19.2.6",
     "react-dom": "^19.2.6",
     "react-hook-form": "^7.75.0",
     "react-router": "^7.15.1",
+    "xlsx": "^0.18.5",
     "zod": "^4.4.3",
     "zustand": "^5.0.13"
   },
   "devDependencies": {
     "@tailwindcss/vite": "^4.3.0",
+    "@types/papaparse": "^5.5.2",
     "@types/react": "^19.2.14",
     "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react": "^6.0.1",
+    "jsdom": "^29.1.1",
     "tailwindcss": "^4.3.0",
     "typescript": "^6.0.3",
     "vite": "catalog:",
-    "vite-plus": "catalog:"
+    "vite-plus": "catalog:",
+    "vitest": "catalog:"
   }
 }

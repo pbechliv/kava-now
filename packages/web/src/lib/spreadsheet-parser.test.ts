@@ -1,0 +1,87 @@
+import { describe, expect, it } from "vitest";
+import { parseBool, parseFile, parseInteger, parsePrice } from "./spreadsheet-parser";
+
+function makeFile(content: BlobPart, name: string, type = "text/csv"): File {
+  return new File([content], name, { type });
+}
+
+describe("parsePrice", () => {
+  it("parses plain integer", () => {
+    expect(parsePrice("42")).toBe(42);
+  });
+  it("parses dot decimal", () => {
+    expect(parsePrice("12.50")).toBe(12.5);
+  });
+  it("parses comma decimal", () => {
+    expect(parsePrice("12,50")).toBe(12.5);
+  });
+  it("parses Greek locale with thousand separator", () => {
+    expect(parsePrice("1.234,56")).toBe(1234.56);
+  });
+  it("parses English locale with thousand separator", () => {
+    expect(parsePrice("1,234.56")).toBe(1234.56);
+  });
+  it("strips currency suffix", () => {
+    expect(parsePrice("12,50 €")).toBe(12.5);
+    expect(parsePrice("€12.50")).toBe(12.5);
+  });
+  it("returns null for non-numeric", () => {
+    expect(parsePrice("abc")).toBeNull();
+    expect(parsePrice("")).toBeNull();
+    expect(parsePrice(null)).toBeNull();
+    expect(parsePrice(undefined)).toBeNull();
+  });
+});
+
+describe("parseInteger", () => {
+  it("truncates fractional", () => {
+    expect(parseInteger("12,9")).toBe(12);
+  });
+  it("returns null for non-numeric", () => {
+    expect(parseInteger("xx")).toBeNull();
+  });
+});
+
+describe("parseBool", () => {
+  it("recognises Greek truthy", () => {
+    expect(parseBool("ΝΑΙ")).toBe(true);
+    expect(parseBool("ναι")).toBe(true);
+  });
+  it("recognises Greek falsy", () => {
+    expect(parseBool("ΟΧΙ")).toBe(false);
+    expect(parseBool("όχι")).toBe(false);
+  });
+  it("recognises booleans", () => {
+    expect(parseBool("true")).toBe(true);
+    expect(parseBool("false")).toBe(false);
+    expect(parseBool(0)).toBe(false);
+    expect(parseBool(1)).toBe(true);
+  });
+  it("returns null for unknown", () => {
+    expect(parseBool("maybe")).toBeNull();
+    expect(parseBool("")).toBeNull();
+  });
+});
+
+describe("parseFile (CSV)", () => {
+  it("parses a UTF-8 CSV with BOM and Greek headers", async () => {
+    const csv = "﻿Όνομα,Μάρκα,Τιμή\nWhisky 12y,Glenfiddich,45,90\n";
+    const file = makeFile(csv, "products.csv");
+    const result = await parseFile(file);
+    expect(result.columns).toEqual(["Όνομα", "Μάρκα", "Τιμή"]);
+    expect(result.rows).toHaveLength(1);
+    expect(result.rows[0]?.["Όνομα"]).toBe("Whisky 12y");
+    // Note: papaparse treats the second comma as a column delimiter, so "45,90"
+    // becomes column 3 = "45" and an extra column = "90". Locale handling
+    // happens later, in applyMapping → parsePrice. Here we just verify headers
+    // and that rows survive parsing.
+  });
+
+  it("honours skipFirstRows", async () => {
+    const csv = "Title row,,\nAnother,,\nName,Brand,Price\nFoo,Bar,10\n";
+    const file = makeFile(csv, "products.csv");
+    const result = await parseFile(file, { skipFirstRows: 2 });
+    expect(result.columns).toEqual(["Name", "Brand", "Price"]);
+    expect(result.rows[0]).toEqual({ Name: "Foo", Brand: "Bar", Price: "10" });
+  });
+});

@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { useNavigate } from "react-router";
+import { useEffect, useState } from "react";
+import { useLocation, useNavigate } from "react-router";
 import { Button } from "../../components/ui/Button";
 import { Input } from "../../components/ui/Input";
 import { Spinner } from "../../components/ui/Spinner";
@@ -8,13 +8,28 @@ import { Badge } from "../../components/ui/Badge";
 import { useProducts, useUpdateProduct, useDeleteProduct } from "../../lib/hooks/use-products";
 import { useCategories } from "../../lib/hooks/use-categories";
 import { SeedCatalogModal } from "./SeedCatalogModal";
-import { UNIT_LABELS } from "@kava-now/shared";
+import { UNIT_LABELS, type ImportProductsResult } from "@kava-now/shared";
+
+interface ProductsPageLocationState {
+  importResult?: ImportProductsResult;
+}
 
 export function ProductsPage() {
   const navigate = useNavigate();
+  const location = useLocation();
+  const importResult = (location.state as ProductsPageLocationState | null)?.importResult ?? null;
   const [search, setSearch] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("");
   const [seedModalOpen, setSeedModalOpen] = useState(false);
+  const [bannerResult, setBannerResult] = useState<ImportProductsResult | null>(importResult);
+
+  // Consume the one-shot import banner: capture it locally, then clear location.state
+  // so a back-navigation / refresh doesn't re-show it.
+  useEffect(() => {
+    if (importResult) {
+      void navigate(location.pathname, { replace: true, state: null });
+    }
+  }, [importResult, location.pathname, navigate]);
 
   const { data: products, isLoading } = useProducts({
     search: search || undefined,
@@ -42,9 +57,36 @@ export function ProductsPage() {
           <Button variant="secondary" onClick={() => setSeedModalOpen(true)}>
             Εισαγωγή από Κατάλογο
           </Button>
+          <Button variant="secondary" onClick={() => navigate("/admin/products/import")}>
+            Εισαγωγή από αρχείο
+          </Button>
           <Button onClick={() => navigate("/admin/products/new")}>Νέο Προϊόν</Button>
         </div>
       </div>
+
+      {bannerResult && (
+        <div className="mt-4 flex items-start justify-between rounded-lg bg-green-50 px-4 py-3 text-sm text-green-800">
+          <div>
+            Η εισαγωγή ολοκληρώθηκε: <span className="font-semibold">{bannerResult.inserted}</span>{" "}
+            νέα προϊόντα, <span className="font-semibold">{bannerResult.updated}</span> ενημερώθηκαν
+            {bannerResult.categoriesCreated > 0 && (
+              <>
+                {" "}
+                · <span className="font-semibold">{bannerResult.categoriesCreated}</span> νέες
+                κατηγορίες
+              </>
+            )}
+            .
+          </div>
+          <button
+            onClick={() => setBannerResult(null)}
+            className="ml-3 text-green-700 hover:text-green-900"
+            aria-label="Κλείσιμο"
+          >
+            ✕
+          </button>
+        </div>
+      )}
 
       {/* Filters */}
       <div className="mt-4 flex gap-4">

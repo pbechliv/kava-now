@@ -1,3 +1,4 @@
+/// <reference types="vitest" />
 import { defineConfig } from "vite-plus";
 import react from "@vitejs/plugin-react";
 import tailwindcss from "@tailwindcss/vite";
@@ -25,5 +26,9 @@ export default defineConfig({
         changeOrigin: false,
       },
     },
+  },
+  test: {
+    environment: "jsdom",
+    include: ["src/**/*.test.ts", "src/**/*.test.tsx"],
   },
 });

@@ -29,5 +29,36 @@ export const updateProductSchema = z.object({
   active: z.boolean().optional(),
 });
 
+export const importProductRowSchema = z.object({
+  name: z.string().trim().min(1, "Το όνομα είναι υποχρεωτικό"),
+  brand: z.string().trim().min(1, "Η μάρκα είναι υποχρεωτική"),
+  basePrice: z.number().positive("Η τιμή πρέπει να είναι θετικός αριθμός"),
+  categoryName: z.string().trim().min(1).optional(),
+  description: z.string().trim().optional(),
+  sku: z.string().trim().optional(),
+  unit: z.enum(["bottle", "case", "keg"]).optional(),
+  volumeMl: z.number().int().positive().optional(),
+  alcoholPct: z.number().min(0).max(100).optional(),
+  imageUrl: z.string().url().optional(),
+  active: z.boolean().optional(),
+});
+
+export const importProductsBatchSchema = z.object({
+  rows: z
+    .array(importProductRowSchema)
+    .min(1, "Δεν υπάρχουν γραμμές προς εισαγωγή")
+    .max(5000, "Πάρα πολλές γραμμές (όριο 5000)"),
+});
+
+export type ImportProductRow = z.infer<typeof importProductRowSchema>;
+export type ImportProductsBatch = z.infer<typeof importProductsBatchSchema>;
+
+export interface ImportProductsResult {
+  inserted: number;
+  updated: number;
+  categoriesCreated: number;
+  total: number;
+}
+
 export type CreateProductInput = z.infer<typeof createProductSchema>;
 export type UpdateProductInput = z.infer<typeof updateProductSchema>;

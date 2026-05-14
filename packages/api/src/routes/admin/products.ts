@@ -1,8 +1,14 @@
 import { Hono } from "hono";
 import { eq, and, ilike, or, sql } from "drizzle-orm";
-import { createProductSchema, updateProductSchema } from "@kava-now/shared";
+import {
+  createProductSchema,
+  updateProductSchema,
+  importProductsBatchSchema,
+  type ImportProductsResult,
+} from "@kava-now/shared";
 import { db } from "../../db/connection";
 import { products, categories, orderItems } from "../../db/schema/index";
+import { logAudit } from "../../services/audit";
 import type { AppEnv } from "../../types";
 
 const productsRouter = new Hono<AppEnv>();
@@ -55,6 +61,124 @@ productsRouter.get("/", async (c) => {
     .orderBy(products.name);
 
   return c.json(rows);
+});
+
+// POST /import — bulk upsert products from a normalized JSON batch.
+// Client (ProductsImportPage) parses CSV/XLSX, maps columns, validates rows
+// with importProductRowSchema, and posts the result here. On conflict
+// (kavaId, name, brand) the existing row is updated.
+productsRouter.post("/import", async (c) => {
+  const kavaId = c.get("kavaId")!;
+  const body = await c.req.json();
+  const parsed = importProductsBatchSchema.safeParse(body);
+
+  if (!parsed.success) {
+    return c.json({ error: parsed.error.flatten() }, 400);
+  }
+
+  const { rows } = parsed.data;
+
+  const result = await db.transaction(async (tx) => {
+    // Reconcile categories by name (case-insensitive match against existing).
+    const existingCategories = await tx
+      .select({ id: categories.id, name: categories.name })
+      .from(categories)
+      .where(eq(categories.kavaId, kavaId));
+
+    const categoryMap = new Map<string, string>(
+      existingCategories.map((cat) => [cat.name.toLowerCase(), cat.id]),
+    );
+
+    const uniqueCategoryNames = [
+      ...new Set(
+        rows.map((r) => r.categoryName?.trim()).filter((n): n is string => !!n && n.length > 0),
+      ),
+    ];
+
+    let categoriesCreated = 0;
+    for (const catName of uniqueCategoryNames) {
+      if (!categoryMap.has(catName.toLowerCase())) {
+        const [newCat] = await tx
+          .insert(categories)
+          .values({ name: catName, kavaId })
+          .returning({ id: categories.id });
+        categoryMap.set(catName.toLowerCase(), newCat!.id);
+        categoriesCreated++;
+      }
+    }
+
+    let inserted = 0;
+    let updated = 0;
+
+    for (const row of rows) {
+      const categoryId = row.categoryName
+        ? (categoryMap.get(row.categoryName.toLowerCase()) ?? null)
+        : null;
+
+      const values = {
+        kavaId,
+        name: row.name,
+        brand: row.brand,
+        categoryId,
+        description: row.description ?? null,
+        sku: row.sku ?? null,
+        basePrice: String(row.basePrice),
+        unit: row.unit ?? "bottle",
+        volumeMl: row.volumeMl ?? null,
+        alcoholPct: row.alcoholPct != null ? String(row.alcoholPct) : null,
+        imageUrl: row.imageUrl ?? null,
+        active: row.active ?? true,
+      };
+
+      const [res] = await tx
+        .insert(products)
+        .values(values)
+        .onConflictDoUpdate({
+          target: [products.kavaId, products.name, products.brand],
+          set: {
+            categoryId: values.categoryId,
+            description: values.description,
+            sku: values.sku,
+            basePrice: values.basePrice,
+            unit: values.unit,
+            volumeMl: values.volumeMl,
+            alcoholPct: values.alcoholPct,
+            imageUrl: values.imageUrl,
+            active: values.active,
+          },
+        })
+        .returning({
+          id: products.id,
+          wasInserted: sql<boolean>`(xmax = 0)`,
+        });
+
+      if (res?.wasInserted) {
+        inserted++;
+      } else {
+        updated++;
+      }
+    }
+
+    return {
+      inserted,
+      updated,
+      categoriesCreated,
+      total: rows.length,
+    } satisfies ImportProductsResult;
+  });
+
+  await logAudit(c, {
+    action: "product.import",
+    metadata: {
+      inserted: result.inserted,
+      updated: result.updated,
+      categoriesCreated: result.categoriesCreated,
+      total: result.total,
+      source: "csv-upload",
+    },
+  });
+
+  return c.json(result);
 });
 
 // POST / — create product

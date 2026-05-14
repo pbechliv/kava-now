@@ -1,6 +1,12 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "../api";
-import type { Product, CreateProductInput, UpdateProductInput } from "@kava-now/shared";
+import type {
+  Product,
+  CreateProductInput,
+  UpdateProductInput,
+  ImportProductRow,
+  ImportProductsResult,
+} from "@kava-now/shared";
 
 interface ProductWithCategory extends Product {
   categoryName: string | null;
@@ -65,6 +71,19 @@ export function useDeleteProduct() {
     mutationFn: (id: string) => api.delete(`/api/admin/products/${id}`),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["admin", "products"] });
+    },
+  });
+}
+
+export function useImportProducts() {
+  const qc = useQueryClient();
+
+  return useMutation({
+    mutationFn: (rows: ImportProductRow[]) =>
+      api.post<ImportProductsResult>("/api/admin/products/import", { rows }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["admin", "products"] });
+      qc.invalidateQueries({ queryKey: ["admin", "categories"] });
     },
   });
 }
