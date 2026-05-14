@@ -30,7 +30,16 @@ export function ConfirmPage() {
         throw new Error(body?.message ?? "Ο σύνδεσμος δεν είναι έγκυρος ή έληξε.");
       }
       await queryClient.invalidateQueries({ queryKey: ["auth"] });
-      navigate(callbackURL, { replace: true });
+      // better-auth emits callbackURL as an absolute URL (resolved against
+      // baseURL). React Router's navigate(path) treats absolute URLs as
+      // relative paths; for same-origin URLs, strip to pathname; for
+      // cross-origin, fall back to a full page nav.
+      const target = new URL(callbackURL, window.location.origin);
+      if (target.origin === window.location.origin) {
+        navigate(target.pathname + target.search + target.hash, { replace: true });
+      } else {
+        window.location.assign(target.toString());
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Κάτι πήγε στραβά.");
       setPending(false);
