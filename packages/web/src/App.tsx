@@ -20,6 +20,7 @@ import { LoginPage } from "./pages/auth/LoginPage";
 import { ForgotPasswordPage } from "./pages/auth/ForgotPasswordPage";
 import { ResetPasswordPage } from "./pages/auth/ResetPasswordPage";
 import { WelcomePage } from "./pages/auth/WelcomePage";
+import { ConfirmPage } from "./pages/auth/ConfirmPage";
 
 // Admin pages
 import { DashboardPage } from "./pages/admin/DashboardPage";
@@ -66,6 +67,7 @@ function SuperAdminApp() {
         <Route path="/login" element={<LoginPage />} />
         <Route path="/auth/forgot-password" element={<ForgotPasswordPage />} />
         <Route path="/auth/reset-password" element={<ResetPasswordPage />} />
+        <Route path="/auth/confirm" element={<ConfirmPage />} />
       </Route>
 
       <Route
@@ -109,6 +111,7 @@ function TenantApp() {
         <Route path="/login" element={<LoginPage />} />
         <Route path="/auth/forgot-password" element={<ForgotPasswordPage />} />
         <Route path="/auth/reset-password" element={<ResetPasswordPage />} />
+        <Route path="/auth/confirm" element={<ConfirmPage />} />
         <Route path="/welcome" element={<WelcomePage />} />
       </Route>
 

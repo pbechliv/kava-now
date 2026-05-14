@@ -91,23 +91,32 @@ export const auth = betterAuth({
   ],
   plugins: [
     magicLink({
-      // Browsers and link-safety scanners frequently pre-fetch links, which
-      // would consume a single-attempt token before the user actually clicks.
-      // Allow a few attempts and hash the token at rest.
-      allowedAttempts: 3,
+      // GHSA-hc7v-rggr-4hvx (better-auth ≥1.6.x): tokens are now consumed
+      // atomically on the first verify call, so `allowedAttempts` is a no-op.
+      // To survive email-link prefetch (Mailpit preview, Gmail TitanLink,
+      // Outlook SafeLinks, Chrome hover), the email points at an SPA
+      // `/auth/confirm` page that requires a real click to POST verify —
+      // prefetchers only issue GETs against the URL in the email, which
+      // is now a harmless static page.
       storeToken: "hashed",
       expiresIn: 60 * 60, // 1 hour, generous for invites
       sendMagicLink: async ({ email, url }, ctx) => {
-        // The plugin builds `url` from auth.baseURL (a static fallback). For
-        // multi-tenant subdomains we rewrite the host using the request that
-        // triggered the link, so it points back to the right kava.
+        // better-auth builds `url` from auth.baseURL (a static fallback) and
+        // points at /api/auth/magic-link/verify?token=...&callbackURL=...
+        // We rewrite to the SPA's /auth/confirm page on the request's
+        // subdomain, preserving the token and callbackURL for the page to
+        // forward to /api/auth/magic-link/verify after a user click.
         const requestHost = ctx?.headers?.get?.("x-forwarded-host") || ctx?.headers?.get?.("host");
-        const finalUrl = requestHost
-          ? `${config.protocol}://${requestHost}${new URL(url).pathname}${new URL(url).search}`
-          : url;
+        const verifyURL = new URL(url);
+        const token = verifyURL.searchParams.get("token") ?? "";
+        const callbackURL = verifyURL.searchParams.get("callbackURL") ?? "/";
+        const host = requestHost ?? config.baseDomain;
+        const confirmURL = new URL(`${config.protocol}://${host}/auth/confirm`);
+        confirmURL.searchParams.set("token", token);
+        confirmURL.searchParams.set("callbackURL", callbackURL);
         // `email` is the synthesized identifier; send to the human address.
         const realEmail = decodeAuthEmail(email);
-        await sendMagicLink(realEmail, finalUrl, "KavaNow");
+        await sendMagicLink(realEmail, confirmURL.toString(), "KavaNow");
       },
     }),
   ],

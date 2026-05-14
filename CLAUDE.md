@@ -85,11 +85,11 @@ Auth instance in `packages/api/src/auth/index.ts` uses `betterAuth()` with:
 
 - `drizzleAdapter(db, { provider: "pg", usePlural: true })` mapped to `users`, `sessions`, `accounts`, `verifications` tables
 - `emailAndPassword` enabled (no verification required)
-- `magicLink` plugin with `allowedAttempts: 3` and `storeToken: "hashed"` — multiple attempts are required because browsers/link scanners pre-fetch emailed URLs and would burn a single-use token before the user clicks (see commit `f0832b9`)
+- `magicLink` plugin with `storeToken: "hashed"`. **Tokens are single-use atomically** (better-auth ≥1.6.x via GHSA-hc7v-rggr-4hvx) — the old `allowedAttempts: N > 1` knob is a no-op and was removed.
 - `user.additionalFields`: `role`, `kavaId`, `customerId`, `realEmail`
 - Cross-subdomain cookies: `crossSubDomainCookies` with `domain: .<baseDomainHost>` in non-localhost envs; on `localhost` each subdomain holds its own host-only cookie (browsers/PSL reject `Domain=.localhost`)
 - `trustedOrigins` includes wildcard subdomain patterns for dev and prod
-- Magic-link emails: the plugin's generated URL uses the static fallback `baseURL`, so `sendMagicLink` rewrites the host using the request's `x-forwarded-host`/`host` to point back to the correct tenant subdomain
+- **Magic-link email URLs point at the SPA's `/auth/confirm` page, not at `/api/auth/magic-link/verify` directly.** `sendMagicLink` parses the token + callbackURL out of better-auth's generated URL and rewrites to `<protocol>://<tenant-host>/auth/confirm?token=...&callbackURL=...`. The confirm page ([packages/web/src/pages/auth/ConfirmPage.tsx](packages/web/src/pages/auth/ConfirmPage.tsx)) renders a button that does `fetch("/api/auth/magic-link/verify?token=...")` with **no `callbackURL`** so better-auth returns JSON instead of 302. This double-bounce defeats email-link prefetch (Mailpit preview iframe, Gmail TitanLink, Outlook SafeLinks, Chrome hover) which only fetch URLs by GET — the URL in the email is now a harmless static SPA route, and the actual token consumption only happens on a real user click. Replaces the `allowedAttempts: 3` workaround from commit `f0832b9`.
 
 **Per-kava email uniqueness via synthesized identifier** (`packages/shared/src/auth-email.ts`):
 
