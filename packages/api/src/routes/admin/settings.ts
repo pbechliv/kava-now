@@ -1,12 +1,11 @@
 import { Hono } from "hono";
 import { eq } from "drizzle-orm";
+import { updateKavaSettingsSchema } from "@kava-now/shared";
 import { db } from "../../db/connection";
 import { kavas } from "../../db/schema/index";
 import type { AppEnv } from "../../types";
 
 const settingsRouter = new Hono<AppEnv>();
-
-const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 // GET / — return current kava record
 settingsRouter.get("/", async (c) => {
@@ -27,42 +26,13 @@ settingsRouter.get("/", async (c) => {
 settingsRouter.put("/", async (c) => {
   const kavaId = c.get("kavaId")!;
   const body = await c.req.json();
+  const parsed = updateKavaSettingsSchema.safeParse(body);
 
-  const { name, address, phone, email, notificationEmails, logoUrl } = body as {
-    name?: string;
-    address?: string | null;
-    phone?: string | null;
-    email?: string;
-    notificationEmails?: string[];
-    logoUrl?: string | null;
-  };
-
-  // Validate notificationEmails
-  if (notificationEmails !== undefined) {
-    if (!Array.isArray(notificationEmails)) {
-      return c.json({ error: "Τα email ειδοποιήσεων πρέπει να είναι πίνακας" }, 400);
-    }
-    for (const e of notificationEmails) {
-      if (typeof e !== "string" || !EMAIL_REGEX.test(e)) {
-        return c.json({ error: `Μη έγκυρο email ειδοποίησης: ${e}` }, 400);
-      }
-    }
+  if (!parsed.success) {
+    return c.json({ error: parsed.error.flatten().fieldErrors }, 400);
   }
 
-  // Build update fields
-  const updateData: Record<string, unknown> = {};
-  if (name !== undefined) updateData.name = name;
-  if (address !== undefined) updateData.address = address;
-  if (phone !== undefined) updateData.phone = phone;
-  if (email !== undefined) updateData.email = email;
-  if (notificationEmails !== undefined) updateData.notificationEmails = notificationEmails;
-  if (logoUrl !== undefined) updateData.logoUrl = logoUrl;
-
-  if (Object.keys(updateData).length === 0) {
-    return c.json({ error: "Δεν δόθηκαν πεδία για ενημέρωση" }, 400);
-  }
-
-  const [updated] = await db.update(kavas).set(updateData).where(eq(kavas.id, kavaId)).returning();
+  const [updated] = await db.update(kavas).set(parsed.data).where(eq(kavas.id, kavaId)).returning();
 
   if (!updated) {
     return c.json({ error: "Αποτυχία ενημέρωσης" }, 500);
