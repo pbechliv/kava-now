@@ -58,7 +58,7 @@ export function ProductFormPage() {
     } else {
       await createMutation.mutateAsync(data as CreateProductInput);
     }
-    navigate("/admin/products");
+    void navigate("/admin/products");
   };
 
   if (isEdit && productLoading) {

@@ -70,8 +70,8 @@ export function useUpdateOrderStatus() {
     mutationFn: ({ id, status }: { id: string; status: OrderStatus }) =>
       api.put(`/api/admin/orders/${id}/status`, { status }),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["admin", "orders"] });
-      qc.invalidateQueries({ queryKey: ["admin", "dashboard"] });
+      void qc.invalidateQueries({ queryKey: ["admin", "orders"] });
+      void qc.invalidateQueries({ queryKey: ["admin", "dashboard"] });
     },
   });
 }

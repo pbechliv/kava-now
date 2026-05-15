@@ -42,7 +42,7 @@ export function useUpdateMe() {
   return useMutation({
     mutationFn: (input: UpdateMeInput) => api.patch<{ success: boolean }>("/api/auth/me", input),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["auth"] });
+      void queryClient.invalidateQueries({ queryKey: ["auth"] });
     },
   });
 }

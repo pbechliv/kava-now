@@ -19,7 +19,7 @@ export function useUpdateProfile() {
   return useMutation({
     mutationFn: (input: UpdateProfileInput) => api.patch<Customer>("/api/customer/profile", input),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["customer", "profile"] });
+      void queryClient.invalidateQueries({ queryKey: ["customer", "profile"] });
     },
   });
 }

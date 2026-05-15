@@ -19,7 +19,7 @@ export function useCreateCategory() {
   return useMutation({
     mutationFn: (data: CreateCategoryInput) => api.post<Category>("/api/admin/categories", data),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["admin", "categories"] });
+      void qc.invalidateQueries({ queryKey: ["admin", "categories"] });
     },
   });
 }
@@ -31,7 +31,7 @@ export function useUpdateCategory() {
     mutationFn: ({ id, data }: { id: string; data: UpdateCategoryInput }) =>
       api.put<Category>(`/api/admin/categories/${id}`, data),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["admin", "categories"] });
+      void qc.invalidateQueries({ queryKey: ["admin", "categories"] });
     },
   });
 }
@@ -42,7 +42,7 @@ export function useDeleteCategory() {
   return useMutation({
     mutationFn: (id: string) => api.delete(`/api/admin/categories/${id}`),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["admin", "categories"] });
+      void qc.invalidateQueries({ queryKey: ["admin", "categories"] });
     },
   });
 }

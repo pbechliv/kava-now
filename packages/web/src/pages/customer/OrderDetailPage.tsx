@@ -20,7 +20,7 @@ export function OrderDetailPage() {
   const handleReorder = () => {
     reorder.mutate(undefined, {
       onSuccess: (data) => {
-        navigate(`/orders/${data.order.id}`);
+        void navigate(`/orders/${data.order.id}`);
       },
     });
   };

@@ -36,7 +36,7 @@ export function useInviteUser() {
     mutationFn: (input: InviteUserInput) =>
       api.post<{ success: boolean }>("/api/admin/users/invite", input),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["admin", "users"] });
+      void queryClient.invalidateQueries({ queryKey: ["admin", "users"] });
     },
   });
 }
@@ -46,8 +46,8 @@ export function useDeleteUser() {
   return useMutation({
     mutationFn: (id: string) => api.delete(`/api/admin/users/${id}`),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["admin", "users"] });
-      queryClient.invalidateQueries({ queryKey: ["admin", "customer-users"] });
+      void queryClient.invalidateQueries({ queryKey: ["admin", "users"] });
+      void queryClient.invalidateQueries({ queryKey: ["admin", "customer-users"] });
     },
   });
 }
@@ -65,7 +65,7 @@ export function usePromoteToOwner() {
     mutationFn: (id: string) =>
       api.post<{ success: boolean }>(`/api/admin/users/${id}/promote-to-owner`),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["admin", "users"] });
+      void queryClient.invalidateQueries({ queryKey: ["admin", "users"] });
     },
   });
 }

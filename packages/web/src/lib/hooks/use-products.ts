@@ -47,7 +47,7 @@ export function useCreateProduct() {
   return useMutation({
     mutationFn: (data: CreateProductInput) => api.post<Product>("/api/admin/products", data),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["admin", "products"] });
+      void qc.invalidateQueries({ queryKey: ["admin", "products"] });
     },
   });
 }
@@ -59,7 +59,7 @@ export function useUpdateProduct() {
     mutationFn: ({ id, data }: { id: string; data: UpdateProductInput }) =>
       api.put<Product>(`/api/admin/products/${id}`, data),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["admin", "products"] });
+      void qc.invalidateQueries({ queryKey: ["admin", "products"] });
     },
   });
 }
@@ -70,7 +70,7 @@ export function useDeleteProduct() {
   return useMutation({
     mutationFn: (id: string) => api.delete(`/api/admin/products/${id}`),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["admin", "products"] });
+      void qc.invalidateQueries({ queryKey: ["admin", "products"] });
     },
   });
 }
@@ -82,8 +82,8 @@ export function useImportProducts() {
     mutationFn: (rows: ImportProductRow[]) =>
       api.post<ImportProductsResult>("/api/admin/products/import", { rows }),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["admin", "products"] });
-      qc.invalidateQueries({ queryKey: ["admin", "categories"] });
+      void qc.invalidateQueries({ queryKey: ["admin", "products"] });
+      void qc.invalidateQueries({ queryKey: ["admin", "categories"] });
     },
   });
 }

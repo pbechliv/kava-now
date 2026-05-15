@@ -45,7 +45,7 @@ export function useCreateOrder() {
       api.post<CreateOrderResponse>("/api/customer/orders", data),
     onSuccess: () => {
       clearCart();
-      qc.invalidateQueries({ queryKey: ["customer", "orders"] });
+      void qc.invalidateQueries({ queryKey: ["customer", "orders"] });
     },
   });
 }
@@ -56,7 +56,7 @@ export function useReorder(orderId: string) {
   return useMutation({
     mutationFn: () => api.post<CreateOrderResponse>(`/api/customer/orders/${orderId}/reorder`),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["customer", "orders"] });
+      void qc.invalidateQueries({ queryKey: ["customer", "orders"] });
     },
   });
 }

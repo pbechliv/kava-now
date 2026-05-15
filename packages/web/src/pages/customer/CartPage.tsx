@@ -40,7 +40,7 @@ export function CartPage() {
       },
       {
         onSuccess: () => {
-          navigate("/orders");
+          void navigate("/orders");
         },
       },
     );

@@ -24,7 +24,7 @@ export function useImportSeedProducts() {
         seedProductIds,
       }),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["admin", "products"] });
+      void qc.invalidateQueries({ queryKey: ["admin", "products"] });
     },
   });
 }

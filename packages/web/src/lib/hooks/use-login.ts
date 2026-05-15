@@ -45,10 +45,10 @@ export function useLogin() {
         queryFn: () => api.get<AuthMeResponse>("/api/auth/me"),
       });
       const role = me.user?.role;
-      if (role === "superadmin") navigate("/superadmin/kavas", { replace: true });
+      if (role === "superadmin") void navigate("/superadmin/kavas", { replace: true });
       else if (role === "owner" || role === "staff")
-        navigate("/admin/dashboard", { replace: true });
-      else if (role === "customer") navigate("/catalog", { replace: true });
+        void navigate("/admin/dashboard", { replace: true });
+      else if (role === "customer") void navigate("/catalog", { replace: true });
     },
   });
 }

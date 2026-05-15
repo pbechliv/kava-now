@@ -36,7 +36,7 @@ export function ConfirmPage() {
       // cross-origin, fall back to a full page nav.
       const target = new URL(callbackURL, window.location.origin);
       if (target.origin === window.location.origin) {
-        navigate(target.pathname + target.search + target.hash, { replace: true });
+        void navigate(target.pathname + target.search + target.hash, { replace: true });
       } else {
         window.location.assign(target.toString());
       }

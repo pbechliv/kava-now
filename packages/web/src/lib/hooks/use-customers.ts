@@ -29,7 +29,7 @@ export function useCreateCustomer() {
   return useMutation({
     mutationFn: (data: CreateCustomerInput) => api.post<Customer>("/api/admin/customers", data),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["admin", "customers"] });
+      void qc.invalidateQueries({ queryKey: ["admin", "customers"] });
     },
   });
 }
@@ -41,7 +41,7 @@ export function useUpdateCustomer() {
     mutationFn: ({ id, data }: { id: string; data: UpdateCustomerInput }) =>
       api.put<Customer>(`/api/admin/customers/${id}`, data),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["admin", "customers"] });
+      void qc.invalidateQueries({ queryKey: ["admin", "customers"] });
     },
   });
 }
@@ -52,7 +52,7 @@ export function useDeleteCustomer() {
   return useMutation({
     mutationFn: (id: string) => api.delete(`/api/admin/customers/${id}`),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["admin", "customers"] });
+      void qc.invalidateQueries({ queryKey: ["admin", "customers"] });
     },
   });
 }

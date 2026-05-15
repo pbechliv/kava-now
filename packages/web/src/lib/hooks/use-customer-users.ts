@@ -34,7 +34,7 @@ export function useInviteCustomerUser(customerId: string) {
     mutationFn: (input: InviteCustomerUserInput) =>
       api.post<{ success: boolean }>(`/api/admin/customers/${customerId}/users/invite`, input),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["admin", "customer-users", customerId] });
+      void qc.invalidateQueries({ queryKey: ["admin", "customer-users", customerId] });
     },
   });
 }

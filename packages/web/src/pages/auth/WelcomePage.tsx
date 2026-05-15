@@ -38,11 +38,11 @@ export function WelcomePage() {
 
   const goToDashboard = () => {
     if (user.role === "owner" || user.role === "staff") {
-      navigate("/admin/dashboard", { replace: true });
+      void navigate("/admin/dashboard", { replace: true });
     } else if (user.role === "customer") {
-      navigate("/catalog", { replace: true });
+      void navigate("/catalog", { replace: true });
     } else {
-      navigate("/", { replace: true });
+      void navigate("/", { replace: true });
     }
   };
 

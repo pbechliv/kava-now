@@ -34,7 +34,7 @@ export function useCreateKava() {
     mutationFn: (data: RegisterInput) =>
       api.post<CreateKavaResponse>("/api/superadmin/kavas", data),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["superadmin", "kavas"] });
+      void queryClient.invalidateQueries({ queryKey: ["superadmin", "kavas"] });
     },
   });
 }
@@ -45,7 +45,7 @@ export function useDeleteKava() {
   return useMutation({
     mutationFn: (id: string) => api.delete(`/api/superadmin/kavas/${id}`),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["superadmin", "kavas"] });
+      void queryClient.invalidateQueries({ queryKey: ["superadmin", "kavas"] });
     },
   });
 }

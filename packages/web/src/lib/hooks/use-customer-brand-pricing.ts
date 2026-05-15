@@ -22,7 +22,7 @@ export function useUpdateCustomerBrandPricing(customerId: string) {
     mutationFn: (data: UpdateCustomerBrandPricingInput) =>
       api.put(`/api/admin/customers/${customerId}/brand-pricing`, data),
     onSuccess: () => {
-      qc.invalidateQueries({
+      void qc.invalidateQueries({
         queryKey: ["admin", "customers", customerId, "brand-pricing"],
       });
     },
