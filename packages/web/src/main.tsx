@@ -1,6 +1,7 @@
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import * as Sentry from "@sentry/react";
+import { GoogleOAuthProvider } from "@react-oauth/google";
 import { App } from "./App";
 import "./index.css";
 
@@ -15,10 +16,20 @@ if (dsn) {
   });
 }
 
+const googleClientId = import.meta.env.VITE_GOOGLE_CLIENT_ID;
+
+const tree = (
+  <Sentry.ErrorBoundary fallback={<div>Something went wrong. Please refresh.</div>}>
+    <App />
+  </Sentry.ErrorBoundary>
+);
+
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
-    <Sentry.ErrorBoundary fallback={<div>Something went wrong. Please refresh.</div>}>
-      <App />
-    </Sentry.ErrorBoundary>
+    {googleClientId ? (
+      <GoogleOAuthProvider clientId={googleClientId}>{tree}</GoogleOAuthProvider>
+    ) : (
+      tree
+    )}
   </StrictMode>,
 );

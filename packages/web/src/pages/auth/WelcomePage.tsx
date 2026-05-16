@@ -3,15 +3,16 @@ import { Link, useNavigate, useSearchParams, useParams } from "react-router";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useQuery } from "@tanstack/react-query";
 import { CheckCircle2, Loader2 } from "lucide-react";
+import { GoogleLogin } from "@react-oauth/google";
 import { authClient } from "@/lib/auth-client";
+import { useGoogleSignIn } from "@/lib/hooks/use-google-sign-in";
 import { api } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
-import { GoogleIcon } from "@/components/icons/GoogleIcon";
 
-const googleEnabled = import.meta.env.VITE_GOOGLE_ENABLED === "true";
+const googleEnabled = !!import.meta.env.VITE_GOOGLE_CLIENT_ID;
 
 export function WelcomePage() {
   const [searchParams] = useSearchParams();
@@ -43,16 +44,7 @@ export function WelcomePage() {
     },
   });
 
-  const googleSignIn = useMutation({
-    mutationFn: async () => {
-      const { error: authError } = await authClient.signIn.social({
-        provider: "google",
-        callbackURL: slug ? `/k/${slug}` : "/",
-        errorCallbackURL: `${loginPath}?error=oauth`,
-      });
-      if (authError) throw new Error(authError.message ?? "Σφάλμα Google σύνδεσης");
-    },
-  });
+  const googleSignIn = useGoogleSignIn();
 
   if (!token) {
     return (
@@ -117,20 +109,18 @@ export function WelcomePage() {
 
       {googleEnabled && (
         <div className="mt-6 space-y-3">
-          <Button
-            type="button"
-            variant="outline"
-            className="w-full"
-            onClick={() => googleSignIn.mutate()}
-            disabled={googleSignIn.isPending}
-          >
-            {googleSignIn.isPending ? (
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-            ) : (
-              <GoogleIcon className="mr-2 h-4 w-4" />
-            )}
-            Συνέχεια με Google
-          </Button>
+          <div className="flex justify-center">
+            <GoogleLogin
+              onSuccess={(cred) => googleSignIn.mutate(cred)}
+              onError={() => googleSignIn.reset()}
+              text="continue_with"
+              theme="outline"
+              shape="rectangular"
+              size="large"
+              logo_alignment="left"
+              width="384"
+            />
+          </div>
           {googleSignIn.error && (
             <p className="text-sm text-destructive">
               {googleSignIn.error instanceof Error

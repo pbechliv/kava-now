@@ -1,16 +1,16 @@
 import { useForm } from "react-hook-form";
-import { useMutation, useQuery } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { loginSchema, type LoginInput } from "@kava-now/shared";
-import { Link, useParams, useSearchParams } from "react-router";
+import { Link, useParams } from "react-router";
 import { Loader2 } from "lucide-react";
+import { GoogleLogin } from "@react-oauth/google";
 import { useLogin } from "@/lib/hooks/use-login";
+import { useGoogleSignIn } from "@/lib/hooks/use-google-sign-in";
 import { api } from "@/lib/api";
-import { authClient } from "@/lib/auth-client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
-import { GoogleIcon } from "@/components/icons/GoogleIcon";
 import {
   Form,
   FormControl,
@@ -20,13 +20,12 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 
-const googleEnabled = import.meta.env.VITE_GOOGLE_ENABLED === "true";
+const googleEnabled = !!import.meta.env.VITE_GOOGLE_CLIENT_ID;
 
 export function LoginPage() {
   const login = useLogin();
+  const googleSignIn = useGoogleSignIn();
   const { slug } = useParams<{ slug: string }>();
-  const [searchParams] = useSearchParams();
-  const oauthError = searchParams.get("error") === "oauth";
 
   const { data: kavaInfo } = useQuery({
     queryKey: ["kava-info", slug],
@@ -45,20 +44,7 @@ export function LoginPage() {
     login.mutate(data);
   };
 
-  const loginPath = slug ? `/k/${slug}/login` : "/login";
   const forgotPath = slug ? `/k/${slug}/auth/forgot-password` : "/auth/forgot-password";
-  const homePath = slug ? `/k/${slug}` : "/";
-
-  const googleSignIn = useMutation({
-    mutationFn: async () => {
-      const { error } = await authClient.signIn.social({
-        provider: "google",
-        callbackURL: homePath,
-        errorCallbackURL: `${loginPath}?error=oauth`,
-      });
-      if (error) throw new Error(error.message ?? "Σφάλμα Google σύνδεσης");
-    },
-  });
 
   return (
     <Form {...form}>
@@ -68,25 +54,23 @@ export function LoginPage() {
 
         {googleEnabled && (
           <>
-            <Button
-              type="button"
-              variant="outline"
-              className="w-full"
-              onClick={() => googleSignIn.mutate()}
-              disabled={googleSignIn.isPending}
-            >
-              {googleSignIn.isPending ? (
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              ) : (
-                <GoogleIcon className="mr-2 h-4 w-4" />
-              )}
-              Συνέχεια με Google
-            </Button>
-            {(googleSignIn.error || oauthError) && (
+            <div className="flex justify-center">
+              <GoogleLogin
+                onSuccess={(cred) => googleSignIn.mutate(cred)}
+                onError={() => googleSignIn.reset()}
+                text="continue_with"
+                theme="outline"
+                shape="rectangular"
+                size="large"
+                logo_alignment="left"
+                width="384"
+              />
+            </div>
+            {googleSignIn.error && (
               <p className="text-sm text-destructive">
                 {googleSignIn.error instanceof Error
                   ? googleSignIn.error.message
-                  : "Η σύνδεση με Google απέτυχε. Βεβαιωθείτε ότι έχετε λάβει πρόσκληση."}
+                  : "Η σύνδεση με Google απέτυχε"}
               </p>
             )}
             <div className="relative my-2">
