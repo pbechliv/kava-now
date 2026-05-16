@@ -20,5 +20,11 @@ export const config = {
     apiKey: process.env.RESEND_API_KEY || "",
     from: process.env.RESEND_FROM || process.env.SMTP_FROM || "noreply@kavanow.gr",
   },
+  sentry: {
+    dsn: process.env.SENTRY_DSN_API || "",
+    environment: process.env.SENTRY_ENVIRONMENT || (isDev ? "development" : "production"),
+    release: process.env.SENTRY_RELEASE || undefined,
+    enabled: !!process.env.SENTRY_DSN_API,
+  },
   isDev,
 } as const;

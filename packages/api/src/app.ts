@@ -1,8 +1,11 @@
 import { Hono } from "hono";
 import { cors } from "hono/cors";
 import { logger } from "hono/logger";
+import { HTTPException } from "hono/http-exception";
+import * as Sentry from "@sentry/node";
 import { tenantMiddleware } from "./middleware/tenant";
 import { authMiddleware } from "./middleware/auth";
+import { sentryContextMiddleware } from "./middleware/sentry-context";
 import { signInRateLimit, forgotPasswordRateLimit } from "./middleware/rate-limit";
 import { auth } from "./auth";
 import { authRoutes } from "./routes/auth";
@@ -36,6 +39,9 @@ app.use("*", async (c, next) => {
 // Auth session resolution — no tenant context required.
 app.use("*", authMiddleware);
 
+// Attach kava + user context to Sentry scope (after tenant + auth populate vars)
+app.use("*", sentryContextMiddleware);
+
 // Custom auth routes (register BEFORE better-auth catch-all so /me matches first)
 app.route("/api/auth", authRoutes);
 
@@ -55,6 +61,9 @@ app.route("/api/superadmin", superadminRoutes);
 // kava, and sets the PostgreSQL session variable for RLS.
 const tenantApp = new Hono<AppEnv>();
 tenantApp.use("*", tenantMiddleware);
+// Re-tag Sentry scope now that the kava (and later, membership via requireRole)
+// is resolved for tenant-scoped requests.
+tenantApp.use("*", sentryContextMiddleware);
 
 tenantApp.get("/kava", (c) => {
   const kava = c.get("kava");
@@ -69,6 +78,17 @@ app.route("/api/k/:slug", tenantApp);
 
 app.get("/api/health", (c) => {
   return c.json({ status: "ok" });
+});
+
+app.onError((err, c) => {
+  if (err instanceof HTTPException) {
+    if (err.status >= 500) {
+      Sentry.captureException(err);
+    }
+    return err.getResponse();
+  }
+  Sentry.captureException(err);
+  return c.json({ error: "Internal server error" }, 500);
 });
 
 export { app };

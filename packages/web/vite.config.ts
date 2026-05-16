@@ -6,12 +6,23 @@ import { resolve } from "node:path";
 
 process.loadEnvFile(resolve(__dirname, "../../.env"));
 
+const sentryDsn = process.env.SENTRY_DSN_WEB || "";
+const sentryEnv =
+  process.env.SENTRY_ENVIRONMENT ||
+  (process.env.NODE_ENV === "production" ? "production" : "development");
+const sentryRelease = process.env.SENTRY_RELEASE || "";
+
 export default defineConfig({
   plugins: [react(), tailwindcss()],
   resolve: {
     alias: {
       "@": resolve(__dirname, "./src"),
     },
+  },
+  define: {
+    "import.meta.env.VITE_SENTRY_DSN": JSON.stringify(sentryDsn),
+    "import.meta.env.VITE_SENTRY_ENVIRONMENT": JSON.stringify(sentryEnv),
+    "import.meta.env.VITE_SENTRY_RELEASE": JSON.stringify(sentryRelease),
   },
   server: {
     port: 5173,

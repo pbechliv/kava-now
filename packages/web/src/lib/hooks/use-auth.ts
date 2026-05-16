@@ -1,5 +1,7 @@
+import { useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useParams } from "react-router";
+import * as Sentry from "@sentry/react";
 import { api } from "../api";
 import type { KavaMembership } from "@kava-now/shared";
 
@@ -29,6 +31,7 @@ export function useAuth() {
   });
   const { slug } = useParams<{ slug: string }>();
 
+  const user = data?.user ?? null;
   const memberships = data?.memberships ?? [];
   const currentMembership = slug ? (memberships.find((m) => m.kavaSlug === slug) ?? null) : null;
   const kava = currentMembership
@@ -39,13 +42,25 @@ export function useAuth() {
       }
     : null;
 
+  useEffect(() => {
+    if (user) {
+      Sentry.setUser({ id: user.id });
+      Sentry.setTag("user.is_superadmin", user.isSuperAdmin);
+    } else {
+      Sentry.setUser(null);
+    }
+    Sentry.setTag("kava.id", kava?.id ?? null);
+    Sentry.setTag("kava.slug", kava?.slug ?? null);
+    Sentry.setTag("membership.role", currentMembership?.role ?? null);
+  }, [user, kava, currentMembership]);
+
   return {
-    user: data?.user ?? null,
+    user,
     memberships,
     currentMembership,
     kava,
     isLoading,
-    isAuthenticated: !!data?.user,
+    isAuthenticated: !!user,
     error,
   };
 }

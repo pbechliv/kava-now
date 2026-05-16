@@ -14,6 +14,7 @@
   "dependencies": {
     "@hookform/resolvers": "^5.2.2",
     "@kava-now/shared": "workspace:*",
+    "@sentry/react": "^10.53.1",
     "@tanstack/react-query": "^5.100.10",
     "better-auth": "^1.6.11",
     "class-variance-authority": "^0.7.1",

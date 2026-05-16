@@ -1,4 +1,4 @@
-import "./load-env";
+import "./sentry";
 import { app } from "./app";
 
 // In dev, @hono/vite-dev-server handles serving.
