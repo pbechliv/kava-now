@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router";
+import { useTenantSlug } from "@/lib/hooks/use-tenant-api";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card } from "@/components/ui/card";
@@ -40,6 +41,8 @@ const STATUS_TABS: { label: string; value: OrderStatus | "all" }[] = [
 ];
 
 export function OrdersPage() {
+  const slug = useTenantSlug();
+  const adminBase = `/k/${slug}/admin`;
   const [statusFilter, setStatusFilter] = useState<OrderStatus | "all">("all");
   const [customerFilter, setCustomerFilter] = useState<string>("");
   const [dateFrom, setDateFrom] = useState("");
@@ -162,7 +165,7 @@ export function OrdersPage() {
                       </TableCell>
                       <TableCell className="text-right">
                         <Link
-                          to={`/admin/orders/${order.id}`}
+                          to={`${adminBase}/orders/${order.id}`}
                           className="text-sm font-medium text-primary hover:underline"
                         >
                           Προβολή

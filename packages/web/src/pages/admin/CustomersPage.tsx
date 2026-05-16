@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router";
+import { useTenantSlug } from "@/lib/hooks/use-tenant-api";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
@@ -21,6 +22,8 @@ const PAGE_SIZE = 50;
 
 export function CustomersPage() {
   const navigate = useNavigate();
+  const slug = useTenantSlug();
+  const adminBase = `/k/${slug}/admin`;
   const [search, setSearch] = useState("");
   const [modalOpen, setModalOpen] = useState(false);
   const [editId, setEditId] = useState<string | undefined>(undefined);
@@ -115,7 +118,7 @@ export function CustomersPage() {
                           <Button
                             variant="ghost"
                             size="sm"
-                            onClick={() => navigate(`/admin/customers/${customer.id}/users`)}
+                            onClick={() => navigate(`${adminBase}/customers/${customer.id}/users`)}
                           >
                             Χρήστες
                           </Button>
@@ -123,7 +126,7 @@ export function CustomersPage() {
                             variant="ghost"
                             size="sm"
                             onClick={() =>
-                              navigate(`/admin/customers/${customer.id}/brand-pricing`)
+                              navigate(`${adminBase}/customers/${customer.id}/brand-pricing`)
                             }
                           >
                             Τιμολόγηση
