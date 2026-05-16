@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useForm } from "react-hook-form";
+import { Loader2 } from "lucide-react";
 import {
   useUsers,
   useInviteUser,
@@ -7,11 +8,37 @@ import {
   useResendInvite,
   usePromoteToOwner,
   type InviteUserInput,
-} from "../../lib/hooks/use-users";
-import { useAuth } from "../../lib/hooks/use-auth";
-import { Button } from "../../components/ui/Button";
-import { Input } from "../../components/ui/Input";
-import { Spinner } from "../../components/ui/Spinner";
+} from "@/lib/hooks/use-users";
+import { useAuth } from "@/lib/hooks/use-auth";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Card } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/components/ui/form";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { Spinner } from "@/components/spinner";
 
 const ROLE_LABELS: Record<string, string> = {
   owner: "Ιδιοκτήτης",
@@ -34,17 +61,12 @@ export function UsersPage() {
     message: string;
   } | null>(null);
 
-  const {
-    register,
-    handleSubmit,
-    reset,
-    formState: { errors },
-  } = useForm<InviteUserInput>({ defaultValues: { role: "staff" } });
+  const form = useForm<InviteUserInput>({ defaultValues: { role: "staff", name: "", email: "" } });
 
   const onInvite = (input: InviteUserInput) => {
     invite.mutate(input, {
       onSuccess: () => {
-        reset();
+        form.reset();
         setInviteOpen(false);
       },
     });
@@ -79,171 +101,207 @@ export function UsersPage() {
   const canPromote = me?.role === "owner";
 
   return (
-    <div>
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-gray-900">Χρήστες</h1>
-        <Button onClick={() => setInviteOpen(true)}>+ Πρόσκληση</Button>
+    <div className="space-y-6">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <h1 className="text-2xl font-bold tracking-tight">Χρήστες</h1>
+        <Button onClick={() => setInviteOpen(true)} className="self-start sm:self-auto">
+          + Πρόσκληση
+        </Button>
       </div>
 
-      <div className="mt-6 overflow-hidden rounded-lg border border-gray-200 bg-white shadow-sm">
-        <table className="min-w-full divide-y divide-gray-200">
-          <thead className="bg-gray-50">
-            <tr>
-              <th className="px-4 py-3 text-left text-xs font-medium uppercase text-gray-500">
-                Όνομα
-              </th>
-              <th className="px-4 py-3 text-left text-xs font-medium uppercase text-gray-500">
-                Email
-              </th>
-              <th className="px-4 py-3 text-left text-xs font-medium uppercase text-gray-500">
-                Ρόλος
-              </th>
-              <th className="px-4 py-3 text-left text-xs font-medium uppercase text-gray-500">
-                Προσκλήθηκε από
-              </th>
-              <th className="px-4 py-3" />
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-gray-100">
-            {users.map((u) => (
-              <tr key={u.id}>
-                <td className="px-4 py-3 text-sm font-medium text-gray-900">
-                  {u.name}
-                  {u.id === me?.id && <span className="ml-2 text-xs text-gray-500">(εσείς)</span>}
-                  {!u.emailVerified && (
-                    <span className="ml-2 inline-flex items-center rounded-full bg-yellow-100 px-2 py-0.5 text-xs text-yellow-800">
-                      Εκκρεμεί
-                    </span>
-                  )}
-                </td>
-                <td className="px-4 py-3 text-sm text-gray-500">{u.email}</td>
-                <td className="px-4 py-3 text-sm text-gray-700">{ROLE_LABELS[u.role] ?? u.role}</td>
-                <td className="px-4 py-3 text-sm text-gray-500">
-                  {u.invitedByName ? (
-                    <span title={u.invitedByEmail ?? ""}>{u.invitedByName}</span>
-                  ) : (
-                    <span className="text-gray-300">—</span>
-                  )}
-                </td>
-                <td className="px-4 py-3 text-right">
-                  {u.id !== me?.id &&
-                    (confirmDeleteId === u.id ? (
-                      <div className="flex items-center justify-end gap-2">
-                        <span className="text-xs text-red-600">Σίγουρα;</span>
-                        <Button
-                          variant="danger"
-                          size="sm"
-                          loading={remove.isPending}
-                          onClick={() =>
-                            remove.mutate(u.id, {
-                              onSuccess: () => setConfirmDeleteId(null),
-                            })
-                          }
-                        >
-                          Ναι
-                        </Button>
-                        <Button variant="ghost" size="sm" onClick={() => setConfirmDeleteId(null)}>
-                          Όχι
-                        </Button>
-                      </div>
+      <Card className="overflow-hidden">
+        <div className="overflow-x-auto">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Όνομα</TableHead>
+                <TableHead>Email</TableHead>
+                <TableHead>Ρόλος</TableHead>
+                <TableHead>Προσκλήθηκε από</TableHead>
+                <TableHead className="text-right" />
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {users.map((u) => (
+                <TableRow key={u.id}>
+                  <TableCell className="font-medium">
+                    {u.name}
+                    {u.id === me?.id && (
+                      <span className="ml-2 text-xs text-muted-foreground">(εσείς)</span>
+                    )}
+                    {!u.emailVerified && (
+                      <Badge variant="warning" className="ml-2">
+                        Εκκρεμεί
+                      </Badge>
+                    )}
+                  </TableCell>
+                  <TableCell className="text-muted-foreground">{u.email}</TableCell>
+                  <TableCell>{ROLE_LABELS[u.role] ?? u.role}</TableCell>
+                  <TableCell className="text-muted-foreground">
+                    {u.invitedByName ? (
+                      <span title={u.invitedByEmail ?? ""}>{u.invitedByName}</span>
                     ) : (
-                      <div className="flex items-center justify-end gap-2">
-                        {resendFeedback?.id === u.id && (
-                          <span
-                            className={`text-xs ${
-                              resendFeedback.kind === "success" ? "text-green-600" : "text-red-600"
-                            }`}
+                      <span className="text-muted-foreground/60">—</span>
+                    )}
+                  </TableCell>
+                  <TableCell className="text-right">
+                    {u.id !== me?.id &&
+                      (confirmDeleteId === u.id ? (
+                        <div className="flex items-center justify-end gap-2">
+                          <span className="text-xs text-destructive">Σίγουρα;</span>
+                          <Button
+                            variant="destructive"
+                            size="sm"
+                            disabled={remove.isPending}
+                            onClick={() =>
+                              remove.mutate(u.id, {
+                                onSuccess: () => setConfirmDeleteId(null),
+                              })
+                            }
                           >
-                            {resendFeedback.message}
-                          </span>
-                        )}
-                        {!u.emailVerified && (
+                            {remove.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                            Ναι
+                          </Button>
                           <Button
                             variant="ghost"
                             size="sm"
-                            loading={resend.isPending && resend.variables === u.id}
-                            onClick={() => handleResend(u.id)}
+                            onClick={() => setConfirmDeleteId(null)}
                           >
-                            Επανάληψη πρόσκλησης
+                            Όχι
                           </Button>
-                        )}
-                        {canPromote && u.role === "staff" && (
+                        </div>
+                      ) : (
+                        <div className="flex flex-wrap items-center justify-end gap-2">
+                          {resendFeedback?.id === u.id && (
+                            <span
+                              className={`text-xs ${
+                                resendFeedback.kind === "success"
+                                  ? "text-green-600"
+                                  : "text-destructive"
+                              }`}
+                            >
+                              {resendFeedback.message}
+                            </span>
+                          )}
+                          {!u.emailVerified && (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              disabled={resend.isPending && resend.variables === u.id}
+                              onClick={() => handleResend(u.id)}
+                            >
+                              {resend.isPending && resend.variables === u.id && (
+                                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                              )}
+                              Επανάληψη πρόσκλησης
+                            </Button>
+                          )}
+                          {canPromote && u.role === "staff" && (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              disabled={promote.isPending && promote.variables === u.id}
+                              onClick={() => promote.mutate(u.id)}
+                            >
+                              {promote.isPending && promote.variables === u.id && (
+                                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                              )}
+                              Μετατροπή σε ιδιοκτήτη
+                            </Button>
+                          )}
                           <Button
-                            variant="secondary"
+                            variant="ghost"
                             size="sm"
-                            loading={promote.isPending && promote.variables === u.id}
-                            onClick={() => promote.mutate(u.id)}
+                            className="text-destructive hover:bg-destructive/10 hover:text-destructive"
+                            onClick={() => setConfirmDeleteId(u.id)}
                           >
-                            Μετατροπή σε ιδιοκτήτη
+                            Διαγραφή
                           </Button>
-                        )}
-                        <Button variant="danger" size="sm" onClick={() => setConfirmDeleteId(u.id)}>
-                          Διαγραφή
-                        </Button>
-                      </div>
-                    ))}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+                        </div>
+                      ))}
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </div>
+      </Card>
 
-      {inviteOpen && (
-        <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/40 p-4">
-          <div className="w-full max-w-md rounded-lg bg-white p-6 shadow-xl">
-            <h2 className="text-lg font-semibold text-gray-900">Πρόσκληση χρήστη</h2>
-            <p className="mt-1 text-sm text-gray-500">
-              Θα σταλεί email στον χρήστη με σύνδεσμο σύνδεσης.
-            </p>
+      <Dialog
+        open={inviteOpen}
+        onOpenChange={(open) => {
+          if (!open) form.reset();
+          setInviteOpen(open);
+        }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Πρόσκληση χρήστη</DialogTitle>
+            <DialogDescription>Θα σταλεί email στον χρήστη με σύνδεσμο σύνδεσης.</DialogDescription>
+          </DialogHeader>
 
-            <form onSubmit={handleSubmit(onInvite)} className="mt-4 space-y-4">
-              <Input
-                id="invite-name"
-                label="Όνομα"
-                placeholder="Γιάννης Παπαδόπουλος"
-                error={errors.name?.message}
-                {...register("name", { required: "Υποχρεωτικό" })}
+          <Form {...form}>
+            <form onSubmit={form.handleSubmit(onInvite)} className="space-y-4">
+              <FormField
+                control={form.control}
+                name="name"
+                rules={{ required: "Υποχρεωτικό" }}
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Όνομα</FormLabel>
+                    <FormControl>
+                      <Input placeholder="Γιάννης Παπαδόπουλος" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
               />
-              <Input
-                id="invite-email"
-                type="email"
-                label="Email"
-                placeholder="user@example.com"
-                error={errors.email?.message}
-                {...register("email", { required: "Υποχρεωτικό" })}
+              <FormField
+                control={form.control}
+                name="email"
+                rules={{ required: "Υποχρεωτικό" }}
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Email</FormLabel>
+                    <FormControl>
+                      <Input type="email" placeholder="user@example.com" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
               />
-              <input type="hidden" {...register("role")} value="staff" />
-              <p className="text-xs text-gray-500">
+              <input type="hidden" {...form.register("role")} value="staff" />
+              <p className="text-xs text-muted-foreground">
                 Οι χρήστες πελατών δημιουργούνται από τη σελίδα{" "}
                 <span className="font-medium">Πελάτες</span>.
               </p>
 
               {invite.error && (
-                <p className="text-sm text-red-600">
+                <p className="text-sm text-destructive">
                   {invite.error instanceof Error ? invite.error.message : "Σφάλμα"}
                 </p>
               )}
 
-              <div className="flex justify-end gap-2">
+              <DialogFooter>
                 <Button
                   type="button"
                   variant="ghost"
                   onClick={() => {
-                    reset();
+                    form.reset();
                     setInviteOpen(false);
                   }}
                 >
                   Άκυρο
                 </Button>
-                <Button type="submit" loading={invite.isPending}>
+                <Button type="submit" disabled={invite.isPending}>
+                  {invite.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                   Αποστολή
                 </Button>
-              </div>
+              </DialogFooter>
             </form>
-          </div>
-        </div>
-      )}
+          </Form>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

@@ -1,10 +1,31 @@
 import { useMemo, useState } from "react";
 import { useNavigate } from "react-router";
-import { Button } from "../../components/ui/Button";
-import { Spinner } from "../../components/ui/Spinner";
-import { useAuth } from "../../lib/hooks/use-auth";
-import { useProducts, useImportProducts } from "../../lib/hooks/use-products";
-import { parseFile, type Encoding, type ParseResult } from "../../lib/spreadsheet-parser";
+import { Loader2, Upload } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Card } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { Spinner } from "@/components/spinner";
+import { cn } from "@/lib/utils";
+import { useAuth } from "@/lib/hooks/use-auth";
+import { useProducts, useImportProducts } from "@/lib/hooks/use-products";
+import { parseFile, type Encoding, type ParseResult } from "@/lib/spreadsheet-parser";
 import {
   applyMapping,
   loadMapping,
@@ -15,7 +36,7 @@ import {
   type AppliedRow,
   type Mapping,
   type TargetField,
-} from "../../lib/import-mapping";
+} from "@/lib/import-mapping";
 
 type Step = "upload" | "map" | "preview";
 
@@ -51,7 +72,6 @@ export function ProductsImportPage() {
   const [showAllRows, setShowAllRows] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
 
-  // Existing products — used to compute the "new vs. update" split in the preview.
   const { data: existingProducts } = useProducts();
   const existingKeys = useMemo(() => {
     if (!existingProducts) return new Set<string>();
@@ -97,8 +117,6 @@ export function ProductsImportPage() {
         setParseError("Το αρχείο δεν περιέχει γραμμές δεδομένων.");
       } else {
         setParsed(result);
-        // Auto-suggest mapping, then layer any persisted mapping on top — but only
-        // for columns that actually exist in this file.
         const suggested = suggestMapping(result.columns);
         const persisted = kava ? loadMapping(kava.slug) : null;
         const merged: Mapping = { ...suggested };
@@ -156,24 +174,23 @@ export function ProductsImportPage() {
   };
 
   return (
-    <div className="max-w-5xl">
-      <div className="flex items-center justify-between">
+    <div className="max-w-5xl space-y-6">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Εισαγωγή προϊόντων από αρχείο</h1>
-          <p className="mt-1 text-sm text-gray-500">
+          <h1 className="text-2xl font-bold tracking-tight">Εισαγωγή προϊόντων από αρχείο</h1>
+          <p className="mt-1 text-sm text-muted-foreground">
             Ανέβασμα CSV ή Excel · Αντιστοίχιση στηλών · Προεπισκόπηση
           </p>
         </div>
-        <Button variant="secondary" onClick={() => navigate("/admin/products")}>
+        <Button variant="outline" onClick={() => navigate("/admin/products")}>
           Πίσω στα προϊόντα
         </Button>
       </div>
 
-      {/* Steps indicator */}
       <Stepper current={step} />
 
       {step === "upload" && (
-        <section className="mt-6 rounded-xl border border-gray-100 bg-white p-6 shadow-sm">
+        <Card className="p-6">
           <div
             onDragOver={(e) => {
               e.preventDefault();
@@ -181,31 +198,18 @@ export function ProductsImportPage() {
             }}
             onDragLeave={() => setIsDragging(false)}
             onDrop={onDrop}
-            className={`flex flex-col items-center justify-center rounded-lg border-2 border-dashed p-10 text-center transition-colors ${
+            className={cn(
+              "flex flex-col items-center justify-center rounded-lg border-2 border-dashed p-8 text-center transition-colors sm:p-10",
               isDragging
-                ? "border-amber-500 bg-amber-50"
-                : "border-gray-300 bg-gray-50 hover:bg-gray-100"
-            }`}
+                ? "border-primary bg-primary/5"
+                : "border-input bg-muted/30 hover:bg-muted/60",
+            )}
           >
-            <svg
-              className="h-10 w-10 text-gray-400"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
-              strokeWidth={1.5}
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 7.5m0 0L7.5 12M12 7.5v9"
-              />
-            </svg>
-            <p className="mt-3 text-sm font-medium text-gray-700">
-              Σύρετε το αρχείο εδώ ή επιλέξτε αρχείο
-            </p>
-            <p className="mt-1 text-xs text-gray-500">CSV, XLSX ή XLS</p>
+            <Upload className="h-10 w-10 text-muted-foreground" />
+            <p className="mt-3 text-sm font-medium">Σύρετε το αρχείο εδώ ή επιλέξτε αρχείο</p>
+            <p className="mt-1 text-xs text-muted-foreground">CSV, XLSX ή XLS</p>
             <label className="mt-4 inline-flex">
-              <span className="cursor-pointer rounded-lg bg-amber-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-amber-700">
+              <span className="cursor-pointer rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground shadow-sm transition-colors hover:bg-primary/90">
                 Επιλογή αρχείου
               </span>
               <input
@@ -216,45 +220,41 @@ export function ProductsImportPage() {
               />
             </label>
             {file && (
-              <p className="mt-4 text-xs text-gray-600">
-                Επιλεγμένο: <span className="font-medium">{file.name}</span> (
+              <p className="mt-4 text-xs text-muted-foreground">
+                Επιλεγμένο: <span className="font-medium text-foreground">{file.name}</span> (
                 {Math.ceil(file.size / 1024)} KB)
               </p>
             )}
           </div>
 
-          {/* CSV-specific options */}
           {file && file.name.toLowerCase().endsWith(".csv") && (
             <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2">
-              <div>
-                <label htmlFor="encoding" className="block text-sm font-medium text-gray-700 mb-1">
-                  Κωδικοποίηση
-                </label>
-                <select
-                  id="encoding"
-                  value={encoding}
-                  onChange={(e) => setEncoding(e.target.value as Encoding)}
-                  className="block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-amber-500 focus:outline-none focus:ring-2 focus:ring-amber-500"
-                >
-                  <option value="utf-8">UTF-8 (αυτόματη επαναφορά σε Windows-1253)</option>
-                  <option value="windows-1253">Windows-1253 (ελληνικά)</option>
-                </select>
+              <div className="space-y-2">
+                <Label htmlFor="encoding">Κωδικοποίηση</Label>
+                <Select value={encoding} onValueChange={(v) => setEncoding(v as Encoding)}>
+                  <SelectTrigger id="encoding" className="w-full">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="utf-8">
+                      UTF-8 (αυτόματη επαναφορά σε Windows-1253)
+                    </SelectItem>
+                    <SelectItem value="windows-1253">Windows-1253 (ελληνικά)</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
-              <div>
-                <label htmlFor="skipRows" className="block text-sm font-medium text-gray-700 mb-1">
-                  Παράλειψη πρώτων γραμμών
-                </label>
-                <input
+              <div className="space-y-2">
+                <Label htmlFor="skipRows">Παράλειψη πρώτων γραμμών</Label>
+                <Input
                   id="skipRows"
                   type="number"
                   min={0}
                   value={skipRows}
                   onChange={(e) => setSkipRows(Math.max(0, Number(e.target.value) || 0))}
-                  className="block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-amber-500 focus:outline-none focus:ring-2 focus:ring-amber-500"
                 />
               </div>
               <div className="sm:col-span-2">
-                <Button variant="secondary" size="sm" onClick={handleReparse}>
+                <Button variant="outline" size="sm" onClick={handleReparse}>
                   Επανανάγνωση
                 </Button>
               </div>
@@ -262,31 +262,35 @@ export function ProductsImportPage() {
           )}
 
           {parsing && (
-            <div className="mt-6 flex items-center gap-2 text-sm text-gray-600">
+            <div className="mt-6 flex items-center gap-2 text-sm text-muted-foreground">
               <Spinner className="h-4 w-4" /> Ανάλυση αρχείου...
             </div>
           )}
 
           {parseError && (
-            <p className="mt-4 rounded-lg bg-red-50 px-4 py-3 text-sm text-red-700">{parseError}</p>
+            <p className="mt-4 rounded-lg border border-destructive/50 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+              {parseError}
+            </p>
           )}
 
           {parsed && !parsing && (
-            <div className="mt-6 flex items-center justify-between">
-              <p className="text-sm text-gray-600">
-                Εντοπίστηκαν <span className="font-medium">{parsed.columns.length}</span> στήλες και{" "}
-                <span className="font-medium">{parsed.rows.length}</span> γραμμές δεδομένων.
+            <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <p className="text-sm text-muted-foreground">
+                Εντοπίστηκαν{" "}
+                <span className="font-medium text-foreground">{parsed.columns.length}</span> στήλες
+                και <span className="font-medium text-foreground">{parsed.rows.length}</span>{" "}
+                γραμμές δεδομένων.
               </p>
               <Button onClick={handleContinueToMap}>Συνέχεια στην αντιστοίχιση</Button>
             </div>
           )}
-        </section>
+        </Card>
       )}
 
       {step === "map" && parsed && (
-        <section className="mt-6 rounded-xl border border-gray-100 bg-white p-6 shadow-sm">
-          <h2 className="text-lg font-semibold text-gray-900">Αντιστοίχιση στηλών</h2>
-          <p className="mt-1 text-sm text-gray-500">
+        <Card className="p-6">
+          <h2 className="text-lg font-semibold">Αντιστοίχιση στηλών</h2>
+          <p className="mt-1 text-sm text-muted-foreground">
             Συνδέστε κάθε πεδίο προϊόντος με μια στήλη του αρχείου. Τα πεδία με * είναι υποχρεωτικά.
           </p>
 
@@ -294,44 +298,44 @@ export function ProductsImportPage() {
             {TARGET_ORDER.map((target) => {
               const isRequired = REQUIRED_TARGETS.includes(target);
               return (
-                <div key={target} className="flex flex-col">
-                  <label
-                    htmlFor={`map-${target}`}
-                    className="block text-sm font-medium text-gray-700 mb-1"
-                  >
+                <div key={target} className="space-y-2">
+                  <Label htmlFor={`map-${target}`}>
                     {TARGET_LABELS[target]}
-                    {isRequired ? " *" : ""}
-                  </label>
-                  <select
-                    id={`map-${target}`}
-                    value={mapping[target] ?? ""}
-                    onChange={(e) =>
+                    {isRequired && <span className="ml-0.5 text-destructive">*</span>}
+                  </Label>
+                  <Select
+                    value={mapping[target] || "none"}
+                    onValueChange={(v) =>
                       setMapping((prev) => {
                         const next = { ...prev };
-                        if (e.target.value === "") {
+                        if (v === "none") {
                           delete next[target];
                         } else {
-                          next[target] = e.target.value;
+                          next[target] = v;
                         }
                         return next;
                       })
                     }
-                    className="block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-amber-500 focus:outline-none focus:ring-2 focus:ring-amber-500"
                   >
-                    <option value="">— αγνόηση —</option>
-                    {parsed.columns.map((col) => (
-                      <option key={col} value={col}>
-                        {col}
-                      </option>
-                    ))}
-                  </select>
+                    <SelectTrigger id={`map-${target}`} className="w-full">
+                      <SelectValue placeholder="— αγνόηση —" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">— αγνόηση —</SelectItem>
+                      {parsed.columns.map((col) => (
+                        <SelectItem key={col} value={col}>
+                          {col}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
               );
             })}
           </div>
 
-          <div className="mt-6 flex items-center justify-between">
-            <Button variant="secondary" onClick={() => setStep("upload")}>
+          <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <Button variant="outline" onClick={() => setStep("upload")}>
               Πίσω
             </Button>
             <Button onClick={handleContinueToPreview} disabled={!mappingComplete}>
@@ -339,43 +343,43 @@ export function ProductsImportPage() {
             </Button>
           </div>
           {!mappingComplete && (
-            <p className="mt-3 text-xs text-amber-700">
+            <p className="mt-3 text-xs text-amber-700 dark:text-amber-400">
               Συνδέστε τα πεδία Όνομα, Μάρκα και Τιμή για να συνεχίσετε.
             </p>
           )}
-        </section>
+        </Card>
       )}
 
       {step === "preview" && parsed && (
-        <section className="mt-6 rounded-xl border border-gray-100 bg-white p-6 shadow-sm">
-          <h2 className="text-lg font-semibold text-gray-900">Προεπισκόπηση</h2>
+        <Card className="p-6">
+          <h2 className="text-lg font-semibold">Προεπισκόπηση</h2>
 
-          <div className="mt-3 rounded-lg bg-amber-50 px-4 py-3 text-sm text-amber-900">
+          <div className="mt-3 rounded-lg border border-primary/20 bg-primary/5 px-4 py-3 text-sm">
             Θα εισαχθούν <span className="font-semibold">{counts.newRows + counts.updateRows}</span>{" "}
             προϊόντα: <span className="font-semibold">{counts.newRows}</span> νέα,{" "}
             <span className="font-semibold">{counts.updateRows}</span> θα ενημερωθούν.
             {counts.errorRows > 0 && (
               <>
                 {" "}
-                <span className="font-semibold text-red-700">{counts.errorRows}</span> γραμμές έχουν
-                σφάλματα και θα παραλειφθούν.
+                <span className="font-semibold text-destructive">{counts.errorRows}</span> γραμμές
+                έχουν σφάλματα και θα παραλειφθούν.
               </>
             )}
           </div>
 
-          <div className="mt-4 overflow-x-auto rounded-lg border border-gray-100">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b bg-gray-50 text-left text-gray-500">
-                  <th className="px-3 py-2 font-medium">#</th>
-                  <th className="px-3 py-2 font-medium">Κατάσταση</th>
-                  <th className="px-3 py-2 font-medium">Όνομα</th>
-                  <th className="px-3 py-2 font-medium">Μάρκα</th>
-                  <th className="px-3 py-2 font-medium">Κατηγορία</th>
-                  <th className="px-3 py-2 font-medium text-right">Τιμή</th>
-                </tr>
-              </thead>
-              <tbody>
+          <div className="mt-4 overflow-x-auto rounded-lg border">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>#</TableHead>
+                  <TableHead>Κατάσταση</TableHead>
+                  <TableHead>Όνομα</TableHead>
+                  <TableHead>Μάρκα</TableHead>
+                  <TableHead>Κατηγορία</TableHead>
+                  <TableHead className="text-right">Τιμή</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
                 {applied.slice(0, showAllRows ? applied.length : PREVIEW_LIMIT).map((r, i) => {
                   const key = r.row
                     ? `${r.row.name.toLowerCase()}|${r.row.brand.toLowerCase()}`
@@ -386,27 +390,27 @@ export function ProductsImportPage() {
                       ? "update"
                       : "new";
                   return (
-                    <tr key={i} className="border-b last:border-0">
-                      <td className="px-3 py-2 text-gray-500">{i + 1}</td>
-                      <td className="px-3 py-2">
+                    <TableRow key={i}>
+                      <TableCell className="text-muted-foreground">{i + 1}</TableCell>
+                      <TableCell>
                         <StatusBadge status={status} />
-                        {r.error && <p className="mt-1 text-xs text-red-600">{r.error}</p>}
-                      </td>
-                      <td className="px-3 py-2 text-gray-900">
-                        {r.row?.name ?? r.raw[mapping.name ?? ""] ?? "-"}
-                      </td>
-                      <td className="px-3 py-2 text-gray-600">
+                        {r.error && <p className="mt-1 text-xs text-destructive">{r.error}</p>}
+                      </TableCell>
+                      <TableCell>{r.row?.name ?? r.raw[mapping.name ?? ""] ?? "-"}</TableCell>
+                      <TableCell className="text-muted-foreground">
                         {r.row?.brand ?? r.raw[mapping.brand ?? ""] ?? "-"}
-                      </td>
-                      <td className="px-3 py-2 text-gray-600">{r.row?.categoryName ?? "-"}</td>
-                      <td className="px-3 py-2 text-right text-gray-900">
+                      </TableCell>
+                      <TableCell className="text-muted-foreground">
+                        {r.row?.categoryName ?? "-"}
+                      </TableCell>
+                      <TableCell className="text-right">
                         {r.row ? `${r.row.basePrice.toFixed(2)} €` : "-"}
-                      </td>
-                    </tr>
+                      </TableCell>
+                    </TableRow>
                   );
                 })}
-              </tbody>
-            </table>
+              </TableBody>
+            </Table>
           </div>
 
           {applied.length > PREVIEW_LIMIT && (
@@ -418,24 +422,24 @@ export function ProductsImportPage() {
           )}
 
           {importMutation.error && (
-            <p className="mt-4 rounded-lg bg-red-50 px-4 py-3 text-sm text-red-700">
+            <p className="mt-4 rounded-lg border border-destructive/50 bg-destructive/10 px-4 py-3 text-sm text-destructive">
               {importMutation.error.message}
             </p>
           )}
 
-          <div className="mt-6 flex items-center justify-between">
-            <Button variant="secondary" onClick={() => setStep("map")}>
+          <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <Button variant="outline" onClick={() => setStep("map")}>
               Πίσω στην αντιστοίχιση
             </Button>
             <Button
               onClick={handleImport}
-              loading={importMutation.isPending}
-              disabled={validRows.length === 0}
+              disabled={importMutation.isPending || validRows.length === 0}
             >
+              {importMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               Εισαγωγή {validRows.length} προϊόντων
             </Button>
           </div>
-        </section>
+        </Card>
       )}
     </div>
   );
@@ -449,19 +453,18 @@ function Stepper({ current }: { current: Step }) {
   ];
   const currentIdx = steps.findIndex((s) => s.id === current);
   return (
-    <ol className="mt-6 flex gap-2 text-sm">
+    <ol className="flex flex-wrap gap-2 text-sm">
       {steps.map((s, i) => {
         const state = i < currentIdx ? "done" : i === currentIdx ? "current" : "pending";
         return (
           <li
             key={s.id}
-            className={`rounded-lg px-3 py-1.5 ${
-              state === "current"
-                ? "bg-amber-600 text-white"
-                : state === "done"
-                  ? "bg-amber-100 text-amber-800"
-                  : "bg-gray-100 text-gray-500"
-            }`}
+            className={cn(
+              "rounded-md px-3 py-1.5 text-sm font-medium",
+              state === "current" && "bg-primary text-primary-foreground",
+              state === "done" && "bg-primary/10 text-primary",
+              state === "pending" && "bg-muted text-muted-foreground",
+            )}
           >
             {s.label}
           </li>
@@ -472,23 +475,7 @@ function Stepper({ current }: { current: Step }) {
 }
 
 function StatusBadge({ status }: { status: "new" | "update" | "error" }) {
-  if (status === "new") {
-    return (
-      <span className="inline-block rounded-full bg-green-100 px-2 py-0.5 text-xs font-medium text-green-800">
-        Νέο
-      </span>
-    );
-  }
-  if (status === "update") {
-    return (
-      <span className="inline-block rounded-full bg-blue-100 px-2 py-0.5 text-xs font-medium text-blue-800">
-        Ενημέρωση
-      </span>
-    );
-  }
-  return (
-    <span className="inline-block rounded-full bg-red-100 px-2 py-0.5 text-xs font-medium text-red-800">
-      Σφάλμα
-    </span>
-  );
+  if (status === "new") return <Badge variant="success">Νέο</Badge>;
+  if (status === "update") return <Badge variant="info">Ενημέρωση</Badge>;
+  return <Badge variant="destructive">Σφάλμα</Badge>;
 }

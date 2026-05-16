@@ -1,5 +1,5 @@
 import { Navigate } from "react-router";
-import { useAuth } from "../../lib/hooks/use-auth";
+import { useAuth } from "@/lib/hooks/use-auth";
 import type { UserRole } from "@kava-now/shared";
 
 interface RequireRoleProps {

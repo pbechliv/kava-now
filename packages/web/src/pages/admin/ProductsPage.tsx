@@ -1,12 +1,29 @@
 import { useEffect, useState } from "react";
 import { useLocation, useNavigate } from "react-router";
-import { Button } from "../../components/ui/Button";
-import { Input } from "../../components/ui/Input";
-import { Spinner } from "../../components/ui/Spinner";
-import { EmptyState } from "../../components/ui/EmptyState";
-import { Badge } from "../../components/ui/Badge";
-import { useProducts, useUpdateProduct, useDeleteProduct } from "../../lib/hooks/use-products";
-import { useCategories } from "../../lib/hooks/use-categories";
+import { Pencil, Trash2, X } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Badge } from "@/components/ui/badge";
+import { Card } from "@/components/ui/card";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { Spinner } from "@/components/spinner";
+import { EmptyState } from "@/components/empty-state";
+import { useProducts, useUpdateProduct, useDeleteProduct } from "@/lib/hooks/use-products";
+import { useCategories } from "@/lib/hooks/use-categories";
 import { SeedCatalogModal } from "./SeedCatalogModal";
 import { UNIT_LABELS, type ImportProductsResult } from "@kava-now/shared";
 
@@ -23,8 +40,6 @@ export function ProductsPage() {
   const [seedModalOpen, setSeedModalOpen] = useState(false);
   const [bannerResult, setBannerResult] = useState<ImportProductsResult | null>(importResult);
 
-  // Consume the one-shot import banner: capture it locally, then clear location.state
-  // so a back-navigation / refresh doesn't re-show it.
   useEffect(() => {
     if (importResult) {
       void navigate(location.pathname, { replace: true, state: null });
@@ -50,14 +65,14 @@ export function ProductsPage() {
   };
 
   return (
-    <div>
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-gray-900">Προϊόντα</h1>
-        <div className="flex gap-3">
-          <Button variant="secondary" onClick={() => setSeedModalOpen(true)}>
+    <div className="space-y-6">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <h1 className="text-2xl font-bold tracking-tight">Προϊόντα</h1>
+        <div className="flex flex-wrap gap-2">
+          <Button variant="outline" onClick={() => setSeedModalOpen(true)}>
             Εισαγωγή από Κατάλογο
           </Button>
-          <Button variant="secondary" onClick={() => navigate("/admin/products/import")}>
+          <Button variant="outline" onClick={() => navigate("/admin/products/import")}>
             Εισαγωγή από αρχείο
           </Button>
           <Button onClick={() => navigate("/admin/products/new")}>Νέο Προϊόν</Button>
@@ -65,7 +80,7 @@ export function ProductsPage() {
       </div>
 
       {bannerResult && (
-        <div className="mt-4 flex items-start justify-between rounded-lg bg-green-50 px-4 py-3 text-sm text-green-800">
+        <div className="flex items-start justify-between gap-3 rounded-lg border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-800 dark:border-green-900 dark:bg-green-950 dark:text-green-200">
           <div>
             Η εισαγωγή ολοκληρώθηκε: <span className="font-semibold">{bannerResult.inserted}</span>{" "}
             νέα προϊόντα, <span className="font-semibold">{bannerResult.updated}</span> ενημερώθηκαν
@@ -79,110 +94,119 @@ export function ProductsPage() {
             .
           </div>
           <button
+            type="button"
             onClick={() => setBannerResult(null)}
-            className="ml-3 text-green-700 hover:text-green-900"
+            className="shrink-0 text-green-700 hover:text-green-900"
             aria-label="Κλείσιμο"
           >
-            ✕
+            <X className="h-4 w-4" />
           </button>
         </div>
       )}
 
-      {/* Filters */}
-      <div className="mt-4 flex gap-4">
-        <div className="flex-1">
-          <Input
-            placeholder="Αναζήτηση με όνομα ή brand..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-          />
-        </div>
-        <select
-          value={categoryFilter}
-          onChange={(e) => setCategoryFilter(e.target.value)}
-          className="rounded-lg border border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-amber-500 focus:outline-none focus:ring-2 focus:ring-amber-500"
+      <div className="flex flex-col gap-3 sm:flex-row">
+        <Input
+          placeholder="Αναζήτηση με όνομα ή brand..."
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          className="flex-1"
+        />
+        <Select
+          value={categoryFilter || "all"}
+          onValueChange={(v) => setCategoryFilter(v === "all" ? "" : v)}
         >
-          <option value="">Όλες οι κατηγορίες</option>
-          {categories?.map((cat) => (
-            <option key={cat.id} value={cat.id}>
-              {cat.name}
-            </option>
-          ))}
-        </select>
+          <SelectTrigger className="w-full sm:w-56">
+            <SelectValue placeholder="Όλες οι κατηγορίες" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Όλες οι κατηγορίες</SelectItem>
+            {categories?.map((cat) => (
+              <SelectItem key={cat.id} value={cat.id}>
+                {cat.name}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       </div>
 
-      {/* Table */}
-      <div className="mt-6">
-        {isLoading ? (
-          <div className="flex justify-center py-12">
-            <Spinner />
-          </div>
-        ) : !products || products.length === 0 ? (
-          <EmptyState
-            message="Δεν βρέθηκαν προϊόντα"
-            actionLabel="Νέο Προϊόν"
-            onAction={() => navigate("/admin/products/new")}
-          />
-        ) : (
-          <div className="overflow-x-auto rounded-xl border border-gray-100 bg-white shadow-sm">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b bg-gray-50 text-left text-gray-500">
-                  <th className="px-4 py-3 font-medium">Όνομα</th>
-                  <th className="px-4 py-3 font-medium">Brand</th>
-                  <th className="px-4 py-3 font-medium">Κατηγορία</th>
-                  <th className="px-4 py-3 font-medium text-right">Τιμή</th>
-                  <th className="px-4 py-3 font-medium">Μονάδα</th>
-                  <th className="px-4 py-3 font-medium text-center">Ενεργό</th>
-                  <th className="px-4 py-3 font-medium text-right">Ενέργειες</th>
-                </tr>
-              </thead>
-              <tbody>
+      {isLoading ? (
+        <div className="flex justify-center py-12">
+          <Spinner />
+        </div>
+      ) : !products || products.length === 0 ? (
+        <EmptyState
+          message="Δεν βρέθηκαν προϊόντα"
+          actionLabel="Νέο Προϊόν"
+          onAction={() => navigate("/admin/products/new")}
+        />
+      ) : (
+        <Card className="overflow-hidden">
+          <div className="overflow-x-auto">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Όνομα</TableHead>
+                  <TableHead>Brand</TableHead>
+                  <TableHead>Κατηγορία</TableHead>
+                  <TableHead className="text-right">Τιμή</TableHead>
+                  <TableHead>Μονάδα</TableHead>
+                  <TableHead className="text-center">Ενεργό</TableHead>
+                  <TableHead className="text-right">Ενέργειες</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
                 {products.map((product) => (
-                  <tr key={product.id} className="border-b last:border-0 hover:bg-gray-50">
-                    <td className="px-4 py-3 font-medium text-gray-900">{product.name}</td>
-                    <td className="px-4 py-3 text-gray-600">{product.brand ?? "-"}</td>
-                    <td className="px-4 py-3 text-gray-600">{product.categoryName ?? "-"}</td>
-                    <td className="px-4 py-3 text-right text-gray-900">
-                      {Number(product.basePrice).toFixed(2)} &euro;
-                    </td>
-                    <td className="px-4 py-3 text-gray-600">{UNIT_LABELS[product.unit]}</td>
-                    <td className="px-4 py-3 text-center">
+                  <TableRow key={product.id}>
+                    <TableCell className="font-medium">{product.name}</TableCell>
+                    <TableCell className="text-muted-foreground">{product.brand ?? "-"}</TableCell>
+                    <TableCell className="text-muted-foreground">
+                      {product.categoryName ?? "-"}
+                    </TableCell>
+                    <TableCell className="text-right">
+                      {Number(product.basePrice).toFixed(2)}&nbsp;€
+                    </TableCell>
+                    <TableCell className="text-muted-foreground">
+                      {UNIT_LABELS[product.unit]}
+                    </TableCell>
+                    <TableCell className="text-center">
                       <button
+                        type="button"
                         onClick={() => handleToggleActive(product.id, product.active)}
                         className="inline-flex"
                       >
-                        <Badge color={product.active ? "green" : "gray"}>
+                        <Badge variant={product.active ? "success" : "muted"}>
                           {product.active ? "Ναι" : "Όχι"}
                         </Badge>
                       </button>
-                    </td>
-                    <td className="px-4 py-3 text-right">
-                      <div className="flex justify-end gap-2">
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <div className="flex justify-end gap-1">
                         <Button
                           variant="ghost"
-                          size="sm"
+                          size="icon"
                           onClick={() => navigate(`/admin/products/${product.id}`)}
+                          aria-label="Επεξεργασία"
                         >
-                          Επεξεργασία
+                          <Pencil className="h-4 w-4" />
                         </Button>
                         <Button
                           variant="ghost"
-                          size="sm"
-                          className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                          size="icon"
+                          className="text-destructive hover:bg-destructive/10 hover:text-destructive"
                           onClick={() => handleDelete(product.id, product.name)}
+                          aria-label="Διαγραφή"
                         >
-                          Διαγραφή
+                          <Trash2 className="h-4 w-4" />
                         </Button>
                       </div>
-                    </td>
-                  </tr>
+                    </TableCell>
+                  </TableRow>
                 ))}
-              </tbody>
-            </table>
+              </TableBody>
+            </Table>
           </div>
-        )}
-      </div>
+        </Card>
+      )}
 
       <SeedCatalogModal open={seedModalOpen} onClose={() => setSeedModalOpen(false)} />
     </div>

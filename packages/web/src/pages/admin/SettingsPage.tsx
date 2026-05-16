@@ -1,13 +1,15 @@
 import { useState, useEffect } from "react";
-import { Card } from "../../components/ui/Card";
-import { Input } from "../../components/ui/Input";
-import { Button } from "../../components/ui/Button";
-import { Spinner } from "../../components/ui/Spinner";
-import { useSettings, useUpdateSettings } from "../../lib/hooks/use-settings";
-import { useAuth, useUpdateMe } from "../../lib/hooks/use-auth";
-import { useMutation } from "@tanstack/react-query";
-import { api } from "../../lib/api";
-import { authClient } from "../../lib/auth-client";
+import { Loader2, X } from "lucide-react";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Spinner } from "@/components/spinner";
+import { ChangePasswordCard } from "@/components/auth/ChangePasswordCard";
+import { useSettings, useUpdateSettings } from "@/lib/hooks/use-settings";
+import { useAuth, useUpdateMe } from "@/lib/hooks/use-auth";
 
 type Tab = "kava" | "profile" | "password";
 
@@ -15,53 +17,26 @@ export function SettingsPage() {
   const [tab, setTab] = useState<Tab>("kava");
 
   return (
-    <div>
-      <h1 className="text-2xl font-bold text-gray-900">Ρυθμίσεις</h1>
+    <div className="space-y-6">
+      <h1 className="text-2xl font-bold tracking-tight">Ρυθμίσεις</h1>
 
-      <div className="mt-4 border-b border-gray-200">
-        <nav className="flex gap-1 -mb-px" aria-label="Tabs">
-          <TabButton active={tab === "kava"} onClick={() => setTab("kava")}>
-            Κάβα
-          </TabButton>
-          <TabButton active={tab === "profile"} onClick={() => setTab("profile")}>
-            Προφίλ
-          </TabButton>
-          <TabButton active={tab === "password"} onClick={() => setTab("password")}>
-            Κωδικός
-          </TabButton>
-        </nav>
-      </div>
-
-      <div className="mt-6">
-        {tab === "kava" && <KavaSettingsTab />}
-        {tab === "profile" && <ProfileTab />}
-        {tab === "password" && <PasswordTab />}
-      </div>
+      <Tabs value={tab} onValueChange={(v) => setTab(v as Tab)}>
+        <TabsList className="grid w-full grid-cols-3 sm:w-auto sm:inline-flex">
+          <TabsTrigger value="kava">Κάβα</TabsTrigger>
+          <TabsTrigger value="profile">Προφίλ</TabsTrigger>
+          <TabsTrigger value="password">Κωδικός</TabsTrigger>
+        </TabsList>
+        <TabsContent value="kava" className="mt-6">
+          <KavaSettingsTab />
+        </TabsContent>
+        <TabsContent value="profile" className="mt-6">
+          <ProfileTab />
+        </TabsContent>
+        <TabsContent value="password" className="mt-6">
+          <ChangePasswordCard />
+        </TabsContent>
+      </Tabs>
     </div>
-  );
-}
-
-function TabButton({
-  active,
-  onClick,
-  children,
-}: {
-  active: boolean;
-  onClick: () => void;
-  children: React.ReactNode;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
-        active
-          ? "border-amber-500 text-amber-600"
-          : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
-      }`}
-    >
-      {children}
-    </button>
   );
 }
 
@@ -136,98 +111,97 @@ function KavaSettingsTab() {
   return (
     <form onSubmit={handleSubmit} className="max-w-2xl space-y-6">
       <Card>
-        <h2 className="text-lg font-semibold text-gray-900 mb-4">Στοιχεία Καταστήματος</h2>
-        <div className="space-y-4">
-          <Input
-            label="Όνομα"
-            id="name"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            required
-          />
-          <Input
-            label="Διεύθυνση"
-            id="address"
-            value={address}
-            onChange={(e) => setAddress(e.target.value)}
-          />
-          <Input
-            label="Τηλέφωνο"
-            id="phone"
-            value={phone}
-            onChange={(e) => setPhone(e.target.value)}
-          />
-          <Input
-            label="Email"
-            id="email"
-            type="email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            required
-          />
-          <Input
-            label="Logo URL"
-            id="logoUrl"
-            value={logoUrl}
-            onChange={(e) => setLogoUrl(e.target.value)}
-            placeholder="https://..."
-          />
-        </div>
+        <CardHeader>
+          <CardTitle>Στοιχεία Καταστήματος</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <FieldRow id="name" label="Όνομα" required>
+            <Input id="name" value={name} onChange={(e) => setName(e.target.value)} required />
+          </FieldRow>
+          <FieldRow id="address" label="Διεύθυνση">
+            <Input id="address" value={address} onChange={(e) => setAddress(e.target.value)} />
+          </FieldRow>
+          <FieldRow id="phone" label="Τηλέφωνο">
+            <Input id="phone" value={phone} onChange={(e) => setPhone(e.target.value)} />
+          </FieldRow>
+          <FieldRow id="email" label="Email" required>
+            <Input
+              id="email"
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              required
+            />
+          </FieldRow>
+          <FieldRow id="logoUrl" label="Logo URL">
+            <Input
+              id="logoUrl"
+              value={logoUrl}
+              onChange={(e) => setLogoUrl(e.target.value)}
+              placeholder="https://..."
+            />
+          </FieldRow>
+        </CardContent>
       </Card>
 
       <Card>
-        <h2 className="text-lg font-semibold text-gray-900 mb-4">Email Ειδοποιήσεων</h2>
-        <p className="text-sm text-gray-500 mb-3">
-          Αυτά τα email θα λαμβάνουν ειδοποιήσεις για νέες παραγγελίες.
-        </p>
-
-        <div className="flex flex-wrap gap-2 mb-3">
-          {notificationEmails.map((ne) => (
-            <span
-              key={ne}
-              className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-3 py-1 text-sm text-amber-800"
-            >
-              {ne}
-              <button
-                type="button"
-                onClick={() => handleRemoveEmail(ne)}
-                className="ml-1 text-amber-600 hover:text-amber-800"
-              >
-                &times;
-              </button>
-            </span>
-          ))}
-          {notificationEmails.length === 0 && (
-            <span className="text-sm text-gray-400">Δεν έχουν οριστεί email ειδοποιήσεων</span>
-          )}
-        </div>
-
-        <div className="flex items-start gap-2">
-          <div className="flex-1">
-            <Input
-              value={newEmail}
-              onChange={(e) => {
-                setNewEmail(e.target.value);
-                setEmailError("");
-              }}
-              placeholder="email@example.com"
-              error={emailError}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") {
-                  e.preventDefault();
-                  handleAddEmail();
-                }
-              }}
-            />
+        <CardHeader>
+          <CardTitle>Email Ειδοποιήσεων</CardTitle>
+          <CardDescription>
+            Αυτά τα email θα λαμβάνουν ειδοποιήσεις για νέες παραγγελίες.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <div className="flex flex-wrap gap-2">
+            {notificationEmails.map((ne) => (
+              <Badge key={ne} variant="warning" className="gap-1 py-1">
+                {ne}
+                <button
+                  type="button"
+                  onClick={() => handleRemoveEmail(ne)}
+                  className="ml-1 hover:text-foreground"
+                  aria-label="Αφαίρεση"
+                >
+                  <X className="h-3 w-3" />
+                </button>
+              </Badge>
+            ))}
+            {notificationEmails.length === 0 && (
+              <span className="text-sm text-muted-foreground">
+                Δεν έχουν οριστεί email ειδοποιήσεων
+              </span>
+            )}
           </div>
-          <Button type="button" variant="secondary" onClick={handleAddEmail} size="md">
-            Προσθήκη
-          </Button>
-        </div>
+
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-start">
+            <div className="flex-1 space-y-1">
+              <Input
+                value={newEmail}
+                onChange={(e) => {
+                  setNewEmail(e.target.value);
+                  setEmailError("");
+                }}
+                placeholder="email@example.com"
+                aria-invalid={!!emailError}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    e.preventDefault();
+                    handleAddEmail();
+                  }
+                }}
+              />
+              {emailError && <p className="text-sm text-destructive">{emailError}</p>}
+            </div>
+            <Button type="button" variant="outline" onClick={handleAddEmail}>
+              Προσθήκη
+            </Button>
+          </div>
+        </CardContent>
       </Card>
 
       <div className="flex justify-end">
-        <Button type="submit" loading={updateSettings.isPending}>
+        <Button type="submit" disabled={updateSettings.isPending}>
+          {updateSettings.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
           Αποθήκευση
         </Button>
       </div>
@@ -270,36 +244,36 @@ function ProfileTab() {
   return (
     <form onSubmit={handleSubmit} className="max-w-2xl space-y-6">
       <Card>
-        <h2 className="text-lg font-semibold text-gray-900 mb-4">Τα στοιχεία μου</h2>
-        <div className="space-y-4">
-          <Input
-            label="Όνομα"
-            id="me-name"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            required
-          />
-          <Input
-            label="Email"
-            id="me-email"
-            type="email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            required
-          />
+        <CardHeader>
+          <CardTitle>Τα στοιχεία μου</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <FieldRow id="me-name" label="Όνομα" required>
+            <Input id="me-name" value={name} onChange={(e) => setName(e.target.value)} required />
+          </FieldRow>
+          <FieldRow id="me-email" label="Email" required>
+            <Input
+              id="me-email"
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              required
+            />
+          </FieldRow>
           {user?.invitedBy && (
-            <div className="text-sm text-gray-500">
+            <div className="text-sm text-muted-foreground">
               Προσκληθήκατε από{" "}
-              <span className="font-medium text-gray-700">{user.invitedBy.name}</span> (
+              <span className="font-medium text-foreground">{user.invitedBy.name}</span> (
               {user.invitedBy.email})
             </div>
           )}
-          {error && <p className="text-sm text-red-600">{error}</p>}
+          {error && <p className="text-sm text-destructive">{error}</p>}
           {updateMe.isSuccess && <p className="text-sm text-green-600">Το προφίλ ενημερώθηκε</p>}
-        </div>
+        </CardContent>
       </Card>
       <div className="flex justify-end">
-        <Button type="submit" loading={updateMe.isPending}>
+        <Button type="submit" disabled={updateMe.isPending}>
+          {updateMe.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
           Αποθήκευση
         </Button>
       </div>
@@ -307,103 +281,24 @@ function ProfileTab() {
   );
 }
 
-function PasswordTab() {
-  const { user } = useAuth();
-  const [currentPassword, setCurrentPassword] = useState("");
-  const [newPassword, setNewPassword] = useState("");
-  const [confirmNewPassword, setConfirmNewPassword] = useState("");
-  const [passwordError, setPasswordError] = useState("");
-
-  const changePassword = useMutation({
-    mutationFn: async (data: { currentPassword?: string; newPassword: string }) => {
-      if (data.currentPassword) {
-        const { error } = await authClient.changePassword({
-          currentPassword: data.currentPassword,
-          newPassword: data.newPassword,
-        });
-        if (error) throw new Error(error.message ?? "Σφάλμα");
-        return;
-      }
-      // set-password isn't exposed by better-auth's REST API; use our proxy.
-      await api.post("/api/auth/set-password", {
-        newPassword: data.newPassword,
-      });
-    },
-    onSuccess: () => {
-      setCurrentPassword("");
-      setNewPassword("");
-      setConfirmNewPassword("");
-      setPasswordError("");
-    },
-    onError: (err) => {
-      setPasswordError(err instanceof Error ? err.message : "Κάτι πήγε στραβά");
-    },
-  });
-
-  const handleChangePassword = (e: React.FormEvent) => {
-    e.preventDefault();
-    setPasswordError("");
-
-    if (newPassword.length < 8) {
-      setPasswordError("Ο κωδικός πρέπει να έχει τουλάχιστον 8 χαρακτήρες");
-      return;
-    }
-
-    if (newPassword !== confirmNewPassword) {
-      setPasswordError("Οι κωδικοί δεν ταιριάζουν");
-      return;
-    }
-
-    changePassword.mutate({
-      ...(user?.hasPassword ? { currentPassword } : {}),
-      newPassword,
-    });
-  };
-
+function FieldRow({
+  id,
+  label,
+  required,
+  children,
+}: {
+  id: string;
+  label: string;
+  required?: boolean;
+  children: React.ReactNode;
+}) {
   return (
-    <form onSubmit={handleChangePassword} className="max-w-2xl space-y-6">
-      <Card>
-        <h2 className="text-lg font-semibold text-gray-900 mb-4">
-          {user?.hasPassword ? "Αλλαγή κωδικού" : "Ορισμός κωδικού"}
-        </h2>
-        <div className="space-y-4">
-          {user?.hasPassword && (
-            <Input
-              id="currentPassword"
-              type="password"
-              label="Τρέχων κωδικός"
-              value={currentPassword}
-              onChange={(e) => setCurrentPassword(e.target.value)}
-            />
-          )}
-          <Input
-            id="newPassword"
-            type="password"
-            label="Νέος κωδικός"
-            placeholder="Τουλάχιστον 8 χαρακτήρες"
-            value={newPassword}
-            onChange={(e) => setNewPassword(e.target.value)}
-          />
-          <Input
-            id="confirmNewPassword"
-            type="password"
-            label="Επιβεβαίωση νέου κωδικού"
-            value={confirmNewPassword}
-            onChange={(e) => setConfirmNewPassword(e.target.value)}
-          />
-
-          {passwordError && <p className="text-sm text-red-600">{passwordError}</p>}
-
-          {changePassword.isSuccess && (
-            <p className="text-sm text-green-600">Ο κωδικός άλλαξε επιτυχώς</p>
-          )}
-        </div>
-      </Card>
-      <div className="flex justify-end">
-        <Button type="submit" loading={changePassword.isPending}>
-          {user?.hasPassword ? "Αλλαγή κωδικού" : "Ορισμός κωδικού"}
-        </Button>
-      </div>
-    </form>
+    <div className="space-y-2">
+      <Label htmlFor={id}>
+        {label}
+        {required && <span className="ml-0.5 text-destructive">*</span>}
+      </Label>
+      {children}
+    </div>
   );
 }

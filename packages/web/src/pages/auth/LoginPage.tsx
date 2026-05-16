@@ -3,11 +3,20 @@ import { useForm } from "react-hook-form";
 import { useQuery } from "@tanstack/react-query";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { loginSchema, type LoginInput } from "@kava-now/shared";
-import { useLogin } from "../../lib/hooks/use-login";
-import { api } from "../../lib/api";
-import { Input } from "../../components/ui/Input";
-import { Button } from "../../components/ui/Button";
 import { Link } from "react-router";
+import { Loader2, MailCheck } from "lucide-react";
+import { useLogin } from "@/lib/hooks/use-login";
+import { api } from "@/lib/api";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/components/ui/form";
 
 export function LoginPage() {
   const login = useLogin();
@@ -20,12 +29,8 @@ export function LoginPage() {
     retry: false,
     staleTime: Infinity,
   });
-  const {
-    register,
-    handleSubmit,
-    getValues,
-    formState: { errors },
-  } = useForm<LoginInput>({
+
+  const form = useForm<LoginInput>({
     resolver: zodResolver(loginSchema),
   });
 
@@ -40,8 +45,11 @@ export function LoginPage() {
   };
 
   const sendMagicLink = () => {
-    const email = getValues("email");
-    if (!email) return;
+    const email = form.getValues("email");
+    if (!email) {
+      void form.trigger("email");
+      return;
+    }
     login.mutate(
       { email },
       {
@@ -53,115 +61,119 @@ export function LoginPage() {
   if (magicLinkSent) {
     return (
       <div className="text-center">
-        <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-green-100">
-          <svg
-            className="h-6 w-6 text-green-600"
-            fill="none"
-            viewBox="0 0 24 24"
-            stroke="currentColor"
-            strokeWidth={2}
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              d="M21.75 6.75v10.5a2.25 2.25 0 01-2.25 2.25h-15a2.25 2.25 0 01-2.25-2.25V6.75m19.5 0A2.25 2.25 0 0019.5 4.5h-15a2.25 2.25 0 00-2.25 2.25m19.5 0v.243a2.25 2.25 0 01-1.07 1.916l-7.5 4.615a2.25 2.25 0 01-2.36 0L3.32 8.91a2.25 2.25 0 01-1.07-1.916V6.75"
-            />
-          </svg>
+        <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-primary/10">
+          <MailCheck className="h-6 w-6 text-primary" />
         </div>
-        <h2 className="text-lg font-semibold text-gray-900">Ελέγξτε το email σας</h2>
-        <p className="mt-2 text-sm text-gray-600">Ελέγξτε το email σας για τον σύνδεσμο εισόδου</p>
+        <h2 className="text-lg font-semibold">Ελέγξτε το email σας</h2>
+        <p className="mt-2 text-sm text-muted-foreground">
+          Ελέγξτε το email σας για τον σύνδεσμο εισόδου
+        </p>
       </div>
     );
   }
 
   return (
-    <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-      {kavaInfo?.name && (
-        <h2 className="text-xl font-bold text-gray-900 text-center">{kavaInfo.name}</h2>
-      )}
-      <h2 className="text-lg font-semibold text-gray-900 text-center">Σύνδεση</h2>
+    <Form {...form}>
+      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+        {kavaInfo?.name && <h2 className="text-center text-xl font-bold">{kavaInfo.name}</h2>}
+        <h2 className="text-center text-lg font-semibold">Σύνδεση</h2>
 
-      <Input
-        id="email"
-        type="email"
-        label="Email"
-        placeholder="you@example.com"
-        error={errors.email?.message}
-        {...register("email")}
-      />
+        <FormField
+          control={form.control}
+          name="email"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Email</FormLabel>
+              <FormControl>
+                <Input type="email" placeholder="you@example.com" autoComplete="email" {...field} />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
 
-      {showPassword ? (
-        <>
-          <Input
-            id="password"
-            type="password"
-            label="Κωδικός"
-            placeholder="Εισάγετε τον κωδικό σας"
-            error={errors.password?.message}
-            {...register("password")}
-          />
+        {showPassword ? (
+          <>
+            <FormField
+              control={form.control}
+              name="password"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Κωδικός</FormLabel>
+                  <FormControl>
+                    <Input
+                      type="password"
+                      placeholder="Εισάγετε τον κωδικό σας"
+                      autoComplete="current-password"
+                      {...field}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
 
-          <div className="text-right">
-            <Link
-              to="/auth/forgot-password"
-              className="text-sm text-amber-600 hover:text-amber-700"
+            <div className="text-right">
+              <Link to="/auth/forgot-password" className="text-sm text-primary hover:underline">
+                Ξεχάσατε τον κωδικό;
+              </Link>
+            </div>
+
+            {login.error && (
+              <p className="text-sm text-destructive">
+                {login.error instanceof Error ? login.error.message : "Κάτι πήγε στραβά"}
+              </p>
+            )}
+
+            <Button type="submit" className="w-full" disabled={login.isPending}>
+              {login.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Σύνδεση
+            </Button>
+
+            <button
+              type="button"
+              onClick={() => setShowPassword(false)}
+              className="block w-full text-center text-sm text-muted-foreground transition-colors hover:text-primary"
             >
-              Ξεχάσατε τον κωδικό;
-            </Link>
-          </div>
+              Σύνδεση με σύνδεσμο
+            </button>
+          </>
+        ) : (
+          <>
+            {login.error && (
+              <p className="text-sm text-destructive">
+                {login.error instanceof Error ? login.error.message : "Κάτι πήγε στραβά"}
+              </p>
+            )}
 
-          {login.error && (
-            <p className="text-sm text-red-600">
-              {login.error instanceof Error ? login.error.message : "Κάτι πήγε στραβά"}
-            </p>
-          )}
+            <Button
+              type="button"
+              className="w-full"
+              disabled={login.isPending}
+              onClick={sendMagicLink}
+            >
+              {login.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Σύνδεση με σύνδεσμο
+            </Button>
 
-          <Button type="submit" className="w-full" loading={login.isPending}>
-            Σύνδεση
-          </Button>
+            <Button
+              type="button"
+              variant="outline"
+              className="w-full"
+              onClick={() => setShowPassword(true)}
+            >
+              Σύνδεση με κωδικό
+            </Button>
+          </>
+        )}
 
-          <button
-            type="button"
-            onClick={() => setShowPassword(false)}
-            className="w-full text-center text-sm text-gray-500 hover:text-amber-600 transition-colors"
-          >
-            Σύνδεση με σύνδεσμο
-          </button>
-        </>
-      ) : (
-        <>
-          {login.error && (
-            <p className="text-sm text-red-600">
-              {login.error instanceof Error ? login.error.message : "Κάτι πήγε στραβά"}
-            </p>
-          )}
-
-          <Button
-            type="button"
-            className="w-full"
-            loading={login.isPending}
-            onClick={sendMagicLink}
-          >
-            Σύνδεση με σύνδεσμο
-          </Button>
-
-          <Button
-            type="button"
-            variant="secondary"
-            className="w-full"
-            onClick={() => setShowPassword(true)}
-          >
-            Σύνδεση με κωδικό
-          </Button>
-        </>
-      )}
-
-      <p className="text-center text-sm text-gray-500">
-        Δεν έχετε λογαριασμό;{" "}
-        <Link to="/register" className="text-amber-600 hover:text-amber-700 font-medium">
-          Εγγραφή
-        </Link>
-      </p>
-    </form>
+        <p className="text-center text-sm text-muted-foreground">
+          Δεν έχετε λογαριασμό;{" "}
+          <Link to="/register" className="font-medium text-primary hover:underline">
+            Εγγραφή
+          </Link>
+        </p>
+      </form>
+    </Form>
   );
 }

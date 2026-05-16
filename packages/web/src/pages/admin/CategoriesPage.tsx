@@ -1,14 +1,32 @@
 import { useState } from "react";
-import { Button } from "../../components/ui/Button";
-import { Input } from "../../components/ui/Input";
-import { Spinner } from "../../components/ui/Spinner";
-import { EmptyState } from "../../components/ui/EmptyState";
+import { Loader2 } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Card } from "@/components/ui/card";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { Spinner } from "@/components/spinner";
+import { EmptyState } from "@/components/empty-state";
 import {
   useCategories,
   useCreateCategory,
   useUpdateCategory,
   useDeleteCategory,
-} from "../../lib/hooks/use-categories";
+} from "@/lib/hooks/use-categories";
 
 export function CategoriesPage() {
   const { data: categories, isLoading } = useCategories();
@@ -18,6 +36,7 @@ export function CategoriesPage() {
 
   const [newName, setNewName] = useState("");
   const [newParentId, setNewParentId] = useState("");
+  const [newNameError, setNewNameError] = useState("");
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editName, setEditName] = useState("");
   const [editParentId, setEditParentId] = useState("");
@@ -25,10 +44,15 @@ export function CategoriesPage() {
 
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newName.trim()) return;
+    const trimmed = newName.trim();
+    if (!trimmed) {
+      setNewNameError("Συμπληρώστε το όνομα της κατηγορίας");
+      return;
+    }
+    setNewNameError("");
 
     await createMutation.mutateAsync({
-      name: newName.trim(),
+      name: trimmed,
       parentId: newParentId || null,
     });
     setNewName("");
@@ -67,122 +91,139 @@ export function CategoriesPage() {
   };
 
   return (
-    <div>
-      <h1 className="text-2xl font-bold text-gray-900">Κατηγορίες</h1>
+    <div className="space-y-6">
+      <h1 className="text-2xl font-bold tracking-tight">Κατηγορίες</h1>
 
-      {/* Inline add form */}
-      <form
-        onSubmit={handleCreate}
-        className="mt-4 flex items-end gap-3 rounded-xl border border-gray-100 bg-white p-4 shadow-sm"
-      >
-        <div className="flex-1">
-          <Input
-            label="Νέα κατηγορία"
-            placeholder="Όνομα κατηγορίας"
-            value={newName}
-            onChange={(e) => setNewName(e.target.value)}
-          />
-        </div>
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Γονική κατηγορία</label>
-          <select
-            value={newParentId}
-            onChange={(e) => setNewParentId(e.target.value)}
-            className="rounded-lg border border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-amber-500 focus:outline-none focus:ring-2 focus:ring-amber-500"
-          >
-            <option value="">Καμία</option>
-            {categories?.map((cat) => (
-              <option key={cat.id} value={cat.id}>
-                {cat.name}
-              </option>
-            ))}
-          </select>
-        </div>
-        <Button type="submit" loading={createMutation.isPending}>
-          Προσθήκη
-        </Button>
-      </form>
+      <Card className="p-4">
+        <form onSubmit={handleCreate} className="flex flex-col gap-3 sm:flex-row sm:items-end">
+          <div className="flex-1 space-y-2">
+            <Label htmlFor="cat-name">Νέα κατηγορία</Label>
+            <Input
+              id="cat-name"
+              placeholder="Όνομα κατηγορίας"
+              value={newName}
+              onChange={(e) => {
+                setNewName(e.target.value);
+                if (newNameError) setNewNameError("");
+              }}
+              aria-invalid={!!newNameError}
+            />
+            {newNameError && <p className="text-sm text-destructive">{newNameError}</p>}
+          </div>
+          <div className="space-y-2 sm:w-56">
+            <Label htmlFor="cat-parent">Γονική κατηγορία</Label>
+            <Select
+              value={newParentId || "none"}
+              onValueChange={(v) => setNewParentId(v === "none" ? "" : v)}
+            >
+              <SelectTrigger id="cat-parent" className="w-full">
+                <SelectValue placeholder="Καμία" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="none">Καμία</SelectItem>
+                {categories?.map((cat) => (
+                  <SelectItem key={cat.id} value={cat.id}>
+                    {cat.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <Button type="submit" disabled={createMutation.isPending}>
+            {createMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+            Προσθήκη
+          </Button>
+        </form>
+      </Card>
 
-      {/* Error messages */}
       {deleteMutation.error && (
-        <div className="mt-4 rounded-lg bg-red-50 px-4 py-3 text-sm text-red-800">
+        <div className="rounded-lg border border-destructive/50 bg-destructive/10 px-4 py-3 text-sm text-destructive">
           {deleteMutation.error.message}
         </div>
       )}
 
-      {/* Category list */}
-      <div className="mt-6">
-        {isLoading ? (
-          <div className="flex justify-center py-12">
-            <Spinner />
-          </div>
-        ) : !categories || categories.length === 0 ? (
-          <EmptyState message="Δεν υπάρχουν κατηγορίες" />
-        ) : (
-          <div className="overflow-x-auto rounded-xl border border-gray-100 bg-white shadow-sm">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b bg-gray-50 text-left text-gray-500">
-                  <th className="px-4 py-3 font-medium">Όνομα</th>
-                  <th className="px-4 py-3 font-medium">Γονική</th>
-                  <th className="px-4 py-3 font-medium text-center">Σειρά</th>
-                  <th className="px-4 py-3 font-medium text-right">Ενέργειες</th>
-                </tr>
-              </thead>
-              <tbody>
+      {isLoading ? (
+        <div className="flex justify-center py-12">
+          <Spinner />
+        </div>
+      ) : !categories || categories.length === 0 ? (
+        <EmptyState message="Δεν υπάρχουν κατηγορίες" />
+      ) : (
+        <Card className="overflow-hidden">
+          <div className="overflow-x-auto">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Όνομα</TableHead>
+                  <TableHead>Γονική</TableHead>
+                  <TableHead className="text-center">Σειρά</TableHead>
+                  <TableHead className="text-right">Ενέργειες</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
                 {categories.map((cat) => (
-                  <tr key={cat.id} className="border-b last:border-0 hover:bg-gray-50">
+                  <TableRow key={cat.id}>
                     {editingId === cat.id ? (
                       <>
-                        <td className="px-4 py-2">
+                        <TableCell>
                           <Input value={editName} onChange={(e) => setEditName(e.target.value)} />
-                        </td>
-                        <td className="px-4 py-2">
-                          <select
-                            value={editParentId}
-                            onChange={(e) => setEditParentId(e.target.value)}
-                            className="rounded-lg border border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-amber-500 focus:outline-none focus:ring-2 focus:ring-amber-500"
+                        </TableCell>
+                        <TableCell>
+                          <Select
+                            value={editParentId || "none"}
+                            onValueChange={(v) => setEditParentId(v === "none" ? "" : v)}
                           >
-                            <option value="">Καμία</option>
-                            {categories
-                              .filter((c) => c.id !== cat.id)
-                              .map((c) => (
-                                <option key={c.id} value={c.id}>
-                                  {c.name}
-                                </option>
-                              ))}
-                          </select>
-                        </td>
-                        <td className="px-4 py-2 text-center">
-                          <input
+                            <SelectTrigger className="w-full">
+                              <SelectValue placeholder="Καμία" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="none">Καμία</SelectItem>
+                              {categories
+                                .filter((c) => c.id !== cat.id)
+                                .map((c) => (
+                                  <SelectItem key={c.id} value={c.id}>
+                                    {c.name}
+                                  </SelectItem>
+                                ))}
+                            </SelectContent>
+                          </Select>
+                        </TableCell>
+                        <TableCell className="text-center">
+                          <Input
                             type="number"
                             value={editSortOrder}
                             onChange={(e) => setEditSortOrder(Number(e.target.value))}
-                            className="w-20 rounded-lg border border-gray-300 px-2 py-2 text-center text-sm shadow-sm focus:border-amber-500 focus:outline-none focus:ring-2 focus:ring-amber-500"
+                            className="mx-auto w-20 text-center"
                           />
-                        </td>
-                        <td className="px-4 py-2 text-right">
+                        </TableCell>
+                        <TableCell className="text-right">
                           <div className="flex justify-end gap-2">
                             <Button
-                              variant="primary"
                               size="sm"
                               onClick={handleUpdate}
-                              loading={updateMutation.isPending}
+                              disabled={updateMutation.isPending}
                             >
+                              {updateMutation.isPending && (
+                                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                              )}
                               Αποθήκευση
                             </Button>
                             <Button variant="ghost" size="sm" onClick={() => setEditingId(null)}>
                               Ακύρωση
                             </Button>
                           </div>
-                        </td>
+                        </TableCell>
                       </>
                     ) : (
                       <>
-                        <td className="px-4 py-3 font-medium text-gray-900">{cat.name}</td>
-                        <td className="px-4 py-3 text-gray-600">{cat.parentName ?? "-"}</td>
-                        <td className="px-4 py-3 text-center text-gray-600">{cat.sortOrder}</td>
-                        <td className="px-4 py-3 text-right">
+                        <TableCell className="font-medium">{cat.name}</TableCell>
+                        <TableCell className="text-muted-foreground">
+                          {cat.parentName ?? "-"}
+                        </TableCell>
+                        <TableCell className="text-center text-muted-foreground">
+                          {cat.sortOrder}
+                        </TableCell>
+                        <TableCell className="text-right">
                           <div className="flex justify-end gap-2">
                             <Button variant="ghost" size="sm" onClick={() => startEdit(cat)}>
                               Επεξεργασία
@@ -190,22 +231,22 @@ export function CategoriesPage() {
                             <Button
                               variant="ghost"
                               size="sm"
-                              className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                              className="text-destructive hover:bg-destructive/10 hover:text-destructive"
                               onClick={() => handleDelete(cat.id, cat.name)}
                             >
                               Διαγραφή
                             </Button>
                           </div>
-                        </td>
+                        </TableCell>
                       </>
                     )}
-                  </tr>
+                  </TableRow>
                 ))}
-              </tbody>
-            </table>
+              </TableBody>
+            </Table>
           </div>
-        )}
-      </div>
+        </Card>
+      )}
     </div>
   );
 }

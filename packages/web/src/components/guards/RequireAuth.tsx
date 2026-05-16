@@ -1,6 +1,6 @@
 import { Navigate } from "react-router";
-import { useAuth } from "../../lib/hooks/use-auth";
-import { Spinner } from "../ui/Spinner";
+import { useAuth } from "@/lib/hooks/use-auth";
+import { Spinner } from "@/components/spinner";
 
 export function RequireAuth({ children }: { children: React.ReactNode }) {
   const { isAuthenticated, isLoading } = useAuth();

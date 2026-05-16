@@ -1,6 +1,6 @@
 import { Navigate } from "react-router";
-import { useAuth } from "../lib/hooks/use-auth";
-import { Spinner } from "../components/ui/Spinner";
+import { useAuth } from "@/lib/hooks/use-auth";
+import { Spinner } from "@/components/spinner";
 
 export function HomePage() {
   const { user, isLoading, isAuthenticated } = useAuth();

@@ -1,10 +1,19 @@
 import { useState } from "react";
 import { useNavigate } from "react-router";
-import { Button } from "../../components/ui/Button";
-import { Input } from "../../components/ui/Input";
-import { Spinner } from "../../components/ui/Spinner";
-import { EmptyState } from "../../components/ui/EmptyState";
-import { useCustomers, useDeleteCustomer } from "../../lib/hooks/use-customers";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Card } from "@/components/ui/card";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { Spinner } from "@/components/spinner";
+import { EmptyState } from "@/components/empty-state";
+import { useCustomers, useDeleteCustomer } from "@/lib/hooks/use-customers";
 import { CustomerFormModal } from "./CustomerFormModal";
 
 export function CustomersPage() {
@@ -33,54 +42,54 @@ export function CustomersPage() {
   };
 
   return (
-    <div>
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-gray-900">Πελάτες</h1>
-        <Button onClick={handleCreate}>Νέος Πελάτης</Button>
+    <div className="space-y-6">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <h1 className="text-2xl font-bold tracking-tight">Πελάτες</h1>
+        <Button onClick={handleCreate} className="self-start sm:self-auto">
+          Νέος Πελάτης
+        </Button>
       </div>
 
-      {/* Search */}
-      <div className="mt-4">
-        <Input
-          placeholder="Αναζήτηση με όνομα ή υπεύθυνο..."
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
+      <Input
+        placeholder="Αναζήτηση με όνομα ή υπεύθυνο..."
+        value={search}
+        onChange={(e) => setSearch(e.target.value)}
+      />
+
+      {isLoading ? (
+        <div className="flex justify-center py-12">
+          <Spinner />
+        </div>
+      ) : !customers || customers.length === 0 ? (
+        <EmptyState
+          message="Δεν βρέθηκαν πελάτες"
+          actionLabel="Νέος Πελάτης"
+          onAction={handleCreate}
         />
-      </div>
-
-      {/* Table */}
-      <div className="mt-6">
-        {isLoading ? (
-          <div className="flex justify-center py-12">
-            <Spinner />
-          </div>
-        ) : !customers || customers.length === 0 ? (
-          <EmptyState
-            message="Δεν βρέθηκαν πελάτες"
-            actionLabel="Νέος Πελάτης"
-            onAction={handleCreate}
-          />
-        ) : (
-          <div className="overflow-x-auto rounded-xl border border-gray-100 bg-white shadow-sm">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b bg-gray-50 text-left text-gray-500">
-                  <th className="px-4 py-3 font-medium">Όνομα</th>
-                  <th className="px-4 py-3 font-medium">Email</th>
-                  <th className="px-4 py-3 font-medium">Τηλέφωνο</th>
-                  <th className="px-4 py-3 font-medium">Υπεύθυνος</th>
-                  <th className="px-4 py-3 font-medium text-right">Ενέργειες</th>
-                </tr>
-              </thead>
-              <tbody>
+      ) : (
+        <Card className="overflow-hidden">
+          <div className="overflow-x-auto">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Όνομα</TableHead>
+                  <TableHead>Email</TableHead>
+                  <TableHead>Τηλέφωνο</TableHead>
+                  <TableHead>Υπεύθυνος</TableHead>
+                  <TableHead className="text-right">Ενέργειες</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
                 {customers.map((customer) => (
-                  <tr key={customer.id} className="border-b last:border-0 hover:bg-gray-50">
-                    <td className="px-4 py-3 font-medium text-gray-900">{customer.name}</td>
-                    <td className="px-4 py-3 text-gray-600">{customer.email ?? "-"}</td>
-                    <td className="px-4 py-3 text-gray-600">{customer.phone ?? "-"}</td>
-                    <td className="px-4 py-3 text-gray-600">{customer.contactPerson ?? "-"}</td>
-                    <td className="px-4 py-3 text-right">
-                      <div className="flex justify-end gap-2">
+                  <TableRow key={customer.id}>
+                    <TableCell className="font-medium">{customer.name}</TableCell>
+                    <TableCell className="text-muted-foreground">{customer.email ?? "-"}</TableCell>
+                    <TableCell className="text-muted-foreground">{customer.phone ?? "-"}</TableCell>
+                    <TableCell className="text-muted-foreground">
+                      {customer.contactPerson ?? "-"}
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <div className="flex justify-end gap-1">
                         <Button variant="ghost" size="sm" onClick={() => handleEdit(customer.id)}>
                           Επεξεργασία
                         </Button>
@@ -101,20 +110,20 @@ export function CustomersPage() {
                         <Button
                           variant="ghost"
                           size="sm"
-                          className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                          className="text-destructive hover:bg-destructive/10 hover:text-destructive"
                           onClick={() => handleDelete(customer.id, customer.name)}
                         >
                           Διαγραφή
                         </Button>
                       </div>
-                    </td>
-                  </tr>
+                    </TableCell>
+                  </TableRow>
                 ))}
-              </tbody>
-            </table>
+              </TableBody>
+            </Table>
           </div>
-        )}
-      </div>
+        </Card>
+      )}
 
       <CustomerFormModal
         open={modalOpen}

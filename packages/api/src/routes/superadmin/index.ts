@@ -3,7 +3,7 @@ import { eq, and } from "drizzle-orm";
 import { registerSchema, encodeAuthEmail } from "@kava-now/shared";
 import { db } from "../../db/connection";
 import { kavas, users, categories, products, seedProducts } from "../../db/schema/index";
-import { DEFAULT_CATEGORIES } from "../../db/seed-categories";
+import { DEFAULT_CATEGORIES } from "../../db/seeds/categories";
 import { auth } from "../../auth";
 import { requireAuth } from "../../middleware/require-auth";
 import { requireSuperAdmin } from "../../middleware/require-superadmin";

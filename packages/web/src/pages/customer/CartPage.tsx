@@ -1,8 +1,23 @@
 import { useState } from "react";
 import { useNavigate } from "react-router";
-import { useCartStore, setCartSlug } from "../../lib/store/cart";
-import { useCreateOrder } from "../../lib/hooks/use-customer-orders";
-import { useAuth } from "../../lib/hooks/use-auth";
+import { Loader2, Trash2 } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { Card } from "@/components/ui/card";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { EmptyState } from "@/components/empty-state";
+import { useCartStore, setCartSlug } from "@/lib/store/cart";
+import { useCreateOrder } from "@/lib/hooks/use-customer-orders";
+import { useAuth } from "@/lib/hooks/use-auth";
 import { UNIT_LABELS } from "@kava-now/shared";
 
 export function CartPage() {
@@ -48,153 +63,143 @@ export function CartPage() {
 
   if (cartItems.length === 0) {
     return (
-      <div>
-        <h1 className="text-2xl font-bold text-gray-900">Καλάθι</h1>
-        <div className="mt-8 text-center">
-          <p className="text-gray-500">Το καλάθι σας είναι άδειο.</p>
-          <button
-            type="button"
-            onClick={() => navigate("/catalog")}
-            className="mt-4 rounded-lg bg-amber-600 px-4 py-2 text-sm font-medium text-white hover:bg-amber-700"
-          >
-            Πλοήγηση στον κατάλογο
-          </button>
-        </div>
+      <div className="space-y-6">
+        <h1 className="text-2xl font-bold tracking-tight">Καλάθι</h1>
+        <EmptyState
+          message="Το καλάθι σας είναι άδειο"
+          actionLabel="Πλοήγηση στον κατάλογο"
+          onAction={() => navigate("/catalog")}
+        />
       </div>
     );
   }
 
   return (
-    <div>
-      <h1 className="text-2xl font-bold text-gray-900">Καλάθι</h1>
+    <div className="space-y-6">
+      <h1 className="text-2xl font-bold tracking-tight">Καλάθι</h1>
 
-      {/* Cart items */}
-      <div className="mt-4 overflow-x-auto">
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="border-b border-gray-200 text-left text-gray-500">
-              <th className="pb-2 pr-4 font-medium">Προϊόν</th>
-              <th className="pb-2 pr-4 font-medium text-center">Τιμή</th>
-              <th className="pb-2 pr-4 font-medium text-center">Ποσότητα</th>
-              <th className="pb-2 pr-4 font-medium text-right">Σύνολο</th>
-              <th className="pb-2 font-medium" />
-            </tr>
-          </thead>
-          <tbody>
-            {cartItems.map((item) => (
-              <tr key={item.product.id} className="border-b border-gray-100">
-                <td className="py-3 pr-4">
-                  <div className="font-medium text-gray-900">{item.product.name}</div>
-                  {item.product.brand && (
-                    <div className="text-xs text-gray-500">{item.product.brand}</div>
-                  )}
-                </td>
-                <td className="py-3 pr-4 text-center text-gray-700">
-                  {item.product.resolvedPrice.toFixed(2)}&euro;
-                  <span className="text-xs text-gray-400">/{UNIT_LABELS[item.product.unit]}</span>
-                </td>
-                <td className="py-3 pr-4">
-                  <div className="flex items-center justify-center gap-1">
-                    <button
+      <Card className="overflow-hidden">
+        <div className="overflow-x-auto">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Προϊόν</TableHead>
+                <TableHead className="text-center">Τιμή</TableHead>
+                <TableHead className="text-center">Ποσότητα</TableHead>
+                <TableHead className="text-right">Σύνολο</TableHead>
+                <TableHead />
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {cartItems.map((item) => (
+                <TableRow key={item.product.id}>
+                  <TableCell>
+                    <div className="font-medium">{item.product.name}</div>
+                    {item.product.brand && (
+                      <div className="text-xs text-muted-foreground">{item.product.brand}</div>
+                    )}
+                  </TableCell>
+                  <TableCell className="text-center text-muted-foreground">
+                    {item.product.resolvedPrice.toFixed(2)}&nbsp;€
+                    <span className="text-xs text-muted-foreground/70">
+                      /{UNIT_LABELS[item.product.unit]}
+                    </span>
+                  </TableCell>
+                  <TableCell>
+                    <div className="flex items-center justify-center gap-1">
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8"
+                        onClick={() => updateQuantity(item.product.id, item.quantity - 1)}
+                      >
+                        -
+                      </Button>
+                      <Input
+                        type="number"
+                        min={1}
+                        value={item.quantity}
+                        onChange={(e) =>
+                          updateQuantity(item.product.id, parseInt(e.target.value) || 1)
+                        }
+                        className="h-8 w-14 text-center"
+                      />
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8"
+                        onClick={() => updateQuantity(item.product.id, item.quantity + 1)}
+                      >
+                        +
+                      </Button>
+                    </div>
+                  </TableCell>
+                  <TableCell className="text-right font-medium">
+                    {(item.product.resolvedPrice * item.quantity).toFixed(2)}&nbsp;€
+                  </TableCell>
+                  <TableCell>
+                    <Button
                       type="button"
-                      onClick={() => updateQuantity(item.product.id, item.quantity - 1)}
-                      className="rounded px-2 py-0.5 text-gray-600 hover:bg-gray-100"
+                      variant="ghost"
+                      size="icon"
+                      className="text-destructive hover:bg-destructive/10 hover:text-destructive"
+                      onClick={() => removeItem(item.product.id)}
+                      aria-label="Αφαίρεση"
                     >
-                      -
-                    </button>
-                    <input
-                      type="number"
-                      min={1}
-                      value={item.quantity}
-                      onChange={(e) =>
-                        updateQuantity(item.product.id, parseInt(e.target.value) || 1)
-                      }
-                      className="w-12 rounded border border-gray-300 px-1 py-0.5 text-center text-sm"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => updateQuantity(item.product.id, item.quantity + 1)}
-                      className="rounded px-2 py-0.5 text-gray-600 hover:bg-gray-100"
-                    >
-                      +
-                    </button>
-                  </div>
-                </td>
-                <td className="py-3 pr-4 text-right font-medium text-gray-900">
-                  {(item.product.resolvedPrice * item.quantity).toFixed(2)}&euro;
-                </td>
-                <td className="py-3">
-                  <button
-                    type="button"
-                    onClick={() => removeItem(item.product.id)}
-                    className="text-red-500 hover:text-red-700"
-                    title="Αφαίρεση"
-                  >
-                    <svg
-                      className="h-4 w-4"
-                      fill="none"
-                      viewBox="0 0 24 24"
-                      stroke="currentColor"
-                      strokeWidth={2}
-                    >
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-                    </svg>
-                  </button>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </div>
+      </Card>
 
-      {/* Notes */}
-      <div className="mt-6">
-        <label htmlFor="order-notes" className="block text-sm font-medium text-gray-700">
-          Σημειώσεις παραγγελίας
-        </label>
-        <textarea
+      <div className="space-y-2">
+        <Label htmlFor="order-notes">Σημειώσεις παραγγελίας</Label>
+        <Textarea
           id="order-notes"
           rows={3}
           value={notes}
           onChange={(e) => setNotes(e.target.value)}
           placeholder="Προαιρετικές σημειώσεις..."
-          className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-amber-500 focus:outline-none focus:ring-1 focus:ring-amber-500"
         />
       </div>
 
-      {/* Total + Submit */}
-      <div className="mt-6 flex items-center justify-between rounded-lg bg-gray-50 p-4">
-        <div>
-          <span className="text-sm text-gray-600">Σύνολο: </span>
-          <span className="text-xl font-bold text-gray-900">{totalPrice().toFixed(2)}&euro;</span>
-        </div>
-        <div className="flex gap-2">
-          {confirming && (
-            <button
+      <Card className="p-4">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <span className="text-sm text-muted-foreground">Σύνολο: </span>
+            <span className="text-xl font-bold">{totalPrice().toFixed(2)}&nbsp;€</span>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {confirming && (
+              <Button type="button" variant="outline" onClick={() => setConfirming(false)}>
+                Ακύρωση
+              </Button>
+            )}
+            <Button
               type="button"
-              onClick={() => setConfirming(false)}
-              className="rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100"
+              onClick={handleSubmit}
+              disabled={createOrder.isPending}
+              className="flex-1 sm:flex-initial"
             >
-              Ακύρωση
-            </button>
-          )}
-          <button
-            type="button"
-            onClick={handleSubmit}
-            disabled={createOrder.isPending}
-            className="rounded-lg bg-amber-600 px-6 py-2 text-sm font-medium text-white hover:bg-amber-700 disabled:opacity-50"
-          >
-            {createOrder.isPending
-              ? "Υποβολή..."
-              : confirming
-                ? "Επιβεβαίωση Παραγγελίας"
-                : "Υποβολή Παραγγελίας"}
-          </button>
+              {createOrder.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              {createOrder.isPending
+                ? "Υποβολή..."
+                : confirming
+                  ? "Επιβεβαίωση Παραγγελίας"
+                  : "Υποβολή Παραγγελίας"}
+            </Button>
+          </div>
         </div>
-      </div>
+      </Card>
 
       {createOrder.isError && (
-        <p className="mt-2 text-sm text-red-600">
+        <p className="text-sm text-destructive">
           {createOrder.error?.message || "Σφάλμα κατά την υποβολή"}
         </p>
       )}

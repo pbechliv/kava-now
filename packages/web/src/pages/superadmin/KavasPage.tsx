@@ -1,8 +1,18 @@
 import { useState } from "react";
 import { Link } from "react-router";
-import { useSuperAdminKavas, useDeleteKava } from "../../lib/hooks/use-superadmin-kavas";
-import { Button } from "../../components/ui/Button";
-import { Spinner } from "../../components/ui/Spinner";
+import { Loader2 } from "lucide-react";
+import { useSuperAdminKavas, useDeleteKava } from "@/lib/hooks/use-superadmin-kavas";
+import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { Spinner } from "@/components/spinner";
 
 export function KavasPage() {
   const { data, isLoading } = useSuperAdminKavas();
@@ -20,76 +30,78 @@ export function KavasPage() {
   const kavas = data?.kavas ?? [];
 
   return (
-    <div>
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-gray-900">Κάβες</h1>
-        <Link to="/superadmin/kavas/new">
+    <div className="space-y-6">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <h1 className="text-2xl font-bold tracking-tight">Κάβες</h1>
+        <Link to="/superadmin/kavas/new" className="self-start sm:self-auto">
           <Button>+ Νέα κάβα</Button>
         </Link>
       </div>
 
       {kavas.length === 0 ? (
-        <p className="mt-6 text-sm text-gray-500">Δεν υπάρχουν κάβες.</p>
+        <p className="text-sm text-muted-foreground">Δεν υπάρχουν κάβες.</p>
       ) : (
-        <div className="mt-6 overflow-hidden rounded-lg border border-gray-200 bg-white shadow-sm">
-          <table className="min-w-full divide-y divide-gray-200">
-            <thead className="bg-gray-50">
-              <tr>
-                <th className="px-4 py-3 text-left text-xs font-medium uppercase text-gray-500">
-                  Όνομα
-                </th>
-                <th className="px-4 py-3 text-left text-xs font-medium uppercase text-gray-500">
-                  Slug
-                </th>
-                <th className="px-4 py-3 text-left text-xs font-medium uppercase text-gray-500">
-                  Email
-                </th>
-                <th className="px-4 py-3 text-left text-xs font-medium uppercase text-gray-500">
-                  Ημ/νία
-                </th>
-                <th className="px-4 py-3" />
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-100">
-              {kavas.map((kava) => (
-                <tr key={kava.id}>
-                  <td className="px-4 py-3 text-sm font-medium text-gray-900">{kava.name}</td>
-                  <td className="px-4 py-3 text-sm text-gray-500">{kava.slug}</td>
-                  <td className="px-4 py-3 text-sm text-gray-500">{kava.email}</td>
-                  <td className="px-4 py-3 text-sm text-gray-500">
-                    {new Date(kava.createdAt).toLocaleDateString("el-GR")}
-                  </td>
-                  <td className="px-4 py-3 text-right">
-                    {confirmId === kava.id ? (
-                      <div className="flex items-center justify-end gap-2">
-                        <span className="text-xs text-red-600">Σίγουρα;</span>
+        <Card className="overflow-hidden">
+          <div className="overflow-x-auto">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Όνομα</TableHead>
+                  <TableHead>Slug</TableHead>
+                  <TableHead>Email</TableHead>
+                  <TableHead>Ημ/νία</TableHead>
+                  <TableHead className="text-right" />
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {kavas.map((kava) => (
+                  <TableRow key={kava.id}>
+                    <TableCell className="font-medium">{kava.name}</TableCell>
+                    <TableCell className="text-muted-foreground">{kava.slug}</TableCell>
+                    <TableCell className="text-muted-foreground">{kava.email}</TableCell>
+                    <TableCell className="text-muted-foreground">
+                      {new Date(kava.createdAt).toLocaleDateString("el-GR")}
+                    </TableCell>
+                    <TableCell className="text-right">
+                      {confirmId === kava.id ? (
+                        <div className="flex items-center justify-end gap-2">
+                          <span className="text-xs text-destructive">Σίγουρα;</span>
+                          <Button
+                            variant="destructive"
+                            size="sm"
+                            disabled={deleteMutation.isPending}
+                            onClick={() =>
+                              deleteMutation.mutate(kava.id, {
+                                onSuccess: () => setConfirmId(null),
+                              })
+                            }
+                          >
+                            {deleteMutation.isPending && (
+                              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                            )}
+                            Ναι
+                          </Button>
+                          <Button variant="ghost" size="sm" onClick={() => setConfirmId(null)}>
+                            Όχι
+                          </Button>
+                        </div>
+                      ) : (
                         <Button
-                          variant="danger"
+                          variant="ghost"
                           size="sm"
-                          loading={deleteMutation.isPending}
-                          onClick={() => {
-                            deleteMutation.mutate(kava.id, {
-                              onSuccess: () => setConfirmId(null),
-                            });
-                          }}
+                          className="text-destructive hover:bg-destructive/10 hover:text-destructive"
+                          onClick={() => setConfirmId(kava.id)}
                         >
-                          Ναι
+                          Διαγραφή
                         </Button>
-                        <Button variant="ghost" size="sm" onClick={() => setConfirmId(null)}>
-                          Όχι
-                        </Button>
-                      </div>
-                    ) : (
-                      <Button variant="danger" size="sm" onClick={() => setConfirmId(kava.id)}>
-                        Διαγραφή
-                      </Button>
-                    )}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+                      )}
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+        </Card>
       )}
     </div>
   );

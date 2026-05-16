@@ -1,9 +1,15 @@
 import { useState, useMemo } from "react";
-import { useCatalog } from "../../lib/hooks/use-catalog";
-import { useCartStore, setCartSlug } from "../../lib/store/cart";
-import { useAuth } from "../../lib/hooks/use-auth";
+import { ImageIcon, Minus, Plus } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Card, CardContent } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { cn } from "@/lib/utils";
+import { useCatalog } from "@/lib/hooks/use-catalog";
+import { useCartStore, setCartSlug } from "@/lib/store/cart";
+import { useAuth } from "@/lib/hooks/use-auth";
 import { UNIT_LABELS } from "@kava-now/shared";
-import type { CatalogProduct } from "../../lib/store/cart";
+import type { CatalogProduct } from "@/lib/store/cart";
 
 export function CatalogPage() {
   const { kava } = useAuth();
@@ -12,7 +18,6 @@ export function CatalogPage() {
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [quantities, setQuantities] = useState<Record<string, number>>({});
 
-  // Set cart slug for localStorage scoping
   if (kava?.slug) {
     setCartSlug(kava.slug);
   }
@@ -24,7 +29,6 @@ export function CatalogPage() {
     search: debouncedSearch || undefined,
   });
 
-  // Extract unique categories from products
   const categories = useMemo(() => {
     if (!products) return [];
     const map = new Map<string, string>();
@@ -38,7 +42,6 @@ export function CatalogPage() {
     );
   }, [products]);
 
-  // Debounce search
   const handleSearchChange = (value: string) => {
     setSearch(value);
     clearTimeout(
@@ -62,130 +65,126 @@ export function CatalogPage() {
   };
 
   return (
-    <div>
-      <h1 className="text-2xl font-bold text-gray-900">Κατάλογος</h1>
+    <div className="space-y-6">
+      <h1 className="text-2xl font-bold tracking-tight">Κατάλογος</h1>
 
-      {/* Search + Filters */}
-      <div className="mt-4 flex flex-col sm:flex-row gap-3">
-        <input
-          type="text"
-          placeholder="Αναζήτηση προϊόντων..."
-          value={search}
-          onChange={(e) => handleSearchChange(e.target.value)}
-          className="flex-1 rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-amber-500 focus:outline-none focus:ring-1 focus:ring-amber-500"
-        />
-      </div>
+      <Input
+        type="text"
+        placeholder="Αναζήτηση προϊόντων..."
+        value={search}
+        onChange={(e) => handleSearchChange(e.target.value)}
+      />
 
-      {/* Category tabs */}
-      <div className="mt-4 flex flex-wrap gap-2">
-        <button
-          type="button"
+      <div className="flex flex-wrap gap-2">
+        <CategoryChip
+          label="Όλα"
+          active={selectedCategory === ""}
           onClick={() => setSelectedCategory("")}
-          className={`rounded-full px-3 py-1.5 text-sm font-medium transition-colors ${
-            selectedCategory === ""
-              ? "bg-amber-600 text-white"
-              : "bg-gray-100 text-gray-700 hover:bg-gray-200"
-          }`}
-        >
-          Όλα
-        </button>
+        />
         {categories.map((cat) => (
-          <button
+          <CategoryChip
             key={cat.id}
-            type="button"
+            label={cat.name}
+            active={selectedCategory === cat.id}
             onClick={() => setSelectedCategory(selectedCategory === cat.id ? "" : cat.id)}
-            className={`rounded-full px-3 py-1.5 text-sm font-medium transition-colors ${
-              selectedCategory === cat.id
-                ? "bg-amber-600 text-white"
-                : "bg-gray-100 text-gray-700 hover:bg-gray-200"
-            }`}
-          >
-            {cat.name}
-          </button>
+          />
         ))}
       </div>
 
-      {/* Product grid */}
       {isLoading ? (
-        <div className="mt-8 text-center text-sm text-gray-500">Φόρτωση...</div>
+        <div className="text-center text-sm text-muted-foreground">Φόρτωση...</div>
       ) : !products || products.length === 0 ? (
-        <div className="mt-8 text-center text-sm text-gray-500">Δεν βρέθηκαν προϊόντα.</div>
+        <div className="text-center text-sm text-muted-foreground">Δεν βρέθηκαν προϊόντα.</div>
       ) : (
-        <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {products.map((product) => (
-            <div
-              key={product.id}
-              className="rounded-lg border border-gray-200 bg-white p-4 shadow-sm"
-            >
-              {/* Image placeholder */}
-              {product.imageUrl ? (
-                <img
-                  src={product.imageUrl}
-                  alt={product.name}
-                  className="mb-3 h-32 w-full rounded-md object-cover"
-                />
-              ) : (
-                <div className="mb-3 flex h-32 w-full items-center justify-center rounded-md bg-gray-100 text-gray-400">
-                  <svg
-                    className="h-10 w-10"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    stroke="currentColor"
-                    strokeWidth={1.5}
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      d="M2.25 15.75l5.159-5.159a2.25 2.25 0 013.182 0l5.159 5.159m-1.5-1.5l1.409-1.41a2.25 2.25 0 013.182 0l2.909 2.91m-18 3.75h16.5a1.5 1.5 0 001.5-1.5V6a1.5 1.5 0 00-1.5-1.5H3.75A1.5 1.5 0 002.25 6v12a1.5 1.5 0 001.5 1.5z"
-                    />
-                  </svg>
+            <Card key={product.id}>
+              <CardContent className="p-4">
+                {product.imageUrl ? (
+                  <img
+                    src={product.imageUrl}
+                    alt={product.name}
+                    className="mb-3 aspect-video w-full rounded-md object-cover"
+                  />
+                ) : (
+                  <div className="mb-3 flex aspect-video w-full items-center justify-center rounded-md bg-muted text-muted-foreground">
+                    <ImageIcon className="h-10 w-10" />
+                  </div>
+                )}
+
+                <Badge variant="muted" className="mb-2">
+                  {product.categoryName || "Χωρίς κατηγορία"}
+                </Badge>
+                <h3 className="font-semibold">{product.name}</h3>
+                {product.brand && <p className="text-sm text-muted-foreground">{product.brand}</p>}
+
+                <div className="mt-2 flex items-baseline gap-2">
+                  <span className="text-lg font-bold text-primary">
+                    {product.resolvedPrice.toFixed(2)}&nbsp;€
+                  </span>
+                  <span className="text-xs text-muted-foreground">
+                    / {UNIT_LABELS[product.unit]}
+                  </span>
                 </div>
-              )}
 
-              <div className="mb-1 text-xs text-gray-500">
-                {product.categoryName || "Χωρίς κατηγορία"}
-              </div>
-              <h3 className="font-semibold text-gray-900">{product.name}</h3>
-              {product.brand && <p className="text-sm text-gray-500">{product.brand}</p>}
-
-              <div className="mt-2 flex items-baseline gap-2">
-                <span className="text-lg font-bold text-amber-600">
-                  {product.resolvedPrice.toFixed(2)}&euro;
-                </span>
-                <span className="text-xs text-gray-500">/ {UNIT_LABELS[product.unit]}</span>
-              </div>
-
-              {/* Quantity + Add */}
-              <div className="mt-3 flex items-center gap-2">
-                <div className="flex items-center rounded-md border border-gray-300">
-                  <button
-                    type="button"
-                    onClick={() => setQty(product.id, getQty(product.id) - 1)}
-                    className="px-2 py-1 text-gray-600 hover:bg-gray-100"
-                  >
-                    -
-                  </button>
-                  <span className="w-8 text-center text-sm">{getQty(product.id)}</span>
-                  <button
-                    type="button"
-                    onClick={() => setQty(product.id, getQty(product.id) + 1)}
-                    className="px-2 py-1 text-gray-600 hover:bg-gray-100"
-                  >
-                    +
-                  </button>
+                <div className="mt-3 flex items-center gap-2">
+                  <div className="flex items-center rounded-md border">
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      className="h-9 w-9 rounded-r-none"
+                      onClick={() => setQty(product.id, getQty(product.id) - 1)}
+                      aria-label="Μείωση"
+                    >
+                      <Minus className="h-4 w-4" />
+                    </Button>
+                    <span className="w-10 text-center text-sm">{getQty(product.id)}</span>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      className="h-9 w-9 rounded-l-none"
+                      onClick={() => setQty(product.id, getQty(product.id) + 1)}
+                      aria-label="Αύξηση"
+                    >
+                      <Plus className="h-4 w-4" />
+                    </Button>
+                  </div>
+                  <Button type="button" className="flex-1" onClick={() => handleAdd(product)}>
+                    Προσθήκη
+                  </Button>
                 </div>
-                <button
-                  type="button"
-                  onClick={() => handleAdd(product)}
-                  className="flex-1 rounded-lg bg-amber-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-amber-700 transition-colors"
-                >
-                  Προσθήκη
-                </button>
-              </div>
-            </div>
+              </CardContent>
+            </Card>
           ))}
         </div>
       )}
     </div>
+  );
+}
+
+function CategoryChip({
+  label,
+  active,
+  onClick,
+}: {
+  label: string;
+  active: boolean;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={cn(
+        "rounded-full px-3 py-1.5 text-sm font-medium transition-colors",
+        active
+          ? "bg-primary text-primary-foreground"
+          : "bg-muted text-muted-foreground hover:bg-muted/80",
+      )}
+    >
+      {label}
+    </button>
   );
 }

@@ -1,73 +1,118 @@
-import { useState } from "react";
-import { Outlet, NavLink } from "react-router";
-import { useAuth } from "../../lib/hooks/use-auth";
-import { useLogout } from "../../lib/hooks/use-logout";
+import { NavLink, Outlet } from "react-router";
+import { Building2, Settings, LogOut } from "lucide-react";
+import { useAuth } from "@/lib/hooks/use-auth";
+import { useLogout } from "@/lib/hooks/use-logout";
+import {
+  Sidebar,
+  SidebarContent,
+  SidebarFooter,
+  SidebarGroup,
+  SidebarGroupContent,
+  SidebarHeader,
+  SidebarInset,
+  SidebarMenu,
+  SidebarMenuButton,
+  SidebarMenuItem,
+  SidebarProvider,
+  SidebarTrigger,
+} from "@/components/ui/sidebar";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { Button } from "@/components/ui/button";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Separator } from "@/components/ui/separator";
 
-const navLinkClass = ({ isActive }: { isActive: boolean }) =>
-  `px-3 py-2 text-sm font-medium rounded-md ${
-    isActive ? "bg-amber-50 text-amber-700" : "text-gray-600 hover:text-gray-900 hover:bg-gray-50"
-  }`;
+const navItems = [
+  { to: "/superadmin/kavas", label: "Κάβες", icon: Building2 },
+  { to: "/superadmin/settings", label: "Ρυθμίσεις", icon: Settings },
+];
+
+function initials(name: string | null | undefined) {
+  if (!name) return "?";
+  return name
+    .split(" ")
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((s) => s[0]?.toUpperCase() ?? "")
+    .join("");
+}
 
 export function SuperAdminLayout() {
   const { user } = useAuth();
   const logout = useLogout();
-  const [userMenuOpen, setUserMenuOpen] = useState(false);
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <header className="flex h-16 items-center justify-between border-b border-gray-200 bg-white px-4 lg:px-8">
-        <div className="flex items-center gap-6">
-          <span className="text-lg font-bold text-amber-600">KavaNow Admin</span>
-          <nav className="flex items-center gap-1">
-            <NavLink to="/superadmin/kavas" className={navLinkClass}>
-              Κάβες
-            </NavLink>
-            <NavLink to="/superadmin/settings" className={navLinkClass}>
-              Ρυθμίσεις
-            </NavLink>
-          </nav>
-        </div>
-
-        <div className="relative">
-          <button
-            type="button"
-            className="flex items-center gap-2 rounded-lg px-3 py-2 text-sm text-gray-700 hover:bg-gray-100"
-            onClick={() => setUserMenuOpen(!userMenuOpen)}
-          >
-            <span>{user?.name}</span>
-            <svg
-              className="h-4 w-4"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
-              strokeWidth={2}
-            >
-              <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
-            </svg>
-          </button>
-          {userMenuOpen && (
-            <>
-              <div className="fixed inset-0 z-10" onClick={() => setUserMenuOpen(false)} />
-              <div className="absolute right-0 z-20 mt-1 w-48 rounded-lg border border-gray-200 bg-white py-1 shadow-lg">
-                <div className="px-4 py-2 text-sm text-gray-500 border-b border-gray-100">
-                  {user?.email}
-                </div>
-                <button
-                  type="button"
-                  className="flex w-full items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
-                  onClick={() => logout.mutate()}
-                >
-                  Αποσύνδεση
-                </button>
-              </div>
-            </>
-          )}
-        </div>
-      </header>
-
-      <main className="mx-auto max-w-5xl p-4 lg:p-8">
-        <Outlet />
-      </main>
-    </div>
+    <SidebarProvider>
+      <Sidebar variant="sidebar" collapsible="offcanvas">
+        <SidebarHeader>
+          <div className="flex items-center gap-2 px-2 py-1.5">
+            <span className="text-lg font-bold text-primary">KavaNow</span>
+            <span className="text-sm text-sidebar-foreground/70">Admin</span>
+          </div>
+        </SidebarHeader>
+        <SidebarContent>
+          <SidebarGroup>
+            <SidebarGroupContent>
+              <SidebarMenu>
+                {navItems.map((item) => (
+                  <SidebarMenuItem key={item.to}>
+                    <SidebarMenuButton asChild>
+                      <NavLink to={item.to}>
+                        {({ isActive }) => (
+                          <span
+                            data-active={isActive || undefined}
+                            className="flex w-full items-center gap-2 data-[active]:font-semibold data-[active]:text-sidebar-primary"
+                          >
+                            <item.icon className="h-4 w-4" />
+                            <span>{item.label}</span>
+                          </span>
+                        )}
+                      </NavLink>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                ))}
+              </SidebarMenu>
+            </SidebarGroupContent>
+          </SidebarGroup>
+        </SidebarContent>
+        <SidebarFooter>
+          <div className="px-2 pb-2 text-xs text-sidebar-foreground/60">{user?.name}</div>
+        </SidebarFooter>
+      </Sidebar>
+      <SidebarInset>
+        <header className="flex h-14 shrink-0 items-center gap-2 border-b bg-background px-4">
+          <SidebarTrigger />
+          <Separator orientation="vertical" className="mx-1 h-5" />
+          <div className="flex-1" />
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" size="sm" className="gap-2">
+                <Avatar className="h-7 w-7">
+                  <AvatarFallback>{initials(user?.name)}</AvatarFallback>
+                </Avatar>
+                <span className="hidden sm:inline">{user?.name}</span>
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-56">
+              <DropdownMenuLabel className="truncate">{user?.email}</DropdownMenuLabel>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onSelect={() => logout.mutate()}>
+                <LogOut className="mr-2 h-4 w-4" />
+                Αποσύνδεση
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </header>
+        <main className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8">
+          <Outlet />
+        </main>
+      </SidebarInset>
+    </SidebarProvider>
   );
 }

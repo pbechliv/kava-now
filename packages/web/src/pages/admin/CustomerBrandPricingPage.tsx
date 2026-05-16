@@ -1,13 +1,24 @@
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router";
-import { Button } from "../../components/ui/Button";
-import { Spinner } from "../../components/ui/Spinner";
-import { EmptyState } from "../../components/ui/EmptyState";
-import { useCustomer } from "../../lib/hooks/use-customers";
+import { Loader2 } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Card } from "@/components/ui/card";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { Spinner } from "@/components/spinner";
+import { EmptyState } from "@/components/empty-state";
+import { useCustomer } from "@/lib/hooks/use-customers";
 import {
   useCustomerBrandPricing,
   useUpdateCustomerBrandPricing,
-} from "../../lib/hooks/use-customer-brand-pricing";
+} from "@/lib/hooks/use-customer-brand-pricing";
 
 interface LocalAssignment {
   brand: string;
@@ -50,49 +61,45 @@ export function CustomerBrandPricingPage() {
   };
 
   return (
-    <div>
-      <div className="flex items-center justify-between">
+    <div className="space-y-6">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Τιμολόγηση Πελάτη</h1>
-          {customer && <p className="mt-1 text-sm text-gray-500">{customer.name}</p>}
+          <h1 className="text-2xl font-bold tracking-tight">Τιμολόγηση Πελάτη</h1>
+          {customer && <p className="mt-1 text-sm text-muted-foreground">{customer.name}</p>}
         </div>
-        <div className="flex gap-3">
-          <Button variant="secondary" onClick={() => navigate("/admin/customers")}>
+        <div className="flex gap-2">
+          <Button variant="outline" onClick={() => navigate("/admin/customers")}>
             Πίσω
           </Button>
-          <Button onClick={handleSave} loading={updateMutation.isPending}>
+          <Button onClick={handleSave} disabled={updateMutation.isPending}>
+            {updateMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
             Αποθήκευση
           </Button>
         </div>
       </div>
 
-      <div className="mt-6">
-        {isLoading ? (
-          <div className="flex justify-center py-12">
-            <Spinner />
-          </div>
-        ) : !rows || rows.length === 0 ? (
-          <EmptyState message="Δεν υπάρχουν μάρκες προϊόντων" />
-        ) : (
-          <div className="overflow-x-auto rounded-xl border border-gray-100 bg-white shadow-sm">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b bg-gray-50 text-left text-gray-500">
-                  <th className="px-4 py-3 font-medium">Μάρκα</th>
-                  <th className="px-4 py-3 font-medium text-right">Έκπτωση %</th>
-                </tr>
-              </thead>
-              <tbody>
+      {isLoading ? (
+        <div className="flex justify-center py-12">
+          <Spinner />
+        </div>
+      ) : !rows || rows.length === 0 ? (
+        <EmptyState message="Δεν υπάρχουν μάρκες προϊόντων" />
+      ) : (
+        <Card className="overflow-hidden">
+          <div className="overflow-x-auto">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Μάρκα</TableHead>
+                  <TableHead className="text-right">Έκπτωση %</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
                 {assignments.map((a) => (
-                  <tr
-                    key={a.brand}
-                    className={`border-b last:border-0 ${
-                      a.discountPct ? "bg-amber-50/40" : "hover:bg-gray-50"
-                    }`}
-                  >
-                    <td className="px-4 py-3 font-medium text-gray-900">{a.brand}</td>
-                    <td className="px-4 py-3 text-right">
-                      <input
+                  <TableRow key={a.brand} className={a.discountPct ? "bg-primary/5" : undefined}>
+                    <TableCell className="font-medium">{a.brand}</TableCell>
+                    <TableCell className="text-right">
+                      <Input
                         type="number"
                         step="0.01"
                         min="0"
@@ -100,19 +107,19 @@ export function CustomerBrandPricingPage() {
                         placeholder="0"
                         value={a.discountPct}
                         onChange={(e) => setDiscount(a.brand, e.target.value)}
-                        className="w-24 rounded border border-gray-300 px-2 py-1 text-right text-sm focus:border-amber-500 focus:outline-none focus:ring-1 focus:ring-amber-500"
+                        className="ml-auto w-24 text-right"
                       />
-                    </td>
-                  </tr>
+                    </TableCell>
+                  </TableRow>
                 ))}
-              </tbody>
-            </table>
+              </TableBody>
+            </Table>
           </div>
-        )}
-      </div>
+        </Card>
+      )}
 
       {updateMutation.error && (
-        <p className="mt-4 text-sm text-red-600">{updateMutation.error.message}</p>
+        <p className="text-sm text-destructive">{updateMutation.error.message}</p>
       )}
     </div>
   );

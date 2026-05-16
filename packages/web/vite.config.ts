@@ -10,6 +10,11 @@ const baseDomain = process.env.BASE_DOMAIN || "lvh.me:5173";
 
 export default defineConfig({
   plugins: [react(), tailwindcss()],
+  resolve: {
+    alias: {
+      "@": resolve(__dirname, "./src"),
+    },
+  },
   define: {
     "import.meta.env.VITE_BASE_DOMAIN": JSON.stringify(baseDomain),
   },

@@ -1,8 +1,25 @@
 import { useState } from "react";
-import { Button } from "../../components/ui/Button";
-import { Input } from "../../components/ui/Input";
-import { Spinner } from "../../components/ui/Spinner";
-import { useSeedCatalog, useImportSeedProducts } from "../../lib/hooks/use-seed-catalog";
+import { Loader2 } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Checkbox } from "@/components/ui/checkbox";
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { Spinner } from "@/components/spinner";
+import { useSeedCatalog, useImportSeedProducts } from "@/lib/hooks/use-seed-catalog";
 import { UNIT_LABELS } from "@kava-now/shared";
 
 interface SeedCatalogModalProps {
@@ -17,8 +34,6 @@ export function SeedCatalogModal({ open, onClose }: SeedCatalogModalProps) {
 
   const { data: seeds, isLoading } = useSeedCatalog(search || undefined);
   const importMutation = useImportSeedProducts();
-
-  if (!open) return null;
 
   const toggleSelect = (id: string) => {
     setSelected((prev) => {
@@ -56,107 +71,89 @@ export function SeedCatalogModal({ open, onClose }: SeedCatalogModalProps) {
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-      <div className="w-full max-w-2xl rounded-xl bg-white shadow-xl max-h-[80vh] flex flex-col">
-        {/* Header */}
-        <div className="flex items-center justify-between border-b px-6 py-4">
-          <h2 className="text-lg font-semibold text-gray-900">Εισαγωγή από Κατάλογο</h2>
-          <button onClick={handleClose} className="text-gray-400 hover:text-gray-600">
-            <svg
-              className="h-5 w-5"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
-              strokeWidth={2}
-            >
-              <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-            </svg>
-          </button>
-        </div>
+    <Dialog open={open} onOpenChange={(v) => !v && handleClose()}>
+      <DialogContent className="max-h-[90vh] max-w-2xl overflow-hidden">
+        <DialogHeader>
+          <DialogTitle>Εισαγωγή από Κατάλογο</DialogTitle>
+        </DialogHeader>
 
-        {/* Search */}
-        <div className="border-b px-6 py-3">
-          <Input
-            placeholder="Αναζήτηση προϊόντων..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-          />
-        </div>
+        <Input
+          placeholder="Αναζήτηση προϊόντων..."
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+        />
 
-        {/* Success message */}
         {importedCount !== null && (
-          <div className="mx-6 mt-3 rounded-lg bg-green-50 px-4 py-3 text-sm text-green-800">
+          <div className="rounded-lg border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-800 dark:border-green-900 dark:bg-green-950 dark:text-green-200">
             Εισήχθησαν {importedCount} προϊόντα επιτυχώς!
           </div>
         )}
 
-        {/* List */}
-        <div className="flex-1 overflow-y-auto px-6 py-3">
+        <div className="max-h-[50vh] overflow-y-auto">
           {isLoading ? (
             <div className="flex justify-center py-8">
               <Spinner />
             </div>
           ) : !seeds || seeds.length === 0 ? (
-            <p className="text-center text-sm text-gray-500 py-8">Δεν βρέθηκαν προϊόντα</p>
+            <p className="py-8 text-center text-sm text-muted-foreground">Δεν βρέθηκαν προϊόντα</p>
           ) : (
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b text-left text-gray-500">
-                  <th className="pb-2 pr-3">
-                    <input
-                      type="checkbox"
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="w-10">
+                    <Checkbox
                       checked={selected.size === seeds.length}
-                      onChange={toggleAll}
-                      className="rounded border-gray-300"
+                      onCheckedChange={toggleAll}
+                      aria-label="Επιλογή όλων"
                     />
-                  </th>
-                  <th className="pb-2">Όνομα</th>
-                  <th className="pb-2">Brand</th>
-                  <th className="pb-2">Κατηγορία</th>
-                  <th className="pb-2">Μονάδα</th>
-                </tr>
-              </thead>
-              <tbody>
+                  </TableHead>
+                  <TableHead>Όνομα</TableHead>
+                  <TableHead>Brand</TableHead>
+                  <TableHead>Κατηγορία</TableHead>
+                  <TableHead>Μονάδα</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
                 {seeds.map((seed) => (
-                  <tr key={seed.id} className="border-b last:border-0">
-                    <td className="py-2 pr-3">
-                      <input
-                        type="checkbox"
+                  <TableRow key={seed.id}>
+                    <TableCell>
+                      <Checkbox
                         checked={selected.has(seed.id)}
-                        onChange={() => toggleSelect(seed.id)}
-                        className="rounded border-gray-300"
+                        onCheckedChange={() => toggleSelect(seed.id)}
+                        aria-label={`Επιλογή ${seed.name}`}
                       />
-                    </td>
-                    <td className="py-2 font-medium text-gray-900">{seed.name}</td>
-                    <td className="py-2 text-gray-600">{seed.brand ?? "-"}</td>
-                    <td className="py-2 text-gray-600">{seed.categoryName}</td>
-                    <td className="py-2 text-gray-600">{UNIT_LABELS[seed.unit]}</td>
-                  </tr>
+                    </TableCell>
+                    <TableCell className="font-medium">{seed.name}</TableCell>
+                    <TableCell className="text-muted-foreground">{seed.brand ?? "-"}</TableCell>
+                    <TableCell className="text-muted-foreground">{seed.categoryName}</TableCell>
+                    <TableCell className="text-muted-foreground">
+                      {UNIT_LABELS[seed.unit]}
+                    </TableCell>
+                  </TableRow>
                 ))}
-              </tbody>
-            </table>
+              </TableBody>
+            </Table>
           )}
         </div>
 
-        {/* Footer */}
-        <div className="flex items-center justify-between border-t px-6 py-4">
-          <span className="text-sm text-gray-500">
+        <DialogFooter className="flex flex-row items-center justify-between sm:justify-between">
+          <span className="text-sm text-muted-foreground">
             {selected.size > 0 ? `${selected.size} επιλεγμένα` : "Κανένα επιλεγμένο"}
           </span>
-          <div className="flex gap-3">
-            <Button variant="secondary" onClick={handleClose}>
+          <div className="flex gap-2">
+            <Button variant="outline" onClick={handleClose}>
               Κλείσιμο
             </Button>
             <Button
               onClick={handleImport}
-              disabled={selected.size === 0}
-              loading={importMutation.isPending}
+              disabled={selected.size === 0 || importMutation.isPending}
             >
+              {importMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               Εισαγωγή
             </Button>
           </div>
-        </div>
-      </div>
-    </div>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }

@@ -2,17 +2,35 @@ import { useEffect } from "react";
 import { useNavigate, useParams } from "react-router";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
+import { Loader2 } from "lucide-react";
 import {
   createProductSchema,
   UNIT_LABELS,
   type CreateProductInput,
   type UpdateProductInput,
 } from "@kava-now/shared";
-import { Button } from "../../components/ui/Button";
-import { Input } from "../../components/ui/Input";
-import { Spinner } from "../../components/ui/Spinner";
-import { useProduct, useCreateProduct, useUpdateProduct } from "../../lib/hooks/use-products";
-import { useCategories } from "../../lib/hooks/use-categories";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Card, CardContent } from "@/components/ui/card";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/components/ui/form";
+import { Spinner } from "@/components/spinner";
+import { useProduct, useCreateProduct, useUpdateProduct } from "@/lib/hooks/use-products";
+import { useCategories } from "@/lib/hooks/use-categories";
 
 type FormData = CreateProductInput;
 
@@ -26,18 +44,13 @@ export function ProductFormPage() {
   const createMutation = useCreateProduct();
   const updateMutation = useUpdateProduct();
 
-  const {
-    register,
-    handleSubmit,
-    reset,
-    formState: { errors },
-  } = useForm<FormData>({
+  const form = useForm<FormData>({
     resolver: zodResolver(createProductSchema),
   });
 
   useEffect(() => {
     if (product && isEdit) {
-      reset({
+      form.reset({
         name: product.name,
         brand: product.brand,
         categoryId: product.categoryId,
@@ -50,7 +63,7 @@ export function ProductFormPage() {
         imageUrl: product.imageUrl,
       });
     }
-  }, [product, isEdit, reset]);
+  }, [product, isEdit, form]);
 
   const onSubmit = async (data: FormData) => {
     if (isEdit) {
@@ -72,124 +85,222 @@ export function ProductFormPage() {
   const isPending = createMutation.isPending || updateMutation.isPending;
 
   return (
-    <div>
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-gray-900">
-          {isEdit ? "Επεξεργασία Προϊόντος" : "Νέο Προϊόν"}
-        </h1>
-      </div>
+    <div className="space-y-6">
+      <h1 className="text-2xl font-bold tracking-tight">
+        {isEdit ? "Επεξεργασία Προϊόντος" : "Νέο Προϊόν"}
+      </h1>
 
-      <form
-        onSubmit={handleSubmit(onSubmit)}
-        className="mt-6 max-w-2xl space-y-6 rounded-xl border border-gray-100 bg-white p-6 shadow-sm"
-      >
-        <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
-          <Input label="Όνομα *" id="name" {...register("name")} error={errors.name?.message} />
+      <Card className="max-w-2xl">
+        <CardContent className="p-6">
+          <Form {...form}>
+            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                <FormField
+                  control={form.control}
+                  name="name"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Όνομα</FormLabel>
+                      <FormControl>
+                        <Input {...field} value={field.value ?? ""} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="brand"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Μάρκα</FormLabel>
+                      <FormControl>
+                        <Input {...field} value={field.value ?? ""} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="categoryId"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Κατηγορία</FormLabel>
+                      <Select
+                        onValueChange={(v) => field.onChange(v === "none" ? "" : v)}
+                        value={field.value || "none"}
+                      >
+                        <FormControl>
+                          <SelectTrigger className="w-full">
+                            <SelectValue placeholder="Χωρίς κατηγορία" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          <SelectItem value="none">Χωρίς κατηγορία</SelectItem>
+                          {categories?.map((cat) => (
+                            <SelectItem key={cat.id} value={cat.id}>
+                              {cat.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="basePrice"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Τιμή βάσης</FormLabel>
+                      <FormControl>
+                        <Input
+                          type="number"
+                          step="0.01"
+                          min="0.01"
+                          value={field.value ?? ""}
+                          onChange={(e) =>
+                            field.onChange(
+                              e.target.value === "" ? undefined : Number(e.target.value),
+                            )
+                          }
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="unit"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Μονάδα</FormLabel>
+                      <Select onValueChange={field.onChange} value={field.value}>
+                        <FormControl>
+                          <SelectTrigger className="w-full">
+                            <SelectValue />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          {(Object.entries(UNIT_LABELS) as [string, string][]).map(
+                            ([value, label]) => (
+                              <SelectItem key={value} value={value}>
+                                {label}
+                              </SelectItem>
+                            ),
+                          )}
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="sku"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>SKU</FormLabel>
+                      <FormControl>
+                        <Input {...field} value={field.value ?? ""} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="volumeMl"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Όγκος (ml)</FormLabel>
+                      <FormControl>
+                        <Input
+                          type="number"
+                          value={field.value ?? ""}
+                          onChange={(e) =>
+                            field.onChange(
+                              e.target.value === "" ? undefined : Number(e.target.value),
+                            )
+                          }
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="alcoholPct"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Βαθμοί αλκοόλ (%)</FormLabel>
+                      <FormControl>
+                        <Input
+                          type="number"
+                          step="0.1"
+                          value={field.value ?? ""}
+                          onChange={(e) =>
+                            field.onChange(
+                              e.target.value === "" ? undefined : Number(e.target.value),
+                            )
+                          }
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="imageUrl"
+                  render={({ field }) => (
+                    <FormItem className="sm:col-span-2">
+                      <FormLabel>URL Εικόνας</FormLabel>
+                      <FormControl>
+                        <Input type="url" {...field} value={field.value ?? ""} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="description"
+                  render={({ field }) => (
+                    <FormItem className="sm:col-span-2">
+                      <FormLabel>Περιγραφή</FormLabel>
+                      <FormControl>
+                        <Textarea rows={3} {...field} value={field.value ?? ""} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
 
-          <Input label="Μάρκα *" id="brand" {...register("brand")} error={errors.brand?.message} />
+              {(createMutation.error || updateMutation.error) && (
+                <p className="text-sm text-destructive">
+                  {(createMutation.error || updateMutation.error)?.message}
+                </p>
+              )}
 
-          <div>
-            <label htmlFor="categoryId" className="block text-sm font-medium text-gray-700 mb-1">
-              Κατηγορία
-            </label>
-            <select
-              id="categoryId"
-              {...register("categoryId")}
-              className="block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-amber-500 focus:outline-none focus:ring-2 focus:ring-amber-500"
-            >
-              <option value="">Χωρίς κατηγορία</option>
-              {categories?.map((cat) => (
-                <option key={cat.id} value={cat.id}>
-                  {cat.name}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <Input
-            label="Τιμή βάσης *"
-            id="basePrice"
-            type="number"
-            step="0.01"
-            min="0.01"
-            {...register("basePrice", { valueAsNumber: true })}
-            error={errors.basePrice?.message}
-          />
-
-          <div>
-            <label htmlFor="unit" className="block text-sm font-medium text-gray-700 mb-1">
-              Μονάδα
-            </label>
-            <select
-              id="unit"
-              {...register("unit")}
-              className="block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-amber-500 focus:outline-none focus:ring-2 focus:ring-amber-500"
-            >
-              {(Object.entries(UNIT_LABELS) as [string, string][]).map(([value, label]) => (
-                <option key={value} value={value}>
-                  {label}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <Input label="SKU" id="sku" {...register("sku")} error={errors.sku?.message} />
-
-          <Input
-            label="Όγκος (ml)"
-            id="volumeMl"
-            type="number"
-            {...register("volumeMl", { valueAsNumber: true })}
-            error={errors.volumeMl?.message}
-          />
-
-          <Input
-            label="Βαθμοί αλκοόλ (%)"
-            id="alcoholPct"
-            type="number"
-            step="0.1"
-            {...register("alcoholPct", { valueAsNumber: true })}
-            error={errors.alcoholPct?.message}
-          />
-
-          <div className="sm:col-span-2">
-            <Input
-              label="URL Εικόνας"
-              id="imageUrl"
-              type="url"
-              {...register("imageUrl")}
-              error={errors.imageUrl?.message}
-            />
-          </div>
-
-          <div className="sm:col-span-2">
-            <label htmlFor="description" className="block text-sm font-medium text-gray-700 mb-1">
-              Περιγραφή
-            </label>
-            <textarea
-              id="description"
-              rows={3}
-              {...register("description")}
-              className="block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-amber-500 focus:outline-none focus:ring-2 focus:ring-amber-500"
-            />
-          </div>
-        </div>
-
-        {(createMutation.error || updateMutation.error) && (
-          <p className="text-sm text-red-600">
-            {(createMutation.error || updateMutation.error)?.message}
-          </p>
-        )}
-
-        <div className="flex gap-3">
-          <Button type="submit" loading={isPending}>
-            {isEdit ? "Αποθήκευση" : "Δημιουργία"}
-          </Button>
-          <Button type="button" variant="secondary" onClick={() => navigate("/admin/products")}>
-            Ακύρωση
-          </Button>
-        </div>
-      </form>
+              <div className="flex flex-col gap-2 sm:flex-row">
+                <Button type="submit" disabled={isPending}>
+                  {isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                  {isEdit ? "Αποθήκευση" : "Δημιουργία"}
+                </Button>
+                <Button type="button" variant="outline" onClick={() => navigate("/admin/products")}>
+                  Ακύρωση
+                </Button>
+              </div>
+            </form>
+          </Form>
+        </CardContent>
+      </Card>
     </div>
   );
 }

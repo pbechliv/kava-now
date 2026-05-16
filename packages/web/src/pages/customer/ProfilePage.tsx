@@ -1,16 +1,15 @@
 import { useEffect, useState } from "react";
-import { useProfile, useUpdateProfile } from "../../lib/hooks/use-profile";
-import { useAuth } from "../../lib/hooks/use-auth";
-import { useMutation } from "@tanstack/react-query";
-import { api } from "../../lib/api";
-import { authClient } from "../../lib/auth-client";
-import { Card } from "../../components/ui/Card";
-import { Input } from "../../components/ui/Input";
-import { Button } from "../../components/ui/Button";
+import { Loader2 } from "lucide-react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Button } from "@/components/ui/button";
+import { Separator } from "@/components/ui/separator";
+import { ChangePasswordCard } from "@/components/auth/ChangePasswordCard";
+import { useProfile, useUpdateProfile } from "@/lib/hooks/use-profile";
 
 export function ProfilePage() {
   const { data: customer, isLoading } = useProfile();
-  const { user } = useAuth();
   const updateProfile = useUpdateProfile();
 
   const [phone, setPhone] = useState("");
@@ -23,57 +22,6 @@ export function ProfilePage() {
       setAddress(customer.address ?? "");
     }
   }, [customer]);
-
-  const [currentPassword, setCurrentPassword] = useState("");
-  const [newPassword, setNewPassword] = useState("");
-  const [confirmNewPassword, setConfirmNewPassword] = useState("");
-  const [passwordError, setPasswordError] = useState("");
-
-  const changePassword = useMutation({
-    mutationFn: async (data: { currentPassword?: string; newPassword: string }) => {
-      if (data.currentPassword) {
-        const { error } = await authClient.changePassword({
-          currentPassword: data.currentPassword,
-          newPassword: data.newPassword,
-        });
-        if (error) throw new Error(error.message ?? "Σφάλμα");
-        return;
-      }
-      // set-password isn't exposed by better-auth's REST API; use our proxy.
-      await api.post("/api/auth/set-password", {
-        newPassword: data.newPassword,
-      });
-    },
-    onSuccess: () => {
-      setCurrentPassword("");
-      setNewPassword("");
-      setConfirmNewPassword("");
-      setPasswordError("");
-    },
-    onError: (err) => {
-      setPasswordError(err instanceof Error ? err.message : "Κάτι πήγε στραβά");
-    },
-  });
-
-  const handleChangePassword = (e: React.FormEvent) => {
-    e.preventDefault();
-    setPasswordError("");
-
-    if (newPassword.length < 8) {
-      setPasswordError("Ο κωδικός πρέπει να έχει τουλάχιστον 8 χαρακτήρες");
-      return;
-    }
-
-    if (newPassword !== confirmNewPassword) {
-      setPasswordError("Οι κωδικοί δεν ταιριάζουν");
-      return;
-    }
-
-    changePassword.mutate({
-      ...(user?.hasPassword ? { currentPassword } : {}),
-      newPassword,
-    });
-  };
 
   const handleSaveProfile = (e: React.FormEvent) => {
     e.preventDefault();
@@ -95,100 +43,71 @@ export function ProfilePage() {
   };
 
   if (isLoading) {
-    return <div className="text-center text-sm text-gray-500 py-8">Φόρτωση...</div>;
+    return <div className="py-8 text-center text-sm text-muted-foreground">Φόρτωση...</div>;
   }
 
   if (!customer) {
-    return <div className="text-center text-sm text-gray-500 py-8">Δεν βρέθηκε προφίλ πελάτη.</div>;
+    return (
+      <div className="py-8 text-center text-sm text-muted-foreground">
+        Δεν βρέθηκε προφίλ πελάτη.
+      </div>
+    );
   }
 
   return (
-    <div>
-      <h1 className="text-2xl font-bold text-gray-900">Προφίλ</h1>
+    <div className="space-y-8">
+      <h1 className="text-2xl font-bold tracking-tight">Προφίλ</h1>
 
-      <div className="mt-6 max-w-2xl">
+      <div className="max-w-2xl space-y-6">
         <Card>
-          <h2 className="text-lg font-semibold text-gray-900 mb-4">Στοιχεία πελάτη</h2>
-          <dl className="divide-y divide-gray-100 mb-4">
-            <ReadOnlyRow label="Επωνυμία" value={customer.name} />
-            <ReadOnlyRow label="Email" value={customer.email} />
-            <ReadOnlyRow label="Υπεύθυνος επικοινωνίας" value={customer.contactPerson} />
-          </dl>
-          <p className="text-xs text-gray-400 mb-4">
-            Για αλλαγή επωνυμίας, email ή υπευθύνου επικοινωνίας, επικοινωνήστε με τον προμηθευτή
-            σας.
-          </p>
+          <CardHeader>
+            <CardTitle>Στοιχεία πελάτη</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-6">
+            <dl className="divide-y">
+              <ReadOnlyRow label="Επωνυμία" value={customer.name} />
+              <ReadOnlyRow label="Email" value={customer.email} />
+              <ReadOnlyRow label="Υπεύθυνος επικοινωνίας" value={customer.contactPerson} />
+            </dl>
+            <p className="text-xs text-muted-foreground">
+              Για αλλαγή επωνυμίας, email ή υπευθύνου επικοινωνίας, επικοινωνήστε με τον προμηθευτή
+              σας.
+            </p>
 
-          <form onSubmit={handleSaveProfile} className="space-y-4">
-            <Input
-              label="Τηλέφωνο"
-              id="profile-phone"
-              value={phone}
-              onChange={(e) => setPhone(e.target.value)}
-            />
-            <Input
-              label="Διεύθυνση"
-              id="profile-address"
-              value={address}
-              onChange={(e) => setAddress(e.target.value)}
-            />
-            {profileError && <p className="text-sm text-red-600">{profileError}</p>}
-            {updateProfile.isSuccess && (
-              <p className="text-sm text-green-600">Τα στοιχεία αποθηκεύτηκαν</p>
-            )}
-            <div className="flex justify-end">
-              <Button type="submit" loading={updateProfile.isPending}>
-                Αποθήκευση
-              </Button>
-            </div>
-          </form>
+            <Separator />
+
+            <form onSubmit={handleSaveProfile} className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="profile-phone">Τηλέφωνο</Label>
+                <Input
+                  id="profile-phone"
+                  value={phone}
+                  onChange={(e) => setPhone(e.target.value)}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="profile-address">Διεύθυνση</Label>
+                <Input
+                  id="profile-address"
+                  value={address}
+                  onChange={(e) => setAddress(e.target.value)}
+                />
+              </div>
+              {profileError && <p className="text-sm text-destructive">{profileError}</p>}
+              {updateProfile.isSuccess && (
+                <p className="text-sm text-green-600">Τα στοιχεία αποθηκεύτηκαν</p>
+              )}
+              <div className="flex justify-end">
+                <Button type="submit" disabled={updateProfile.isPending}>
+                  {updateProfile.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                  Αποθήκευση
+                </Button>
+              </div>
+            </form>
+          </CardContent>
         </Card>
-      </div>
 
-      <div className="mt-8 max-w-2xl">
-        <Card>
-          <h2 className="text-lg font-semibold text-gray-900 mb-4">
-            {user?.hasPassword ? "Αλλαγή κωδικού" : "Ορισμός κωδικού"}
-          </h2>
-          <form onSubmit={handleChangePassword} className="space-y-4">
-            {user?.hasPassword && (
-              <Input
-                id="currentPassword"
-                type="password"
-                label="Τρέχων κωδικός"
-                value={currentPassword}
-                onChange={(e) => setCurrentPassword(e.target.value)}
-              />
-            )}
-            <Input
-              id="newPassword"
-              type="password"
-              label="Νέος κωδικός"
-              placeholder="Τουλάχιστον 8 χαρακτήρες"
-              value={newPassword}
-              onChange={(e) => setNewPassword(e.target.value)}
-            />
-            <Input
-              id="confirmNewPassword"
-              type="password"
-              label="Επιβεβαίωση νέου κωδικού"
-              value={confirmNewPassword}
-              onChange={(e) => setConfirmNewPassword(e.target.value)}
-            />
-
-            {passwordError && <p className="text-sm text-red-600">{passwordError}</p>}
-
-            {changePassword.isSuccess && (
-              <p className="text-sm text-green-600">Ο κωδικός άλλαξε επιτυχώς</p>
-            )}
-
-            <div className="flex justify-end">
-              <Button type="submit" loading={changePassword.isPending}>
-                {user?.hasPassword ? "Αλλαγή κωδικού" : "Ορισμός κωδικού"}
-              </Button>
-            </div>
-          </form>
-        </Card>
+        <ChangePasswordCard />
       </div>
     </div>
   );
@@ -196,10 +115,10 @@ export function ProfilePage() {
 
 function ReadOnlyRow({ label, value }: { label: string; value: string | null }) {
   return (
-    <div className="flex flex-col sm:flex-row sm:items-center py-3">
-      <dt className="text-sm font-medium text-gray-500 sm:w-48">{label}</dt>
-      <dd className="mt-1 sm:mt-0 text-sm text-gray-900">
-        {value || <span className="text-gray-400">-</span>}
+    <div className="flex flex-col py-3 sm:flex-row sm:items-center">
+      <dt className="text-sm font-medium text-muted-foreground sm:w-48">{label}</dt>
+      <dd className="mt-1 text-sm sm:mt-0">
+        {value || <span className="text-muted-foreground">-</span>}
       </dd>
     </div>
   );
