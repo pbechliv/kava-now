@@ -1,10 +1,17 @@
 import { useEffect, useState, useMemo } from "react";
-import { ImageIcon, Minus, Plus } from "lucide-react";
+import { Minus, Plus } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Card, CardContent } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
+import { Card } from "@/components/ui/card";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { cn } from "@/lib/utils";
 import { PaginationControls } from "@/components/PaginationControls";
 import { useCatalog } from "@/lib/hooks/use-catalog";
@@ -111,71 +118,71 @@ export function CatalogPage() {
         <div className="text-center text-sm text-muted-foreground">Δεν βρέθηκαν προϊόντα.</div>
       ) : (
         <>
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {products.map((product) => (
-              <Card key={product.id}>
-                <CardContent className="p-4">
-                  {product.imageUrl ? (
-                    <img
-                      src={product.imageUrl}
-                      alt={product.name}
-                      className="mb-3 aspect-video w-full rounded-md object-cover"
-                    />
-                  ) : (
-                    <div className="mb-3 flex aspect-video w-full items-center justify-center rounded-md bg-muted text-muted-foreground">
-                      <ImageIcon className="h-10 w-10" />
-                    </div>
-                  )}
-
-                  <Badge variant="muted" className="mb-2">
-                    {product.categoryName || "Χωρίς κατηγορία"}
-                  </Badge>
-                  <h3 className="font-semibold">{product.name}</h3>
-                  {product.brand && (
-                    <p className="text-sm text-muted-foreground">{product.brand}</p>
-                  )}
-
-                  <div className="mt-2 flex items-baseline gap-2">
-                    <span className="text-lg font-bold text-primary">
-                      {product.resolvedPrice.toFixed(2)}&nbsp;€
-                    </span>
-                    <span className="text-xs text-muted-foreground">
-                      / {UNIT_LABELS[product.unit]}
-                    </span>
-                  </div>
-
-                  <div className="mt-3 flex items-center gap-2">
-                    <div className="flex items-center rounded-md border">
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="icon"
-                        className="h-9 w-9 rounded-r-none"
-                        onClick={() => setQty(product.id, getQty(product.id) - 1)}
-                        aria-label="Μείωση"
-                      >
-                        <Minus className="h-4 w-4" />
-                      </Button>
-                      <span className="w-10 text-center text-sm">{getQty(product.id)}</span>
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="icon"
-                        className="h-9 w-9 rounded-l-none"
-                        onClick={() => setQty(product.id, getQty(product.id) + 1)}
-                        aria-label="Αύξηση"
-                      >
-                        <Plus className="h-4 w-4" />
-                      </Button>
-                    </div>
-                    <Button type="button" className="flex-1" onClick={() => handleAdd(product)}>
-                      Προσθήκη
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
+          <Card className="overflow-hidden">
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Όνομα</TableHead>
+                    <TableHead>Brand</TableHead>
+                    <TableHead>Κατηγορία</TableHead>
+                    <TableHead>Μονάδα</TableHead>
+                    <TableHead className="text-right">Τιμή</TableHead>
+                    <TableHead className="text-right">Ενέργειες</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {products.map((product) => (
+                    <TableRow key={product.id}>
+                      <TableCell className="font-medium">{product.name}</TableCell>
+                      <TableCell className="text-muted-foreground">
+                        {product.brand ?? "-"}
+                      </TableCell>
+                      <TableCell className="text-muted-foreground">
+                        {product.categoryName ?? "-"}
+                      </TableCell>
+                      <TableCell className="text-muted-foreground">
+                        {UNIT_LABELS[product.unit]}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        {product.resolvedPrice.toFixed(2)}&nbsp;€
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <div className="flex items-center justify-end gap-2">
+                          <div className="flex items-center rounded-md border">
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="icon"
+                              className="h-9 w-9 rounded-r-none"
+                              onClick={() => setQty(product.id, getQty(product.id) - 1)}
+                              aria-label="Μείωση"
+                            >
+                              <Minus className="h-4 w-4" />
+                            </Button>
+                            <span className="w-10 text-center text-sm">{getQty(product.id)}</span>
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="icon"
+                              className="h-9 w-9 rounded-l-none"
+                              onClick={() => setQty(product.id, getQty(product.id) + 1)}
+                              aria-label="Αύξηση"
+                            >
+                              <Plus className="h-4 w-4" />
+                            </Button>
+                          </div>
+                          <Button type="button" onClick={() => handleAdd(product)}>
+                            Προσθήκη
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          </Card>
           <PaginationControls
             page={page}
             pageSize={PAGE_SIZE}
