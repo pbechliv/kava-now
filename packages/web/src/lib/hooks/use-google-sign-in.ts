@@ -19,8 +19,11 @@ export function useGoogleSignIn() {
         idToken: { token: credential },
       });
       if (error) {
+        // The invite-only hook on the server rejects unknown emails with a
+        // generic better-auth error. Show a clear, action-oriented message
+        // regardless of what better-auth returns.
         throw new Error(
-          error.message ?? "Η σύνδεση με Google απέτυχε. Βεβαιωθείτε ότι έχετε λάβει πρόσκληση.",
+          "Δεν βρέθηκε λογαριασμός με αυτό το email στο KavaNow. Επικοινωνήστε με τον διαχειριστή για πρόσκληση.",
         );
       }
     },

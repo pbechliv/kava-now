@@ -45,9 +45,6 @@ import { KavasPage } from "./pages/superadmin/KavasPage";
 import { NewKavaPage } from "./pages/superadmin/NewKavaPage";
 import { SuperAdminSettingsPage } from "./pages/superadmin/SettingsPage";
 
-// Platform pages
-import { KavaSelectPage } from "./pages/platform/KavaSelectPage";
-
 // Other
 import { HomePage } from "./pages/HomePage";
 import { NotFoundPage } from "./pages/NotFoundPage";
@@ -57,8 +54,12 @@ export function App() {
     <QueryClientProvider client={queryClient}>
       <BrowserRouter>
         <Routes>
-          {/* Platform-level auth — used by superadmin (no kava context). */}
+          {/* Platform-level auth — used by superadmin (no kava context).
+              `/` and `/login` both render LoginPage: anonymous users see the
+              login form, authenticated users are redirected to their home (or
+              see a kava picker if they belong to multiple kavas). */}
           <Route element={<AuthLayout />}>
+            <Route index element={<LoginPage />} />
             <Route path="/login" element={<LoginPage />} />
             <Route path="/auth/forgot-password" element={<ForgotPasswordPage />} />
             <Route path="/auth/reset-password" element={<ResetPasswordPage />} />
@@ -134,11 +135,6 @@ export function App() {
             </Route>
 
             <Route index element={<HomePage />} />
-          </Route>
-
-          {/* Platform landing — kava selector. */}
-          <Route path="/" element={<AuthLayout />}>
-            <Route index element={<KavaSelectPage />} />
           </Route>
 
           <Route path="*" element={<NotFoundPage />} />

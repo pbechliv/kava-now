@@ -1,13 +1,17 @@
+import { useEffect } from "react";
 import { useForm } from "react-hook-form";
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { loginSchema, type LoginInput } from "@kava-now/shared";
-import { Link, useParams } from "react-router";
+import { Link, useNavigate, useParams } from "react-router";
 import { Loader2 } from "lucide-react";
 import { GoogleLogin } from "@react-oauth/google";
 import { useLogin } from "@/lib/hooks/use-login";
 import { useGoogleSignIn } from "@/lib/hooks/use-google-sign-in";
+import { useAuth } from "@/lib/hooks/use-auth";
+import { membershipHome } from "@/lib/auth-home";
 import { api } from "@/lib/api";
+import { authClient } from "@/lib/auth-client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
@@ -26,6 +30,18 @@ export function LoginPage() {
   const login = useLogin();
   const googleSignIn = useGoogleSignIn();
   const { slug } = useParams<{ slug: string }>();
+  const navigate = useNavigate();
+  const queryClient = useQueryClient();
+  const { isAuthenticated, user, memberships } = useAuth();
+
+  const signOut = useMutation({
+    mutationFn: async () => {
+      await authClient.signOut();
+    },
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ["auth"] });
+    },
+  });
 
   const { data: kavaInfo } = useQuery({
     queryKey: ["kava-info", slug],
@@ -39,6 +55,70 @@ export function LoginPage() {
     resolver: zodResolver(loginSchema),
     defaultValues: { email: "", password: "" },
   });
+
+  useEffect(() => {
+    if (!isAuthenticated || !user) return;
+    if (user.isSuperAdmin) {
+      void navigate("/admin/kavas", { replace: true });
+      return;
+    }
+    if (slug) {
+      const match = memberships.find((m) => m.kavaSlug === slug);
+      if (match) {
+        void navigate(membershipHome(match), { replace: true });
+        return;
+      }
+    }
+    if (memberships.length === 1) {
+      void navigate(membershipHome(memberships[0]!), { replace: true });
+    }
+    // 0 or multiple memberships and we're on /login → fall through to render below.
+  }, [isAuthenticated, user, memberships, slug, navigate]);
+
+  if (isAuthenticated && user && !user.isSuperAdmin) {
+    if (memberships.length > 1) {
+      return (
+        <div className="space-y-4">
+          <h2 className="text-center text-lg font-semibold">Οι κάβες σας</h2>
+          <ul className="space-y-2">
+            {memberships.map((m) => (
+              <li key={m.kavaId}>
+                <Button
+                  variant="outline"
+                  className="w-full justify-between"
+                  onClick={() => void navigate(membershipHome(m))}
+                >
+                  <span>{m.kavaName}</span>
+                  <span className="text-xs text-muted-foreground">{m.role}</span>
+                </Button>
+              </li>
+            ))}
+          </ul>
+        </div>
+      );
+    }
+    if (memberships.length === 0) {
+      return (
+        <div className="space-y-4 text-center">
+          <h2 className="text-lg font-semibold">Δεν έχετε πρόσβαση σε κάβα</h2>
+          <p className="text-sm text-muted-foreground">
+            Επικοινωνήστε με τον διαχειριστή της κάβας σας για πρόσκληση.
+          </p>
+          <Button
+            variant="outline"
+            className="w-full"
+            onClick={() => signOut.mutate()}
+            disabled={signOut.isPending}
+          >
+            {signOut.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+            Σύνδεση με άλλον λογαριασμό
+          </Button>
+        </div>
+      );
+    }
+    // Single membership — useEffect will redirect; render nothing in the meantime.
+    return null;
+  }
 
   const onSubmit = (data: LoginInput) => {
     login.mutate(data);

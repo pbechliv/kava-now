@@ -9,7 +9,6 @@ import { sentryContextMiddleware } from "./middleware/sentry-context";
 import { signInRateLimit, forgotPasswordRateLimit } from "./middleware/rate-limit";
 import { auth } from "./auth";
 import { authRoutes } from "./routes/auth";
-import { platformRoutes } from "./routes/platform";
 import { adminRoutes } from "./routes/admin/index";
 import { customerRoutes } from "./routes/customer/index";
 import { superadminRoutes } from "./routes/superadmin/index";
@@ -54,7 +53,6 @@ app.use("/api/auth/request-password-reset", forgotPasswordRateLimit);
 // get-session, forget-password, reset-password, etc.}
 app.on(["POST", "GET"], "/api/auth/*", (c) => auth.handler(c.req.raw));
 
-app.route("/api/platform", platformRoutes);
 app.route("/api/superadmin", superadminRoutes);
 
 // Tenant-scoped routes. tenantMiddleware reads the :slug param, resolves the

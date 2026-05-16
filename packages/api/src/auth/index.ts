@@ -1,5 +1,6 @@
 import { betterAuth } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
+import { APIError } from "better-auth/api";
 import { db } from "../db/connection";
 import { users, sessions, accounts, verifications } from "../db/schema/index";
 import { config } from "../config";
@@ -43,6 +44,20 @@ export const auth = betterAuth({
       // Google verifies emails — safe to auto-link a Google sign-in to an existing user row
       // (e.g. an invited user who never set a password).
       trustedProviders: ["google"],
+    },
+  },
+  databaseHooks: {
+    user: {
+      create: {
+        before: async () => {
+          // Invite-only: users are created exclusively via the invite flow
+          // (db.insert in invite-user.ts), which bypasses this hook. Anything
+          // reaching here is a social-provider auto-signup attempt — reject.
+          // (socialProviders.google.disableSignUp covers the redirect flow but
+          // not the idToken flow; this hook covers both.)
+          throw new APIError("BAD_REQUEST", { message: "Signup is disabled" });
+        },
+      },
     },
   },
   session: {
