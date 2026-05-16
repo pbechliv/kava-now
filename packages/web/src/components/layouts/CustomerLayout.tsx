@@ -1,4 +1,4 @@
-import { NavLink, Outlet, Link } from "react-router";
+import { NavLink, Outlet, Link, useParams } from "react-router";
 import { LogOut, ShoppingBag, ShoppingCart, ScrollText, UserRound } from "lucide-react";
 import { useAuth } from "@/lib/hooks/use-auth";
 import { useLogout } from "@/lib/hooks/use-logout";
@@ -29,13 +29,7 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
 import { useCartStore } from "@/lib/store/cart";
-
-const navItems = [
-  { to: "/catalog", label: "Κατάλογος", icon: ShoppingBag, end: true, key: "catalog" },
-  { to: "/cart", label: "Καλάθι", icon: ShoppingCart, end: false, key: "cart" },
-  { to: "/orders", label: "Ιστορικό", icon: ScrollText, end: false, key: "orders" },
-  { to: "/profile", label: "Προφίλ", icon: UserRound, end: false, key: "profile" },
-] as const;
+import { KavaSwitcher } from "@/components/KavaSwitcher";
 
 function initials(name: string | null | undefined) {
   if (!name) return "?";
@@ -50,9 +44,18 @@ function initials(name: string | null | undefined) {
 export function CustomerLayout() {
   const { user, kava } = useAuth();
   const logout = useLogout();
+  const { slug } = useParams<{ slug: string }>();
+  const base = `/k/${slug}`;
   const cartCount = useCartStore((s) =>
     Object.values(s.items).reduce((sum, item) => sum + item.quantity, 0),
   );
+
+  const navItems = [
+    { to: `${base}/catalog`, label: "Κατάλογος", icon: ShoppingBag, end: true, key: "catalog" },
+    { to: `${base}/cart`, label: "Καλάθι", icon: ShoppingCart, end: false, key: "cart" },
+    { to: `${base}/orders`, label: "Ιστορικό", icon: ScrollText, end: false, key: "orders" },
+    { to: `${base}/profile`, label: "Προφίλ", icon: UserRound, end: false, key: "profile" },
+  ] as const;
 
   return (
     <SidebarProvider>
@@ -105,7 +108,7 @@ export function CustomerLayout() {
           <Separator orientation="vertical" className="mx-1 h-5" />
           <div className="flex-1" />
           <Button asChild variant="ghost" size="sm" className="relative gap-2">
-            <Link to="/cart" aria-label="Καλάθι">
+            <Link to={`${base}/cart`} aria-label="Καλάθι">
               <ShoppingCart className="h-5 w-5" />
               {cartCount > 0 && (
                 <Badge
@@ -128,6 +131,7 @@ export function CustomerLayout() {
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-56">
               <DropdownMenuLabel className="truncate">{user?.email}</DropdownMenuLabel>
+              <KavaSwitcher currentSlug={slug ?? null} />
               <DropdownMenuSeparator />
               <DropdownMenuItem onSelect={() => logout.mutate()}>
                 <LogOut className="mr-2 h-4 w-4" />

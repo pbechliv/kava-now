@@ -2,7 +2,7 @@ import { useForm } from "react-hook-form";
 import { useQuery } from "@tanstack/react-query";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { loginSchema, type LoginInput } from "@kava-now/shared";
-import { Link } from "react-router";
+import { Link, useParams } from "react-router";
 import { Loader2 } from "lucide-react";
 import { useLogin } from "@/lib/hooks/use-login";
 import { api } from "@/lib/api";
@@ -19,10 +19,12 @@ import {
 
 export function LoginPage() {
   const login = useLogin();
+  const { slug } = useParams<{ slug: string }>();
 
   const { data: kavaInfo } = useQuery({
-    queryKey: ["kava-info"],
-    queryFn: () => api.get<{ name: string; slug: string }>("/api/kava"),
+    queryKey: ["kava-info", slug],
+    queryFn: () => api.get<{ name: string; slug: string }>(`/api/k/${slug}/kava`),
+    enabled: !!slug,
     retry: false,
     staleTime: Infinity,
   });
@@ -35,6 +37,8 @@ export function LoginPage() {
   const onSubmit = (data: LoginInput) => {
     login.mutate(data);
   };
+
+  const forgotPath = slug ? `/k/${slug}/auth/forgot-password` : "/auth/forgot-password";
 
   return (
     <Form {...form}>
@@ -76,7 +80,7 @@ export function LoginPage() {
         />
 
         <div className="text-right">
-          <Link to="/auth/forgot-password" className="text-sm text-primary hover:underline">
+          <Link to={forgotPath} className="text-sm text-primary hover:underline">
             Ξεχάσατε τον κωδικό;
           </Link>
         </div>
@@ -91,13 +95,6 @@ export function LoginPage() {
           {login.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
           Σύνδεση
         </Button>
-
-        <p className="text-center text-sm text-muted-foreground">
-          Δεν έχετε λογαριασμό;{" "}
-          <Link to="/register" className="font-medium text-primary hover:underline">
-            Εγγραφή
-          </Link>
-        </p>
       </form>
     </Form>
   );

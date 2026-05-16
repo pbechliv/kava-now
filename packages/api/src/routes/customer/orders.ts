@@ -17,9 +17,8 @@ const ordersRouter = new Hono<AppEnv>();
 
 // POST / — create order
 ordersRouter.post("/", async (c) => {
-  const user = c.get("user")!;
   const kava = c.get("kava")!;
-  const customerId = user.customerId;
+  const customerId = c.get("membership")!.customerId;
 
   if (!customerId) {
     return c.json({ error: "Δεν βρέθηκε λογαριασμός πελάτη" }, 400);
@@ -129,8 +128,7 @@ ordersRouter.post("/", async (c) => {
 
 // GET / — list orders for authenticated customer
 ordersRouter.get("/", async (c) => {
-  const user = c.get("user")!;
-  const customerId = user.customerId;
+  const customerId = c.get("membership")!.customerId;
 
   if (!customerId) {
     return c.json({ error: "Δεν βρέθηκε λογαριασμός πελάτη" }, 400);
@@ -175,8 +173,7 @@ ordersRouter.get("/", async (c) => {
 
 // GET /:id — single order with items
 ordersRouter.get("/:id", async (c) => {
-  const user = c.get("user")!;
-  const customerId = user.customerId;
+  const customerId = c.get("membership")!.customerId;
   const orderId = c.req.param("id");
 
   if (!customerId) {
@@ -200,9 +197,8 @@ ordersRouter.get("/:id", async (c) => {
 
 // POST /:id/reorder — clone items from referenced order into a new order
 ordersRouter.post("/:id/reorder", async (c) => {
-  const user = c.get("user")!;
   const kava = c.get("kava")!;
-  const customerId = user.customerId;
+  const customerId = c.get("membership")!.customerId;
   const orderId = c.req.param("id");
 
   if (!customerId) {

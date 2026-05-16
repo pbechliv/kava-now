@@ -2,7 +2,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { resetPasswordSchema, type ResetPasswordInput } from "@kava-now/shared";
 import { useMutation } from "@tanstack/react-query";
-import { useSearchParams, Link } from "react-router";
+import { useSearchParams, Link, useParams } from "react-router";
 import { CheckCircle2, Loader2 } from "lucide-react";
 import { authClient } from "@/lib/auth-client";
 import { Button } from "@/components/ui/button";
@@ -19,6 +19,9 @@ import {
 export function ResetPasswordPage() {
   const [searchParams] = useSearchParams();
   const token = searchParams.get("token") || "";
+  const { slug } = useParams<{ slug: string }>();
+  const forgotPath = slug ? `/k/${slug}/auth/forgot-password` : "/auth/forgot-password";
+  const loginPath = slug ? `/k/${slug}/login` : "/login";
 
   const form = useForm<ResetPasswordInput>({
     resolver: zodResolver(resetPasswordSchema),
@@ -47,7 +50,7 @@ export function ResetPasswordPage() {
           Ο σύνδεσμος επαναφοράς δεν είναι έγκυρος.
         </p>
         <Link
-          to="/auth/forgot-password"
+          to={forgotPath}
           className="mt-4 inline-block text-sm font-medium text-primary hover:underline"
         >
           Ζητήστε νέο σύνδεσμο
@@ -67,7 +70,7 @@ export function ResetPasswordPage() {
           Μπορείτε τώρα να συνδεθείτε με τον νέο σας κωδικό.
         </p>
         <Link
-          to="/login"
+          to={loginPath}
           className="mt-4 inline-block text-sm font-medium text-primary hover:underline"
         >
           Σύνδεση
@@ -115,7 +118,7 @@ export function ResetPasswordPage() {
           <div className="text-sm text-destructive">
             <p>{mutation.error instanceof Error ? mutation.error.message : "Κάτι πήγε στραβά"}</p>
             <Link
-              to="/auth/forgot-password"
+              to={forgotPath}
               className="mt-2 inline-block font-medium text-primary hover:underline"
             >
               Ζητήστε νέο σύνδεσμο επαναφοράς

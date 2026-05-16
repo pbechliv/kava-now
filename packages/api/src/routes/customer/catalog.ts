@@ -10,8 +10,7 @@ const catalogRouter = new Hono<AppEnv>();
 
 // GET / — all active products with per-brand pricing for the authenticated customer
 catalogRouter.get("/", async (c) => {
-  const user = c.get("user")!;
-  const customerId = user.customerId;
+  const customerId = c.get("membership")!.customerId;
 
   if (!customerId) {
     return c.json({ error: "Δεν βρέθηκε λογαριασμός πελάτη" }, 400);

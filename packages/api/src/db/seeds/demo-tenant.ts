@@ -1,11 +1,11 @@
 import { eq } from "drizzle-orm";
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js";
-import { encodeAuthEmail } from "@kava-now/shared";
 import { auth } from "../../auth/index.js";
 import {
   categories,
   customerBrandPricing,
   customers,
+  kavaMemberships,
   kavas,
   orderItems,
   orders,
@@ -26,8 +26,6 @@ const DEMO_CATEGORIES = [
   "Χυμοί",
 ] as const;
 
-// Base price per category (€). Snapshotted into products.basePrice; order items
-// snapshot this again into unit_price at order time.
 const BASE_PRICE_BY_CATEGORY: Record<string, number> = {
   Κρασιά: 12.0,
   Μπύρες: 1.8,
@@ -229,22 +227,18 @@ export async function seedDemoTenant(db: PostgresJsDatabase): Promise<void> {
 
   if (!demoKava) throw new Error("Failed to create demo kava");
 
-  const ownerRealEmail = process.env.DEMO_OWNER_EMAIL ?? "owner@demo.kavanow.gr";
-  const ownerPassword = process.env.DEMO_OWNER_PASSWORD ?? "demopass";
-  const ownerAuthEmail = encodeAuthEmail(ownerRealEmail, DEMO_SLUG);
+  // The superadmin is the owner of the demo kava — gives dev a single user to
+  // log in as and use the in-app tenant switcher to enter the kava context.
+  const [superadminUser] = await db
+    .select({ id: users.id })
+    .from(users)
+    .where(eq(users.isSuperAdmin, true))
+    .limit(1);
+  if (!superadminUser) throw new Error("Superadmin must be seeded before the demo tenant");
 
-  await auth.api.signUpEmail({
-    body: {
-      email: ownerAuthEmail,
-      password: ownerPassword,
-      name: "Demo Owner",
-      realEmail: ownerRealEmail,
-    },
-  });
   await db
-    .update(users)
-    .set({ role: "owner", kavaId: demoKava.id, emailVerified: true })
-    .where(eq(users.email, ownerAuthEmail));
+    .insert(kavaMemberships)
+    .values({ userId: superadminUser.id, kavaId: demoKava.id, role: "owner" });
 
   const insertedCategories = await db
     .insert(categories)
@@ -292,29 +286,29 @@ export async function seedDemoTenant(db: PostgresJsDatabase): Promise<void> {
 
   const customerByName = new Map(insertedCustomers.map((c) => [c.name, c.id]));
 
-  const customerRealEmail = process.env.DEMO_CUSTOMER_EMAIL ?? "customer@demo.kavanow.gr";
+  // Customer user + membership linked to "Ταβέρνα Ο Νίκος"
+  const customerEmail = process.env.DEMO_CUSTOMER_EMAIL ?? "customer@demo.kavanow.gr";
   const customerPassword = process.env.DEMO_CUSTOMER_PASSWORD ?? "demopass";
-  const customerAuthEmail = encodeAuthEmail(customerRealEmail, DEMO_SLUG);
   const linkedCustomerId = customerByName.get("Ταβέρνα Ο Νίκος");
   if (!linkedCustomerId) throw new Error("Demo customer org missing: Ταβέρνα Ο Νίκος");
 
   await auth.api.signUpEmail({
-    body: {
-      email: customerAuthEmail,
-      password: customerPassword,
-      name: "Demo Customer",
-      realEmail: customerRealEmail,
-    },
+    body: { email: customerEmail, password: customerPassword, name: "Demo Customer" },
   });
-  await db
-    .update(users)
-    .set({
-      role: "customer",
-      kavaId: demoKava.id,
-      customerId: linkedCustomerId,
-      emailVerified: true,
-    })
-    .where(eq(users.email, customerAuthEmail));
+  await db.update(users).set({ emailVerified: true }).where(eq(users.email, customerEmail));
+  const [customerUser] = await db
+    .select({ id: users.id })
+    .from(users)
+    .where(eq(users.email, customerEmail))
+    .limit(1);
+  if (!customerUser) throw new Error("Failed to create demo customer user");
+
+  await db.insert(kavaMemberships).values({
+    userId: customerUser.id,
+    kavaId: demoKava.id,
+    role: "customer",
+    customerId: linkedCustomerId,
+  });
 
   await db.insert(customerBrandPricing).values(
     DEMO_BRAND_PRICING.map((bp) => {
@@ -359,7 +353,7 @@ export async function seedDemoTenant(db: PostgresJsDatabase): Promise<void> {
 
   console.log(
     `Demo tenant seeded: kava "${DEMO_SLUG}" + ${DEMO_CUSTOMERS.length} customers + ${DEMO_ORDERS.length} orders. ` +
-      `Owner login: ${ownerRealEmail} / ${ownerPassword} at demo.lvh.me:5173. ` +
-      `Customer login: ${customerRealEmail} / ${customerPassword} at demo.lvh.me:5173`,
+      `Owner: the superadmin (use /admin to switch into /k/${DEMO_SLUG}). ` +
+      `Customer login: ${customerEmail} / ${customerPassword} at localhost:5173/k/${DEMO_SLUG}/login`,
   );
 }

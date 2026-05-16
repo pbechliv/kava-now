@@ -1,4 +1,5 @@
 import { Link } from "react-router";
+import { useTenantSlug } from "@/lib/hooks/use-tenant-api";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Table,
@@ -13,6 +14,7 @@ import { OrderStatusBadge } from "@/components/order-status-badge";
 import { useDashboardStats } from "@/lib/hooks/use-dashboard";
 
 export function DashboardPage() {
+  const slug = useTenantSlug();
   const { data: stats, isLoading } = useDashboardStats();
 
   if (isLoading) {
@@ -54,7 +56,10 @@ export function DashboardPage() {
       <div>
         <div className="flex items-center justify-between">
           <h2 className="text-lg font-semibold">Πρόσφατες Παραγγελίες</h2>
-          <Link to="/admin/orders" className="text-sm font-medium text-primary hover:underline">
+          <Link
+            to={`/k/${slug}/admin/orders`}
+            className="text-sm font-medium text-primary hover:underline"
+          >
             Προβολή όλων
           </Link>
         </div>

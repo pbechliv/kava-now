@@ -210,7 +210,7 @@ function KavaSettingsTab() {
 }
 
 function ProfileTab() {
-  const { user } = useAuth();
+  const { user, currentMembership } = useAuth();
   const updateMe = useUpdateMe();
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
@@ -260,11 +260,13 @@ function ProfileTab() {
               required
             />
           </FieldRow>
-          {user?.invitedBy && (
+          {currentMembership?.invitedBy && (
             <div className="text-sm text-muted-foreground">
               Προσκληθήκατε από{" "}
-              <span className="font-medium text-foreground">{user.invitedBy.name}</span> (
-              {user.invitedBy.email})
+              <span className="font-medium text-foreground">
+                {currentMembership.invitedBy.name}
+              </span>{" "}
+              ({currentMembership.invitedBy.email})
             </div>
           )}
           {error && <p className="text-sm text-destructive">{error}</p>}

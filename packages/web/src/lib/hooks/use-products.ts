@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient, keepPreviousData } from "@tanstack/react-query";
-import { api } from "../api";
+import { useTenantApi, useTenantSlug } from "./use-tenant-api";
 import type {
   Product,
   CreateProductInput,
@@ -22,6 +22,8 @@ interface ProductFilters {
 }
 
 export function useProducts(filters?: ProductFilters) {
+  const slug = useTenantSlug();
+  const tApi = useTenantApi();
   const params = new URLSearchParams();
   if (filters?.categoryId) params.set("categoryId", filters.categoryId);
   if (filters?.search) params.set("search", filters.search);
@@ -30,66 +32,76 @@ export function useProducts(filters?: ProductFilters) {
   if (filters?.pageSize) params.set("pageSize", String(filters.pageSize));
 
   const qs = params.toString();
-  const path = `/api/admin/products${qs ? `?${qs}` : ""}`;
+  const path = `/admin/products${qs ? `?${qs}` : ""}`;
 
   return useQuery({
-    queryKey: ["admin", "products", filters],
-    queryFn: () => api.get<PaginatedResponse<ProductWithCategory>>(path),
+    queryKey: ["admin", slug, "products", filters],
+    queryFn: () => tApi.get<PaginatedResponse<ProductWithCategory>>(path),
     placeholderData: keepPreviousData,
   });
 }
 
 export function useProduct(id: string | undefined) {
+  const slug = useTenantSlug();
+  const tApi = useTenantApi();
   return useQuery({
-    queryKey: ["admin", "products", id],
-    queryFn: () => api.get<ProductWithCategory>(`/api/admin/products/${id}`),
+    queryKey: ["admin", slug, "products", id],
+    queryFn: () => tApi.get<ProductWithCategory>(`/admin/products/${id}`),
     enabled: !!id,
   });
 }
 
 export function useCreateProduct() {
+  const slug = useTenantSlug();
+  const tApi = useTenantApi();
   const qc = useQueryClient();
 
   return useMutation({
-    mutationFn: (data: CreateProductInput) => api.post<Product>("/api/admin/products", data),
+    mutationFn: (data: CreateProductInput) => tApi.post<Product>("/admin/products", data),
     onSuccess: () => {
-      void qc.invalidateQueries({ queryKey: ["admin", "products"] });
+      void qc.invalidateQueries({ queryKey: ["admin", slug, "products"] });
     },
   });
 }
 
 export function useUpdateProduct() {
+  const slug = useTenantSlug();
+  const tApi = useTenantApi();
   const qc = useQueryClient();
 
   return useMutation({
     mutationFn: ({ id, data }: { id: string; data: UpdateProductInput }) =>
-      api.put<Product>(`/api/admin/products/${id}`, data),
+      tApi.put<Product>(`/admin/products/${id}`, data),
     onSuccess: () => {
-      void qc.invalidateQueries({ queryKey: ["admin", "products"] });
+      void qc.invalidateQueries({ queryKey: ["admin", slug, "products"] });
     },
   });
 }
 
 export function useDeleteProduct() {
+  const slug = useTenantSlug();
+  const tApi = useTenantApi();
   const qc = useQueryClient();
 
   return useMutation({
-    mutationFn: (id: string) => api.delete(`/api/admin/products/${id}`),
+    mutationFn: (id: string) => tApi.delete(`/admin/products/${id}`),
     onSuccess: () => {
-      void qc.invalidateQueries({ queryKey: ["admin", "products"] });
+      void qc.invalidateQueries({ queryKey: ["admin", slug, "products"] });
     },
   });
 }
 
 export function useImportProducts() {
+  const slug = useTenantSlug();
+  const tApi = useTenantApi();
   const qc = useQueryClient();
 
   return useMutation({
     mutationFn: (rows: ImportProductRow[]) =>
-      api.post<ImportProductsResult>("/api/admin/products/import", { rows }),
+      tApi.post<ImportProductsResult>("/admin/products/import", { rows }),
     onSuccess: () => {
-      void qc.invalidateQueries({ queryKey: ["admin", "products"] });
-      void qc.invalidateQueries({ queryKey: ["admin", "categories"] });
+      void qc.invalidateQueries({ queryKey: ["admin", slug, "products"] });
+      void qc.invalidateQueries({ queryKey: ["admin", slug, "categories"] });
     },
   });
 }

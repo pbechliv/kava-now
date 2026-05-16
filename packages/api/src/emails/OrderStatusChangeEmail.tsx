@@ -1,12 +1,4 @@
-import {
-  Body,
-  Container,
-  Head,
-  Heading,
-  Html,
-  Preview,
-  Text,
-} from "@react-email/components";
+import { Body, Container, Head, Heading, Html, Preview, Text } from "@react-email/components";
 
 interface OrderStatusChangeEmailProps {
   orderShortId: string;
@@ -36,10 +28,7 @@ const status = {
 };
 const muted = { color: "#6b7280", fontSize: "12px", lineHeight: "18px", margin: "24px 0 0" };
 
-export function OrderStatusChangeEmail({
-  orderShortId,
-  statusLabel,
-}: OrderStatusChangeEmailProps) {
+export function OrderStatusChangeEmail({ orderShortId, statusLabel }: OrderStatusChangeEmailProps) {
   return (
     <Html lang="el">
       <Head />
@@ -62,10 +51,7 @@ export function OrderStatusChangeEmail({
   );
 }
 
-export function subject({
-  orderShortId,
-  statusLabel,
-}: OrderStatusChangeEmailProps): string {
+export function subject({ orderShortId, statusLabel }: OrderStatusChangeEmailProps): string {
   return `Η παραγγελία σας #${orderShortId} - ${statusLabel}`;
 }
 

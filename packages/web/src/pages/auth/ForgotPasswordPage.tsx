@@ -2,10 +2,9 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { forgotPasswordSchema, type ForgotPasswordInput } from "@kava-now/shared";
 import { useMutation } from "@tanstack/react-query";
-import { Link } from "react-router";
+import { Link, useParams } from "react-router";
 import { Loader2, MailCheck } from "lucide-react";
 import { authClient } from "@/lib/auth-client";
-import { authEmailFor } from "@/lib/auth-email";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -18,15 +17,20 @@ import {
 } from "@/components/ui/form";
 
 export function ForgotPasswordPage() {
+  const { slug } = useParams<{ slug: string }>();
+
   const form = useForm<ForgotPasswordInput>({
     resolver: zodResolver(forgotPasswordSchema),
   });
 
+  const resetPath = slug ? `/k/${slug}/auth/reset-password` : "/auth/reset-password";
+  const loginPath = slug ? `/k/${slug}/login` : "/login";
+
   const mutation = useMutation({
     mutationFn: async (data: ForgotPasswordInput) => {
       const { error } = await authClient.requestPasswordReset({
-        email: authEmailFor(data.email),
-        redirectTo: "/auth/reset-password",
+        email: data.email,
+        redirectTo: resetPath,
       });
       if (error) throw new Error(error.message ?? "Σφάλμα");
     },
@@ -47,7 +51,7 @@ export function ForgotPasswordPage() {
           Αν υπάρχει λογαριασμός με αυτό το email, θα λάβετε σύνδεσμο επαναφοράς κωδικού.
         </p>
         <Link
-          to="/login"
+          to={loginPath}
           className="mt-4 inline-block text-sm font-medium text-primary hover:underline"
         >
           Επιστροφή στη σύνδεση
@@ -90,7 +94,7 @@ export function ForgotPasswordPage() {
         </Button>
 
         <p className="text-center text-sm text-muted-foreground">
-          <Link to="/login" className="font-medium text-primary hover:underline">
+          <Link to={loginPath} className="font-medium text-primary hover:underline">
             Επιστροφή στη σύνδεση
           </Link>
         </p>

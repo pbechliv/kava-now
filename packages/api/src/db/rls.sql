@@ -5,7 +5,8 @@
 -- NOTE: better-auth owns users, sessions, accounts, verifications — these tables
 -- do NOT have RLS because better-auth queries them globally (by session token,
 -- by user id). Tenant scoping for auth is enforced in application code via
--- require-role / require-auth middleware (user.kavaId must match subdomain).
+-- require-role / require-auth middleware, which looks up `kava_memberships`
+-- to verify the authenticated user belongs to the kava resolved from the URL.
 
 -- Enable RLS on tenant-scoped data tables
 ALTER TABLE categories ENABLE ROW LEVEL SECURITY;
@@ -24,7 +25,6 @@ ALTER TABLE orders FORCE ROW LEVEL SECURITY;
 ALTER TABLE order_items FORCE ROW LEVEL SECURITY;
 
 -- Drop existing policies (idempotent)
-DROP POLICY IF EXISTS tenant_isolation_users ON users;
 DROP POLICY IF EXISTS tenant_isolation_categories ON categories;
 DROP POLICY IF EXISTS tenant_isolation_products ON products;
 DROP POLICY IF EXISTS tenant_isolation_customers ON customers;
@@ -82,10 +82,9 @@ CREATE POLICY tenant_isolation_order_items ON order_items
     )
   );
 
--- Disable RLS on auth tables if it was previously enabled
-ALTER TABLE users DISABLE ROW LEVEL SECURITY;
-
--- Note: kavas, sessions, accounts, and verifications do NOT have RLS
+-- Note: kavas, sessions, accounts, verifications, users, and kava_memberships
+-- do NOT have RLS:
 -- - kavas: needed for tenant lookup before RLS var is set
 -- - sessions/accounts/verifications: owned by better-auth, queried globally by token
--- - users: owned by better-auth — tenant scoping enforced in application code
+-- - users: global by design (one user can belong to multiple kavas)
+-- - kava_memberships: lookup table consulted by application middleware

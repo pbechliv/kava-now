@@ -1,5 +1,4 @@
 import type { Context } from "hono";
-import { decodeAuthEmail } from "@kava-now/shared";
 import { db } from "../db/connection";
 import { auditLogs } from "../db/schema/index";
 import type { AppEnv } from "../types";
@@ -26,7 +25,7 @@ export async function logAudit(
     await db.insert(auditLogs).values({
       kavaId: kavaId ?? null,
       actorUserId: user?.id ?? null,
-      actorEmail: user?.email ? decodeAuthEmail(user.email) : null,
+      actorEmail: user?.email ?? null,
       action,
       targetType: targetType ?? null,
       targetId: targetId ?? null,

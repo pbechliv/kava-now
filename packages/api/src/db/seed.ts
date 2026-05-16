@@ -29,19 +29,12 @@ async function main() {
     .limit(1);
 
   if (!existing) {
-    // Superadmin has no kava, so email == realEmail (no slug encoding).
     await auth.api.signUpEmail({
-      body: {
-        email: SUPERADMIN_EMAIL,
-        password: SUPERADMIN_PASSWORD,
-        name: SUPERADMIN_NAME,
-        realEmail: SUPERADMIN_EMAIL,
-      },
+      body: { email: SUPERADMIN_EMAIL, password: SUPERADMIN_PASSWORD, name: SUPERADMIN_NAME },
     });
-    // Promote role (signUpEmail defaults to "customer")
     await db
       .update(users)
-      .set({ role: "superadmin", emailVerified: true })
+      .set({ isSuperAdmin: true, emailVerified: true })
       .where(eq(users.email, SUPERADMIN_EMAIL));
   }
   console.log(`Superadmin: ${SUPERADMIN_EMAIL} / ${SUPERADMIN_PASSWORD}`);

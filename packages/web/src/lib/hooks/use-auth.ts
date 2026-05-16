@@ -1,31 +1,49 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useParams } from "react-router";
 import { api } from "../api";
-import type { Kava, UserRole } from "@kava-now/shared";
+import type { KavaMembership } from "@kava-now/shared";
 
 export interface AuthUser {
   id: string;
   email: string;
   name: string;
-  role: UserRole;
+  isSuperAdmin: boolean;
   hasPassword: boolean;
-  invitedBy: { name: string; email: string } | null;
 }
 
 export interface AuthMeResponse {
   user: AuthUser;
-  kava: Kava | null;
+  memberships: KavaMembership[];
 }
 
+/**
+ * Hook for authenticated user state. Returns the global user + their list of
+ * kava memberships. The "current" membership (matching the URL's `:slug`
+ * param, if any) is also exposed for convenience.
+ */
 export function useAuth() {
   const { data, isLoading, error } = useQuery({
     queryKey: ["auth"],
     queryFn: () => api.get<AuthMeResponse>("/api/auth/me"),
     retry: false,
   });
+  const { slug } = useParams<{ slug: string }>();
+
+  const memberships = data?.memberships ?? [];
+  const currentMembership = slug ? (memberships.find((m) => m.kavaSlug === slug) ?? null) : null;
+  const kava = currentMembership
+    ? {
+        id: currentMembership.kavaId,
+        slug: currentMembership.kavaSlug,
+        name: currentMembership.kavaName,
+      }
+    : null;
 
   return {
     user: data?.user ?? null,
-    kava: data?.kava ?? null,
+    memberships,
+    currentMembership,
+    kava,
     isLoading,
     isAuthenticated: !!data?.user,
     error,

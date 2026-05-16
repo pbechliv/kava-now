@@ -1,89 +1,21 @@
 import { eq, and } from "drizzle-orm";
-import { encodeAuthEmail } from "@kava-now/shared";
 import { db } from "../db/connection";
-import { users, kavas } from "../db/schema/index";
+import { accounts, kavaMemberships, kavas, users } from "../db/schema/index";
 import { auth } from "../auth";
 import { config } from "../config";
+import { sendMembershipAdded } from "./email";
 import type { Context } from "hono";
 import type { AppEnv } from "../types";
-
-export type InviteRole = "owner" | "staff" | "customer";
+import type { MembershipRole } from "@kava-now/shared";
 
 interface InviteOptions {
   c: Context<AppEnv>;
   kavaId: string;
-  email: string; // real email
+  email: string;
   name: string;
-  role: InviteRole;
+  role: MembershipRole;
   customerId?: string | null;
   inviterId?: string | null;
-}
-
-/**
- * Create a user in a kava and send a set-password invite. Throws if a user
- * with the same real email already exists in this kava (per-kava uniqueness).
- *
- * The email lands the invitee on /welcome on the tenant's subdomain. The page
- * consumes the reset-password token to set the user's initial password.
- */
-export async function inviteUserToKava({
-  c,
-  kavaId,
-  email: realEmail,
-  name,
-  role,
-  customerId = null,
-  inviterId = null,
-}: InviteOptions): Promise<void> {
-  const [kava] = await db
-    .select({ slug: kavas.slug })
-    .from(kavas)
-    .where(eq(kavas.id, kavaId))
-    .limit(1);
-  if (!kava) throw new Error("Δεν βρέθηκε κάβα");
-
-  const [existing] = await db
-    .select({ id: users.id })
-    .from(users)
-    .where(and(eq(users.realEmail, realEmail), eq(users.kavaId, kavaId)))
-    .limit(1);
-  if (existing) {
-    throw new InviteConflict("Αυτό το email χρησιμοποιείται ήδη σε αυτήν την κάβα");
-  }
-
-  const authEmail = encodeAuthEmail(realEmail, kava.slug);
-
-  await db.insert(users).values({
-    email: authEmail,
-    realEmail,
-    name,
-    role,
-    kavaId,
-    customerId,
-    invitedById: inviterId,
-  });
-
-  await sendInviteSetPassword(c, authEmail, kava.slug);
-}
-
-/**
- * Issue a fresh reset-password token for `authEmail` and dispatch the
- * invite email. The link points the invitee at `<slug>.<baseDomain>/welcome`
- * so they land on the correct tenant subdomain. The `/welcome` path is what
- * the `sendResetPassword` callback in auth/index.ts keys on to pick the
- * "invite" copy.
- */
-export async function sendInviteSetPassword(
-  c: Context<AppEnv>,
-  authEmail: string,
-  kavaSlug: string,
-): Promise<void> {
-  const redirectTo = `${config.protocol}://${kavaSlug}.${config.baseDomain}/welcome`;
-
-  await auth.api.requestPasswordReset({
-    body: { email: authEmail, redirectTo },
-    headers: c.req.raw.headers,
-  });
 }
 
 export class InviteConflict extends Error {
@@ -91,4 +23,112 @@ export class InviteConflict extends Error {
     super(message);
     this.name = "InviteConflict";
   }
+}
+
+/**
+ * Attach a user to a kava with a role. Two paths:
+ * - Email already exists globally: create the membership only; notify the
+ *   existing user that they were added (they sign in with their existing
+ *   password).
+ * - Email is new: create the user without a password, create the membership,
+ *   send a set-password invite that lands them on `/k/<slug>/welcome`.
+ *
+ * Throws `InviteConflict` if the user already has a membership in this kava.
+ */
+export async function inviteUserToKava({
+  c,
+  kavaId,
+  email,
+  name,
+  role,
+  customerId = null,
+  inviterId = null,
+}: InviteOptions): Promise<void> {
+  const [kava] = await db
+    .select({ slug: kavas.slug, name: kavas.name })
+    .from(kavas)
+    .where(eq(kavas.id, kavaId))
+    .limit(1);
+  if (!kava) throw new Error("Δεν βρέθηκε κάβα");
+
+  const [existingUser] = await db
+    .select({ id: users.id })
+    .from(users)
+    .where(eq(users.email, email))
+    .limit(1);
+
+  if (existingUser) {
+    const [existingMembership] = await db
+      .select({ id: kavaMemberships.id })
+      .from(kavaMemberships)
+      .where(and(eq(kavaMemberships.userId, existingUser.id), eq(kavaMemberships.kavaId, kavaId)))
+      .limit(1);
+    if (existingMembership) {
+      throw new InviteConflict("Αυτός ο χρήστης είναι ήδη μέλος αυτής της κάβας");
+    }
+
+    await db.insert(kavaMemberships).values({
+      userId: existingUser.id,
+      kavaId,
+      role,
+      customerId,
+      invitedById: inviterId,
+    });
+
+    // Best-effort notification — the membership is already persisted.
+    try {
+      const loginUrl = `${config.appOrigin}/k/${kava.slug}/login`;
+      await sendMembershipAdded(email, loginUrl, kava.name);
+    } catch (err) {
+      console.error("[invite] Failed to send membership-added notification:", err);
+    }
+    return;
+  }
+
+  const [createdUser] = await db
+    .insert(users)
+    .values({ email, name, emailVerified: false })
+    .returning({ id: users.id });
+  if (!createdUser) throw new Error("Αποτυχία δημιουργίας χρήστη");
+
+  await db.insert(kavaMemberships).values({
+    userId: createdUser.id,
+    kavaId,
+    role,
+    customerId,
+    invitedById: inviterId,
+  });
+
+  await sendInviteSetPassword(c, email, kava.slug);
+}
+
+/**
+ * Issue a fresh reset-password token for `email` and dispatch the invite
+ * email. The link points the invitee at `/k/<slug>/welcome` on the single
+ * app origin; the `/welcome` path is what better-auth's `sendResetPassword`
+ * callback keys on to render the "invite" copy.
+ */
+export async function sendInviteSetPassword(
+  c: Context<AppEnv>,
+  email: string,
+  kavaSlug: string,
+): Promise<void> {
+  const redirectTo = `${config.appOrigin}/k/${kavaSlug}/welcome`;
+
+  await auth.api.requestPasswordReset({
+    body: { email, redirectTo },
+    headers: c.req.raw.headers,
+  });
+}
+
+/**
+ * Whether the given user has set a password (has a credential account row).
+ */
+export async function userHasPassword(userId: string): Promise<boolean> {
+  const [row] = await db
+    .select({ id: accounts.id })
+    .from(accounts)
+    .where(eq(accounts.userId, userId))
+    .limit(1);
+  return !!row;
 }

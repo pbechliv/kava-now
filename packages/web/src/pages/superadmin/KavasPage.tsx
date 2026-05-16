@@ -38,7 +38,7 @@ export function KavasPage() {
     <div className="space-y-6">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <h1 className="text-2xl font-bold tracking-tight">Κάβες</h1>
-        <Link to="/superadmin/kavas/new" className="self-start sm:self-auto">
+        <Link to="/admin/kavas/new" className="self-start sm:self-auto">
           <Button>+ Νέα κάβα</Button>
         </Link>
       </div>

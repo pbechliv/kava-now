@@ -29,7 +29,7 @@ export function NewKavaPage() {
 
   const onSubmit = (data: RegisterInput) => {
     createKava.mutate(data, {
-      onSuccess: () => navigate("/superadmin/kavas", { replace: true }),
+      onSuccess: () => navigate("/admin/kavas", { replace: true }),
     });
   };
 
@@ -38,7 +38,7 @@ export function NewKavaPage() {
       <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         <h1 className="text-2xl font-bold tracking-tight">Νέα κάβα</h1>
         <Link
-          to="/superadmin/kavas"
+          to="/admin/kavas"
           className="inline-flex items-center gap-1 text-sm font-medium text-primary hover:underline"
         >
           <ArrowLeft className="h-4 w-4" /> Πίσω
@@ -71,7 +71,7 @@ export function NewKavaPage() {
                     <FormControl>
                       <Input placeholder="i-kava-mou" {...field} />
                     </FormControl>
-                    {slug && <FormDescription>{slug}.kavanow.gr</FormDescription>}
+                    {slug && <FormDescription>kavanow.gr/k/{slug}</FormDescription>}
                     <FormMessage />
                   </FormItem>
                 )}

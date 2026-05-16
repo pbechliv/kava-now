@@ -3,11 +3,12 @@ import { eq, and, ne, sql } from "drizzle-orm";
 import { z } from "zod";
 import { alias } from "drizzle-orm/pg-core";
 import { db } from "../../db/connection";
-import { users, verifications } from "../../db/schema/index";
+import { accounts, kavaMemberships, users, verifications } from "../../db/schema/index";
 import {
   inviteUserToKava,
   sendInviteSetPassword,
   InviteConflict,
+  userHasPassword,
 } from "../../services/invite-user";
 import { logAudit } from "../../services/audit";
 import type { AppEnv } from "../../types";
@@ -22,7 +23,7 @@ const inviteSchema = z.object({
   role: z.enum(["staff"], { error: "Επιλέξτε ρόλο" }),
 });
 
-// GET / — list users in current kava
+// GET / — list users with a non-customer membership in this kava (owners + staff)
 usersRouter.get("/", async (c) => {
   const kavaId = c.get("kavaId")!;
   const inviter = alias(users, "inviter");
@@ -30,19 +31,20 @@ usersRouter.get("/", async (c) => {
   const rows = await db
     .select({
       id: users.id,
-      email: users.realEmail,
+      email: users.email,
       emailVerified: users.emailVerified,
       name: users.name,
-      role: users.role,
-      createdAt: users.createdAt,
-      invitedById: users.invitedById,
+      role: kavaMemberships.role,
+      createdAt: kavaMemberships.createdAt,
+      invitedById: kavaMemberships.invitedById,
       invitedByName: inviter.name,
-      invitedByEmail: inviter.realEmail,
+      invitedByEmail: inviter.email,
     })
-    .from(users)
-    .leftJoin(inviter, eq(users.invitedById, inviter.id))
-    .where(eq(users.kavaId, kavaId))
-    .orderBy(users.createdAt);
+    .from(kavaMemberships)
+    .innerJoin(users, eq(users.id, kavaMemberships.userId))
+    .leftJoin(inviter, eq(kavaMemberships.invitedById, inviter.id))
+    .where(and(eq(kavaMemberships.kavaId, kavaId), ne(kavaMemberships.role, "customer")))
+    .orderBy(kavaMemberships.createdAt);
 
   return c.json({ users: rows });
 });
@@ -77,10 +79,7 @@ usersRouter.post("/invite", async (c) => {
   await logAudit(c, {
     action: "user.invite",
     targetType: "user",
-    metadata: {
-      email: parsed.data.email,
-      role: parsed.data.role,
-    },
+    metadata: { email: parsed.data.email, role: parsed.data.role },
   });
 
   return c.json({ success: true });
@@ -94,82 +93,85 @@ usersRouter.post("/:id/resend-invite", async (c) => {
   const [target] = await db
     .select({
       id: users.id,
-      authEmail: users.email,
-      realEmail: users.realEmail,
-      emailVerified: users.emailVerified,
+      email: users.email,
+      role: kavaMemberships.role,
     })
-    .from(users)
-    .where(and(eq(users.id, id), eq(users.kavaId, kavaId)))
+    .from(kavaMemberships)
+    .innerJoin(users, eq(users.id, kavaMemberships.userId))
+    .where(and(eq(kavaMemberships.userId, id), eq(kavaMemberships.kavaId, kavaId)))
     .limit(1);
 
   if (!target) {
     return c.json({ error: "Δεν βρέθηκε χρήστης" }, 404);
   }
 
-  if (target.emailVerified) {
+  if (await userHasPassword(target.id)) {
     return c.json({ error: "Ο χρήστης έχει ήδη ενεργοποιηθεί" }, 400);
   }
 
   // Invalidate any outstanding reset tokens so the new email is the only
   // working link. better-auth stores hashed tokens under the same identifier.
-  await db.delete(verifications).where(eq(verifications.identifier, target.authEmail));
+  await db.delete(verifications).where(eq(verifications.identifier, target.email));
 
-  await sendInviteSetPassword(c, target.authEmail, c.get("kava")!.slug);
+  await sendInviteSetPassword(c, target.email, c.get("kava")!.slug);
 
   await logAudit(c, {
     action: "user.invite.resend",
     targetType: "user",
     targetId: id,
-    metadata: { email: target.realEmail },
+    metadata: { email: target.email },
   });
 
   return c.json({ success: true });
 });
 
-// POST /:id/promote-to-owner — promote a staff user to owner
+// POST /:id/promote-to-owner — promote a staff member to owner
 usersRouter.post("/:id/promote-to-owner", async (c) => {
   const kavaId = c.get("kavaId")!;
-  const me = c.get("user")!;
   const id = c.req.param("id");
+  const myMembership = c.get("membership")!;
 
-  if (me.role !== "owner") {
+  if (myMembership.role !== "owner") {
     return c.json({ error: "Μόνο ιδιοκτήτης μπορεί να προωθήσει σε ιδιοκτήτη" }, 403);
   }
 
   const [target] = await db
-    .select({ id: users.id, role: users.role, realEmail: users.realEmail })
-    .from(users)
-    .where(and(eq(users.id, id), eq(users.kavaId, kavaId)))
+    .select({ id: users.id, email: users.email, role: kavaMemberships.role })
+    .from(kavaMemberships)
+    .innerJoin(users, eq(users.id, kavaMemberships.userId))
+    .where(and(eq(kavaMemberships.userId, id), eq(kavaMemberships.kavaId, kavaId)))
     .limit(1);
 
   if (!target) {
     return c.json({ error: "Δεν βρέθηκε χρήστης" }, 404);
   }
-
   if (target.role === "owner") {
     return c.json({ success: true });
   }
-
   if (target.role !== "staff") {
     return c.json({ error: "Μόνο χρήστες προσωπικού μπορούν να προωθηθούν σε ιδιοκτήτη" }, 400);
   }
 
-  await db.update(users).set({ role: "owner" }).where(eq(users.id, id));
+  await db
+    .update(kavaMemberships)
+    .set({ role: "owner" })
+    .where(and(eq(kavaMemberships.userId, id), eq(kavaMemberships.kavaId, kavaId)));
 
   await logAudit(c, {
     action: "user.promote",
     targetType: "user",
     targetId: id,
-    metadata: { email: target.realEmail, newRole: "owner" },
+    metadata: { email: target.email, newRole: "owner" },
   });
 
   return c.json({ success: true });
 });
 
-// DELETE /:id — remove a user from this kava
+// DELETE /:id — remove a user's membership in this kava
 usersRouter.delete("/:id", async (c) => {
   const kavaId = c.get("kavaId")!;
   const me = c.get("user")!;
+  const myMembership = c.get("membership")!;
   const id = c.req.param("id");
 
   if (id === me.id) {
@@ -177,16 +179,17 @@ usersRouter.delete("/:id", async (c) => {
   }
 
   const [target] = await db
-    .select({ id: users.id, role: users.role, realEmail: users.realEmail })
-    .from(users)
-    .where(and(eq(users.id, id), eq(users.kavaId, kavaId)))
+    .select({ id: users.id, email: users.email, role: kavaMemberships.role })
+    .from(kavaMemberships)
+    .innerJoin(users, eq(users.id, kavaMemberships.userId))
+    .where(and(eq(kavaMemberships.userId, id), eq(kavaMemberships.kavaId, kavaId)))
     .limit(1);
 
   if (!target) {
     return c.json({ error: "Δεν βρέθηκε χρήστης" }, 404);
   }
 
-  if (target.role === "owner" && me.role !== "owner") {
+  if (target.role === "owner" && myMembership.role !== "owner") {
     return c.json({ error: "Μόνο ιδιοκτήτης μπορεί να διαγράψει ιδιοκτήτη" }, 403);
   }
 
@@ -194,25 +197,40 @@ usersRouter.delete("/:id", async (c) => {
   if (target.role === "owner") {
     const [remaining] = await db
       .select({ count: sql<number>`count(*)::int` })
-      .from(users)
-      .where(and(eq(users.kavaId, kavaId), eq(users.role, "owner"), ne(users.id, id)));
-    if (!remaining || remaining.count === 0) {
-      return c.json(
-        {
-          error: "Δεν μπορείτε να διαγράψετε τον τελευταίο ιδιοκτήτη της κάβας",
-        },
-        400,
+      .from(kavaMemberships)
+      .where(
+        and(
+          eq(kavaMemberships.kavaId, kavaId),
+          eq(kavaMemberships.role, "owner"),
+          ne(kavaMemberships.userId, id),
+        ),
       );
+    if (!remaining || remaining.count === 0) {
+      return c.json({ error: "Δεν μπορείτε να διαγράψετε τον τελευταίο ιδιοκτήτη της κάβας" }, 400);
     }
   }
 
-  await db.delete(users).where(eq(users.id, id));
+  await db
+    .delete(kavaMemberships)
+    .where(and(eq(kavaMemberships.userId, id), eq(kavaMemberships.kavaId, kavaId)));
+
+  // If this was the user's last membership, also delete the credential row
+  // and user — keeps the global account list tidy for orphans created by
+  // earlier invites.
+  const [remainingForUser] = await db
+    .select({ count: sql<number>`count(*)::int` })
+    .from(kavaMemberships)
+    .where(eq(kavaMemberships.userId, id));
+  if (remainingForUser && remainingForUser.count === 0) {
+    await db.delete(accounts).where(eq(accounts.userId, id));
+    await db.delete(users).where(eq(users.id, id));
+  }
 
   await logAudit(c, {
     action: "user.delete",
     targetType: "user",
     targetId: id,
-    metadata: { email: target.realEmail, role: target.role },
+    metadata: { email: target.email, role: target.role },
   });
 
   return c.json({ success: true });

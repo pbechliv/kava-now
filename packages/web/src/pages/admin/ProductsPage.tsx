@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { useLocation, useNavigate } from "react-router";
+import { useTenantSlug } from "@/lib/hooks/use-tenant-api";
 import { Pencil, Trash2, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -36,6 +37,8 @@ interface ProductsPageLocationState {
 export function ProductsPage() {
   const navigate = useNavigate();
   const location = useLocation();
+  const slug = useTenantSlug();
+  const adminBase = `/k/${slug}/admin`;
   const importResult = (location.state as ProductsPageLocationState | null)?.importResult ?? null;
   const [search, setSearch] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("");
@@ -79,10 +82,10 @@ export function ProductsPage() {
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <h1 className="text-2xl font-bold tracking-tight">Προϊόντα</h1>
         <div className="flex flex-wrap gap-2">
-          <Button variant="outline" onClick={() => navigate("/admin/products/import")}>
+          <Button variant="outline" onClick={() => navigate(`${adminBase}/products/import`)}>
             Εισαγωγή από αρχείο
           </Button>
-          <Button onClick={() => navigate("/admin/products/new")}>Νέο Προϊόν</Button>
+          <Button onClick={() => navigate(`${adminBase}/products/new`)}>Νέο Προϊόν</Button>
         </div>
       </div>
 
@@ -144,7 +147,7 @@ export function ProductsPage() {
         <EmptyState
           message="Δεν βρέθηκαν προϊόντα"
           actionLabel="Νέο Προϊόν"
-          onAction={() => navigate("/admin/products/new")}
+          onAction={() => navigate(`${adminBase}/products/new`)}
         />
       ) : (
         <>
@@ -194,7 +197,7 @@ export function ProductsPage() {
                           <Button
                             variant="ghost"
                             size="icon"
-                            onClick={() => navigate(`/admin/products/${product.id}`)}
+                            onClick={() => navigate(`${adminBase}/products/${product.id}`)}
                             aria-label="Επεξεργασία"
                           >
                             <Pencil className="h-4 w-4" />

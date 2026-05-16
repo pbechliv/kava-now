@@ -10,6 +10,10 @@ import {
   type SetPasswordMode,
 } from "../emails/SetPasswordEmail";
 import {
+  MembershipAddedEmail,
+  subject as membershipAddedSubject,
+} from "../emails/MembershipAddedEmail";
+import {
   OrderNotificationEmail,
   subject as orderNotificationSubject,
 } from "../emails/OrderNotificationEmail";
@@ -67,6 +71,15 @@ export async function sendPasswordSet(
   await deliver({ to: email, subject: setPasswordSubject({ kavaName, mode }), html });
 }
 
+export async function sendMembershipAdded(
+  email: string,
+  loginUrl: string,
+  kavaName: string,
+): Promise<void> {
+  const html = await render(MembershipAddedEmail({ loginUrl, kavaName }));
+  await deliver({ to: email, subject: membershipAddedSubject({ kavaName }), html });
+}
+
 interface OrderNotificationKava {
   id: string;
   name: string;
@@ -105,7 +118,7 @@ export async function sendOrderNotification(
     return;
   }
 
-  const adminOrderUrl = `${config.protocol}://${kava.slug}.${config.baseDomain}/admin/orders/${order.id}`;
+  const adminOrderUrl = `${config.appOrigin}/k/${kava.slug}/admin/orders/${order.id}`;
   const html = await render(
     OrderNotificationEmail({
       kava: { name: kava.name, slug: kava.slug },

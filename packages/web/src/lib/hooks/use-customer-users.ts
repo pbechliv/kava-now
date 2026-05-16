@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { api } from "../api";
+import { useTenantApi, useTenantSlug } from "./use-tenant-api";
 
 export interface CustomerUser {
   id: string;
@@ -21,29 +21,34 @@ export interface InviteCustomerUserInput {
 }
 
 export function useCustomerUsers(customerId: string | undefined) {
+  const slug = useTenantSlug();
+  const tApi = useTenantApi();
   return useQuery({
-    queryKey: ["admin", "customer-users", customerId],
-    queryFn: () => api.get<CustomerUsersResponse>(`/api/admin/customers/${customerId}/users`),
+    queryKey: ["admin", slug, "customer-users", customerId],
+    queryFn: () => tApi.get<CustomerUsersResponse>(`/admin/customers/${customerId}/users`),
     enabled: !!customerId,
   });
 }
 
 export function useInviteCustomerUser(customerId: string) {
+  const slug = useTenantSlug();
+  const tApi = useTenantApi();
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (input: InviteCustomerUserInput) =>
-      api.post<{ success: boolean }>(`/api/admin/customers/${customerId}/users/invite`, input),
+      tApi.post<{ success: boolean }>(`/admin/customers/${customerId}/users/invite`, input),
     onSuccess: () => {
-      void qc.invalidateQueries({ queryKey: ["admin", "customer-users", customerId] });
+      void qc.invalidateQueries({ queryKey: ["admin", slug, "customer-users", customerId] });
     },
   });
 }
 
 export function useResendCustomerUserInvite(customerId: string) {
+  const tApi = useTenantApi();
   return useMutation({
     mutationFn: (userId: string) =>
-      api.post<{ success: boolean }>(
-        `/api/admin/customers/${customerId}/users/${userId}/resend-invite`,
+      tApi.post<{ success: boolean }>(
+        `/admin/customers/${customerId}/users/${userId}/resend-invite`,
       ),
   });
 }

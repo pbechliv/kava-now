@@ -1,9 +1,12 @@
 import { useState } from "react";
 import { useForm } from "react-hook-form";
+import { useNavigate } from "react-router";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Loader2 } from "lucide-react";
 import { kavaSlugSchema, type KavaSlugInput } from "@kava-now/shared";
 import { api } from "@/lib/api";
+import { useAuth } from "@/lib/hooks/use-auth";
+import { membershipHome } from "@/lib/auth-home";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -18,6 +21,8 @@ import {
 export function KavaSelectPage() {
   const [checking, setChecking] = useState(false);
   const [notFound, setNotFound] = useState(false);
+  const navigate = useNavigate();
+  const { isAuthenticated, memberships } = useAuth();
 
   const form = useForm<KavaSlugInput>({
     resolver: zodResolver(kavaSlugSchema),
@@ -31,7 +36,7 @@ export function KavaSelectPage() {
         `/api/platform/kava-exists?slug=${encodeURIComponent(data.slug)}`,
       );
       if (res.exists) {
-        window.location.href = `${window.location.protocol}//${data.slug}.${window.location.host}/login`;
+        void navigate(`/k/${data.slug}/login`);
       } else {
         setNotFound(true);
       }
@@ -39,6 +44,29 @@ export function KavaSelectPage() {
       setChecking(false);
     }
   };
+
+  // Logged-in users with memberships see their kava list as a shortcut.
+  if (isAuthenticated && memberships.length > 0) {
+    return (
+      <div className="space-y-4">
+        <h2 className="text-center text-lg font-semibold">Οι κάβες σας</h2>
+        <ul className="space-y-2">
+          {memberships.map((m) => (
+            <li key={m.kavaId}>
+              <Button
+                variant="outline"
+                className="w-full justify-between"
+                onClick={() => navigate(membershipHome(m))}
+              >
+                <span>{m.kavaName}</span>
+                <span className="text-xs text-muted-foreground">{m.role}</span>
+              </Button>
+            </li>
+          ))}
+        </ul>
+      </div>
+    );
+  }
 
   return (
     <Form {...form}>

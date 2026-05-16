@@ -27,8 +27,6 @@ export default defineConfig(({ mode }) => {
     server: {
       port: apiPort,
       strictPort: true,
-      host: true,
-      allowedHosts: true,
     },
     plugins: [
       devServer({

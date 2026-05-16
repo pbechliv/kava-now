@@ -102,8 +102,7 @@ export function OrderNotificationEmail({
   adminOrderUrl,
 }: OrderNotificationEmailProps) {
   const total = items.reduce((sum, item) => sum + Number(item.unitPrice) * item.quantity, 0);
-  const createdAt =
-    order.createdAt instanceof Date ? order.createdAt : new Date(order.createdAt);
+  const createdAt = order.createdAt instanceof Date ? order.createdAt : new Date(order.createdAt);
 
   return (
     <Html lang="el">
@@ -176,5 +175,5 @@ OrderNotificationEmail.PreviewProps = {
     { id: "1", productName: "Μύθος 330ml", quantity: 24, unitPrice: "1.20" },
     { id: "2", productName: "Alpha 500ml", quantity: 12, unitPrice: "1.80" },
   ],
-  adminOrderUrl: "https://demo.lvh.me/admin/orders/preview",
+  adminOrderUrl: "https://kavanow.gr/k/demo/admin/orders/preview",
 } satisfies OrderNotificationEmailProps;

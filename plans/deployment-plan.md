@@ -1,5 +1,13 @@
 # KavaNow Cloud Deployment Plan — Cloudflare Workers + Resend (Free / ≈$0/mo)
 
+> ⚠️ **SUPERSEDED — written against the pre-refactor architecture.** See [CLAUDE.md](../CLAUDE.md) for the current model. Major drifts to update before reusing this plan:
+> - **Tenancy is path-based now**, not subdomain-based. No `*.<domain>` wildcard cert, no cross-subdomain cookies, no Host-header tenant resolution. Tenants live under `/k/<slug>/*` on a single origin (`APP_ORIGIN`).
+> - **`BASE_DOMAIN` env var was replaced by `APP_ORIGIN`** (a complete origin URL, e.g. `https://kavanow.gr`).
+> - **No magic-link auth.** Login is email + password. Invites go through `auth.api.requestPasswordReset` and land on `/k/<slug>/welcome`.
+> - **Users are global with M2M memberships** in `kava_memberships`. No `users.kavaId`/`role`/`realEmail`/`encodeAuthEmail`/`decodeAuthEmail`. `users.isSuperAdmin: boolean` replaces the `superadmin` role.
+> - **`withTenant`/`packages/api/src/db/with-tenant.ts` no longer exists.** RLS still uses `app.current_kava_id`, but it's set by `tenantMiddleware` from the URL `:slug` param.
+> - The phased breakdown (mail swap → DB-per-request refactor → Workers preset) is still directionally valid; only the architectural assumptions in §1 / §3 / §Auth need rewriting.
+
 ## Context
 
 KavaNow is a multi-tenant Hono + React monorepo with PostgreSQL (RLS), better-auth (cross-subdomain cookies + magic links), and nodemailer SMTP. The goal: deploy to production for low-usage traffic at effectively $0/mo, EU-preferred, with the API on **Cloudflare Workers** and mail on **Resend**.

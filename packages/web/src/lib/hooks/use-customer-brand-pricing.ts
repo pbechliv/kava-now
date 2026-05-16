@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { api } from "../api";
+import { useTenantApi, useTenantSlug } from "./use-tenant-api";
 import type { UpdateCustomerBrandPricingInput } from "@kava-now/shared";
 
 export interface BrandPricingRow {
@@ -8,30 +8,36 @@ export interface BrandPricingRow {
 }
 
 export function useCustomerBrandPricing(customerId: string | undefined) {
+  const slug = useTenantSlug();
+  const tApi = useTenantApi();
   return useQuery({
-    queryKey: ["admin", "customers", customerId, "brand-pricing"],
-    queryFn: () => api.get<BrandPricingRow[]>(`/api/admin/customers/${customerId}/brand-pricing`),
+    queryKey: ["admin", slug, "customers", customerId, "brand-pricing"],
+    queryFn: () => tApi.get<BrandPricingRow[]>(`/admin/customers/${customerId}/brand-pricing`),
     enabled: !!customerId,
   });
 }
 
 export function useUpdateCustomerBrandPricing(customerId: string) {
+  const slug = useTenantSlug();
+  const tApi = useTenantApi();
   const qc = useQueryClient();
 
   return useMutation({
     mutationFn: (data: UpdateCustomerBrandPricingInput) =>
-      api.put(`/api/admin/customers/${customerId}/brand-pricing`, data),
+      tApi.put(`/admin/customers/${customerId}/brand-pricing`, data),
     onSuccess: () => {
       void qc.invalidateQueries({
-        queryKey: ["admin", "customers", customerId, "brand-pricing"],
+        queryKey: ["admin", slug, "customers", customerId, "brand-pricing"],
       });
     },
   });
 }
 
 export function useBrands() {
+  const slug = useTenantSlug();
+  const tApi = useTenantApi();
   return useQuery({
-    queryKey: ["admin", "brands"],
-    queryFn: () => api.get<string[]>("/api/admin/customers/brands"),
+    queryKey: ["admin", slug, "brands"],
+    queryFn: () => tApi.get<string[]>("/admin/customers/brands"),
   });
 }

@@ -1,37 +1,32 @@
+import type { KavaMembership } from "@kava-now/shared";
 import type { AuthUser } from "./hooks/use-auth";
 
-const baseDomainHost = (import.meta.env.VITE_BASE_DOMAIN || "lvh.me:5173").split(":")[0];
+/**
+ * Where this user belongs after authentication.
+ *
+ * Priority: superadmin → /admin/kavas. If the user just logged in inside a
+ * specific tenant route (`preferSlug` matches one of their memberships), go
+ * to that tenant's home. With a single membership, go straight there. With
+ * multiple, fall back to the kava picker on `/`.
+ */
+export function getUserHomePath(
+  user: AuthUser,
+  memberships: KavaMembership[],
+  preferSlug?: string | null,
+): string {
+  if (user.isSuperAdmin) return "/admin/kavas";
 
-export interface UserHomeTarget {
-  subdomain: string | null;
-  path: string;
+  if (preferSlug) {
+    const match = memberships.find((m) => m.kavaSlug === preferSlug);
+    if (match) return membershipHome(match);
+  }
+
+  if (memberships.length === 1) {
+    return membershipHome(memberships[0]!);
+  }
+  return "/";
 }
 
-export function getUserHome(user: AuthUser, kavaSlug: string | null): UserHomeTarget {
-  if (user.role === "superadmin") {
-    return { subdomain: "admin", path: "/superadmin/kavas" };
-  }
-  if (!kavaSlug) {
-    return { subdomain: null, path: "/" };
-  }
-  if (user.role === "customer") {
-    return { subdomain: kavaSlug, path: "/catalog" };
-  }
-  return { subdomain: kavaSlug, path: "/admin/dashboard" };
-}
-
-export function resolveHomeHref(target: UserHomeTarget): {
-  href: string;
-  isSameSubdomain: boolean;
-} {
-  const currentHost = window.location.hostname;
-  const targetHost = target.subdomain
-    ? `${target.subdomain}.${baseDomainHost}`
-    : baseDomainHost;
-  const isSameSubdomain = currentHost === targetHost;
-  const port = window.location.port ? `:${window.location.port}` : "";
-  const href = isSameSubdomain
-    ? target.path
-    : `${window.location.protocol}//${targetHost}${port}${target.path}`;
-  return { href, isSameSubdomain };
+export function membershipHome(m: KavaMembership): string {
+  return m.role === "customer" ? `/k/${m.kavaSlug}/catalog` : `/k/${m.kavaSlug}/admin/dashboard`;
 }

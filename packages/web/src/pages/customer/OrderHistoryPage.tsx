@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router";
+import { useTenantSlug } from "@/lib/hooks/use-tenant-api";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { EmptyState } from "@/components/empty-state";
@@ -12,6 +13,8 @@ const PAGE_SIZE = 50;
 
 export function OrderHistoryPage() {
   const navigate = useNavigate();
+  const slug = useTenantSlug();
+  const base = `/k/${slug}`;
   const [page, setPage] = useState(1);
   const { data, isLoading } = useCustomerOrders({ page, pageSize: PAGE_SIZE });
   const orders = data?.data ?? [];
@@ -27,7 +30,7 @@ export function OrderHistoryPage() {
         <EmptyState
           message="Δεν υπάρχουν παραγγελίες"
           actionLabel="Πλοήγηση στον κατάλογο"
-          onAction={() => navigate("/catalog")}
+          onAction={() => navigate(`${base}/catalog`)}
         />
       ) : (
         <>
@@ -57,7 +60,7 @@ export function OrderHistoryPage() {
                   <Button
                     variant="outline"
                     size="sm"
-                    onClick={() => navigate(`/orders/${order.id}`)}
+                    onClick={() => navigate(`${base}/orders/${order.id}`)}
                     className="self-start sm:self-auto"
                   >
                     Λεπτομέρειες

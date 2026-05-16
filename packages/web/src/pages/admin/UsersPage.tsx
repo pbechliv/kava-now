@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { Loader2 } from "lucide-react";
+import { ROLE_LABELS } from "@kava-now/shared";
 import {
   useUsers,
   useInviteUser,
@@ -40,14 +41,8 @@ import {
 } from "@/components/ui/table";
 import { Spinner } from "@/components/spinner";
 
-const ROLE_LABELS: Record<string, string> = {
-  owner: "Ιδιοκτήτης",
-  staff: "Προσωπικό",
-  customer: "Πελάτης",
-};
-
 export function UsersPage() {
-  const { user: me } = useAuth();
+  const { user: me, currentMembership } = useAuth();
   const { data, isLoading } = useUsers();
   const invite = useInviteUser();
   const remove = useDeleteUser();
@@ -98,7 +93,7 @@ export function UsersPage() {
   }
 
   const users = data?.users ?? [];
-  const canPromote = me?.role === "owner";
+  const canPromote = currentMembership?.role === "owner";
 
   return (
     <div className="space-y-6">

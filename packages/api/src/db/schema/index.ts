@@ -1,6 +1,7 @@
 export * from "./enums";
 export * from "./kavas";
 export * from "./users";
+export * from "./kava-memberships";
 export * from "./sessions";
 export * from "./accounts";
 export * from "./verifications";

@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Link, useNavigate, useSearchParams } from "react-router";
+import { Link, useNavigate, useSearchParams, useParams } from "react-router";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useQuery } from "@tanstack/react-query";
 import { CheckCircle2, Loader2 } from "lucide-react";
@@ -14,13 +14,17 @@ export function WelcomePage() {
   const token = searchParams.get("token") ?? "";
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const { slug } = useParams<{ slug: string }>();
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
   const [error, setError] = useState("");
 
+  const loginPath = slug ? `/k/${slug}/login` : "/login";
+
   const { data: kavaInfo } = useQuery({
-    queryKey: ["kava-info"],
-    queryFn: () => api.get<{ name: string; slug: string }>("/api/kava"),
+    queryKey: ["kava-info", slug],
+    queryFn: () => api.get<{ name: string; slug: string }>(`/api/k/${slug}/kava`),
+    enabled: !!slug,
     retry: false,
     staleTime: Infinity,
   });
@@ -43,7 +47,7 @@ export function WelcomePage() {
           Ο σύνδεσμος πρόσκλησης δεν είναι έγκυρος ή έληξε.
         </p>
         <Link
-          to="/login"
+          to={loginPath}
           className="mt-4 inline-block text-sm font-medium text-primary hover:underline"
         >
           Επιστροφή στη σύνδεση
@@ -62,7 +66,7 @@ export function WelcomePage() {
         <p className="mt-2 text-sm text-muted-foreground">
           Μπορείτε τώρα να συνδεθείτε με το email και τον κωδικό σας.
         </p>
-        <Button className="mt-6" onClick={() => void navigate("/login", { replace: true })}>
+        <Button className="mt-6" onClick={() => void navigate(loginPath, { replace: true })}>
           Σύνδεση
         </Button>
       </div>

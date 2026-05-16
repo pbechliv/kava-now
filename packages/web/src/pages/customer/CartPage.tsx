@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router";
+import { useTenantSlug } from "@/lib/hooks/use-tenant-api";
 import { Loader2, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -23,6 +24,8 @@ import { UNIT_LABELS } from "@kava-now/shared";
 export function CartPage() {
   const { kava } = useAuth();
   const navigate = useNavigate();
+  const slug = useTenantSlug();
+  const base = `/k/${slug}`;
   const [notes, setNotes] = useState("");
   const [confirming, setConfirming] = useState(false);
 
@@ -55,7 +58,7 @@ export function CartPage() {
       },
       {
         onSuccess: () => {
-          void navigate("/orders");
+          void navigate(`${base}/orders`);
         },
       },
     );
@@ -68,7 +71,7 @@ export function CartPage() {
         <EmptyState
           message="Το καλάθι σας είναι άδειο"
           actionLabel="Πλοήγηση στον κατάλογο"
-          onAction={() => navigate("/catalog")}
+          onAction={() => navigate(`${base}/catalog`)}
         />
       </div>
     );

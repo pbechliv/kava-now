@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient, keepPreviousData } from "@tanstack/react-query";
-import { api } from "../api";
+import { useTenantApi, useTenantSlug } from "./use-tenant-api";
 import type { OrderStatus, PaginatedResponse } from "@kava-now/shared";
 
 interface OrderFilters {
@@ -42,6 +42,8 @@ export interface AdminOrderDetail {
 }
 
 export function useAdminOrders(filters?: OrderFilters) {
+  const slug = useTenantSlug();
+  const tApi = useTenantApi();
   const params = new URLSearchParams();
   if (filters?.status) params.set("status", filters.status);
   if (filters?.customerId) params.set("customerId", filters.customerId);
@@ -51,32 +53,36 @@ export function useAdminOrders(filters?: OrderFilters) {
   if (filters?.pageSize) params.set("pageSize", String(filters.pageSize));
 
   const qs = params.toString();
-  const path = `/api/admin/orders${qs ? `?${qs}` : ""}`;
+  const path = `/admin/orders${qs ? `?${qs}` : ""}`;
 
   return useQuery({
-    queryKey: ["admin", "orders", filters],
-    queryFn: () => api.get<PaginatedResponse<AdminOrderRow>>(path),
+    queryKey: ["admin", slug, "orders", filters],
+    queryFn: () => tApi.get<PaginatedResponse<AdminOrderRow>>(path),
     placeholderData: keepPreviousData,
   });
 }
 
 export function useAdminOrder(id: string | undefined) {
+  const slug = useTenantSlug();
+  const tApi = useTenantApi();
   return useQuery({
-    queryKey: ["admin", "orders", id],
-    queryFn: () => api.get<AdminOrderDetail>(`/api/admin/orders/${id}`),
+    queryKey: ["admin", slug, "orders", id],
+    queryFn: () => tApi.get<AdminOrderDetail>(`/admin/orders/${id}`),
     enabled: !!id,
   });
 }
 
 export function useUpdateOrderStatus() {
+  const slug = useTenantSlug();
+  const tApi = useTenantApi();
   const qc = useQueryClient();
 
   return useMutation({
     mutationFn: ({ id, status }: { id: string; status: OrderStatus }) =>
-      api.put(`/api/admin/orders/${id}/status`, { status }),
+      tApi.put(`/admin/orders/${id}/status`, { status }),
     onSuccess: () => {
-      void qc.invalidateQueries({ queryKey: ["admin", "orders"] });
-      void qc.invalidateQueries({ queryKey: ["admin", "dashboard"] });
+      void qc.invalidateQueries({ queryKey: ["admin", slug, "orders"] });
+      void qc.invalidateQueries({ queryKey: ["admin", slug, "dashboard"] });
     },
   });
 }

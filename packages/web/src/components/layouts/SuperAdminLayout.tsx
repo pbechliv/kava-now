@@ -27,10 +27,11 @@ import {
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Separator } from "@/components/ui/separator";
+import { KavaSwitcher } from "@/components/KavaSwitcher";
 
 const navItems = [
-  { to: "/superadmin/kavas", label: "Κάβες", icon: Building2 },
-  { to: "/superadmin/settings", label: "Ρυθμίσεις", icon: Settings },
+  { to: "/admin/kavas", label: "Κάβες", icon: Building2 },
+  { to: "/admin/settings", label: "Ρυθμίσεις", icon: Settings },
 ];
 
 function initials(name: string | null | undefined) {
@@ -101,6 +102,7 @@ export function SuperAdminLayout() {
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-56">
               <DropdownMenuLabel className="truncate">{user?.email}</DropdownMenuLabel>
+              <KavaSwitcher currentSlug={null} />
               <DropdownMenuSeparator />
               <DropdownMenuItem onSelect={() => logout.mutate()}>
                 <LogOut className="mr-2 h-4 w-4" />

@@ -1,8 +1,7 @@
 import { createAuthClient } from "better-auth/react";
 
-// baseURL is the current origin. Better-auth's client appends "/api/auth/<path>"
-// so requests go through Vite's /api proxy with the request's Host header,
-// preserving the multi-tenant subdomain.
+// baseURL is the current origin — there's only one. Better-auth's client
+// appends "/api/auth/<path>" so requests flow through Vite's /api proxy.
 export const authClient = createAuthClient({
   baseURL: window.location.origin,
 });

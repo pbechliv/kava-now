@@ -1,5 +1,5 @@
 import { useQuery, keepPreviousData } from "@tanstack/react-query";
-import { api } from "../api";
+import { useTenantApi, useTenantSlug } from "./use-tenant-api";
 import type { PaginatedResponse } from "@kava-now/shared";
 import type { CatalogProduct } from "../store/cart";
 
@@ -11,6 +11,8 @@ interface CatalogFilters {
 }
 
 export function useCatalog(filters?: CatalogFilters) {
+  const slug = useTenantSlug();
+  const tApi = useTenantApi();
   const params = new URLSearchParams();
   if (filters?.categoryId) params.set("categoryId", filters.categoryId);
   if (filters?.search) params.set("search", filters.search);
@@ -18,11 +20,11 @@ export function useCatalog(filters?: CatalogFilters) {
   if (filters?.pageSize) params.set("pageSize", String(filters.pageSize));
 
   const qs = params.toString();
-  const path = `/api/customer/catalog${qs ? `?${qs}` : ""}`;
+  const path = `/customer/catalog${qs ? `?${qs}` : ""}`;
 
   return useQuery({
-    queryKey: ["customer", "catalog", filters],
-    queryFn: () => api.get<PaginatedResponse<CatalogProduct>>(path),
+    queryKey: ["customer", slug, "catalog", filters],
+    queryFn: () => tApi.get<PaginatedResponse<CatalogProduct>>(path),
     placeholderData: keepPreviousData,
   });
 }

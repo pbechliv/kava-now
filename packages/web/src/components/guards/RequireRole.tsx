@@ -1,38 +1,40 @@
-import { Navigate } from "react-router";
+import { Navigate, useParams } from "react-router";
 import { useAuth } from "@/lib/hooks/use-auth";
-import { Spinner } from "@/components/spinner";
-import { getUserHome, resolveHomeHref } from "@/lib/auth-home";
-import type { UserRole } from "@kava-now/shared";
+import { getUserHomePath } from "@/lib/auth-home";
+import type { MembershipRole } from "@kava-now/shared";
 
 interface RequireRoleProps {
-  allowed: UserRole[];
+  allowed: Array<MembershipRole | "superadmin">;
   children: React.ReactNode;
 }
 
+/**
+ * Allow access if:
+ * - user is superadmin and `superadmin` is in `allowed`, OR
+ * - user has a membership in the current `:slug` kava whose role is in `allowed`.
+ *
+ * Otherwise redirect to the user's own home.
+ */
 export function RequireRole({ allowed, children }: RequireRoleProps) {
-  const { user, kava } = useAuth();
+  const { user, memberships, currentMembership } = useAuth();
+  const { slug: routeSlug } = useParams<{ slug: string }>();
 
   if (!user) {
     return <Navigate to="/login" replace />;
   }
 
-  if (!allowed.includes(user.role)) {
-    const target = getUserHome(user, kava?.slug ?? null);
-    const { href, isSameSubdomain } = resolveHomeHref(target);
-
-    if (isSameSubdomain) {
-      return <Navigate to={target.path} replace />;
-    }
-
-    if (window.location.href !== href) {
-      window.location.replace(href);
-    }
-    return (
-      <div className="flex min-h-screen items-center justify-center">
-        <Spinner />
-      </div>
-    );
+  if (user.isSuperAdmin && allowed.includes("superadmin")) {
+    return <>{children}</>;
   }
 
-  return <>{children}</>;
+  // Tenant-mismatch: user is logged in but has no membership in this slug.
+  if (routeSlug && !currentMembership) {
+    return <Navigate to={getUserHomePath(user, memberships, null)} replace />;
+  }
+
+  if (currentMembership && allowed.includes(currentMembership.role)) {
+    return <>{children}</>;
+  }
+
+  return <Navigate to={getUserHomePath(user, memberships, routeSlug ?? null)} replace />;
 }

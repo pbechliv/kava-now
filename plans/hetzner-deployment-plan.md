@@ -1,5 +1,13 @@
 # Hetzner Cloud Deployment Plan — KavaNow
 
+> ⚠️ **SUPERSEDED — written against the pre-refactor architecture.** See [CLAUDE.md](../CLAUDE.md) for the current model. Major drifts to update before reusing this plan:
+> - **Tenancy is path-based now**, not subdomain-based. Caddy doesn't need a wildcard cert or DNS-01; a single cert on the canonical origin is enough. The `header_up Host {host}` line in the proxy block is no longer load-bearing — `tenantMiddleware` reads the slug from the URL path, not the Host header.
+> - **`BASE_DOMAIN` env var was replaced by `APP_ORIGIN`** (a complete origin URL, e.g. `https://kavanow.gr`). No `VITE_BASE_DOMAIN`.
+> - **No magic-link auth.** Login is email + password. Invites go through `auth.api.requestPasswordReset` and land on `/k/<slug>/welcome`. The `rewriteForTenant` URL-rewriting code is gone.
+> - **Users are global with M2M memberships** in `kava_memberships`. No `users.kavaId`/`role`/`realEmail`. `decodeAuthEmail` no longer exists — the email passed to Resend is just `user.email`.
+> - **No DNS wildcard record needed** — one `A` record at the canonical domain is enough.
+> - The Hetzner CX22 sizing, Docker Compose layout, Caddy/Postgres backup story, and the operational runbook are all still valid; only the per-tenant networking + auth assumptions need updating.
+
 ## Context
 
 KavaNow is a pre-release multi-tenant SaaS (subdomain-based tenancy, PostgreSQL Row-Level Security, Hono API, React SPA, better-auth with magic links). No production deployment yet; only a Dockerfile + Caddyfile in the repo. Goal: get to a running production environment for under $10/month with zero significant refactor, accepting that this means self-managing a Linux VM.

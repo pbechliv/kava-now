@@ -2,11 +2,6 @@ import { QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router";
 import { queryClient } from "./lib/query-client";
 import { Toaster } from "./components/ui/sonner";
-import { isSuperAdminDomain } from "./lib/is-superadmin";
-import { isPlatformDomain } from "./lib/is-platform";
-import { useAuth } from "./lib/hooks/use-auth";
-import { getUserHome, resolveHomeHref } from "./lib/auth-home";
-import { Spinner } from "./components/spinner";
 
 // Layouts
 import { AuthLayout } from "./components/layouts/AuthLayout";
@@ -57,136 +52,97 @@ import { KavaSelectPage } from "./pages/platform/KavaSelectPage";
 import { HomePage } from "./pages/HomePage";
 import { NotFoundPage } from "./pages/NotFoundPage";
 
-function SuperAdminHome() {
-  const { user, kava, isAuthenticated, isLoading } = useAuth();
-  if (isLoading) return null;
-  if (!isAuthenticated || !user) return <Navigate to="/login" replace />;
-
-  const target = getUserHome(user, kava?.slug ?? null);
-  const { href, isSameSubdomain } = resolveHomeHref(target);
-
-  if (isSameSubdomain) {
-    return <Navigate to={target.path} replace />;
-  }
-
-  if (window.location.href !== href) {
-    window.location.replace(href);
-  }
-  return (
-    <div className="flex min-h-screen items-center justify-center">
-      <Spinner />
-    </div>
-  );
-}
-
-function SuperAdminApp() {
-  return (
-    <Routes>
-      <Route element={<AuthLayout />}>
-        <Route path="/login" element={<LoginPage />} />
-        <Route path="/auth/forgot-password" element={<ForgotPasswordPage />} />
-        <Route path="/auth/reset-password" element={<ResetPasswordPage />} />
-      </Route>
-
-      <Route
-        path="/superadmin"
-        element={
-          <RequireAuth>
-            <RequireRole allowed={["superadmin"]}>
-              <SuperAdminLayout />
-            </RequireRole>
-          </RequireAuth>
-        }
-      >
-        <Route path="kavas" element={<KavasPage />} />
-        <Route path="kavas/new" element={<NewKavaPage />} />
-        <Route path="settings" element={<SuperAdminSettingsPage />} />
-      </Route>
-
-      <Route path="/" element={<SuperAdminHome />} />
-      <Route path="*" element={<NotFoundPage />} />
-    </Routes>
-  );
-}
-
-function PlatformApp() {
-  return (
-    <Routes>
-      <Route element={<AuthLayout />}>
-        <Route path="/" element={<KavaSelectPage />} />
-        <Route path="/auth/forgot-password" element={<ForgotPasswordPage />} />
-        <Route path="/auth/reset-password" element={<ResetPasswordPage />} />
-      </Route>
-      <Route path="*" element={<Navigate to="/" replace />} />
-    </Routes>
-  );
-}
-
-function TenantApp() {
-  return (
-    <Routes>
-      <Route element={<AuthLayout />}>
-        <Route path="/login" element={<LoginPage />} />
-        <Route path="/auth/forgot-password" element={<ForgotPasswordPage />} />
-        <Route path="/auth/reset-password" element={<ResetPasswordPage />} />
-        <Route path="/welcome" element={<WelcomePage />} />
-      </Route>
-
-      <Route
-        path="/admin"
-        element={
-          <RequireAuth>
-            <RequireRole allowed={["owner", "staff"]}>
-              <AdminLayout />
-            </RequireRole>
-          </RequireAuth>
-        }
-      >
-        <Route path="dashboard" element={<DashboardPage />} />
-        <Route path="products" element={<ProductsPage />} />
-        <Route path="products/new" element={<ProductFormPage />} />
-        <Route path="products/import" element={<ProductsImportPage />} />
-        <Route path="products/:id" element={<ProductFormPage />} />
-        <Route path="categories" element={<CategoriesPage />} />
-        <Route path="customers" element={<CustomersPage />} />
-        <Route path="customers/:id/users" element={<CustomerUsersPage />} />
-        <Route path="customers/:id/brand-pricing" element={<CustomerBrandPricingPage />} />
-        <Route path="users" element={<UsersPage />} />
-        <Route path="orders" element={<OrdersPage />} />
-        <Route path="orders/:id" element={<OrderDetailPage />} />
-        <Route path="settings" element={<SettingsPage />} />
-      </Route>
-
-      <Route
-        element={
-          <RequireAuth>
-            <RequireRole allowed={["customer"]}>
-              <CustomerLayout />
-            </RequireRole>
-          </RequireAuth>
-        }
-      >
-        <Route path="/catalog" element={<CatalogPage />} />
-        <Route path="/cart" element={<CartPage />} />
-        <Route path="/orders" element={<OrderHistoryPage />} />
-        <Route path="/orders/:id" element={<CustomerOrderDetailPage />} />
-        <Route path="/profile" element={<ProfilePage />} />
-      </Route>
-
-      <Route path="/" element={<HomePage />} />
-      <Route path="*" element={<NotFoundPage />} />
-    </Routes>
-  );
-}
-
 export function App() {
-  const isSuperAdmin = isSuperAdminDomain();
-  const isPlatform = isPlatformDomain();
-
   return (
     <QueryClientProvider client={queryClient}>
       <BrowserRouter>
-        {isSuperAdmin ? <SuperAdminApp /> : isPlatform ? <PlatformApp /> : <TenantApp />}
+        <Routes>
+          {/* Platform-level auth — used by superadmin (no kava context). */}
+          <Route element={<AuthLayout />}>
+            <Route path="/login" element={<LoginPage />} />
+            <Route path="/auth/forgot-password" element={<ForgotPasswordPage />} />
+            <Route path="/auth/reset-password" element={<ResetPasswordPage />} />
+          </Route>
+
+          {/* Superadmin */}
+          <Route
+            path="/admin"
+            element={
+              <RequireAuth>
+                <RequireRole allowed={["superadmin"]}>
+                  <SuperAdminLayout />
+                </RequireRole>
+              </RequireAuth>
+            }
+          >
+            <Route index element={<Navigate to="kavas" replace />} />
+            <Route path="kavas" element={<KavasPage />} />
+            <Route path="kavas/new" element={<NewKavaPage />} />
+            <Route path="settings" element={<SuperAdminSettingsPage />} />
+          </Route>
+
+          {/* Tenant routes — all live under /k/:slug. */}
+          <Route path="/k/:slug">
+            {/* Tenant-scoped auth */}
+            <Route element={<AuthLayout />}>
+              <Route path="login" element={<LoginPage />} />
+              <Route path="auth/forgot-password" element={<ForgotPasswordPage />} />
+              <Route path="auth/reset-password" element={<ResetPasswordPage />} />
+              <Route path="welcome" element={<WelcomePage />} />
+            </Route>
+
+            <Route
+              path="admin"
+              element={
+                <RequireAuth>
+                  <RequireRole allowed={["owner", "staff"]}>
+                    <AdminLayout />
+                  </RequireRole>
+                </RequireAuth>
+              }
+            >
+              <Route index element={<Navigate to="dashboard" replace />} />
+              <Route path="dashboard" element={<DashboardPage />} />
+              <Route path="products" element={<ProductsPage />} />
+              <Route path="products/new" element={<ProductFormPage />} />
+              <Route path="products/import" element={<ProductsImportPage />} />
+              <Route path="products/:id" element={<ProductFormPage />} />
+              <Route path="categories" element={<CategoriesPage />} />
+              <Route path="customers" element={<CustomersPage />} />
+              <Route path="customers/:id/users" element={<CustomerUsersPage />} />
+              <Route path="customers/:id/brand-pricing" element={<CustomerBrandPricingPage />} />
+              <Route path="users" element={<UsersPage />} />
+              <Route path="orders" element={<OrdersPage />} />
+              <Route path="orders/:id" element={<OrderDetailPage />} />
+              <Route path="settings" element={<SettingsPage />} />
+            </Route>
+
+            <Route
+              element={
+                <RequireAuth>
+                  <RequireRole allowed={["customer"]}>
+                    <CustomerLayout />
+                  </RequireRole>
+                </RequireAuth>
+              }
+            >
+              <Route path="catalog" element={<CatalogPage />} />
+              <Route path="cart" element={<CartPage />} />
+              <Route path="orders" element={<OrderHistoryPage />} />
+              <Route path="orders/:id" element={<CustomerOrderDetailPage />} />
+              <Route path="profile" element={<ProfilePage />} />
+            </Route>
+
+            <Route index element={<HomePage />} />
+          </Route>
+
+          {/* Platform landing — kava selector. */}
+          <Route path="/" element={<AuthLayout />}>
+            <Route index element={<KavaSelectPage />} />
+          </Route>
+
+          <Route path="*" element={<NotFoundPage />} />
+        </Routes>
       </BrowserRouter>
       <Toaster position="top-right" richColors />
     </QueryClientProvider>

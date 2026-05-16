@@ -26,7 +26,7 @@ interface LocalAssignment {
 }
 
 export function CustomerBrandPricingPage() {
-  const { id } = useParams();
+  const { id, slug } = useParams<{ id: string; slug: string }>();
   const navigate = useNavigate();
   const { data: customer } = useCustomer(id);
   const { data: rows, isLoading } = useCustomerBrandPricing(id);
@@ -68,7 +68,7 @@ export function CustomerBrandPricingPage() {
           {customer && <p className="mt-1 text-sm text-muted-foreground">{customer.name}</p>}
         </div>
         <div className="flex gap-2">
-          <Button variant="outline" onClick={() => navigate("/admin/customers")}>
+          <Button variant="outline" onClick={() => navigate(`/k/${slug}/admin/customers`)}>
             Πίσω
           </Button>
           <Button onClick={handleSave} disabled={updateMutation.isPending}>

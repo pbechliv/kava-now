@@ -1,8 +1,13 @@
 import "./load-env";
 
+const isDev = process.env.NODE_ENV !== "production";
+
 export const config = {
   databaseUrl: process.env.DATABASE_URL || "postgresql://postgres:postgres@localhost:5432/kavanow",
-  baseDomain: process.env.BASE_DOMAIN || "lvh.me:5173",
+  // Canonical origin of the running app — used for absolute URLs in outbound
+  // email (invites, password resets, order notifications) and as better-auth's
+  // baseURL / trustedOrigins. Single-host now that tenants live in URL paths.
+  appOrigin: process.env.APP_ORIGIN || (isDev ? "http://localhost:5173" : "https://kavanow.gr"),
   cookieSecret: process.env.COOKIE_SECRET || "dev-secret-change-in-production-at-least-32-chars",
   smtp: {
     host: process.env.SMTP_HOST || "localhost",
@@ -15,8 +20,5 @@ export const config = {
     apiKey: process.env.RESEND_API_KEY || "",
     from: process.env.RESEND_FROM || process.env.SMTP_FROM || "noreply@kavanow.gr",
   },
-  isDev: process.env.NODE_ENV !== "production",
-  get protocol() {
-    return this.isDev ? "http" : "https";
-  },
+  isDev,
 } as const;

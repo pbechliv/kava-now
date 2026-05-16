@@ -1,6 +1,6 @@
 // TypeScript interfaces matching DB schema (camelCase)
 
-export type UserRole = "owner" | "staff" | "customer" | "superadmin";
+export type MembershipRole = "owner" | "staff" | "customer";
 export type OrderStatus = "pending" | "confirmed" | "shipped" | "delivered" | "cancelled";
 export type ProductUnit = "bottle" | "case" | "keg";
 
@@ -21,11 +21,21 @@ export interface User {
   id: string;
   email: string;
   name: string;
-  role: UserRole;
-  kavaId: string;
-  customerId: string | null;
+  isSuperAdmin: boolean;
   hasPassword: boolean;
   createdAt: string;
+}
+
+/**
+ * A user's membership in a single kava. One row per (userId, kavaId).
+ */
+export interface KavaMembership {
+  kavaId: string;
+  kavaSlug: string;
+  kavaName: string;
+  role: MembershipRole;
+  customerId: string | null;
+  invitedBy: { name: string; email: string } | null;
 }
 
 export interface Category {
@@ -89,4 +99,3 @@ export interface OrderItem {
   unitPrice: number;
   productName: string;
 }
-

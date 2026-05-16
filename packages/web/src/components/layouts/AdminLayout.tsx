@@ -1,4 +1,4 @@
-import { NavLink, Outlet } from "react-router";
+import { NavLink, Outlet, useParams } from "react-router";
 import {
   LayoutDashboard,
   Package,
@@ -36,16 +36,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Separator } from "@/components/ui/separator";
-
-const navItems = [
-  { to: "/admin/dashboard", label: "Πίνακας Ελέγχου", icon: LayoutDashboard },
-  { to: "/admin/products", label: "Προϊόντα", icon: Package },
-  { to: "/admin/categories", label: "Κατηγορίες", icon: Tag },
-  { to: "/admin/customers", label: "Πελάτες", icon: Users },
-  { to: "/admin/users", label: "Χρήστες", icon: UserCog },
-  { to: "/admin/orders", label: "Παραγγελίες", icon: ClipboardList },
-  { to: "/admin/settings", label: "Ρυθμίσεις", icon: Settings },
-];
+import { KavaSwitcher } from "@/components/KavaSwitcher";
 
 function initials(name: string | null | undefined) {
   if (!name) return "?";
@@ -60,6 +51,18 @@ function initials(name: string | null | undefined) {
 export function AdminLayout() {
   const { user, kava } = useAuth();
   const logout = useLogout();
+  const { slug } = useParams<{ slug: string }>();
+  const base = `/k/${slug}/admin`;
+
+  const navItems = [
+    { to: `${base}/dashboard`, label: "Πίνακας Ελέγχου", icon: LayoutDashboard },
+    { to: `${base}/products`, label: "Προϊόντα", icon: Package },
+    { to: `${base}/categories`, label: "Κατηγορίες", icon: Tag },
+    { to: `${base}/customers`, label: "Πελάτες", icon: Users },
+    { to: `${base}/users`, label: "Χρήστες", icon: UserCog },
+    { to: `${base}/orders`, label: "Παραγγελίες", icon: ClipboardList },
+    { to: `${base}/settings`, label: "Ρυθμίσεις", icon: Settings },
+  ];
 
   return (
     <SidebarProvider>
@@ -117,6 +120,7 @@ export function AdminLayout() {
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-56">
               <DropdownMenuLabel className="truncate">{user?.email}</DropdownMenuLabel>
+              <KavaSwitcher currentSlug={slug ?? null} />
               <DropdownMenuSeparator />
               <DropdownMenuItem onSelect={() => logout.mutate()}>
                 <LogOut className="mr-2 h-4 w-4" />

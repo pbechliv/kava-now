@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { api } from "../api";
+import { useTenantApi, useTenantSlug } from "./use-tenant-api";
 
 export interface KavaUser {
   id: string;
@@ -24,48 +24,56 @@ export interface InviteUserInput {
 }
 
 export function useUsers() {
+  const slug = useTenantSlug();
+  const tApi = useTenantApi();
   return useQuery({
-    queryKey: ["admin", "users"],
-    queryFn: () => api.get<UsersResponse>("/api/admin/users"),
+    queryKey: ["admin", slug, "users"],
+    queryFn: () => tApi.get<UsersResponse>("/admin/users"),
   });
 }
 
 export function useInviteUser() {
+  const slug = useTenantSlug();
+  const tApi = useTenantApi();
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (input: InviteUserInput) =>
-      api.post<{ success: boolean }>("/api/admin/users/invite", input),
+      tApi.post<{ success: boolean }>("/admin/users/invite", input),
     onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: ["admin", "users"] });
+      void queryClient.invalidateQueries({ queryKey: ["admin", slug, "users"] });
     },
   });
 }
 
 export function useDeleteUser() {
+  const slug = useTenantSlug();
+  const tApi = useTenantApi();
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (id: string) => api.delete(`/api/admin/users/${id}`),
+    mutationFn: (id: string) => tApi.delete(`/admin/users/${id}`),
     onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: ["admin", "users"] });
-      void queryClient.invalidateQueries({ queryKey: ["admin", "customer-users"] });
+      void queryClient.invalidateQueries({ queryKey: ["admin", slug, "users"] });
+      void queryClient.invalidateQueries({ queryKey: ["admin", slug, "customer-users"] });
     },
   });
 }
 
 export function useResendInvite() {
+  const tApi = useTenantApi();
   return useMutation({
-    mutationFn: (id: string) =>
-      api.post<{ success: boolean }>(`/api/admin/users/${id}/resend-invite`),
+    mutationFn: (id: string) => tApi.post<{ success: boolean }>(`/admin/users/${id}/resend-invite`),
   });
 }
 
 export function usePromoteToOwner() {
+  const slug = useTenantSlug();
+  const tApi = useTenantApi();
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (id: string) =>
-      api.post<{ success: boolean }>(`/api/admin/users/${id}/promote-to-owner`),
+      tApi.post<{ success: boolean }>(`/admin/users/${id}/promote-to-owner`),
     onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: ["admin", "users"] });
+      void queryClient.invalidateQueries({ queryKey: ["admin", slug, "users"] });
     },
   });
 }

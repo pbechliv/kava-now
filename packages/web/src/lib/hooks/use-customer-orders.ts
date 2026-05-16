@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient, keepPreviousData } from "@tanstack/react-query";
-import { api } from "../api";
+import { useTenantApi, useTenantSlug } from "./use-tenant-api";
 import type { Order, OrderItem, CreateOrderInput, PaginatedResponse } from "@kava-now/shared";
 import { useCartStore } from "../store/cart";
 
@@ -27,49 +27,57 @@ interface CustomerOrdersFilters {
 }
 
 export function useCustomerOrders(filters?: CustomerOrdersFilters) {
+  const slug = useTenantSlug();
+  const tApi = useTenantApi();
   const params = new URLSearchParams();
   if (filters?.page) params.set("page", String(filters.page));
   if (filters?.pageSize) params.set("pageSize", String(filters.pageSize));
 
   const qs = params.toString();
-  const path = `/api/customer/orders${qs ? `?${qs}` : ""}`;
+  const path = `/customer/orders${qs ? `?${qs}` : ""}`;
 
   return useQuery({
-    queryKey: ["customer", "orders", filters],
-    queryFn: () => api.get<PaginatedResponse<OrderSummary>>(path),
+    queryKey: ["customer", slug, "orders", filters],
+    queryFn: () => tApi.get<PaginatedResponse<OrderSummary>>(path),
     placeholderData: keepPreviousData,
   });
 }
 
 export function useCustomerOrder(id: string | undefined) {
+  const slug = useTenantSlug();
+  const tApi = useTenantApi();
   return useQuery({
-    queryKey: ["customer", "orders", id],
-    queryFn: () => api.get<OrderDetail>(`/api/customer/orders/${id}`),
+    queryKey: ["customer", slug, "orders", id],
+    queryFn: () => tApi.get<OrderDetail>(`/customer/orders/${id}`),
     enabled: !!id,
   });
 }
 
 export function useCreateOrder() {
+  const slug = useTenantSlug();
+  const tApi = useTenantApi();
   const qc = useQueryClient();
   const clearCart = useCartStore((s) => s.clearCart);
 
   return useMutation({
     mutationFn: (data: CreateOrderInput) =>
-      api.post<CreateOrderResponse>("/api/customer/orders", data),
+      tApi.post<CreateOrderResponse>("/customer/orders", data),
     onSuccess: () => {
       clearCart();
-      void qc.invalidateQueries({ queryKey: ["customer", "orders"] });
+      void qc.invalidateQueries({ queryKey: ["customer", slug, "orders"] });
     },
   });
 }
 
 export function useReorder(orderId: string) {
+  const slug = useTenantSlug();
+  const tApi = useTenantApi();
   const qc = useQueryClient();
 
   return useMutation({
-    mutationFn: () => api.post<CreateOrderResponse>(`/api/customer/orders/${orderId}/reorder`),
+    mutationFn: () => tApi.post<CreateOrderResponse>(`/customer/orders/${orderId}/reorder`),
     onSuccess: () => {
-      void qc.invalidateQueries({ queryKey: ["customer", "orders"] });
+      void qc.invalidateQueries({ queryKey: ["customer", slug, "orders"] });
     },
   });
 }

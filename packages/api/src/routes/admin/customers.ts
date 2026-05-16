@@ -14,6 +14,7 @@ import {
   products,
   customerBrandPricing,
   orders,
+  kavaMemberships,
   users,
   verifications,
 } from "../../db/schema/index";
@@ -21,6 +22,7 @@ import {
   inviteUserToKava,
   sendInviteSetPassword,
   InviteConflict,
+  userHasPassword,
 } from "../../services/invite-user";
 import { logAudit } from "../../services/audit";
 import type { AppEnv } from "../../types";
@@ -186,7 +188,7 @@ customersRouter.put("/:id", async (c) => {
   return c.json(customer);
 });
 
-// DELETE /:id — fail if customer has orders. Linked users cascade at DB level.
+// DELETE /:id — fail if customer has orders. Linked memberships cascade.
 customersRouter.delete("/:id", async (c) => {
   const kavaId = c.get("kavaId")!;
   const id = c.req.param("id");
@@ -202,11 +204,12 @@ customersRouter.delete("/:id", async (c) => {
     return c.json({ error: "Δεν μπορείτε να διαγράψετε πελάτη με παραγγελίες" }, 400);
   }
 
-  // Capture linked user ids for the audit log before the cascade removes them.
+  // Capture linked memberships for the audit log before the cascade removes them.
   const linkedUsers = await db
-    .select({ id: users.id, email: users.realEmail })
-    .from(users)
-    .where(and(eq(users.customerId, id), eq(users.kavaId, kavaId)));
+    .select({ id: users.id, email: users.email })
+    .from(kavaMemberships)
+    .innerJoin(users, eq(users.id, kavaMemberships.userId))
+    .where(and(eq(kavaMemberships.customerId, id), eq(kavaMemberships.kavaId, kavaId)));
 
   const [deleted] = await db
     .delete(customers)
@@ -221,10 +224,7 @@ customersRouter.delete("/:id", async (c) => {
     action: "customer.delete",
     targetType: "customer",
     targetId: id,
-    metadata: {
-      name: deleted.name,
-      deletedUsers: linkedUsers,
-    },
+    metadata: { name: deleted.name, deletedUsers: linkedUsers },
   });
 
   return c.json({ message: "Ο πελάτης διαγράφηκε" });
@@ -246,14 +246,12 @@ customersRouter.get("/:id/brand-pricing", async (c) => {
     return c.json({ error: "Ο πελάτης δεν βρέθηκε" }, 404);
   }
 
-  // Get all distinct brands for this kava
   const brands = await db
     .selectDistinct({ brand: products.brand })
     .from(products)
     .where(and(eq(products.kavaId, kavaId), eq(products.active, true)))
     .orderBy(products.brand);
 
-  // Get existing brand pricing for this customer
   const pricing = await db
     .select()
     .from(customerBrandPricing)
@@ -280,7 +278,6 @@ customersRouter.put("/:id/brand-pricing", async (c) => {
     return c.json({ error: parsed.error.flatten().fieldErrors }, 400);
   }
 
-  // Verify customer exists
   const [customer] = await db
     .select({ id: customers.id })
     .from(customers)
@@ -291,10 +288,8 @@ customersRouter.put("/:id/brand-pricing", async (c) => {
     return c.json({ error: "Ο πελάτης δεν βρέθηκε" }, 404);
   }
 
-  // Delete all existing brand pricing for this customer
   await db.delete(customerBrandPricing).where(eq(customerBrandPricing.customerId, id));
 
-  // Insert new ones (only those with non-zero discount)
   const withDiscount = parsed.data.assignments.filter((a) => a.discountPct > 0);
   if (withDiscount.length > 0) {
     await db.insert(customerBrandPricing).values(
@@ -309,7 +304,7 @@ customersRouter.put("/:id/brand-pricing", async (c) => {
   return c.json({ message: "Η τιμολόγηση ενημερώθηκε" });
 });
 
-// GET /:id/users — list users linked to a customer
+// GET /:id/users — list users linked to a customer in this kava
 customersRouter.get("/:id/users", async (c) => {
   const kavaId = c.get("kavaId")!;
   const id = c.req.param("id");
@@ -328,17 +323,18 @@ customersRouter.get("/:id/users", async (c) => {
   const rows = await db
     .select({
       id: users.id,
-      email: users.realEmail,
+      email: users.email,
       emailVerified: users.emailVerified,
       name: users.name,
-      createdAt: users.createdAt,
+      createdAt: kavaMemberships.createdAt,
       invitedByName: inviterAlias.name,
-      invitedByEmail: inviterAlias.realEmail,
+      invitedByEmail: inviterAlias.email,
     })
-    .from(users)
-    .leftJoin(inviterAlias, eq(users.invitedById, inviterAlias.id))
-    .where(and(eq(users.customerId, id), eq(users.kavaId, kavaId)))
-    .orderBy(users.createdAt);
+    .from(kavaMemberships)
+    .innerJoin(users, eq(users.id, kavaMemberships.userId))
+    .leftJoin(inviterAlias, eq(kavaMemberships.invitedById, inviterAlias.id))
+    .where(and(eq(kavaMemberships.customerId, id), eq(kavaMemberships.kavaId, kavaId)))
+    .orderBy(kavaMemberships.createdAt);
 
   return c.json({ users: rows });
 });
@@ -350,33 +346,35 @@ customersRouter.post("/:customerId/users/:userId/resend-invite", async (c) => {
   const userId = c.req.param("userId");
 
   const [target] = await db
-    .select({
-      id: users.id,
-      authEmail: users.email,
-      realEmail: users.realEmail,
-      emailVerified: users.emailVerified,
-    })
-    .from(users)
-    .where(and(eq(users.id, userId), eq(users.kavaId, kavaId), eq(users.customerId, customerId)))
+    .select({ id: users.id, email: users.email })
+    .from(kavaMemberships)
+    .innerJoin(users, eq(users.id, kavaMemberships.userId))
+    .where(
+      and(
+        eq(kavaMemberships.userId, userId),
+        eq(kavaMemberships.kavaId, kavaId),
+        eq(kavaMemberships.customerId, customerId),
+      ),
+    )
     .limit(1);
 
   if (!target) {
     return c.json({ error: "Δεν βρέθηκε χρήστης" }, 404);
   }
 
-  if (target.emailVerified) {
+  if (await userHasPassword(target.id)) {
     return c.json({ error: "Ο χρήστης έχει ήδη ενεργοποιηθεί" }, 400);
   }
 
-  await db.delete(verifications).where(eq(verifications.identifier, target.authEmail));
+  await db.delete(verifications).where(eq(verifications.identifier, target.email));
 
-  await sendInviteSetPassword(c, target.authEmail, c.get("kava")!.slug);
+  await sendInviteSetPassword(c, target.email, c.get("kava")!.slug);
 
   await logAudit(c, {
     action: "customer.user.invite.resend",
     targetType: "user",
     targetId: userId,
-    metadata: { email: target.realEmail, customerId },
+    metadata: { email: target.email, customerId },
   });
 
   return c.json({ success: true });

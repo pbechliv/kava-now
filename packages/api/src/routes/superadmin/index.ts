@@ -1,8 +1,8 @@
 import { Hono } from "hono";
-import { eq, and, sql } from "drizzle-orm";
-import { registerSchema, encodeAuthEmail, paginationQuerySchema } from "@kava-now/shared";
+import { eq, sql } from "drizzle-orm";
+import { registerSchema, paginationQuerySchema } from "@kava-now/shared";
 import { db } from "../../db/connection";
-import { kavas, users } from "../../db/schema/index";
+import { kavaMemberships, kavas, users } from "../../db/schema/index";
 import { auth } from "../../auth";
 import { sendInviteSetPassword } from "../../services/invite-user";
 import { requireAuth } from "../../middleware/require-auth";
@@ -45,7 +45,7 @@ superadmin.get("/kavas", async (c) => {
   return c.json({ data, total, page, pageSize });
 });
 
-// POST /superadmin/kavas — create kava + owner user
+// POST /superadmin/kavas — create kava + owner user + membership
 superadmin.post("/kavas", async (c) => {
   const body = await c.req.json();
   const parsed = registerSchema.safeParse(body);
@@ -54,8 +54,7 @@ superadmin.post("/kavas", async (c) => {
     return c.json({ error: parsed.error.flatten().fieldErrors }, 400);
   }
 
-  const { name, slug, email: realEmail, password } = parsed.data;
-  const authEmail = encodeAuthEmail(realEmail, slug);
+  const { name, slug, email, password } = parsed.data;
 
   const [existingKava] = await db
     .select({ id: kavas.id })
@@ -67,50 +66,64 @@ superadmin.post("/kavas", async (c) => {
     return c.json({ error: "Αυτό το slug χρησιμοποιείται ήδη" }, 409);
   }
 
-  const [kava] = await db.insert(kavas).values({ name, slug, email: realEmail }).returning();
-
+  const [kava] = await db.insert(kavas).values({ name, slug, email }).returning();
   if (!kava) throw new Error("Αποτυχία δημιουργίας κάβας");
 
-  if (password) {
-    await auth.api.signUpEmail({
-      body: { email: authEmail, password, name, realEmail },
-    });
+  // Find or create the owner user.
+  const [existingUser] = await db
+    .select({ id: users.id })
+    .from(users)
+    .where(eq(users.email, email))
+    .limit(1);
+
+  let ownerUserId: string;
+  if (existingUser) {
+    ownerUserId = existingUser.id;
+  } else if (password) {
+    // Create the user via better-auth so they get a credential account.
+    await auth.api.signUpEmail({ body: { email, password, name } });
+    const [created] = await db
+      .select({ id: users.id })
+      .from(users)
+      .where(eq(users.email, email))
+      .limit(1);
+    if (!created) throw new Error("Αποτυχία δημιουργίας χρήστη");
+    ownerUserId = created.id;
   } else {
-    await db.insert(users).values({
-      email: authEmail,
-      realEmail,
-      name,
-      role: "owner",
-      kavaId: kava.id,
-    });
-    // Request comes in on the admin subdomain, but the new owner needs to
-    // land on the new tenant's subdomain.
-    await sendInviteSetPassword(c, authEmail, slug);
+    // No password yet — create the user row, attach the membership, send invite.
+    const [created] = await db
+      .insert(users)
+      .values({ email, name, emailVerified: false })
+      .returning({ id: users.id });
+    if (!created) throw new Error("Αποτυχία δημιουργίας χρήστη");
+    ownerUserId = created.id;
   }
 
-  // Promote the just-created user to owner + link to kava (signUpEmail
-  // defaults role to "customer" with no kavaId).
-  await db
-    .update(users)
-    .set({ role: "owner", kavaId: kava.id })
-    .where(and(eq(users.email, authEmail), eq(users.realEmail, realEmail)));
+  await db.insert(kavaMemberships).values({
+    userId: ownerUserId,
+    kavaId: kava.id,
+    role: "owner",
+  });
+
+  if (!existingUser && !password) {
+    await sendInviteSetPassword(c, email, slug);
+  }
 
   await logAudit(c, {
     action: "superadmin.kava.create",
     targetType: "kava",
     targetId: kava.id,
-    metadata: { name, slug, ownerEmail: realEmail, hasPassword: !!password },
+    metadata: { name, slug, ownerEmail: email, hasPassword: !!password },
   });
 
   return c.json({ success: true, slug, hasPassword: !!password });
 });
 
-// DELETE /superadmin/kavas/:id — hard delete a tenant
+// DELETE /superadmin/kavas/:id — hard delete a tenant (memberships cascade)
 superadmin.delete("/kavas/:id", async (c) => {
   const id = c.req.param("id");
 
   const [kava] = await db.select({ id: kavas.id }).from(kavas).where(eq(kavas.id, id)).limit(1);
-
   if (!kava) {
     return c.json({ error: "Δεν βρέθηκε κάβα" }, 404);
   }

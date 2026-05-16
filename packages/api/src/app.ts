@@ -23,10 +23,17 @@ app.use(
   }),
 );
 
-// Tenant resolution on all routes
-app.use("*", tenantMiddleware);
+// Default empty tenant context; tenant-scoped routes set it explicitly.
+app.use("*", async (c, next) => {
+  c.set("kava", null);
+  c.set("kavaId", null);
+  c.set("user", null);
+  c.set("session", null);
+  c.set("membership", null);
+  return next();
+});
 
-// Auth session resolution (after tenant)
+// Auth session resolution — no tenant context required.
 app.use("*", authMiddleware);
 
 // Custom auth routes (register BEFORE better-auth catch-all so /me matches first)
@@ -42,24 +49,26 @@ app.use("/api/auth/request-password-reset", forgotPasswordRateLimit);
 app.on(["POST", "GET"], "/api/auth/*", (c) => auth.handler(c.req.raw));
 
 app.route("/api/platform", platformRoutes);
-app.route("/api/admin", adminRoutes);
-app.route("/api/customer", customerRoutes);
 app.route("/api/superadmin", superadminRoutes);
 
-// Public kava info (tenant mode only, no auth required)
-app.get("/api/kava", (c) => {
+// Tenant-scoped routes. tenantMiddleware reads the :slug param, resolves the
+// kava, and sets the PostgreSQL session variable for RLS.
+const tenantApp = new Hono<AppEnv>();
+tenantApp.use("*", tenantMiddleware);
+
+tenantApp.get("/kava", (c) => {
   const kava = c.get("kava");
-  if (!kava) {
-    return c.json({ error: "Not in tenant mode" }, 404);
-  }
+  if (!kava) return c.json({ error: "Δεν βρέθηκε" }, 404);
   return c.json({ name: kava.name, slug: kava.slug });
 });
 
+tenantApp.route("/admin", adminRoutes);
+tenantApp.route("/customer", customerRoutes);
+
+app.route("/api/k/:slug", tenantApp);
+
 app.get("/api/health", (c) => {
-  return c.json({
-    status: "ok",
-    tenant: c.get("kava")?.slug || "platform",
-  });
+  return c.json({ status: "ok" });
 });
 
 export { app };

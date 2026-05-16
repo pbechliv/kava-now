@@ -41,7 +41,7 @@ import {
 import { Spinner } from "@/components/spinner";
 
 export function CustomerUsersPage() {
-  const { id = "" } = useParams<{ id: string }>();
+  const { id = "", slug } = useParams<{ id: string; slug: string }>();
   const { data: customer } = useCustomer(id);
   const { data, isLoading } = useCustomerUsers(id);
   const invite = useInviteCustomerUser(id);
@@ -98,7 +98,7 @@ export function CustomerUsersPage() {
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <Link
-            to="/admin/customers"
+            to={`/k/${slug}/admin/customers`}
             className="inline-flex items-center gap-1 text-sm font-medium text-primary hover:underline"
           >
             <ArrowLeft className="h-4 w-4" /> Πίσω στους πελάτες

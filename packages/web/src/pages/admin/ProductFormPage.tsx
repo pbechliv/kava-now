@@ -36,8 +36,9 @@ type FormData = CreateProductInput;
 
 export function ProductFormPage() {
   const navigate = useNavigate();
-  const { id } = useParams();
+  const { id, slug } = useParams<{ id?: string; slug: string }>();
   const isEdit = !!id && id !== "new";
+  const productsPath = `/k/${slug}/admin/products`;
 
   const { data: product, isLoading: productLoading } = useProduct(isEdit ? id : undefined);
   const { data: categories } = useCategories();
@@ -71,7 +72,7 @@ export function ProductFormPage() {
     } else {
       await createMutation.mutateAsync(data as CreateProductInput);
     }
-    void navigate("/admin/products");
+    void navigate(productsPath);
   };
 
   if (isEdit && productLoading) {
@@ -293,7 +294,7 @@ export function ProductFormPage() {
                   {isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                   {isEdit ? "Αποθήκευση" : "Δημιουργία"}
                 </Button>
-                <Button type="button" variant="outline" onClick={() => navigate("/admin/products")}>
+                <Button type="button" variant="outline" onClick={() => navigate(productsPath)}>
                   Ακύρωση
                 </Button>
               </div>

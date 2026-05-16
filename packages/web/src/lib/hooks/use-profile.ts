@@ -1,11 +1,13 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { api } from "../api";
+import { useTenantApi, useTenantSlug } from "./use-tenant-api";
 import type { Customer } from "@kava-now/shared";
 
 export function useProfile() {
+  const slug = useTenantSlug();
+  const tApi = useTenantApi();
   return useQuery({
-    queryKey: ["customer", "profile"],
-    queryFn: () => api.get<Customer>("/api/customer/profile"),
+    queryKey: ["customer", slug, "profile"],
+    queryFn: () => tApi.get<Customer>("/customer/profile"),
   });
 }
 
@@ -15,11 +17,13 @@ export interface UpdateProfileInput {
 }
 
 export function useUpdateProfile() {
+  const slug = useTenantSlug();
+  const tApi = useTenantApi();
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (input: UpdateProfileInput) => api.patch<Customer>("/api/customer/profile", input),
+    mutationFn: (input: UpdateProfileInput) => tApi.patch<Customer>("/customer/profile", input),
     onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: ["customer", "profile"] });
+      void queryClient.invalidateQueries({ queryKey: ["customer", slug, "profile"] });
     },
   });
 }

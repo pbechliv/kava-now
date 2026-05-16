@@ -4,7 +4,7 @@ import type { AppEnv } from "../types";
 export const requireSuperAdmin = createMiddleware<AppEnv>(async (c, next) => {
   const user = c.get("user");
 
-  if (!user || user.role !== "superadmin") {
+  if (!user || !user.isSuperAdmin) {
     return c.json({ error: "Δεν έχετε δικαίωμα πρόσβασης" }, 403);
   }
 

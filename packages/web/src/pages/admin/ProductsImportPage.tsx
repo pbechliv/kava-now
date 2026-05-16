@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
 import { useNavigate } from "react-router";
+import { useTenantSlug } from "@/lib/hooks/use-tenant-api";
 import { Loader2, Upload } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -59,6 +60,8 @@ const PREVIEW_LIMIT = 20;
 export function ProductsImportPage() {
   const navigate = useNavigate();
   const { kava } = useAuth();
+  const slug = useTenantSlug();
+  const productsPath = `/k/${slug}/admin/products`;
   const importMutation = useImportProducts();
 
   const [step, setStep] = useState<Step>("upload");
@@ -165,7 +168,7 @@ export function ProductsImportPage() {
   const handleImport = async () => {
     if (validRows.length === 0) return;
     const result = await importMutation.mutateAsync(validRows);
-    void navigate("/admin/products", { state: { importResult: result } });
+    void navigate(productsPath, { state: { importResult: result } });
   };
 
   const onDrop = (e: React.DragEvent<HTMLDivElement>) => {
@@ -184,7 +187,7 @@ export function ProductsImportPage() {
             Ανέβασμα CSV ή Excel · Αντιστοίχιση στηλών · Προεπισκόπηση
           </p>
         </div>
-        <Button variant="outline" onClick={() => navigate("/admin/products")}>
+        <Button variant="outline" onClick={() => navigate(productsPath)}>
           Πίσω στα προϊόντα
         </Button>
       </div>

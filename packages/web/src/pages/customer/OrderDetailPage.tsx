@@ -16,15 +16,16 @@ import { useCustomerOrder, useReorder } from "@/lib/hooks/use-customer-orders";
 import type { OrderStatus } from "@kava-now/shared";
 
 export function OrderDetailPage() {
-  const { id } = useParams<{ id: string }>();
+  const { id, slug } = useParams<{ id: string; slug: string }>();
   const navigate = useNavigate();
+  const base = `/k/${slug}`;
   const { data: order, isLoading } = useCustomerOrder(id);
   const reorder = useReorder(id || "");
 
   const handleReorder = () => {
     reorder.mutate(undefined, {
       onSuccess: (data) => {
-        void navigate(`/orders/${data.order.id}`);
+        void navigate(`${base}/orders/${data.order.id}`);
       },
     });
   };
@@ -47,7 +48,7 @@ export function OrderDetailPage() {
     <div className="space-y-6">
       <button
         type="button"
-        onClick={() => navigate("/orders")}
+        onClick={() => navigate(`${base}/orders`)}
         className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
       >
         <ArrowLeft className="h-4 w-4" /> Πίσω στο ιστορικό

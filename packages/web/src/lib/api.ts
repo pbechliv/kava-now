@@ -21,9 +21,12 @@ async function request<T>(method: string, path: string, body?: unknown): Promise
   const res = await fetch(path, opts);
 
   if (res.status === 401) {
-    // If we're not already on the login page, redirect there
-    if (!window.location.pathname.startsWith("/login")) {
-      window.location.href = "/login";
+    // If we're not already on a login page, redirect there. Preserve the
+    // tenant prefix if we're inside one.
+    const path = window.location.pathname;
+    if (!/\/login(\b|$)/.test(path)) {
+      const tenantMatch = path.match(/^\/k\/([^/]+)/);
+      window.location.href = tenantMatch ? `/k/${tenantMatch[1]}/login` : "/login";
     }
     throw new ApiError(401, "Unauthorized");
   }

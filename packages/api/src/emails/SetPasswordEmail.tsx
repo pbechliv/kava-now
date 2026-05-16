@@ -93,7 +93,7 @@ export function subject({
 export default SetPasswordEmail;
 
 SetPasswordEmail.PreviewProps = {
-  link: "https://demo.lvh.me/welcome?token=preview",
+  link: "https://kavanow.gr/k/demo/welcome?token=preview",
   kavaName: "Demo Κάβα",
   mode: "invite",
 } satisfies SetPasswordEmailProps;

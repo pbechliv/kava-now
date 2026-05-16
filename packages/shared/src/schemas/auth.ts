@@ -1,21 +1,8 @@
 import { z } from "zod";
 
-const RESERVED_SLUGS = [
-  "www",
-  "api",
-  "admin",
-  "app",
-  "mail",
-  "ftp",
-  "smtp",
-  "pop",
-  "imap",
-  "blog",
-  "help",
-  "support",
-  "status",
-  "docs",
-];
+// Slugs that would clash with top-level paths or be visually confusing
+// adjacent to them (`/admin/*`, `/login`, `/auth/*`, `/api/*`, `/k/...`).
+const RESERVED_SLUGS = ["admin", "api", "auth", "login", "k"];
 
 export const loginSchema = z.object({
   email: z.string().email("Μη έγκυρη διεύθυνση email"),
@@ -70,19 +57,7 @@ export const resetPasswordSchema = z
     path: ["confirmPassword"],
   });
 
-export const changePasswordSchema = z
-  .object({
-    currentPassword: z.string().optional(),
-    newPassword: passwordField,
-    confirmNewPassword: z.string(),
-  })
-  .refine((data) => data.newPassword === data.confirmNewPassword, {
-    message: "Οι κωδικοί δεν ταιριάζουν",
-    path: ["confirmNewPassword"],
-  });
-
 export type LoginInput = z.infer<typeof loginSchema>;
 export type RegisterInput = z.infer<typeof registerSchema>;
 export type ForgotPasswordInput = z.infer<typeof forgotPasswordSchema>;
 export type ResetPasswordInput = z.infer<typeof resetPasswordSchema>;
-export type ChangePasswordInput = z.infer<typeof changePasswordSchema>;
