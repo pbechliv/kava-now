@@ -8,6 +8,10 @@ import { api } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Separator } from "@/components/ui/separator";
+import { GoogleIcon } from "@/components/icons/GoogleIcon";
+
+const googleEnabled = import.meta.env.VITE_GOOGLE_ENABLED === "true";
 
 export function WelcomePage() {
   const [searchParams] = useSearchParams();
@@ -36,6 +40,17 @@ export function WelcomePage() {
     },
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ["auth"] });
+    },
+  });
+
+  const googleSignIn = useMutation({
+    mutationFn: async () => {
+      const { error: authError } = await authClient.signIn.social({
+        provider: "google",
+        callbackURL: slug ? `/k/${slug}` : "/",
+        errorCallbackURL: `${loginPath}?error=oauth`,
+      });
+      if (authError) throw new Error(authError.message ?? "Σφάλμα Google σύνδεσης");
     },
   });
 
@@ -99,6 +114,38 @@ export function WelcomePage() {
       <p className="mt-4 text-center text-sm text-muted-foreground">
         Ορίστε τον κωδικό σας για να ολοκληρώσετε τη σύνδεση.
       </p>
+
+      {googleEnabled && (
+        <div className="mt-6 space-y-3">
+          <Button
+            type="button"
+            variant="outline"
+            className="w-full"
+            onClick={() => googleSignIn.mutate()}
+            disabled={googleSignIn.isPending}
+          >
+            {googleSignIn.isPending ? (
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            ) : (
+              <GoogleIcon className="mr-2 h-4 w-4" />
+            )}
+            Συνέχεια με Google
+          </Button>
+          {googleSignIn.error && (
+            <p className="text-sm text-destructive">
+              {googleSignIn.error instanceof Error
+                ? googleSignIn.error.message
+                : "Η σύνδεση με Google απέτυχε"}
+            </p>
+          )}
+          <div className="relative my-2">
+            <Separator />
+            <span className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 bg-card px-2 text-xs text-muted-foreground">
+              ή ορίστε κωδικό
+            </span>
+          </div>
+        </div>
+      )}
 
       <form onSubmit={onSubmit} className="mt-6 space-y-4">
         <div className="space-y-2">

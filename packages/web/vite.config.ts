@@ -11,6 +11,7 @@ const sentryEnv =
   process.env.SENTRY_ENVIRONMENT ||
   (process.env.NODE_ENV === "production" ? "production" : "development");
 const sentryRelease = process.env.SENTRY_RELEASE || "";
+const googleEnabled = !!process.env.GOOGLE_CLIENT_ID && !!process.env.GOOGLE_CLIENT_SECRET ? "true" : "";
 
 export default defineConfig({
   plugins: [react(), tailwindcss()],
@@ -23,6 +24,7 @@ export default defineConfig({
     "import.meta.env.VITE_SENTRY_DSN": JSON.stringify(sentryDsn),
     "import.meta.env.VITE_SENTRY_ENVIRONMENT": JSON.stringify(sentryEnv),
     "import.meta.env.VITE_SENTRY_RELEASE": JSON.stringify(sentryRelease),
+    "import.meta.env.VITE_GOOGLE_ENABLED": JSON.stringify(googleEnabled),
   },
   server: {
     port: 5173,

@@ -38,7 +38,7 @@ auth.get("/me", requireAuth, async (c) => {
   const [credentialAccount] = await db
     .select({ id: accounts.id })
     .from(accounts)
-    .where(eq(accounts.userId, authUser.id))
+    .where(and(eq(accounts.userId, authUser.id), eq(accounts.providerId, "credential")))
     .limit(1);
 
   // All kavas this user is a member of, with role + linked customer (if any).

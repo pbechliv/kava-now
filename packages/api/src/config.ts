@@ -26,5 +26,10 @@ export const config = {
     release: process.env.SENTRY_RELEASE || undefined,
     enabled: !!process.env.SENTRY_DSN_API,
   },
+  google: {
+    clientId: process.env.GOOGLE_CLIENT_ID || "",
+    clientSecret: process.env.GOOGLE_CLIENT_SECRET || "",
+    enabled: !!process.env.GOOGLE_CLIENT_ID && !!process.env.GOOGLE_CLIENT_SECRET,
+  },
   isDev,
 } as const;
