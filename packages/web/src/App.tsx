@@ -1,6 +1,7 @@
 import { QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router";
 import { queryClient } from "./lib/query-client";
+import { Toaster } from "./components/ui/sonner";
 import { isSuperAdminDomain } from "./lib/is-superadmin";
 import { isPlatformDomain } from "./lib/is-platform";
 import { useAuth } from "./lib/hooks/use-auth";
@@ -172,6 +173,7 @@ export function App() {
       <BrowserRouter>
         {isSuperAdmin ? <SuperAdminApp /> : isPlatform ? <PlatformApp /> : <TenantApp />}
       </BrowserRouter>
+      <Toaster position="top-right" richColors />
     </QueryClientProvider>
   );
 }

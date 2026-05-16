@@ -1,5 +1,6 @@
 import { useState, useMemo } from "react";
 import { ImageIcon, Minus, Plus } from "lucide-react";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
@@ -60,8 +61,10 @@ export function CatalogPage() {
   };
 
   const handleAdd = (product: CatalogProduct) => {
-    addItem(product, getQty(product.id));
+    const qty = getQty(product.id);
+    addItem(product, qty);
     setQuantities((prev) => ({ ...prev, [product.id]: 1 }));
+    toast.success(`${qty} × ${product.name} προστέθηκε στο καλάθι`);
   };
 
   return (
