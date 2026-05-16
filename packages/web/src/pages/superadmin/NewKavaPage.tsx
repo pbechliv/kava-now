@@ -126,7 +126,7 @@ export function NewKavaPage() {
                 )}
               />
               <p className="text-xs text-muted-foreground">
-                Αν δεν ορίσετε κωδικό, ο ιδιοκτήτης θα λάβει σύνδεσμο σύνδεσης στο email του.
+                Αν δεν ορίσετε κωδικό, ο ιδιοκτήτης θα λάβει σύνδεσμο για να ορίσει τον κωδικό του.
               </p>
 
               {createKava.error && (

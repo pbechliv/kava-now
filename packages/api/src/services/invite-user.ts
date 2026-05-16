@@ -3,6 +3,7 @@ import { encodeAuthEmail } from "@kava-now/shared";
 import { db } from "../db/connection";
 import { users, kavas } from "../db/schema/index";
 import { auth } from "../auth";
+import { config } from "../config";
 import type { Context } from "hono";
 import type { AppEnv } from "../types";
 
@@ -19,11 +20,11 @@ interface InviteOptions {
 }
 
 /**
- * Create a user in a kava and send a magic-link invite. Throws if a user
+ * Create a user in a kava and send a set-password invite. Throws if a user
  * with the same real email already exists in this kava (per-kava uniqueness).
  *
- * The magic-link email lands the invitee on /welcome on the same subdomain
- * that triggered the invite.
+ * The email lands the invitee on /welcome on the tenant's subdomain. The page
+ * consumes the reset-password token to set the user's initial password.
  */
 export async function inviteUserToKava({
   c,
@@ -62,12 +63,25 @@ export async function inviteUserToKava({
     invitedById: inviterId,
   });
 
-  const requestHost = c.req.header("x-forwarded-host") || c.req.header("host") || "";
-  const protocol = requestHost.includes("localhost") ? "http" : "https";
-  const callbackURL = `${protocol}://${requestHost}/welcome`;
+  await sendInviteSetPassword(c, authEmail, kava.slug);
+}
 
-  await auth.api.signInMagicLink({
-    body: { email: authEmail, callbackURL },
+/**
+ * Issue a fresh reset-password token for `authEmail` and dispatch the
+ * invite email. The link points the invitee at `<slug>.<baseDomain>/welcome`
+ * so they land on the correct tenant subdomain. The `/welcome` path is what
+ * the `sendResetPassword` callback in auth/index.ts keys on to pick the
+ * "invite" copy.
+ */
+export async function sendInviteSetPassword(
+  c: Context<AppEnv>,
+  authEmail: string,
+  kavaSlug: string,
+): Promise<void> {
+  const redirectTo = `${config.protocol}://${kavaSlug}.${config.baseDomain}/welcome`;
+
+  await auth.api.requestPasswordReset({
+    body: { email: authEmail, redirectTo },
     headers: c.req.raw.headers,
   });
 }

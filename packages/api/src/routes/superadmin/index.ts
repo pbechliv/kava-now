@@ -5,6 +5,7 @@ import { db } from "../../db/connection";
 import { kavas, users, categories, products, seedProducts } from "../../db/schema/index";
 import { DEFAULT_CATEGORIES } from "../../db/seeds/categories";
 import { auth } from "../../auth";
+import { sendInviteSetPassword } from "../../services/invite-user";
 import { requireAuth } from "../../middleware/require-auth";
 import { requireSuperAdmin } from "../../middleware/require-superadmin";
 import { logAudit } from "../../services/audit";
@@ -120,10 +121,9 @@ superadmin.post("/kavas", async (c) => {
       role: "owner",
       kavaId: kava.id,
     });
-    await auth.api.signInMagicLink({
-      body: { email: authEmail, callbackURL: "/admin/dashboard" },
-      headers: c.req.raw.headers,
-    });
+    // Request comes in on the admin subdomain, but the new owner needs to
+    // land on the new tenant's subdomain.
+    await sendInviteSetPassword(c, authEmail, slug);
   }
 
   // Promote the just-created user to owner + link to kava (signUpEmail

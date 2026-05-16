@@ -3,11 +3,7 @@ import { cors } from "hono/cors";
 import { logger } from "hono/logger";
 import { tenantMiddleware } from "./middleware/tenant";
 import { authMiddleware } from "./middleware/auth";
-import {
-  signInRateLimit,
-  magicLinkRateLimit,
-  forgotPasswordRateLimit,
-} from "./middleware/rate-limit";
+import { signInRateLimit, forgotPasswordRateLimit } from "./middleware/rate-limit";
 import { auth } from "./auth";
 import { authRoutes } from "./routes/auth";
 import { platformRoutes } from "./routes/platform";
@@ -39,11 +35,10 @@ app.route("/api/auth", authRoutes);
 // Rate limits on auth endpoints exposed to unauthenticated traffic.
 app.use("/api/auth/sign-in/*", signInRateLimit);
 app.use("/api/auth/sign-in", signInRateLimit);
-app.use("/api/auth/magic-link", magicLinkRateLimit);
-app.use("/api/auth/forget-password", forgotPasswordRateLimit);
+app.use("/api/auth/request-password-reset", forgotPasswordRateLimit);
 
 // better-auth handler — owns /api/auth/{sign-in, sign-out, sign-up,
-// get-session, forget-password, reset-password, magic-link/*, etc.}
+// get-session, forget-password, reset-password, etc.}
 app.on(["POST", "GET"], "/api/auth/*", (c) => auth.handler(c.req.raw));
 
 app.route("/api/platform", platformRoutes);

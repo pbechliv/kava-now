@@ -17,9 +17,12 @@ import {
   users,
   verifications,
 } from "../../db/schema/index";
-import { inviteUserToKava, InviteConflict } from "../../services/invite-user";
+import {
+  inviteUserToKava,
+  sendInviteSetPassword,
+  InviteConflict,
+} from "../../services/invite-user";
 import { logAudit } from "../../services/audit";
-import { auth } from "../../auth";
 import type { AppEnv } from "../../types";
 
 const customersRouter = new Hono<AppEnv>();
@@ -104,8 +107,9 @@ customersRouter.post("/", async (c) => {
     .returning();
 
   // If email provided, also create a linked customer-user + send the
-  // welcome magic link. We don't fail the whole request if email already
-  // belongs to another user in this kava — the customer row is still useful.
+  // welcome set-password link. We don't fail the whole request if email
+  // already belongs to another user in this kava — the customer row is
+  // still useful.
   let userInviteError: string | null = null;
   if (parsed.data.email) {
     try {
@@ -339,7 +343,7 @@ customersRouter.get("/:id/users", async (c) => {
   return c.json({ users: rows });
 });
 
-// POST /:customerId/users/:userId/resend-invite — re-issue magic link
+// POST /:customerId/users/:userId/resend-invite — re-issue the set-password invite
 customersRouter.post("/:customerId/users/:userId/resend-invite", async (c) => {
   const kavaId = c.get("kavaId")!;
   const customerId = c.req.param("customerId");
@@ -366,14 +370,7 @@ customersRouter.post("/:customerId/users/:userId/resend-invite", async (c) => {
 
   await db.delete(verifications).where(eq(verifications.identifier, target.authEmail));
 
-  const requestHost = c.req.header("x-forwarded-host") || c.req.header("host") || "";
-  const protocol = requestHost.includes("localhost") ? "http" : "https";
-  const callbackURL = `${protocol}://${requestHost}/welcome`;
-
-  await auth.api.signInMagicLink({
-    body: { email: target.authEmail, callbackURL },
-    headers: c.req.raw.headers,
-  });
+  await sendInviteSetPassword(c, target.authEmail, c.get("kava")!.slug);
 
   await logAudit(c, {
     action: "customer.user.invite.resend",

@@ -1,61 +1,69 @@
 import { useState } from "react";
-import { Navigate, useNavigate } from "react-router";
+import { Link, useNavigate, useSearchParams } from "react-router";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { Loader2 } from "lucide-react";
-import { useAuth } from "@/lib/hooks/use-auth";
+import { useQuery } from "@tanstack/react-query";
+import { CheckCircle2, Loader2 } from "lucide-react";
+import { authClient } from "@/lib/auth-client";
 import { api } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
 export function WelcomePage() {
-  const { user, kava, isLoading } = useAuth();
+  const [searchParams] = useSearchParams();
+  const token = searchParams.get("token") ?? "";
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
   const [error, setError] = useState("");
 
-  const setPasswordMutation = useMutation({
-    mutationFn: (newPassword: string) => api.post("/api/auth/set-password", { newPassword }),
+  const { data: kavaInfo } = useQuery({
+    queryKey: ["kava-info"],
+    queryFn: () => api.get<{ name: string; slug: string }>("/api/kava"),
+    retry: false,
+    staleTime: Infinity,
+  });
+
+  const mutation = useMutation({
+    mutationFn: async (newPassword: string) => {
+      const { error: authError } = await authClient.resetPassword({ newPassword, token });
+      if (authError) throw new Error(authError.message ?? "Σφάλμα");
+    },
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ["auth"] });
-      goToDashboard();
-    },
-    onError: (err) => {
-      setError(err instanceof Error ? err.message : "Σφάλμα");
     },
   });
 
-  if (isLoading) {
+  if (!token) {
     return (
-      <div className="flex justify-center py-12">
-        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+      <div className="text-center">
+        <h2 className="text-lg font-semibold">Μη έγκυρος σύνδεσμος</h2>
+        <p className="mt-2 text-sm text-muted-foreground">
+          Ο σύνδεσμος πρόσκλησης δεν είναι έγκυρος ή έληξε.
+        </p>
+        <Link
+          to="/login"
+          className="mt-4 inline-block text-sm font-medium text-primary hover:underline"
+        >
+          Επιστροφή στη σύνδεση
+        </Link>
       </div>
     );
   }
 
-  if (!user) return <Navigate to="/login" replace />;
-
-  const goToDashboard = () => {
-    if (user.role === "owner" || user.role === "staff") {
-      void navigate("/admin/dashboard", { replace: true });
-    } else if (user.role === "customer") {
-      void navigate("/catalog", { replace: true });
-    } else {
-      void navigate("/", { replace: true });
-    }
-  };
-
-  if (user.hasPassword) {
+  if (mutation.isSuccess) {
     return (
       <div className="text-center">
-        <h2 className="text-lg font-semibold">Καλώς ήρθατε, {user.name}!</h2>
-        {kava && (
-          <p className="mt-2 text-sm text-muted-foreground">Έχετε συνδεθεί στο {kava.name}.</p>
-        )}
-        <Button className="mt-6" onClick={goToDashboard}>
-          Συνέχεια
+        <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-primary/10">
+          <CheckCircle2 className="h-6 w-6 text-primary" />
+        </div>
+        <h2 className="text-lg font-semibold">Ο κωδικός ορίστηκε</h2>
+        <p className="mt-2 text-sm text-muted-foreground">
+          Μπορείτε τώρα να συνδεθείτε με το email και τον κωδικό σας.
+        </p>
+        <Button className="mt-6" onClick={() => void navigate("/login", { replace: true })}>
+          Σύνδεση
         </Button>
       </div>
     );
@@ -73,19 +81,19 @@ export function WelcomePage() {
       setError("Οι κωδικοί δεν ταιριάζουν");
       return;
     }
-    setPasswordMutation.mutate(password);
+    mutation.mutate(password);
   };
 
   return (
     <div>
-      <h2 className="text-center text-lg font-semibold">Καλώς ήρθατε, {user.name}!</h2>
-      {kava && (
+      <h2 className="text-center text-lg font-semibold">Καλώς ήρθατε!</h2>
+      {kavaInfo?.name && (
         <p className="mt-2 text-center text-sm text-muted-foreground">
-          Έχετε προσκληθεί στο <strong>{kava.name}</strong>.
+          Έχετε προσκληθεί στο <strong>{kavaInfo.name}</strong>.
         </p>
       )}
       <p className="mt-4 text-center text-sm text-muted-foreground">
-        Ορίστε έναν κωδικό για να συνδέεστε χωρίς magic link στο μέλλον (προαιρετικό).
+        Ορίστε τον κωδικό σας για να ολοκληρώσετε τη σύνδεση.
       </p>
 
       <form onSubmit={onSubmit} className="mt-6 space-y-4">
@@ -95,6 +103,7 @@ export function WelcomePage() {
             id="welcome-password"
             type="password"
             placeholder="Τουλάχιστον 8 χαρακτήρες"
+            autoComplete="new-password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
           />
@@ -105,25 +114,23 @@ export function WelcomePage() {
             id="welcome-confirm"
             type="password"
             placeholder="Επαναλάβετε τον κωδικό"
+            autoComplete="new-password"
             value={confirm}
             onChange={(e) => setConfirm(e.target.value)}
           />
         </div>
 
-        {error && <p className="text-sm text-destructive">{error}</p>}
+        {(error || mutation.error) && (
+          <p className="text-sm text-destructive">
+            {error ||
+              (mutation.error instanceof Error ? mutation.error.message : "Κάτι πήγε στραβά")}
+          </p>
+        )}
 
-        <Button type="submit" className="w-full" disabled={setPasswordMutation.isPending}>
-          {setPasswordMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-          Ορισμός κωδικού & Συνέχεια
+        <Button type="submit" className="w-full" disabled={mutation.isPending}>
+          {mutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+          Ορισμός κωδικού
         </Button>
-
-        <button
-          type="button"
-          onClick={goToDashboard}
-          className="block w-full text-center text-sm text-muted-foreground transition-colors hover:text-primary"
-        >
-          Παράλειψη
-        </button>
       </form>
     </div>
   );

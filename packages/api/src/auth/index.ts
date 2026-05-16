@@ -1,11 +1,10 @@
 import { betterAuth } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
-import { magicLink } from "better-auth/plugins";
 import { decodeAuthEmail } from "@kava-now/shared";
 import { db } from "../db/connection";
 import { users, sessions, accounts, verifications } from "../db/schema/index";
 import { config } from "../config";
-import { sendMagicLink, sendPasswordReset } from "../services/email";
+import { sendPasswordSet } from "../services/email";
 
 const baseDomainHost = config.baseDomain.split(":")[0] || "";
 // Browsers and the Public Suffix List reject cookies with Domain=.localhost,
@@ -36,7 +35,11 @@ export const auth = betterAuth({
     sendResetPassword: async ({ user, url }) => {
       // user.email is the synthesized identifier; send to the human address.
       const realEmail = decodeAuthEmail(user.email);
-      await sendPasswordReset(realEmail, url, "KavaNow");
+      // Invites land users on /welcome; password resets on /auth/reset-password.
+      // The redirectTo is embedded URL-encoded in `url`'s callbackURL param,
+      // so decode before matching.
+      const isInvite = decodeURIComponent(url).includes("/welcome");
+      await sendPasswordSet(realEmail, url, "KavaNow", isInvite ? "invite" : "reset");
     },
   },
   session: {
@@ -89,37 +92,7 @@ export const auth = betterAuth({
       ? [`http://*.${baseDomainHost}:${config.baseDomain.split(":")[1] || "5173"}`]
       : [`https://*.${baseDomainHost}`]),
   ],
-  plugins: [
-    magicLink({
-      // GHSA-hc7v-rggr-4hvx (better-auth ≥1.6.x): tokens are now consumed
-      // atomically on the first verify call, so `allowedAttempts` is a no-op.
-      // To survive email-link prefetch (Mailpit preview, Gmail TitanLink,
-      // Outlook SafeLinks, Chrome hover), the email points at an SPA
-      // `/auth/confirm` page that requires a real click to POST verify —
-      // prefetchers only issue GETs against the URL in the email, which
-      // is now a harmless static page.
-      storeToken: "hashed",
-      expiresIn: 60 * 60, // 1 hour, generous for invites
-      sendMagicLink: async ({ email, url }, ctx) => {
-        // better-auth builds `url` from auth.baseURL (a static fallback) and
-        // points at /api/auth/magic-link/verify?token=...&callbackURL=...
-        // We rewrite to the SPA's /auth/confirm page on the request's
-        // subdomain, preserving the token and callbackURL for the page to
-        // forward to /api/auth/magic-link/verify after a user click.
-        const requestHost = ctx?.headers?.get?.("x-forwarded-host") || ctx?.headers?.get?.("host");
-        const verifyURL = new URL(url);
-        const token = verifyURL.searchParams.get("token") ?? "";
-        const callbackURL = verifyURL.searchParams.get("callbackURL") ?? "/";
-        const host = requestHost ?? config.baseDomain;
-        const confirmURL = new URL(`${config.protocol}://${host}/auth/confirm`);
-        confirmURL.searchParams.set("token", token);
-        confirmURL.searchParams.set("callbackURL", callbackURL);
-        // `email` is the synthesized identifier; send to the human address.
-        const realEmail = decodeAuthEmail(email);
-        await sendMagicLink(realEmail, confirmURL.toString(), "KavaNow");
-      },
-    }),
-  ],
+  plugins: [],
 });
 
 export type Auth = typeof auth;

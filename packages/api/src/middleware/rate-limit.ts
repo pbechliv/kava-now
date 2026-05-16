@@ -91,18 +91,6 @@ export const signInRateLimit = rateLimit({
   perIp: [{ max: 10, windowMs: MIN }],
 });
 
-export const magicLinkRateLimit = rateLimit({
-  key: "magic-link",
-  perIp: [{ max: 5, windowMs: MIN }],
-  perExtra: {
-    extract: (body) =>
-      typeof body === "object" && body && "email" in body
-        ? ((body as { email: unknown }).email as string) || null
-        : null,
-    limits: [{ max: 20, windowMs: HOUR }],
-  },
-});
-
 export const forgotPasswordRateLimit = rateLimit({
   key: "forget-password",
   perIp: [{ max: 3, windowMs: MIN }],

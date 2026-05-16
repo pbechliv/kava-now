@@ -1,35 +1,70 @@
 import nodemailer from "nodemailer";
-import { config } from "../config";
+import { Resend } from "resend";
+import { render } from "@react-email/render";
 import { ORDER_STATUS_LABELS } from "@kava-now/shared";
 import type { OrderStatus } from "@kava-now/shared";
+import { config } from "../config";
+import {
+  SetPasswordEmail,
+  subject as setPasswordSubject,
+  type SetPasswordMode,
+} from "../emails/SetPasswordEmail";
+import {
+  OrderNotificationEmail,
+  subject as orderNotificationSubject,
+} from "../emails/OrderNotificationEmail";
+import {
+  OrderStatusChangeEmail,
+  subject as orderStatusChangeSubject,
+} from "../emails/OrderStatusChangeEmail";
 
-const transporter = nodemailer.createTransport({
-  host: config.smtp.host,
-  port: config.smtp.port,
-  ...(config.smtp.user ? { auth: { user: config.smtp.user, pass: config.smtp.pass } } : {}),
-});
+const useResend = Boolean(config.resend.apiKey);
 
-export async function sendMagicLink(email: string, link: string, kavaName: string): Promise<void> {
-  await transporter.sendMail({
-    from: config.smtp.from,
-    to: email,
-    subject: `Σύνδεση στο ${kavaName} — KavaNow`,
-    html: `
-      <div style="font-family: sans-serif; max-width: 480px; margin: 0 auto;">
-        <h2>Σύνδεση στο ${kavaName}</h2>
-        <p>Πατήστε τον παρακάτω σύνδεσμο για να συνδεθείτε:</p>
-        <p>
-          <a href="${link}"
-             style="display: inline-block; padding: 12px 24px; background: #2563eb; color: #fff; text-decoration: none; border-radius: 6px;">
-            Σύνδεση
-          </a>
-        </p>
-        <p style="color: #666; font-size: 14px;">
-          Ο σύνδεσμος λήγει σε 15 λεπτά. Αν δεν ζητήσατε σύνδεση, αγνοήστε αυτό το email.
-        </p>
-      </div>
-    `,
-  });
+const resend = useResend ? new Resend(config.resend.apiKey) : null;
+
+const transporter = useResend
+  ? null
+  : nodemailer.createTransport({
+      host: config.smtp.host,
+      port: config.smtp.port,
+      ...(config.smtp.user ? { auth: { user: config.smtp.user, pass: config.smtp.pass } } : {}),
+    });
+
+const fromAddress = useResend ? config.resend.from : config.smtp.from;
+
+async function deliver({
+  to,
+  subject,
+  html,
+}: {
+  to: string | string[];
+  subject: string;
+  html: string;
+}): Promise<void> {
+  if (resend) {
+    const recipients = Array.isArray(to) ? to : [to];
+    const { error } = await resend.emails.send({
+      from: fromAddress,
+      to: recipients,
+      subject,
+      html,
+    });
+    if (error) {
+      throw new Error(`Resend: ${error.message}`);
+    }
+    return;
+  }
+  await transporter!.sendMail({ from: fromAddress, to, subject, html });
+}
+
+export async function sendPasswordSet(
+  email: string,
+  link: string,
+  kavaName: string,
+  mode: SetPasswordMode,
+): Promise<void> {
+  const html = await render(SetPasswordEmail({ link, kavaName, mode }));
+  await deliver({ to: email, subject: setPasswordSubject({ kavaName, mode }), html });
 }
 
 interface OrderNotificationKava {
@@ -70,63 +105,19 @@ export async function sendOrderNotification(
     return;
   }
 
-  const total = items.reduce((sum, item) => sum + Number(item.unitPrice) * item.quantity, 0);
-
-  const itemRows = items
-    .map(
-      (item) => `
-        <tr>
-          <td style="padding: 8px 12px; border-bottom: 1px solid #e5e7eb;">${item.productName}</td>
-          <td style="padding: 8px 12px; border-bottom: 1px solid #e5e7eb; text-align: center;">${item.quantity}</td>
-          <td style="padding: 8px 12px; border-bottom: 1px solid #e5e7eb; text-align: right;">${Number(item.unitPrice).toFixed(2)}&euro;</td>
-          <td style="padding: 8px 12px; border-bottom: 1px solid #e5e7eb; text-align: right;">${(Number(item.unitPrice) * item.quantity).toFixed(2)}&euro;</td>
-        </tr>`,
-    )
-    .join("");
-
-  const baseDomain = config.baseDomain;
-  const adminOrderUrl = `http://${kava.slug}.${baseDomain}/admin/orders/${order.id}`;
-
-  const html = `
-    <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto;">
-      <h2 style="color: #d97706;">Νέα παραγγελία</h2>
-      <p><strong>Πελάτης:</strong> ${customer.name}</p>
-      <p><strong>Ημερομηνία:</strong> ${new Date(order.createdAt).toLocaleString("el-GR")}</p>
-      ${order.notes ? `<p><strong>Σημειώσεις:</strong> ${order.notes}</p>` : ""}
-
-      <table style="width: 100%; border-collapse: collapse; margin: 16px 0;">
-        <thead>
-          <tr style="background: #f9fafb;">
-            <th style="padding: 8px 12px; text-align: left; border-bottom: 2px solid #e5e7eb;">Προϊόν</th>
-            <th style="padding: 8px 12px; text-align: center; border-bottom: 2px solid #e5e7eb;">Ποσ.</th>
-            <th style="padding: 8px 12px; text-align: right; border-bottom: 2px solid #e5e7eb;">Τιμή</th>
-            <th style="padding: 8px 12px; text-align: right; border-bottom: 2px solid #e5e7eb;">Σύνολο</th>
-          </tr>
-        </thead>
-        <tbody>
-          ${itemRows}
-        </tbody>
-        <tfoot>
-          <tr>
-            <td colspan="3" style="padding: 8px 12px; text-align: right; font-weight: bold;">Σύνολο:</td>
-            <td style="padding: 8px 12px; text-align: right; font-weight: bold;">${total.toFixed(2)}&euro;</td>
-          </tr>
-        </tfoot>
-      </table>
-
-      <p>
-        <a href="${adminOrderUrl}"
-           style="display: inline-block; padding: 12px 24px; background: #d97706; color: #fff; text-decoration: none; border-radius: 6px;">
-          Προβολή παραγγελίας
-        </a>
-      </p>
-    </div>
-  `;
-
-  await transporter.sendMail({
-    from: config.smtp.from,
-    to: recipients.join(", "),
-    subject: `Νέα παραγγελία από ${customer.name}`,
+  const adminOrderUrl = `${config.protocol}://${kava.slug}.${config.baseDomain}/admin/orders/${order.id}`;
+  const html = await render(
+    OrderNotificationEmail({
+      kava: { name: kava.name, slug: kava.slug },
+      customer: { name: customer.name },
+      order: { notes: order.notes, createdAt: order.createdAt },
+      items,
+      adminOrderUrl,
+    }),
+  );
+  await deliver({
+    to: recipients,
+    subject: orderNotificationSubject({ customer: { name: customer.name } }),
     html,
   });
 }
@@ -137,49 +128,11 @@ export async function sendOrderStatusChange(
   newStatus: OrderStatus,
 ): Promise<void> {
   const statusLabel = ORDER_STATUS_LABELS[newStatus];
-
-  const html = `
-    <div style="font-family: sans-serif; max-width: 480px; margin: 0 auto;">
-      <h2 style="color: #d97706;">Ενημέρωση Παραγγελίας</h2>
-      <p>Η κατάσταση της παραγγελίας σας <strong>#${order.id.slice(0, 8)}</strong> άλλαξε σε:</p>
-      <p style="font-size: 18px; font-weight: bold; color: #1f2937;">${statusLabel}</p>
-      <p style="color: #666; font-size: 14px;">
-        Αν έχετε ερωτήσεις σχετικά με την παραγγελία σας, επικοινωνήστε μαζί μας.
-      </p>
-    </div>
-  `;
-
-  await transporter.sendMail({
-    from: config.smtp.from,
+  const orderShortId = order.id.slice(0, 8);
+  const html = await render(OrderStatusChangeEmail({ orderShortId, statusLabel }));
+  await deliver({
     to: customerEmail,
-    subject: `Η παραγγελία σας #${order.id.slice(0, 8)} - ${statusLabel}`,
+    subject: orderStatusChangeSubject({ orderShortId, statusLabel }),
     html,
-  });
-}
-
-export async function sendPasswordReset(
-  email: string,
-  link: string,
-  kavaName: string,
-): Promise<void> {
-  await transporter.sendMail({
-    from: config.smtp.from,
-    to: email,
-    subject: `Επαναφορά κωδικού — ${kavaName}`,
-    html: `
-      <div style="font-family: sans-serif; max-width: 480px; margin: 0 auto;">
-        <h2>Επαναφορά κωδικού</h2>
-        <p>Πατήστε τον παρακάτω σύνδεσμο για να ορίσετε νέο κωδικό:</p>
-        <p>
-          <a href="${link}"
-             style="display: inline-block; padding: 12px 24px; background: #2563eb; color: #fff; text-decoration: none; border-radius: 6px;">
-            Επαναφορά κωδικού
-          </a>
-        </p>
-        <p style="color: #666; font-size: 14px;">
-          Ο σύνδεσμος λήγει σε 15 λεπτά. Αν δεν ζητήσατε επαναφορά κωδικού, αγνοήστε αυτό το email.
-        </p>
-      </div>
-    `,
   });
 }

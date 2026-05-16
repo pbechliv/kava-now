@@ -11,6 +11,10 @@ export const config = {
     pass: process.env.SMTP_PASS || "",
     from: process.env.SMTP_FROM || "noreply@kavanow.gr",
   },
+  resend: {
+    apiKey: process.env.RESEND_API_KEY || "",
+    from: process.env.RESEND_FROM || process.env.SMTP_FROM || "noreply@kavanow.gr",
+  },
   isDev: process.env.NODE_ENV !== "production",
   get protocol() {
     return this.isDev ? "http" : "https";

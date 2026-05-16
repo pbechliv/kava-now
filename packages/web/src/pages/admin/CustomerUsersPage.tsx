@@ -221,7 +221,9 @@ export function CustomerUsersPage() {
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Προσθήκη χρήστη</DialogTitle>
-            <DialogDescription>Θα σταλεί email με σύνδεσμο σύνδεσης στον χρήστη.</DialogDescription>
+            <DialogDescription>
+              Θα σταλεί email με σύνδεσμο για να ορίσει τον κωδικό του στον χρήστη.
+            </DialogDescription>
           </DialogHeader>
           <Form {...form}>
             <form onSubmit={form.handleSubmit(onInvite)} className="space-y-4">

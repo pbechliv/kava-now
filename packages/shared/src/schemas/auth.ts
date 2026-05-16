@@ -19,7 +19,7 @@ const RESERVED_SLUGS = [
 
 export const loginSchema = z.object({
   email: z.string().email("Μη έγκυρη διεύθυνση email"),
-  password: z.string().optional(),
+  password: z.string().min(1, "Εισάγετε τον κωδικό σας"),
 });
 
 const passwordField = z.string().min(8, "Ο κωδικός πρέπει να έχει τουλάχιστον 8 χαρακτήρες");

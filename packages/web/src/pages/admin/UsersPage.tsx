@@ -237,7 +237,9 @@ export function UsersPage() {
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Πρόσκληση χρήστη</DialogTitle>
-            <DialogDescription>Θα σταλεί email στον χρήστη με σύνδεσμο σύνδεσης.</DialogDescription>
+            <DialogDescription>
+              Θα σταλεί email στον χρήστη με σύνδεσμο για να ορίσει τον κωδικό του.
+            </DialogDescription>
           </DialogHeader>
 
           <Form {...form}>

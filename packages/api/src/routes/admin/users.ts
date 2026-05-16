@@ -4,9 +4,12 @@ import { z } from "zod";
 import { alias } from "drizzle-orm/pg-core";
 import { db } from "../../db/connection";
 import { users, verifications } from "../../db/schema/index";
-import { inviteUserToKava, InviteConflict } from "../../services/invite-user";
+import {
+  inviteUserToKava,
+  sendInviteSetPassword,
+  InviteConflict,
+} from "../../services/invite-user";
 import { logAudit } from "../../services/audit";
-import { auth } from "../../auth";
 import type { AppEnv } from "../../types";
 
 const usersRouter = new Hono<AppEnv>();
@@ -83,7 +86,7 @@ usersRouter.post("/invite", async (c) => {
   return c.json({ success: true });
 });
 
-// POST /:id/resend-invite — re-issue the magic link for a pending user
+// POST /:id/resend-invite — re-issue the set-password invite for a pending user
 usersRouter.post("/:id/resend-invite", async (c) => {
   const kavaId = c.get("kavaId")!;
   const id = c.req.param("id");
@@ -107,18 +110,11 @@ usersRouter.post("/:id/resend-invite", async (c) => {
     return c.json({ error: "Ο χρήστης έχει ήδη ενεργοποιηθεί" }, 400);
   }
 
-  // Invalidate any outstanding magic-link tokens so the new email is the only
+  // Invalidate any outstanding reset tokens so the new email is the only
   // working link. better-auth stores hashed tokens under the same identifier.
   await db.delete(verifications).where(eq(verifications.identifier, target.authEmail));
 
-  const requestHost = c.req.header("x-forwarded-host") || c.req.header("host") || "";
-  const protocol = requestHost.includes("localhost") ? "http" : "https";
-  const callbackURL = `${protocol}://${requestHost}/welcome`;
-
-  await auth.api.signInMagicLink({
-    body: { email: target.authEmail, callbackURL },
-    headers: c.req.raw.headers,
-  });
+  await sendInviteSetPassword(c, target.authEmail, c.get("kava")!.slug);
 
   await logAudit(c, {
     action: "user.invite.resend",

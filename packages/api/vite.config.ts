@@ -8,8 +8,11 @@ process.loadEnvFile(resolve(__dirname, "../../.env"));
 const apiPort = Number(process.env.API_PORT) || 3000;
 
 export default defineConfig(({ mode }) => {
+  const esbuild = { jsx: "automatic" as const, jsxImportSource: "react" };
+
   if (mode === "production") {
     return {
+      esbuild,
       plugins: [
         build({
           entry: "./src/index.ts",
@@ -20,6 +23,7 @@ export default defineConfig(({ mode }) => {
   }
 
   return {
+    esbuild,
     server: {
       port: apiPort,
       strictPort: true,
