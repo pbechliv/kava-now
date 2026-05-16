@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { ImageIcon, Minus, Plus } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -6,11 +6,14 @@ import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
+import { PaginationControls } from "@/components/PaginationControls";
 import { useCatalog } from "@/lib/hooks/use-catalog";
 import { useCartStore, setCartSlug } from "@/lib/store/cart";
 import { useAuth } from "@/lib/hooks/use-auth";
 import { UNIT_LABELS } from "@kava-now/shared";
 import type { CatalogProduct } from "@/lib/store/cart";
+
+const PAGE_SIZE = 50;
 
 export function CatalogPage() {
   const { kava } = useAuth();
@@ -18,6 +21,7 @@ export function CatalogPage() {
   const [search, setSearch] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [quantities, setQuantities] = useState<Record<string, number>>({});
+  const [page, setPage] = useState(1);
 
   if (kava?.slug) {
     setCartSlug(kava.slug);
@@ -25,13 +29,20 @@ export function CatalogPage() {
 
   const addItem = useCartStore((s) => s.addItem);
 
-  const { data: products, isLoading } = useCatalog({
+  useEffect(() => {
+    setPage(1);
+  }, [selectedCategory, debouncedSearch]);
+
+  const { data, isLoading } = useCatalog({
     categoryId: selectedCategory || undefined,
     search: debouncedSearch || undefined,
+    page,
+    pageSize: PAGE_SIZE,
   });
+  const products = data?.data ?? [];
+  const total = data?.total ?? 0;
 
   const categories = useMemo(() => {
-    if (!products) return [];
     const map = new Map<string, string>();
     for (const p of products) {
       if (p.categoryId && p.categoryName) {
@@ -96,72 +107,82 @@ export function CatalogPage() {
 
       {isLoading ? (
         <div className="text-center text-sm text-muted-foreground">Φόρτωση...</div>
-      ) : !products || products.length === 0 ? (
+      ) : products.length === 0 ? (
         <div className="text-center text-sm text-muted-foreground">Δεν βρέθηκαν προϊόντα.</div>
       ) : (
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {products.map((product) => (
-            <Card key={product.id}>
-              <CardContent className="p-4">
-                {product.imageUrl ? (
-                  <img
-                    src={product.imageUrl}
-                    alt={product.name}
-                    className="mb-3 aspect-video w-full rounded-md object-cover"
-                  />
-                ) : (
-                  <div className="mb-3 flex aspect-video w-full items-center justify-center rounded-md bg-muted text-muted-foreground">
-                    <ImageIcon className="h-10 w-10" />
+        <>
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {products.map((product) => (
+              <Card key={product.id}>
+                <CardContent className="p-4">
+                  {product.imageUrl ? (
+                    <img
+                      src={product.imageUrl}
+                      alt={product.name}
+                      className="mb-3 aspect-video w-full rounded-md object-cover"
+                    />
+                  ) : (
+                    <div className="mb-3 flex aspect-video w-full items-center justify-center rounded-md bg-muted text-muted-foreground">
+                      <ImageIcon className="h-10 w-10" />
+                    </div>
+                  )}
+
+                  <Badge variant="muted" className="mb-2">
+                    {product.categoryName || "Χωρίς κατηγορία"}
+                  </Badge>
+                  <h3 className="font-semibold">{product.name}</h3>
+                  {product.brand && (
+                    <p className="text-sm text-muted-foreground">{product.brand}</p>
+                  )}
+
+                  <div className="mt-2 flex items-baseline gap-2">
+                    <span className="text-lg font-bold text-primary">
+                      {product.resolvedPrice.toFixed(2)}&nbsp;€
+                    </span>
+                    <span className="text-xs text-muted-foreground">
+                      / {UNIT_LABELS[product.unit]}
+                    </span>
                   </div>
-                )}
 
-                <Badge variant="muted" className="mb-2">
-                  {product.categoryName || "Χωρίς κατηγορία"}
-                </Badge>
-                <h3 className="font-semibold">{product.name}</h3>
-                {product.brand && <p className="text-sm text-muted-foreground">{product.brand}</p>}
-
-                <div className="mt-2 flex items-baseline gap-2">
-                  <span className="text-lg font-bold text-primary">
-                    {product.resolvedPrice.toFixed(2)}&nbsp;€
-                  </span>
-                  <span className="text-xs text-muted-foreground">
-                    / {UNIT_LABELS[product.unit]}
-                  </span>
-                </div>
-
-                <div className="mt-3 flex items-center gap-2">
-                  <div className="flex items-center rounded-md border">
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="icon"
-                      className="h-9 w-9 rounded-r-none"
-                      onClick={() => setQty(product.id, getQty(product.id) - 1)}
-                      aria-label="Μείωση"
-                    >
-                      <Minus className="h-4 w-4" />
-                    </Button>
-                    <span className="w-10 text-center text-sm">{getQty(product.id)}</span>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="icon"
-                      className="h-9 w-9 rounded-l-none"
-                      onClick={() => setQty(product.id, getQty(product.id) + 1)}
-                      aria-label="Αύξηση"
-                    >
-                      <Plus className="h-4 w-4" />
+                  <div className="mt-3 flex items-center gap-2">
+                    <div className="flex items-center rounded-md border">
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        className="h-9 w-9 rounded-r-none"
+                        onClick={() => setQty(product.id, getQty(product.id) - 1)}
+                        aria-label="Μείωση"
+                      >
+                        <Minus className="h-4 w-4" />
+                      </Button>
+                      <span className="w-10 text-center text-sm">{getQty(product.id)}</span>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        className="h-9 w-9 rounded-l-none"
+                        onClick={() => setQty(product.id, getQty(product.id) + 1)}
+                        aria-label="Αύξηση"
+                      >
+                        <Plus className="h-4 w-4" />
+                      </Button>
+                    </div>
+                    <Button type="button" className="flex-1" onClick={() => handleAdd(product)}>
+                      Προσθήκη
                     </Button>
                   </div>
-                  <Button type="button" className="flex-1" onClick={() => handleAdd(product)}>
-                    Προσθήκη
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+          <PaginationControls
+            page={page}
+            pageSize={PAGE_SIZE}
+            total={total}
+            onPageChange={setPage}
+          />
+        </>
       )}
     </div>
   );

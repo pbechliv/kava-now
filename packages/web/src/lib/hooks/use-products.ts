@@ -1,4 +1,4 @@
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient, keepPreviousData } from "@tanstack/react-query";
 import { api } from "../api";
 import type {
   Product,
@@ -6,6 +6,7 @@ import type {
   UpdateProductInput,
   ImportProductRow,
   ImportProductsResult,
+  PaginatedResponse,
 } from "@kava-now/shared";
 
 interface ProductWithCategory extends Product {
@@ -16,6 +17,8 @@ interface ProductFilters {
   categoryId?: string;
   search?: string;
   active?: "true" | "false";
+  page?: number;
+  pageSize?: number;
 }
 
 export function useProducts(filters?: ProductFilters) {
@@ -23,13 +26,16 @@ export function useProducts(filters?: ProductFilters) {
   if (filters?.categoryId) params.set("categoryId", filters.categoryId);
   if (filters?.search) params.set("search", filters.search);
   if (filters?.active) params.set("active", filters.active);
+  if (filters?.page) params.set("page", String(filters.page));
+  if (filters?.pageSize) params.set("pageSize", String(filters.pageSize));
 
   const qs = params.toString();
   const path = `/api/admin/products${qs ? `?${qs}` : ""}`;
 
   return useQuery({
     queryKey: ["admin", "products", filters],
-    queryFn: () => api.get<ProductWithCategory[]>(path),
+    queryFn: () => api.get<PaginatedResponse<ProductWithCategory>>(path),
+    placeholderData: keepPreviousData,
   });
 }
 

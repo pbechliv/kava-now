@@ -1,6 +1,6 @@
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient, keepPreviousData } from "@tanstack/react-query";
 import { api } from "../api";
-import type { RegisterInput } from "@kava-now/shared";
+import type { RegisterInput, PaginatedResponse } from "@kava-now/shared";
 
 interface KavaListItem {
   id: string;
@@ -10,20 +10,29 @@ interface KavaListItem {
   createdAt: string;
 }
 
-interface KavasResponse {
-  kavas: KavaListItem[];
-}
-
 interface CreateKavaResponse {
   success: boolean;
   slug: string;
   hasPassword: boolean;
 }
 
-export function useSuperAdminKavas() {
+interface SuperAdminKavasFilters {
+  page?: number;
+  pageSize?: number;
+}
+
+export function useSuperAdminKavas(filters?: SuperAdminKavasFilters) {
+  const params = new URLSearchParams();
+  if (filters?.page) params.set("page", String(filters.page));
+  if (filters?.pageSize) params.set("pageSize", String(filters.pageSize));
+
+  const qs = params.toString();
+  const path = `/api/superadmin/kavas${qs ? `?${qs}` : ""}`;
+
   return useQuery({
-    queryKey: ["superadmin", "kavas"],
-    queryFn: () => api.get<KavasResponse>("/api/superadmin/kavas"),
+    queryKey: ["superadmin", "kavas", filters],
+    queryFn: () => api.get<PaginatedResponse<KavaListItem>>(path),
+    placeholderData: keepPreviousData,
   });
 }
 

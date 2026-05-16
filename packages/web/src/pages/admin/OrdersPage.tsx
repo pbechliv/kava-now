@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Link } from "react-router";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -22,9 +22,13 @@ import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Spinner } from "@/components/spinner";
 import { EmptyState } from "@/components/empty-state";
 import { OrderStatusBadge } from "@/components/order-status-badge";
+import { PaginationControls } from "@/components/PaginationControls";
 import { useAdminOrders } from "@/lib/hooks/use-admin-orders";
 import { useCustomers } from "@/lib/hooks/use-customers";
 import type { OrderStatus } from "@kava-now/shared";
+
+const PAGE_SIZE = 50;
+const CUSTOMER_FILTER_LIMIT = 100;
 
 const STATUS_TABS: { label: string; value: OrderStatus | "all" }[] = [
   { label: "Όλες", value: "all" },
@@ -40,15 +44,26 @@ export function OrdersPage() {
   const [customerFilter, setCustomerFilter] = useState<string>("");
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
+  const [page, setPage] = useState(1);
 
-  const { data: orders, isLoading } = useAdminOrders({
+  useEffect(() => {
+    setPage(1);
+  }, [statusFilter, customerFilter, dateFrom, dateTo]);
+
+  const { data, isLoading } = useAdminOrders({
     status: statusFilter === "all" ? undefined : statusFilter,
     customerId: customerFilter || undefined,
     dateFrom: dateFrom || undefined,
     dateTo: dateTo || undefined,
+    page,
+    pageSize: PAGE_SIZE,
   });
 
-  const { data: customers } = useCustomers();
+  const orders = data?.data ?? [];
+  const total = data?.total ?? 0;
+
+  const { data: customersData } = useCustomers({ pageSize: CUSTOMER_FILTER_LIMIT });
+  const customers = customersData?.data ?? [];
 
   return (
     <div className="space-y-6">
@@ -76,7 +91,7 @@ export function OrdersPage() {
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">Όλοι</SelectItem>
-              {customers?.map((c) => (
+              {customers.map((c) => (
                 <SelectItem key={c.id} value={c.id}>
                   {c.name}
                 </SelectItem>
@@ -108,56 +123,64 @@ export function OrdersPage() {
         <div className="flex justify-center py-12">
           <Spinner />
         </div>
-      ) : !orders || orders.length === 0 ? (
+      ) : orders.length === 0 ? (
         <EmptyState message="Δεν βρέθηκαν παραγγελίες" />
       ) : (
-        <Card className="overflow-hidden">
-          <div className="overflow-x-auto">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>#</TableHead>
-                  <TableHead>Πελάτης</TableHead>
-                  <TableHead>Ημερομηνία</TableHead>
-                  <TableHead className="text-center">Προϊόντα</TableHead>
-                  <TableHead className="text-right">Σύνολο</TableHead>
-                  <TableHead>Κατάσταση</TableHead>
-                  <TableHead />
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {orders.map((order) => (
-                  <TableRow key={order.id}>
-                    <TableCell className="font-mono text-xs text-muted-foreground">
-                      {order.id.slice(0, 8)}
-                    </TableCell>
-                    <TableCell className="font-medium">{order.customerName ?? "-"}</TableCell>
-                    <TableCell className="text-muted-foreground">
-                      {new Date(order.createdAt).toLocaleDateString("el-GR")}
-                    </TableCell>
-                    <TableCell className="text-center text-muted-foreground">
-                      {order.itemCount}
-                    </TableCell>
-                    <TableCell className="text-right">
-                      {Number(order.total).toFixed(2)}&nbsp;€
-                    </TableCell>
-                    <TableCell>
-                      <OrderStatusBadge status={order.status} />
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <Link
-                        to={`/admin/orders/${order.id}`}
-                        className="text-sm font-medium text-primary hover:underline"
-                      >
-                        Προβολή
-                      </Link>
-                    </TableCell>
+        <>
+          <Card className="overflow-hidden">
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>#</TableHead>
+                    <TableHead>Πελάτης</TableHead>
+                    <TableHead>Ημερομηνία</TableHead>
+                    <TableHead className="text-center">Προϊόντα</TableHead>
+                    <TableHead className="text-right">Σύνολο</TableHead>
+                    <TableHead>Κατάσταση</TableHead>
+                    <TableHead />
                   </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </div>
-        </Card>
+                </TableHeader>
+                <TableBody>
+                  {orders.map((order) => (
+                    <TableRow key={order.id}>
+                      <TableCell className="font-mono text-xs text-muted-foreground">
+                        {order.id.slice(0, 8)}
+                      </TableCell>
+                      <TableCell className="font-medium">{order.customerName ?? "-"}</TableCell>
+                      <TableCell className="text-muted-foreground">
+                        {new Date(order.createdAt).toLocaleDateString("el-GR")}
+                      </TableCell>
+                      <TableCell className="text-center text-muted-foreground">
+                        {order.itemCount}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        {Number(order.total).toFixed(2)}&nbsp;€
+                      </TableCell>
+                      <TableCell>
+                        <OrderStatusBadge status={order.status} />
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <Link
+                          to={`/admin/orders/${order.id}`}
+                          className="text-sm font-medium text-primary hover:underline"
+                        >
+                          Προβολή
+                        </Link>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          </Card>
+          <PaginationControls
+            page={page}
+            pageSize={PAGE_SIZE}
+            total={total}
+            onPageChange={setPage}
+          />
+        </>
       )}
     </div>
   );

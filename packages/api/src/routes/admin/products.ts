@@ -4,6 +4,7 @@ import {
   createProductSchema,
   updateProductSchema,
   importProductsBatchSchema,
+  paginationQuerySchema,
   type ImportProductsResult,
 } from "@kava-now/shared";
 import { db } from "../../db/connection";
@@ -19,6 +20,15 @@ productsRouter.get("/", async (c) => {
   const categoryId = c.req.query("categoryId");
   const search = c.req.query("search");
   const active = c.req.query("active");
+
+  const pagination = paginationQuerySchema.safeParse({
+    page: c.req.query("page"),
+    pageSize: c.req.query("pageSize"),
+  });
+  if (!pagination.success) {
+    return c.json({ error: pagination.error.flatten().fieldErrors }, 400);
+  }
+  const { page, pageSize } = pagination.data;
 
   const conditions = [eq(products.kavaId, kavaId)];
 
@@ -36,6 +46,14 @@ productsRouter.get("/", async (c) => {
   } else if (active === "false") {
     conditions.push(eq(products.active, false));
   }
+
+  const whereClause = and(...conditions);
+
+  const [countRow] = await db
+    .select({ total: sql<number>`count(*)::int` })
+    .from(products)
+    .where(whereClause);
+  const total = countRow?.total ?? 0;
 
   const rows = await db
     .select({
@@ -57,10 +75,12 @@ productsRouter.get("/", async (c) => {
     })
     .from(products)
     .leftJoin(categories, eq(products.categoryId, categories.id))
-    .where(and(...conditions))
-    .orderBy(products.name);
+    .where(whereClause)
+    .orderBy(products.name, products.id)
+    .limit(pageSize)
+    .offset((page - 1) * pageSize);
 
-  return c.json(rows);
+  return c.json({ data: rows, total, page, pageSize });
 });
 
 // POST /import — bulk upsert products from a normalized JSON batch.

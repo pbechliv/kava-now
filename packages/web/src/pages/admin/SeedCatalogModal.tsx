@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -19,8 +19,11 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Spinner } from "@/components/spinner";
+import { PaginationControls } from "@/components/PaginationControls";
 import { useSeedCatalog, useImportSeedProducts } from "@/lib/hooks/use-seed-catalog";
 import { UNIT_LABELS } from "@kava-now/shared";
+
+const PAGE_SIZE = 50;
 
 interface SeedCatalogModalProps {
   open: boolean;
@@ -31,8 +34,19 @@ export function SeedCatalogModal({ open, onClose }: SeedCatalogModalProps) {
   const [search, setSearch] = useState("");
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [importedCount, setImportedCount] = useState<number | null>(null);
+  const [page, setPage] = useState(1);
 
-  const { data: seeds, isLoading } = useSeedCatalog(search || undefined);
+  useEffect(() => {
+    setPage(1);
+  }, [search]);
+
+  const { data, isLoading } = useSeedCatalog({
+    search: search || undefined,
+    page,
+    pageSize: PAGE_SIZE,
+  });
+  const seeds = data?.data ?? [];
+  const total = data?.total ?? 0;
   const importMutation = useImportSeedProducts();
 
   const toggleSelect = (id: string) => {
@@ -47,13 +61,18 @@ export function SeedCatalogModal({ open, onClose }: SeedCatalogModalProps) {
     });
   };
 
-  const toggleAll = () => {
-    if (!seeds) return;
-    if (selected.size === seeds.length) {
-      setSelected(new Set());
-    } else {
-      setSelected(new Set(seeds.map((s) => s.id)));
-    }
+  const togglePageSelection = () => {
+    const pageIds = seeds.map((s) => s.id);
+    const allSelectedOnPage = pageIds.every((id) => selected.has(id));
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (allSelectedOnPage) {
+        for (const id of pageIds) next.delete(id);
+      } else {
+        for (const id of pageIds) next.add(id);
+      }
+      return next;
+    });
   };
 
   const handleImport = async () => {
@@ -94,7 +113,7 @@ export function SeedCatalogModal({ open, onClose }: SeedCatalogModalProps) {
             <div className="flex justify-center py-8">
               <Spinner />
             </div>
-          ) : !seeds || seeds.length === 0 ? (
+          ) : seeds.length === 0 ? (
             <p className="py-8 text-center text-sm text-muted-foreground">Δεν βρέθηκαν προϊόντα</p>
           ) : (
             <Table>
@@ -102,9 +121,9 @@ export function SeedCatalogModal({ open, onClose }: SeedCatalogModalProps) {
                 <TableRow>
                   <TableHead className="w-10">
                     <Checkbox
-                      checked={selected.size === seeds.length}
-                      onCheckedChange={toggleAll}
-                      aria-label="Επιλογή όλων"
+                      checked={seeds.length > 0 && seeds.every((s) => selected.has(s.id))}
+                      onCheckedChange={togglePageSelection}
+                      aria-label="Επιλογή σελίδας"
                     />
                   </TableHead>
                   <TableHead>Όνομα</TableHead>
@@ -135,6 +154,7 @@ export function SeedCatalogModal({ open, onClose }: SeedCatalogModalProps) {
             </Table>
           )}
         </div>
+        <PaginationControls page={page} pageSize={PAGE_SIZE} total={total} onPageChange={setPage} />
 
         <DialogFooter className="flex flex-row items-center justify-between sm:justify-between">
           <span className="text-sm text-muted-foreground">

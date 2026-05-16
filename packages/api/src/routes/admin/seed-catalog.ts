@@ -1,6 +1,7 @@
 import { Hono } from "hono";
-import { ilike, or, eq, and, inArray } from "drizzle-orm";
+import { ilike, or, eq, and, inArray, sql } from "drizzle-orm";
 import { z } from "zod";
+import { paginationQuerySchema } from "@kava-now/shared";
 import { db } from "../../db/connection";
 import { seedProducts, products, categories } from "../../db/schema/index";
 import type { AppEnv } from "../../types";
@@ -11,6 +12,15 @@ const seedCatalogRouter = new Hono<AppEnv>();
 seedCatalogRouter.get("/", async (c) => {
   const search = c.req.query("search");
 
+  const pagination = paginationQuerySchema.safeParse({
+    page: c.req.query("page"),
+    pageSize: c.req.query("pageSize"),
+  });
+  if (!pagination.success) {
+    return c.json({ error: pagination.error.flatten().fieldErrors }, 400);
+  }
+  const { page, pageSize } = pagination.data;
+
   const conditions = [];
 
   if (search) {
@@ -18,13 +28,23 @@ seedCatalogRouter.get("/", async (c) => {
     conditions.push(or(ilike(seedProducts.name, pattern), ilike(seedProducts.brand, pattern))!);
   }
 
+  const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
+
+  const [countRow] = await db
+    .select({ total: sql<number>`count(*)::int` })
+    .from(seedProducts)
+    .where(whereClause);
+  const total = countRow?.total ?? 0;
+
   const rows = await db
     .select()
     .from(seedProducts)
-    .where(conditions.length > 0 ? and(...conditions) : undefined)
-    .orderBy(seedProducts.name);
+    .where(whereClause)
+    .orderBy(seedProducts.name, seedProducts.id)
+    .limit(pageSize)
+    .offset((page - 1) * pageSize);
 
-  return c.json(rows);
+  return c.json({ data: rows, total, page, pageSize });
 });
 
 const importSchema = z.object({

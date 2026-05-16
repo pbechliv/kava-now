@@ -1,12 +1,14 @@
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient, keepPreviousData } from "@tanstack/react-query";
 import { api } from "../api";
-import type { OrderStatus } from "@kava-now/shared";
+import type { OrderStatus, PaginatedResponse } from "@kava-now/shared";
 
 interface OrderFilters {
   status?: OrderStatus;
   customerId?: string;
   dateFrom?: string;
   dateTo?: string;
+  page?: number;
+  pageSize?: number;
 }
 
 export interface AdminOrderRow {
@@ -45,13 +47,16 @@ export function useAdminOrders(filters?: OrderFilters) {
   if (filters?.customerId) params.set("customerId", filters.customerId);
   if (filters?.dateFrom) params.set("dateFrom", filters.dateFrom);
   if (filters?.dateTo) params.set("dateTo", filters.dateTo);
+  if (filters?.page) params.set("page", String(filters.page));
+  if (filters?.pageSize) params.set("pageSize", String(filters.pageSize));
 
   const qs = params.toString();
   const path = `/api/admin/orders${qs ? `?${qs}` : ""}`;
 
   return useQuery({
     queryKey: ["admin", "orders", filters],
-    queryFn: () => api.get<AdminOrderRow[]>(path),
+    queryFn: () => api.get<PaginatedResponse<AdminOrderRow>>(path),
+    placeholderData: keepPreviousData,
   });
 }
 

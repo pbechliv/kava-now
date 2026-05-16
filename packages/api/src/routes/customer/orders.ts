@@ -1,6 +1,6 @@
 import { Hono } from "hono";
 import { eq, and, desc, sql, inArray } from "drizzle-orm";
-import { createOrderSchema } from "@kava-now/shared";
+import { createOrderSchema, paginationQuerySchema } from "@kava-now/shared";
 import { db } from "../../db/connection";
 import {
   orders,
@@ -136,6 +136,23 @@ ordersRouter.get("/", async (c) => {
     return c.json({ error: "Δεν βρέθηκε λογαριασμός πελάτη" }, 400);
   }
 
+  const pagination = paginationQuerySchema.safeParse({
+    page: c.req.query("page"),
+    pageSize: c.req.query("pageSize"),
+  });
+  if (!pagination.success) {
+    return c.json({ error: pagination.error.flatten().fieldErrors }, 400);
+  }
+  const { page, pageSize } = pagination.data;
+
+  const whereClause = eq(orders.customerId, customerId);
+
+  const [countRow] = await db
+    .select({ total: sql<number>`count(*)::int` })
+    .from(orders)
+    .where(whereClause);
+  const total = countRow?.total ?? 0;
+
   const rows = await db
     .select({
       id: orders.id,
@@ -147,11 +164,13 @@ ordersRouter.get("/", async (c) => {
     })
     .from(orders)
     .leftJoin(orderItems, eq(orders.id, orderItems.orderId))
-    .where(eq(orders.customerId, customerId))
+    .where(whereClause)
     .groupBy(orders.id)
-    .orderBy(desc(orders.createdAt));
+    .orderBy(desc(orders.createdAt), desc(orders.id))
+    .limit(pageSize)
+    .offset((page - 1) * pageSize);
 
-  return c.json(rows);
+  return c.json({ data: rows, total, page, pageSize });
 });
 
 // GET /:id — single order with items

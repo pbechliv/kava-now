@@ -72,10 +72,12 @@ export function ProductsImportPage() {
   const [showAllRows, setShowAllRows] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
 
-  const { data: existingProducts } = useProducts();
+  const { data: existingProducts } = useProducts({ pageSize: 100 });
   const existingKeys = useMemo(() => {
     if (!existingProducts) return new Set<string>();
-    return new Set(existingProducts.map((p) => `${p.name.toLowerCase()}|${p.brand.toLowerCase()}`));
+    return new Set(
+      existingProducts.data.map((p) => `${p.name.toLowerCase()}|${p.brand.toLowerCase()}`),
+    );
   }, [existingProducts]);
 
   const applied: AppliedRow[] = useMemo(

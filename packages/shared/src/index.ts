@@ -8,6 +8,7 @@ export * from "./schemas/customers";
 export * from "./schemas/customer-brand-pricing";
 export * from "./schemas/kava-settings";
 export * from "./schemas/orders";
+export * from "./schemas/pagination";
 export * from "./schemas/platform";
 export * from "./types";
 export * from "./constants";

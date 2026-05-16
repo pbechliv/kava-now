@@ -1,17 +1,26 @@
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient, keepPreviousData } from "@tanstack/react-query";
 import { api } from "../api";
-import type { SeedProduct } from "@kava-now/shared";
+import type { SeedProduct, PaginatedResponse } from "@kava-now/shared";
 
-export function useSeedCatalog(search?: string) {
+interface SeedCatalogFilters {
+  search?: string;
+  page?: number;
+  pageSize?: number;
+}
+
+export function useSeedCatalog(filters?: SeedCatalogFilters) {
   const params = new URLSearchParams();
-  if (search) params.set("search", search);
+  if (filters?.search) params.set("search", filters.search);
+  if (filters?.page) params.set("page", String(filters.page));
+  if (filters?.pageSize) params.set("pageSize", String(filters.pageSize));
 
   const qs = params.toString();
   const path = `/api/admin/seed-catalog${qs ? `?${qs}` : ""}`;
 
   return useQuery({
-    queryKey: ["admin", "seed-catalog", search],
-    queryFn: () => api.get<SeedProduct[]>(path),
+    queryKey: ["admin", "seed-catalog", filters],
+    queryFn: () => api.get<PaginatedResponse<SeedProduct>>(path),
+    placeholderData: keepPreviousData,
   });
 }
 

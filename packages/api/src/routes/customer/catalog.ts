@@ -1,5 +1,6 @@
 import { Hono } from "hono";
-import { eq, and, ilike, or } from "drizzle-orm";
+import { eq, and, ilike, or, sql } from "drizzle-orm";
+import { paginationQuerySchema } from "@kava-now/shared";
 import { db } from "../../db/connection";
 import { products, categories, customers, customerBrandPricing } from "../../db/schema/index";
 import { resolvePrice } from "../../services/pricing";
@@ -41,6 +42,15 @@ catalogRouter.get("/", async (c) => {
   const categoryId = c.req.query("categoryId");
   const search = c.req.query("search");
 
+  const pagination = paginationQuerySchema.safeParse({
+    page: c.req.query("page"),
+    pageSize: c.req.query("pageSize"),
+  });
+  if (!pagination.success) {
+    return c.json({ error: pagination.error.flatten().fieldErrors }, 400);
+  }
+  const { page, pageSize } = pagination.data;
+
   const conditions = [eq(products.active, true)];
 
   if (categoryId) {
@@ -51,6 +61,14 @@ catalogRouter.get("/", async (c) => {
     const pattern = `%${search}%`;
     conditions.push(or(ilike(products.name, pattern), ilike(products.brand, pattern))!);
   }
+
+  const whereClause = and(...conditions);
+
+  const [countRow] = await db
+    .select({ total: sql<number>`count(*)::int` })
+    .from(products)
+    .where(whereClause);
+  const total = countRow?.total ?? 0;
 
   const rows = await db
     .select({
@@ -68,10 +86,12 @@ catalogRouter.get("/", async (c) => {
     })
     .from(products)
     .leftJoin(categories, eq(products.categoryId, categories.id))
-    .where(and(...conditions))
-    .orderBy(products.name);
+    .where(whereClause)
+    .orderBy(products.name, products.id)
+    .limit(pageSize)
+    .offset((page - 1) * pageSize);
 
-  const result = rows.map((row) => ({
+  const data = rows.map((row) => ({
     id: row.id,
     name: row.name,
     brand: row.brand,
@@ -85,7 +105,7 @@ catalogRouter.get("/", async (c) => {
     resolvedPrice: resolvePrice(row.basePrice, brandDiscountMap.get(row.brand) ?? null),
   }));
 
-  return c.json(result);
+  return c.json({ data, total, page, pageSize });
 });
 
 export { catalogRouter };

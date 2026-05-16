@@ -1,6 +1,6 @@
 import { Hono } from "hono";
-import { eq, and } from "drizzle-orm";
-import { registerSchema, encodeAuthEmail } from "@kava-now/shared";
+import { eq, and, sql } from "drizzle-orm";
+import { registerSchema, encodeAuthEmail, paginationQuerySchema } from "@kava-now/shared";
 import { db } from "../../db/connection";
 import { kavas, users, categories, products, seedProducts } from "../../db/schema/index";
 import { DEFAULT_CATEGORIES } from "../../db/seeds/categories";
@@ -17,7 +17,19 @@ superadmin.use("*", requireSuperAdmin);
 
 // GET /superadmin/kavas — list all tenants
 superadmin.get("/kavas", async (c) => {
-  const allKavas = await db
+  const pagination = paginationQuerySchema.safeParse({
+    page: c.req.query("page"),
+    pageSize: c.req.query("pageSize"),
+  });
+  if (!pagination.success) {
+    return c.json({ error: pagination.error.flatten().fieldErrors }, 400);
+  }
+  const { page, pageSize } = pagination.data;
+
+  const [countRow] = await db.select({ total: sql<number>`count(*)::int` }).from(kavas);
+  const total = countRow?.total ?? 0;
+
+  const data = await db
     .select({
       id: kavas.id,
       name: kavas.name,
@@ -26,9 +38,11 @@ superadmin.get("/kavas", async (c) => {
       createdAt: kavas.createdAt,
     })
     .from(kavas)
-    .orderBy(kavas.createdAt);
+    .orderBy(kavas.createdAt, kavas.id)
+    .limit(pageSize)
+    .offset((page - 1) * pageSize);
 
-  return c.json({ kavas: allKavas });
+  return c.json({ data, total, page, pageSize });
 });
 
 // POST /superadmin/kavas — create kava + owner user

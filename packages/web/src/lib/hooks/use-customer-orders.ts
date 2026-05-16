@@ -1,6 +1,6 @@
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient, keepPreviousData } from "@tanstack/react-query";
 import { api } from "../api";
-import type { Order, OrderItem, CreateOrderInput } from "@kava-now/shared";
+import type { Order, OrderItem, CreateOrderInput, PaginatedResponse } from "@kava-now/shared";
 import { useCartStore } from "../store/cart";
 
 interface OrderSummary {
@@ -21,10 +21,23 @@ interface CreateOrderResponse {
   items: OrderItem[];
 }
 
-export function useCustomerOrders() {
+interface CustomerOrdersFilters {
+  page?: number;
+  pageSize?: number;
+}
+
+export function useCustomerOrders(filters?: CustomerOrdersFilters) {
+  const params = new URLSearchParams();
+  if (filters?.page) params.set("page", String(filters.page));
+  if (filters?.pageSize) params.set("pageSize", String(filters.pageSize));
+
+  const qs = params.toString();
+  const path = `/api/customer/orders${qs ? `?${qs}` : ""}`;
+
   return useQuery({
-    queryKey: ["customer", "orders"],
-    queryFn: () => api.get<OrderSummary[]>("/api/customer/orders"),
+    queryKey: ["customer", "orders", filters],
+    queryFn: () => api.get<PaginatedResponse<OrderSummary>>(path),
+    placeholderData: keepPreviousData,
   });
 }
 

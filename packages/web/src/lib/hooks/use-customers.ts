@@ -1,17 +1,31 @@
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient, keepPreviousData } from "@tanstack/react-query";
 import { api } from "../api";
-import type { Customer, CreateCustomerInput, UpdateCustomerInput } from "@kava-now/shared";
+import type {
+  Customer,
+  CreateCustomerInput,
+  UpdateCustomerInput,
+  PaginatedResponse,
+} from "@kava-now/shared";
 
-export function useCustomers(search?: string) {
+interface CustomerFilters {
+  search?: string;
+  page?: number;
+  pageSize?: number;
+}
+
+export function useCustomers(filters?: CustomerFilters) {
   const params = new URLSearchParams();
-  if (search) params.set("search", search);
+  if (filters?.search) params.set("search", filters.search);
+  if (filters?.page) params.set("page", String(filters.page));
+  if (filters?.pageSize) params.set("pageSize", String(filters.pageSize));
 
   const qs = params.toString();
   const path = `/api/admin/customers${qs ? `?${qs}` : ""}`;
 
   return useQuery({
-    queryKey: ["admin", "customers", search],
-    queryFn: () => api.get<Customer[]>(path),
+    queryKey: ["admin", "customers", filters],
+    queryFn: () => api.get<PaginatedResponse<Customer>>(path),
+    placeholderData: keepPreviousData,
   });
 }
 

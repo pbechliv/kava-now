@@ -1,10 +1,10 @@
 import { Hono } from "hono";
-import { eq, and, sql, gte, lte } from "drizzle-orm";
+import { eq, and, sql, gte, lte, desc } from "drizzle-orm";
 import { db } from "../../db/connection";
 import { orders, orderItems, customers } from "../../db/schema/index";
 import { sendOrderStatusChange } from "../../services/email";
 import type { AppEnv } from "../../types";
-import type { OrderStatus } from "@kava-now/shared";
+import { paginationQuerySchema, type OrderStatus } from "@kava-now/shared";
 
 const ordersRouter = new Hono<AppEnv>();
 
@@ -27,6 +27,15 @@ ordersRouter.get("/", async (c) => {
   const dateFrom = c.req.query("dateFrom");
   const dateTo = c.req.query("dateTo");
 
+  const pagination = paginationQuerySchema.safeParse({
+    page: c.req.query("page"),
+    pageSize: c.req.query("pageSize"),
+  });
+  if (!pagination.success) {
+    return c.json({ error: pagination.error.flatten().fieldErrors }, 400);
+  }
+  const { page, pageSize } = pagination.data;
+
   const conditions: ReturnType<typeof eq>[] = [eq(orders.kavaId, kavaId)];
 
   if (status && VALID_STATUSES.includes(status)) {
@@ -45,6 +54,14 @@ ordersRouter.get("/", async (c) => {
     conditions.push(lte(orders.createdAt, endDate));
   }
 
+  const whereClause = and(...conditions);
+
+  const [countRow] = await db
+    .select({ total: sql<number>`count(*)::int` })
+    .from(orders)
+    .where(whereClause);
+  const total = countRow?.total ?? 0;
+
   const rows = await db
     .select({
       id: orders.id,
@@ -59,11 +76,13 @@ ordersRouter.get("/", async (c) => {
     .from(orders)
     .leftJoin(customers, eq(orders.customerId, customers.id))
     .leftJoin(orderItems, eq(orders.id, orderItems.orderId))
-    .where(and(...conditions))
+    .where(whereClause)
     .groupBy(orders.id, customers.name)
-    .orderBy(sql`${orders.createdAt} desc`);
+    .orderBy(desc(orders.createdAt), desc(orders.id))
+    .limit(pageSize)
+    .offset((page - 1) * pageSize);
 
-  return c.json(rows);
+  return c.json({ data: rows, total, page, pageSize });
 });
 
 // GET /:id — order detail with items and customer info

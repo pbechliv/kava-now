@@ -22,10 +22,13 @@ import {
 } from "@/components/ui/table";
 import { Spinner } from "@/components/spinner";
 import { EmptyState } from "@/components/empty-state";
+import { PaginationControls } from "@/components/PaginationControls";
 import { useProducts, useUpdateProduct, useDeleteProduct } from "@/lib/hooks/use-products";
 import { useCategories } from "@/lib/hooks/use-categories";
 import { SeedCatalogModal } from "./SeedCatalogModal";
 import { UNIT_LABELS, type ImportProductsResult } from "@kava-now/shared";
+
+const PAGE_SIZE = 50;
 
 interface ProductsPageLocationState {
   importResult?: ImportProductsResult;
@@ -39,6 +42,7 @@ export function ProductsPage() {
   const [categoryFilter, setCategoryFilter] = useState("");
   const [seedModalOpen, setSeedModalOpen] = useState(false);
   const [bannerResult, setBannerResult] = useState<ImportProductsResult | null>(importResult);
+  const [page, setPage] = useState(1);
 
   useEffect(() => {
     if (importResult) {
@@ -46,10 +50,18 @@ export function ProductsPage() {
     }
   }, [importResult, location.pathname, navigate]);
 
-  const { data: products, isLoading } = useProducts({
+  useEffect(() => {
+    setPage(1);
+  }, [search, categoryFilter]);
+
+  const { data, isLoading } = useProducts({
     search: search || undefined,
     categoryId: categoryFilter || undefined,
+    page,
+    pageSize: PAGE_SIZE,
   });
+  const products = data?.data ?? [];
+  const total = data?.total ?? 0;
   const { data: categories } = useCategories();
   const updateMutation = useUpdateProduct();
   const deleteMutation = useDeleteProduct();
@@ -133,79 +145,89 @@ export function ProductsPage() {
         <div className="flex justify-center py-12">
           <Spinner />
         </div>
-      ) : !products || products.length === 0 ? (
+      ) : products.length === 0 ? (
         <EmptyState
           message="Δεν βρέθηκαν προϊόντα"
           actionLabel="Νέο Προϊόν"
           onAction={() => navigate("/admin/products/new")}
         />
       ) : (
-        <Card className="overflow-hidden">
-          <div className="overflow-x-auto">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Όνομα</TableHead>
-                  <TableHead>Brand</TableHead>
-                  <TableHead>Κατηγορία</TableHead>
-                  <TableHead className="text-right">Τιμή</TableHead>
-                  <TableHead>Μονάδα</TableHead>
-                  <TableHead className="text-center">Ενεργό</TableHead>
-                  <TableHead className="text-right">Ενέργειες</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {products.map((product) => (
-                  <TableRow key={product.id}>
-                    <TableCell className="font-medium">{product.name}</TableCell>
-                    <TableCell className="text-muted-foreground">{product.brand ?? "-"}</TableCell>
-                    <TableCell className="text-muted-foreground">
-                      {product.categoryName ?? "-"}
-                    </TableCell>
-                    <TableCell className="text-right">
-                      {Number(product.basePrice).toFixed(2)}&nbsp;€
-                    </TableCell>
-                    <TableCell className="text-muted-foreground">
-                      {UNIT_LABELS[product.unit]}
-                    </TableCell>
-                    <TableCell className="text-center">
-                      <button
-                        type="button"
-                        onClick={() => handleToggleActive(product.id, product.active)}
-                        className="inline-flex"
-                      >
-                        <Badge variant={product.active ? "success" : "muted"}>
-                          {product.active ? "Ναι" : "Όχι"}
-                        </Badge>
-                      </button>
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <div className="flex justify-end gap-1">
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => navigate(`/admin/products/${product.id}`)}
-                          aria-label="Επεξεργασία"
-                        >
-                          <Pencil className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="text-destructive hover:bg-destructive/10 hover:text-destructive"
-                          onClick={() => handleDelete(product.id, product.name)}
-                          aria-label="Διαγραφή"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    </TableCell>
+        <>
+          <Card className="overflow-hidden">
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Όνομα</TableHead>
+                    <TableHead>Brand</TableHead>
+                    <TableHead>Κατηγορία</TableHead>
+                    <TableHead className="text-right">Τιμή</TableHead>
+                    <TableHead>Μονάδα</TableHead>
+                    <TableHead className="text-center">Ενεργό</TableHead>
+                    <TableHead className="text-right">Ενέργειες</TableHead>
                   </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </div>
-        </Card>
+                </TableHeader>
+                <TableBody>
+                  {products.map((product) => (
+                    <TableRow key={product.id}>
+                      <TableCell className="font-medium">{product.name}</TableCell>
+                      <TableCell className="text-muted-foreground">
+                        {product.brand ?? "-"}
+                      </TableCell>
+                      <TableCell className="text-muted-foreground">
+                        {product.categoryName ?? "-"}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        {Number(product.basePrice).toFixed(2)}&nbsp;€
+                      </TableCell>
+                      <TableCell className="text-muted-foreground">
+                        {UNIT_LABELS[product.unit]}
+                      </TableCell>
+                      <TableCell className="text-center">
+                        <button
+                          type="button"
+                          onClick={() => handleToggleActive(product.id, product.active)}
+                          className="inline-flex"
+                        >
+                          <Badge variant={product.active ? "success" : "muted"}>
+                            {product.active ? "Ναι" : "Όχι"}
+                          </Badge>
+                        </button>
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <div className="flex justify-end gap-1">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => navigate(`/admin/products/${product.id}`)}
+                            aria-label="Επεξεργασία"
+                          >
+                            <Pencil className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="text-destructive hover:bg-destructive/10 hover:text-destructive"
+                            onClick={() => handleDelete(product.id, product.name)}
+                            aria-label="Διαγραφή"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          </Card>
+          <PaginationControls
+            page={page}
+            pageSize={PAGE_SIZE}
+            total={total}
+            onPageChange={setPage}
+          />
+        </>
       )}
 
       <SeedCatalogModal open={seedModalOpen} onClose={() => setSeedModalOpen(false)} />

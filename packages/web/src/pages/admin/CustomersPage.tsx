@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -13,16 +13,30 @@ import {
 } from "@/components/ui/table";
 import { Spinner } from "@/components/spinner";
 import { EmptyState } from "@/components/empty-state";
+import { PaginationControls } from "@/components/PaginationControls";
 import { useCustomers, useDeleteCustomer } from "@/lib/hooks/use-customers";
 import { CustomerFormModal } from "./CustomerFormModal";
+
+const PAGE_SIZE = 50;
 
 export function CustomersPage() {
   const navigate = useNavigate();
   const [search, setSearch] = useState("");
   const [modalOpen, setModalOpen] = useState(false);
   const [editId, setEditId] = useState<string | undefined>(undefined);
+  const [page, setPage] = useState(1);
 
-  const { data: customers, isLoading } = useCustomers(search || undefined);
+  useEffect(() => {
+    setPage(1);
+  }, [search]);
+
+  const { data, isLoading } = useCustomers({
+    search: search || undefined,
+    page,
+    pageSize: PAGE_SIZE,
+  });
+  const customers = data?.data ?? [];
+  const total = data?.total ?? 0;
   const deleteMutation = useDeleteCustomer();
 
   const handleDelete = (id: string, name: string) => {
@@ -60,69 +74,83 @@ export function CustomersPage() {
         <div className="flex justify-center py-12">
           <Spinner />
         </div>
-      ) : !customers || customers.length === 0 ? (
+      ) : customers.length === 0 ? (
         <EmptyState
           message="Δεν βρέθηκαν πελάτες"
           actionLabel="Νέος Πελάτης"
           onAction={handleCreate}
         />
       ) : (
-        <Card className="overflow-hidden">
-          <div className="overflow-x-auto">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Όνομα</TableHead>
-                  <TableHead>Email</TableHead>
-                  <TableHead>Τηλέφωνο</TableHead>
-                  <TableHead>Υπεύθυνος</TableHead>
-                  <TableHead className="text-right">Ενέργειες</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {customers.map((customer) => (
-                  <TableRow key={customer.id}>
-                    <TableCell className="font-medium">{customer.name}</TableCell>
-                    <TableCell className="text-muted-foreground">{customer.email ?? "-"}</TableCell>
-                    <TableCell className="text-muted-foreground">{customer.phone ?? "-"}</TableCell>
-                    <TableCell className="text-muted-foreground">
-                      {customer.contactPerson ?? "-"}
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <div className="flex justify-end gap-1">
-                        <Button variant="ghost" size="sm" onClick={() => handleEdit(customer.id)}>
-                          Επεξεργασία
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => navigate(`/admin/customers/${customer.id}/users`)}
-                        >
-                          Χρήστες
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => navigate(`/admin/customers/${customer.id}/brand-pricing`)}
-                        >
-                          Τιμολόγηση
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="text-destructive hover:bg-destructive/10 hover:text-destructive"
-                          onClick={() => handleDelete(customer.id, customer.name)}
-                        >
-                          Διαγραφή
-                        </Button>
-                      </div>
-                    </TableCell>
+        <>
+          <Card className="overflow-hidden">
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Όνομα</TableHead>
+                    <TableHead>Email</TableHead>
+                    <TableHead>Τηλέφωνο</TableHead>
+                    <TableHead>Υπεύθυνος</TableHead>
+                    <TableHead className="text-right">Ενέργειες</TableHead>
                   </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </div>
-        </Card>
+                </TableHeader>
+                <TableBody>
+                  {customers.map((customer) => (
+                    <TableRow key={customer.id}>
+                      <TableCell className="font-medium">{customer.name}</TableCell>
+                      <TableCell className="text-muted-foreground">
+                        {customer.email ?? "-"}
+                      </TableCell>
+                      <TableCell className="text-muted-foreground">
+                        {customer.phone ?? "-"}
+                      </TableCell>
+                      <TableCell className="text-muted-foreground">
+                        {customer.contactPerson ?? "-"}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <div className="flex justify-end gap-1">
+                          <Button variant="ghost" size="sm" onClick={() => handleEdit(customer.id)}>
+                            Επεξεργασία
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => navigate(`/admin/customers/${customer.id}/users`)}
+                          >
+                            Χρήστες
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() =>
+                              navigate(`/admin/customers/${customer.id}/brand-pricing`)
+                            }
+                          >
+                            Τιμολόγηση
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="text-destructive hover:bg-destructive/10 hover:text-destructive"
+                            onClick={() => handleDelete(customer.id, customer.name)}
+                          >
+                            Διαγραφή
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          </Card>
+          <PaginationControls
+            page={page}
+            pageSize={PAGE_SIZE}
+            total={total}
+            onPageChange={setPage}
+          />
+        </>
       )}
 
       <CustomerFormModal

@@ -6,6 +6,7 @@ import {
   createCustomerSchema,
   updateCustomerSchema,
   updateCustomerBrandPricingSchema,
+  paginationQuerySchema,
 } from "@kava-now/shared";
 import { db } from "../../db/connection";
 import {
@@ -41,12 +42,29 @@ customersRouter.get("/", async (c) => {
   const kavaId = c.get("kavaId")!;
   const search = c.req.query("search");
 
+  const pagination = paginationQuerySchema.safeParse({
+    page: c.req.query("page"),
+    pageSize: c.req.query("pageSize"),
+  });
+  if (!pagination.success) {
+    return c.json({ error: pagination.error.flatten().fieldErrors }, 400);
+  }
+  const { page, pageSize } = pagination.data;
+
   const conditions = [eq(customers.kavaId, kavaId)];
 
   if (search) {
     const pattern = `%${search}%`;
     conditions.push(or(ilike(customers.name, pattern), ilike(customers.contactPerson, pattern))!);
   }
+
+  const whereClause = and(...conditions);
+
+  const [countRow] = await db
+    .select({ total: sql<number>`count(*)::int` })
+    .from(customers)
+    .where(whereClause);
+  const total = countRow?.total ?? 0;
 
   const rows = await db
     .select({
@@ -61,10 +79,12 @@ customersRouter.get("/", async (c) => {
       createdAt: customers.createdAt,
     })
     .from(customers)
-    .where(and(...conditions))
-    .orderBy(customers.name);
+    .where(whereClause)
+    .orderBy(customers.name, customers.id)
+    .limit(pageSize)
+    .offset((page - 1) * pageSize);
 
-  return c.json(rows);
+  return c.json({ data: rows, total, page, pageSize });
 });
 
 // POST / — create customer (also creates a customer-user when email is set)
