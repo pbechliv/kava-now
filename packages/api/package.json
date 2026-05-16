@@ -26,7 +26,7 @@
   "devDependencies": {
     "@hono/vite-build": "^1.11.1",
     "@hono/vite-dev-server": "^0.25.3",
-    "@types/node": "^25.7.0",
+    "@types/node": "^25.8.0",
     "@types/nodemailer": "^8.0.0",
     "drizzle-kit": "^0.31.10",
     "tsx": "^4.22.0",
