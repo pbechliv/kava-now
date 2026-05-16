@@ -284,6 +284,30 @@ export async function seedDemoTenant(db: PostgresJsDatabase): Promise<void> {
 
   const customerByName = new Map(insertedCustomers.map((c) => [c.name, c.id]));
 
+  const customerRealEmail = process.env.DEMO_CUSTOMER_EMAIL ?? "customer@demo.kavanow.gr";
+  const customerPassword = process.env.DEMO_CUSTOMER_PASSWORD ?? "demopass";
+  const customerAuthEmail = encodeAuthEmail(customerRealEmail, DEMO_SLUG);
+  const linkedCustomerId = customerByName.get("Ταβέρνα Ο Νίκος");
+  if (!linkedCustomerId) throw new Error("Demo customer org missing: Ταβέρνα Ο Νίκος");
+
+  await auth.api.signUpEmail({
+    body: {
+      email: customerAuthEmail,
+      password: customerPassword,
+      name: "Demo Customer",
+      realEmail: customerRealEmail,
+    },
+  });
+  await db
+    .update(users)
+    .set({
+      role: "customer",
+      kavaId: demoKava.id,
+      customerId: linkedCustomerId,
+      emailVerified: true,
+    })
+    .where(eq(users.email, customerAuthEmail));
+
   await db.insert(customerBrandPricing).values(
     DEMO_BRAND_PRICING.map((bp) => {
       const customerId = customerByName.get(bp.customerName);
@@ -327,6 +351,7 @@ export async function seedDemoTenant(db: PostgresJsDatabase): Promise<void> {
 
   console.log(
     `Demo tenant seeded: kava "${DEMO_SLUG}" + ${DEMO_CUSTOMERS.length} customers + ${DEMO_ORDERS.length} orders. ` +
-      `Owner login: ${ownerRealEmail} / ${ownerPassword} at demo.lvh.me:5173`,
+      `Owner login: ${ownerRealEmail} / ${ownerPassword} at demo.lvh.me:5173. ` +
+      `Customer login: ${customerRealEmail} / ${customerPassword} at demo.lvh.me:5173`,
   );
 }
