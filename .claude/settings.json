@@ -1,4 +1,9 @@
 {
+  "permissions": {
+    "deny": [
+      "mcp__Claude_Preview__*"
+    ]
+  },
   "hooks": {
     "Stop": [
       {

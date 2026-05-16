@@ -36,6 +36,10 @@ pnpm dev:web    # Web only
 
 Mailpit: SMTP on `localhost:1025`, Web UI on `localhost:8025`.
 
+### Browser verification
+
+`mcp__Claude_Preview__*` tools are denied for this project. To verify UI changes in a real browser, use the **Chrome MCP** tools (`mcp__Claude_in_Chrome__*` or `mcp__Control_Chrome__*`) — navigate to the relevant page on the running dev server (`pnpm dev`, defaults to `lvh.me:5173` with `demo.lvh.me:5173` / `admin.lvh.me:5173` for tenant/superadmin), then read the page, console, and network as needed.
+
 ### Database
 
 ```bash
