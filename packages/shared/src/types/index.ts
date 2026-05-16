@@ -90,14 +90,3 @@ export interface OrderItem {
   productName: string;
 }
 
-export interface SeedProduct {
-  id: string;
-  name: string;
-  brand: string | null;
-  categoryName: string;
-  description: string | null;
-  imageUrl: string | null;
-  volumeMl: number | null;
-  alcoholPct: number | null;
-  unit: ProductUnit;
-}

@@ -131,18 +131,6 @@ CREATE TABLE "order_items" (
 	"product_name" text NOT NULL
 );
 --> statement-breakpoint
-CREATE TABLE "seed_products" (
-	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
-	"name" text NOT NULL,
-	"brand" text,
-	"category_name" text NOT NULL,
-	"description" text,
-	"image_url" text,
-	"volume_ml" integer,
-	"alcohol_pct" numeric(4, 1),
-	"unit" "product_unit" DEFAULT 'bottle' NOT NULL
-);
---> statement-breakpoint
 CREATE TABLE "audit_logs" (
 	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
 	"kava_id" uuid,
@@ -176,6 +164,5 @@ CREATE INDEX "sessions_user_id_idx" ON "sessions" USING btree ("user_id");--> st
 CREATE INDEX "accounts_user_id_idx" ON "accounts" USING btree ("user_id");--> statement-breakpoint
 CREATE INDEX "verifications_identifier_idx" ON "verifications" USING btree ("identifier");--> statement-breakpoint
 CREATE UNIQUE INDEX "products_kava_name_brand_idx" ON "products" USING btree ("kava_id","name","brand");--> statement-breakpoint
-CREATE UNIQUE INDEX "seed_products_name_brand_idx" ON "seed_products" USING btree ("name","brand");--> statement-breakpoint
 CREATE INDEX "audit_logs_kava_id_created_at_idx" ON "audit_logs" USING btree ("kava_id","created_at");--> statement-breakpoint
 CREATE INDEX "audit_logs_actor_user_id_idx" ON "audit_logs" USING btree ("actor_user_id");

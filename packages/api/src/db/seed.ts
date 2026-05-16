@@ -2,11 +2,9 @@ import "../load-env";
 import { drizzle } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
 import { eq } from "drizzle-orm";
-import { seedProducts } from "./schema/seed-products.js";
 import { users } from "./schema/index.js";
 import { auth } from "../auth/index.js";
 import {
-  SEED_PRODUCTS,
   SUPERADMIN_EMAIL,
   SUPERADMIN_NAME,
   SUPERADMIN_PASSWORD,
@@ -19,10 +17,6 @@ const connectionString =
 async function main() {
   const sql = postgres(connectionString, { max: 1 });
   const db = drizzle(sql);
-
-  console.log("Seeding seed_products...");
-  await db.insert(seedProducts).values(SEED_PRODUCTS).onConflictDoNothing();
-  console.log(`Seeded ${SEED_PRODUCTS.length} products.`);
 
   // Seed superadmin via better-auth so they get a usable credential account.
   // Default dev password is logged below; reset via /forgot-password in prod.

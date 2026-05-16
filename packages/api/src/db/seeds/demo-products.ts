@@ -1,7 +1,15 @@
-import type { InferInsertModel } from "drizzle-orm";
-import type { seedProducts } from "../schema/seed-products";
+export interface DemoProduct {
+  name: string;
+  brand?: string | null;
+  categoryName: string;
+  description?: string | null;
+  imageUrl?: string | null;
+  volumeMl?: number | null;
+  alcoholPct?: string | null;
+  unit: "bottle" | "case" | "keg";
+}
 
-export const SEED_PRODUCTS: InferInsertModel<typeof seedProducts>[] = [
+export const DEMO_PRODUCTS: DemoProduct[] = [
   // Κρασιά (Wines)
   {
     name: "Αγιωργίτικο",

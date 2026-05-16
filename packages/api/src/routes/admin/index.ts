@@ -3,7 +3,6 @@ import { requireAuth } from "../../middleware/require-auth";
 import { requireRole } from "../../middleware/require-role";
 import { productsRouter } from "./products";
 import { categoriesRouter } from "./categories";
-import { seedCatalogRouter } from "./seed-catalog";
 import { customersRouter } from "./customers";
 import { ordersRouter } from "./orders";
 import { dashboardRouter } from "./dashboard";
@@ -19,7 +18,6 @@ adminRoutes.use("*", requireRole("owner", "staff"));
 
 adminRoutes.route("/products", productsRouter);
 adminRoutes.route("/categories", categoriesRouter);
-adminRoutes.route("/seed-catalog", seedCatalogRouter);
 adminRoutes.route("/customers", customersRouter);
 adminRoutes.route("/orders", ordersRouter);
 adminRoutes.route("/dashboard", dashboardRouter);

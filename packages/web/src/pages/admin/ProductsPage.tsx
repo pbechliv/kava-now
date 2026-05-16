@@ -25,7 +25,6 @@ import { EmptyState } from "@/components/empty-state";
 import { PaginationControls } from "@/components/PaginationControls";
 import { useProducts, useUpdateProduct, useDeleteProduct } from "@/lib/hooks/use-products";
 import { useCategories } from "@/lib/hooks/use-categories";
-import { SeedCatalogModal } from "./SeedCatalogModal";
 import { UNIT_LABELS, type ImportProductsResult } from "@kava-now/shared";
 
 const PAGE_SIZE = 50;
@@ -40,7 +39,6 @@ export function ProductsPage() {
   const importResult = (location.state as ProductsPageLocationState | null)?.importResult ?? null;
   const [search, setSearch] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("");
-  const [seedModalOpen, setSeedModalOpen] = useState(false);
   const [bannerResult, setBannerResult] = useState<ImportProductsResult | null>(importResult);
   const [page, setPage] = useState(1);
 
@@ -81,9 +79,6 @@ export function ProductsPage() {
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <h1 className="text-2xl font-bold tracking-tight">Προϊόντα</h1>
         <div className="flex flex-wrap gap-2">
-          <Button variant="outline" onClick={() => setSeedModalOpen(true)}>
-            Εισαγωγή από Κατάλογο
-          </Button>
           <Button variant="outline" onClick={() => navigate("/admin/products/import")}>
             Εισαγωγή από αρχείο
           </Button>
@@ -229,8 +224,6 @@ export function ProductsPage() {
           />
         </>
       )}
-
-      <SeedCatalogModal open={seedModalOpen} onClose={() => setSeedModalOpen(false)} />
     </div>
   );
 }

@@ -65,10 +65,10 @@ export function AdminLayout() {
     <SidebarProvider>
       <Sidebar variant="sidebar" collapsible="offcanvas">
         <SidebarHeader>
-          <div className="flex items-center gap-2 px-2 py-1.5">
-            <span className="text-lg font-bold text-primary">KavaNow</span>
+          <div className="flex flex-col px-2 py-1.5">
+            <span className="text-lg font-bold leading-tight text-primary">KavaNow</span>
             {kava && (
-              <span className="truncate text-sm text-sidebar-foreground/70">/ {kava.name}</span>
+              <span className="truncate text-sm text-sidebar-foreground/70">{kava.name}</span>
             )}
           </div>
         </SidebarHeader>

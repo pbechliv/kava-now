@@ -119,7 +119,7 @@ Auth instance in `packages/api/src/auth/index.ts` uses `betterAuth()` with:
 
 Global role for platform management at the `admin` subdomain:
 
-- Backend: `packages/api/src/routes/superadmin/index.ts` — `GET /kavas`, `POST /kavas` (creates kava + owner, optionally with password, seeds default categories and products from `seed_products`), `DELETE /kavas/:id`. Guarded by `requireAuth` + `requireSuperAdmin`.
+- Backend: `packages/api/src/routes/superadmin/index.ts` — `GET /kavas`, `POST /kavas` (creates an empty kava + owner, optionally with password), `DELETE /kavas/:id`. Guarded by `requireAuth` + `requireSuperAdmin`.
 - Frontend: `SuperAdminApp` branch in `App.tsx` (`SuperAdminLayout`, `KavasPage`, `NewKavaPage`, `SettingsPage`).
 - Seeding: `pnpm db:seed` creates a superadmin (`role: "superadmin"`, `kavaId: null`).
 
@@ -130,7 +130,7 @@ packages/api/src/routes/
 ├── auth.ts                 # custom auth endpoints (/me, PATCH /me, /set-password)
 ├── platform.ts             # public/platform endpoints (registration path still exists here)
 ├── admin/                  # owner + staff (requireAuth + requireRole("owner","staff"))
-│   ├── products, categories, seed-catalog, customers, users,
+│   ├── products, categories, customers, users,
 │   ├── orders, dashboard, settings
 ├── customer/               # requireRole("customer")
 │   ├── catalog, orders, profile
@@ -143,7 +143,7 @@ Audit logging via `packages/api/src/services/audit.ts` (`logAudit(c, { action, t
 
 ### Database Schema
 
-Drizzle tables (`packages/api/src/db/schema/`): `kavas`, `users`, `sessions`, **`accounts`**, **`verifications`** (both required by better-auth — replaced the old Lucia-era `magic_links` table), `categories`, `products`, `pricing_tiers`/`customer_brand_pricing`, `customers`, `orders`, `order_items`, `seed_products`, `audit_logs`.
+Drizzle tables (`packages/api/src/db/schema/`): `kavas`, `users`, `sessions`, **`accounts`**, **`verifications`** (both required by better-auth — replaced the old Lucia-era `magic_links` table), `categories`, `products`, `pricing_tiers`/`customer_brand_pricing`, `customers`, `orders`, `order_items`, `audit_logs`.
 
 Notable `users` columns: `email` (synthesized, globally unique), `realEmail` (human-facing; unique per `kavaId`), `role` enum (`"owner" | "staff" | "customer" | "superadmin"`), `kavaId`, `customerId`, `invitedById` (self-reference, `ON DELETE SET NULL`). Passwords live on `accounts` (better-auth's credential provider row), not on `users`.
 

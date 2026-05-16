@@ -2,8 +2,7 @@ import { Hono } from "hono";
 import { eq, and, sql } from "drizzle-orm";
 import { registerSchema, encodeAuthEmail, paginationQuerySchema } from "@kava-now/shared";
 import { db } from "../../db/connection";
-import { kavas, users, categories, products, seedProducts } from "../../db/schema/index";
-import { DEFAULT_CATEGORIES } from "../../db/seeds/categories";
+import { kavas, users } from "../../db/schema/index";
 import { auth } from "../../auth";
 import { sendInviteSetPassword } from "../../services/invite-user";
 import { requireAuth } from "../../middleware/require-auth";
@@ -68,46 +67,9 @@ superadmin.post("/kavas", async (c) => {
     return c.json({ error: "Αυτό το slug χρησιμοποιείται ήδη" }, 409);
   }
 
-  const kava = await db.transaction(async (tx) => {
-    const [created] = await tx.insert(kavas).values({ name, slug, email: realEmail }).returning();
+  const [kava] = await db.insert(kavas).values({ name, slug, email: realEmail }).returning();
 
-    if (!created) throw new Error("Αποτυχία δημιουργίας κάβας");
-
-    const insertedCategories = await tx
-      .insert(categories)
-      .values(
-        DEFAULT_CATEGORIES.map((catName, index) => ({
-          kavaId: created.id,
-          name: catName,
-          sortOrder: index,
-        })),
-      )
-      .returning({ id: categories.id, name: categories.name });
-
-    const categoryMap = new Map(insertedCategories.map((cat) => [cat.name, cat.id]));
-
-    const allSeedProducts = await tx.select().from(seedProducts);
-
-    if (allSeedProducts.length > 0) {
-      await tx.insert(products).values(
-        allSeedProducts.map((sp) => ({
-          kavaId: created.id,
-          name: sp.name,
-          brand: sp.brand ?? sp.name,
-          categoryId: categoryMap.get(sp.categoryName) ?? null,
-          description: sp.description,
-          imageUrl: sp.imageUrl,
-          basePrice: "0.00",
-          unit: sp.unit,
-          volumeMl: sp.volumeMl,
-          alcoholPct: sp.alcoholPct,
-          active: true,
-        })),
-      );
-    }
-
-    return created;
-  });
+  if (!kava) throw new Error("Αποτυχία δημιουργίας κάβας");
 
   if (password) {
     await auth.api.signUpEmail({

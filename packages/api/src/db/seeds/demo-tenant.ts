@@ -10,12 +10,21 @@ import {
   orderItems,
   orders,
   products,
-  seedProducts,
   users,
 } from "../schema/index.js";
-import { DEFAULT_CATEGORIES } from "./categories.js";
+import { DEMO_PRODUCTS } from "./demo-products.js";
 
 const DEMO_SLUG = "demo";
+
+const DEMO_CATEGORIES = [
+  "Κρασιά",
+  "Μπύρες",
+  "Αποστάγματα",
+  "Λικέρ",
+  "Αναψυκτικά",
+  "Νερά",
+  "Χυμοί",
+] as const;
 
 // Base price per category (€). Snapshotted into products.basePrice; order items
 // snapshot this again into unit_price at order time.
@@ -240,7 +249,7 @@ export async function seedDemoTenant(db: PostgresJsDatabase): Promise<void> {
   const insertedCategories = await db
     .insert(categories)
     .values(
-      DEFAULT_CATEGORIES.map((name, index) => ({
+      DEMO_CATEGORIES.map((name, index) => ({
         kavaId: demoKava.id,
         name,
         sortOrder: index,
@@ -250,21 +259,20 @@ export async function seedDemoTenant(db: PostgresJsDatabase): Promise<void> {
 
   const categoryByName = new Map(insertedCategories.map((c) => [c.name, c.id]));
 
-  const allSeedProducts = await db.select().from(seedProducts);
   const insertedProducts = await db
     .insert(products)
     .values(
-      allSeedProducts.map((sp) => ({
+      DEMO_PRODUCTS.map((sp) => ({
         kavaId: demoKava.id,
         name: sp.name,
         brand: sp.brand ?? sp.name,
         categoryId: categoryByName.get(sp.categoryName) ?? null,
-        description: sp.description,
-        imageUrl: sp.imageUrl,
+        description: sp.description ?? null,
+        imageUrl: sp.imageUrl ?? null,
         basePrice: priceForCategory(sp.categoryName),
         unit: sp.unit,
-        volumeMl: sp.volumeMl,
-        alcoholPct: sp.alcoholPct,
+        volumeMl: sp.volumeMl ?? null,
+        alcoholPct: sp.alcoholPct ?? null,
         active: true,
       })),
     )

@@ -10,5 +10,4 @@ export * from "./customers";
 export * from "./customer-brand-pricing";
 export * from "./orders";
 export * from "./order-items";
-export * from "./seed-products";
 export * from "./audit-logs";

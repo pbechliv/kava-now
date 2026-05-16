@@ -85,8 +85,7 @@ CREATE POLICY tenant_isolation_order_items ON order_items
 -- Disable RLS on auth tables if it was previously enabled
 ALTER TABLE users DISABLE ROW LEVEL SECURITY;
 
--- Note: kavas, sessions, accounts, verifications, and seed_products do NOT have RLS
+-- Note: kavas, sessions, accounts, and verifications do NOT have RLS
 -- - kavas: needed for tenant lookup before RLS var is set
 -- - sessions/accounts/verifications: owned by better-auth, queried globally by token
 -- - users: owned by better-auth — tenant scoping enforced in application code
--- - seed_products: platform-wide catalog, shared across all tenants
