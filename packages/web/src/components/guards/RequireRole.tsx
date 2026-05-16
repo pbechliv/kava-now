@@ -1,5 +1,7 @@
 import { Navigate } from "react-router";
 import { useAuth } from "@/lib/hooks/use-auth";
+import { Spinner } from "@/components/spinner";
+import { getUserHome, resolveHomeHref } from "@/lib/auth-home";
 import type { UserRole } from "@kava-now/shared";
 
 interface RequireRoleProps {
@@ -8,21 +10,28 @@ interface RequireRoleProps {
 }
 
 export function RequireRole({ allowed, children }: RequireRoleProps) {
-  const { user } = useAuth();
+  const { user, kava } = useAuth();
 
   if (!user) {
     return <Navigate to="/login" replace />;
   }
 
   if (!allowed.includes(user.role)) {
-    // Redirect to the appropriate portal
-    if (user.role === "customer") {
-      return <Navigate to="/catalog" replace />;
+    const target = getUserHome(user, kava?.slug ?? null);
+    const { href, isSameSubdomain } = resolveHomeHref(target);
+
+    if (isSameSubdomain) {
+      return <Navigate to={target.path} replace />;
     }
-    if (user.role === "superadmin") {
-      return <Navigate to="/superadmin/kavas" replace />;
+
+    if (window.location.href !== href) {
+      window.location.replace(href);
     }
-    return <Navigate to="/admin/dashboard" replace />;
+    return (
+      <div className="flex min-h-screen items-center justify-center">
+        <Spinner />
+      </div>
+    );
   }
 
   return <>{children}</>;

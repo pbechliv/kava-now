@@ -5,6 +5,8 @@ import { Toaster } from "./components/ui/sonner";
 import { isSuperAdminDomain } from "./lib/is-superadmin";
 import { isPlatformDomain } from "./lib/is-platform";
 import { useAuth } from "./lib/hooks/use-auth";
+import { getUserHome, resolveHomeHref } from "./lib/auth-home";
+import { Spinner } from "./components/spinner";
 
 // Layouts
 import { AuthLayout } from "./components/layouts/AuthLayout";
@@ -56,9 +58,25 @@ import { HomePage } from "./pages/HomePage";
 import { NotFoundPage } from "./pages/NotFoundPage";
 
 function SuperAdminHome() {
-  const { isAuthenticated, isLoading } = useAuth();
+  const { user, kava, isAuthenticated, isLoading } = useAuth();
   if (isLoading) return null;
-  return <Navigate to={isAuthenticated ? "/superadmin/kavas" : "/login"} replace />;
+  if (!isAuthenticated || !user) return <Navigate to="/login" replace />;
+
+  const target = getUserHome(user, kava?.slug ?? null);
+  const { href, isSameSubdomain } = resolveHomeHref(target);
+
+  if (isSameSubdomain) {
+    return <Navigate to={target.path} replace />;
+  }
+
+  if (window.location.href !== href) {
+    window.location.replace(href);
+  }
+  return (
+    <div className="flex min-h-screen items-center justify-center">
+      <Spinner />
+    </div>
+  );
 }
 
 function SuperAdminApp() {
