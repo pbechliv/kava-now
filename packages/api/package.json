@@ -39,7 +39,7 @@
     "@types/react-dom": "^19.2.0",
     "drizzle-kit": "^0.31.10",
     "react-email": "^6.1.4",
-    "tsx": "^4.22.0",
+    "tsx": "^4.22.1",
     "vite": "catalog:",
     "vite-plus": "catalog:"
   }
