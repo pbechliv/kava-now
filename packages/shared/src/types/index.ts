@@ -4,6 +4,7 @@ export type MembershipRole = "owner" | "staff" | "customer";
 export type OrderStatus = "pending" | "confirmed" | "shipped" | "delivered" | "cancelled";
 export type ProductUnit = "bottle" | "case" | "keg";
 export type ErpStatus = "pending" | "transmitted";
+export type OrderItemStatus = "active" | "cancelled";
 
 export interface Kava {
   id: string;
@@ -95,6 +96,7 @@ export interface Order {
   status: OrderStatus;
   notes: string | null;
   createdAt: string;
+  updatedAt: string;
   erpStatus: ErpStatus;
   erpMark: string | null;
   erpTransmittedAt: string | null;
@@ -105,6 +107,9 @@ export interface OrderItem {
   orderId: string;
   productId: string;
   quantity: number;
+  originalQuantity: number | null;
   unitPrice: number;
   productName: string;
+  status: OrderItemStatus;
+  replacedByItemId: string | null;
 }

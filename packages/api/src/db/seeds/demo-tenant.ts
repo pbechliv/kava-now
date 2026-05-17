@@ -382,6 +382,7 @@ export async function seedDemoTenant(db: PostgresJsDatabase): Promise<void> {
           orderId: createdOrder.id,
           productId: product.id,
           quantity: item.quantity,
+          originalQuantity: item.quantity,
           unitPrice: product.basePrice,
           productName: item.productName,
         };

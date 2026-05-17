@@ -1,14 +1,26 @@
 import { Hono } from "hono";
 import { eq, and, sql, gte, lte, desc } from "drizzle-orm";
 import { db } from "../../db/connection";
-import { orders, orderItems, customers, products, users } from "../../db/schema/index";
+import {
+  orders,
+  orderItems,
+  customers,
+  products,
+  users,
+  customerBrandPricing,
+} from "../../db/schema/index";
 import { sendOrderStatusChange } from "../../services/email";
 import { logAudit } from "../../services/audit";
+import { resolvePrice } from "../../services/pricing";
 import type { AppEnv } from "../../types";
 import {
   paginationQuerySchema,
   markOrderTransmittedSchema,
+  addOrderItemSchema,
+  updateOrderItemSchema,
+  replaceOrderItemSchema,
   type OrderStatus,
+  type ErpStatus,
 } from "@kava-now/shared";
 
 const ordersRouter = new Hono<AppEnv>();
@@ -23,6 +35,25 @@ const ALLOWED_TRANSITIONS: Record<OrderStatus, OrderStatus[]> = {
   delivered: [], // terminal
   cancelled: [], // terminal
 };
+
+function assertOrderMutable(order: {
+  status: OrderStatus;
+  erpStatus: ErpStatus;
+}): { ok: true } | { ok: false; error: string } {
+  if (order.status !== "pending" && order.status !== "confirmed") {
+    return {
+      ok: false,
+      error: "Η παραγγελία δεν μπορεί να τροποποιηθεί σε αυτή την κατάσταση",
+    };
+  }
+  if (order.erpStatus === "transmitted") {
+    return {
+      ok: false,
+      error: "Η παραγγελία έχει ήδη διαβιβαστεί στο ERP και δεν μπορεί να τροποποιηθεί",
+    };
+  }
+  return { ok: true };
+}
 
 // GET / — list orders with filters
 ordersRouter.get("/", async (c) => {
@@ -76,8 +107,8 @@ ordersRouter.get("/", async (c) => {
       createdAt: orders.createdAt,
       customerName: customers.name,
       erpStatus: orders.erpStatus,
-      itemCount: sql<number>`count(${orderItems.id})::int`,
-      total: sql<number>`coalesce(sum(${orderItems.quantity} * ${orderItems.unitPrice}::numeric), 0)::numeric`,
+      itemCount: sql<number>`(count(${orderItems.id}) filter (where ${orderItems.status} = 'active'))::int`,
+      total: sql<number>`coalesce(sum(${orderItems.quantity} * ${orderItems.unitPrice}::numeric) filter (where ${orderItems.status} = 'active'), 0)::numeric`,
     })
     .from(orders)
     .leftJoin(customers, eq(orders.customerId, customers.id))
@@ -134,7 +165,10 @@ ordersRouter.get("/:id", async (c) => {
       productId: orderItems.productId,
       productName: orderItems.productName,
       quantity: orderItems.quantity,
+      originalQuantity: orderItems.originalQuantity,
       unitPrice: orderItems.unitPrice,
+      status: orderItems.status,
+      replacedByItemId: orderItems.replacedByItemId,
       sku: products.sku,
       erpRef: products.erpRef,
     })
@@ -142,7 +176,11 @@ ordersRouter.get("/:id", async (c) => {
     .leftJoin(products, eq(orderItems.productId, products.id))
     .where(eq(orderItems.orderId, id));
 
-  const total = items.reduce((sum, item) => sum + Number(item.unitPrice) * item.quantity, 0);
+  const total = items.reduce(
+    (sum, item) =>
+      item.status === "active" ? sum + Number(item.unitPrice) * item.quantity : sum,
+    0,
+  );
 
   return c.json({ ...order, items, total });
 });
@@ -254,6 +292,276 @@ ordersRouter.patch("/:id/erp", async (c) => {
   });
 
   return c.json(updated);
+});
+
+async function resolveProductPriceForOrder(
+  kavaId: string,
+  customerId: string,
+  productId: string,
+) {
+  const [product] = await db
+    .select({
+      id: products.id,
+      name: products.name,
+      brand: products.brand,
+      basePrice: products.basePrice,
+      active: products.active,
+    })
+    .from(products)
+    .where(and(eq(products.id, productId), eq(products.kavaId, kavaId)))
+    .limit(1);
+
+  if (!product || !product.active) return null;
+
+  const [pricing] = await db
+    .select({ discountPct: customerBrandPricing.discountPct })
+    .from(customerBrandPricing)
+    .where(
+      and(
+        eq(customerBrandPricing.customerId, customerId),
+        eq(customerBrandPricing.brand, product.brand),
+      ),
+    )
+    .limit(1);
+
+  const unitPrice = resolvePrice(product.basePrice, pricing?.discountPct ?? null);
+  return { product, unitPrice };
+}
+
+async function loadOrderForMutation(kavaId: string, id: string) {
+  const [order] = await db
+    .select({
+      id: orders.id,
+      kavaId: orders.kavaId,
+      customerId: orders.customerId,
+      status: orders.status,
+      erpStatus: orders.erpStatus,
+    })
+    .from(orders)
+    .where(and(eq(orders.id, id), eq(orders.kavaId, kavaId)))
+    .limit(1);
+  return order ?? null;
+}
+
+// POST /:id/items — add a new line item to an existing order
+ordersRouter.post("/:id/items", async (c) => {
+  const kavaId = c.get("kavaId")!;
+  const id = c.req.param("id");
+  const body = await c.req.json();
+  const parsed = addOrderItemSchema.safeParse(body);
+  if (!parsed.success) {
+    return c.json({ error: parsed.error.flatten().fieldErrors }, 400);
+  }
+
+  const order = await loadOrderForMutation(kavaId, id);
+  if (!order) return c.json({ error: "Η παραγγελία δεν βρέθηκε" }, 404);
+  const guard = assertOrderMutable(order);
+  if (!guard.ok) return c.json({ error: guard.error }, 409);
+
+  const resolved = await resolveProductPriceForOrder(kavaId, order.customerId, parsed.data.productId);
+  if (!resolved) return c.json({ error: "Το προϊόν δεν είναι διαθέσιμο" }, 400);
+
+  const inserted = await db.transaction(async (tx) => {
+    const [item] = await tx
+      .insert(orderItems)
+      .values({
+        orderId: id,
+        productId: resolved.product.id,
+        quantity: parsed.data.quantity,
+        unitPrice: String(resolved.unitPrice),
+        productName: resolved.product.name,
+      })
+      .returning();
+    await tx.update(orders).set({ updatedAt: new Date() }).where(eq(orders.id, id));
+    return item;
+  });
+
+  await logAudit(c, {
+    action: "order.item.added",
+    targetType: "order",
+    targetId: id,
+    metadata: {
+      itemId: inserted?.id,
+      productId: resolved.product.id,
+      productName: resolved.product.name,
+      quantity: parsed.data.quantity,
+      unitPrice: resolved.unitPrice,
+    },
+  });
+
+  return c.json(inserted, 201);
+});
+
+// PATCH /:id/items/:itemId — adjust quantity on an active line item
+ordersRouter.patch("/:id/items/:itemId", async (c) => {
+  const kavaId = c.get("kavaId")!;
+  const id = c.req.param("id");
+  const itemId = c.req.param("itemId");
+  const body = await c.req.json();
+  const parsed = updateOrderItemSchema.safeParse(body);
+  if (!parsed.success) {
+    return c.json({ error: parsed.error.flatten().fieldErrors }, 400);
+  }
+
+  const order = await loadOrderForMutation(kavaId, id);
+  if (!order) return c.json({ error: "Η παραγγελία δεν βρέθηκε" }, 404);
+  const guard = assertOrderMutable(order);
+  if (!guard.ok) return c.json({ error: guard.error }, 409);
+
+  const [item] = await db
+    .select()
+    .from(orderItems)
+    .where(and(eq(orderItems.id, itemId), eq(orderItems.orderId, id)))
+    .limit(1);
+  if (!item) return c.json({ error: "Το προϊόν δεν βρέθηκε στην παραγγελία" }, 404);
+  if (item.status === "cancelled") {
+    return c.json({ error: "Το προϊόν έχει ακυρωθεί" }, 409);
+  }
+
+  const updated = await db.transaction(async (tx) => {
+    const [u] = await tx
+      .update(orderItems)
+      .set({ quantity: parsed.data.quantity })
+      .where(eq(orderItems.id, itemId))
+      .returning();
+    await tx.update(orders).set({ updatedAt: new Date() }).where(eq(orders.id, id));
+    return u;
+  });
+
+  await logAudit(c, {
+    action: "order.item.quantityUpdated",
+    targetType: "order",
+    targetId: id,
+    metadata: {
+      itemId,
+      productName: item.productName,
+      oldQuantity: item.quantity,
+      newQuantity: parsed.data.quantity,
+    },
+  });
+
+  return c.json(updated);
+});
+
+// POST /:id/items/:itemId/cancel — soft-cancel a line item
+ordersRouter.post("/:id/items/:itemId/cancel", async (c) => {
+  const kavaId = c.get("kavaId")!;
+  const id = c.req.param("id");
+  const itemId = c.req.param("itemId");
+
+  const order = await loadOrderForMutation(kavaId, id);
+  if (!order) return c.json({ error: "Η παραγγελία δεν βρέθηκε" }, 404);
+  const guard = assertOrderMutable(order);
+  if (!guard.ok) return c.json({ error: guard.error }, 409);
+
+  const [item] = await db
+    .select()
+    .from(orderItems)
+    .where(and(eq(orderItems.id, itemId), eq(orderItems.orderId, id)))
+    .limit(1);
+  if (!item) return c.json({ error: "Το προϊόν δεν βρέθηκε στην παραγγελία" }, 404);
+  if (item.status === "cancelled") {
+    return c.json({ error: "Το προϊόν έχει ήδη ακυρωθεί" }, 409);
+  }
+
+  const cancelled = await db.transaction(async (tx) => {
+    const [u] = await tx
+      .update(orderItems)
+      .set({ status: "cancelled" })
+      .where(eq(orderItems.id, itemId))
+      .returning();
+    await tx.update(orders).set({ updatedAt: new Date() }).where(eq(orders.id, id));
+    return u;
+  });
+
+  await logAudit(c, {
+    action: "order.item.cancelled",
+    targetType: "order",
+    targetId: id,
+    metadata: {
+      itemId,
+      productName: item.productName,
+      quantity: item.quantity,
+    },
+  });
+
+  return c.json(cancelled);
+});
+
+// POST /:id/items/:itemId/replace — swap a line item for a different product
+ordersRouter.post("/:id/items/:itemId/replace", async (c) => {
+  const kavaId = c.get("kavaId")!;
+  const id = c.req.param("id");
+  const itemId = c.req.param("itemId");
+  const body = await c.req.json();
+  const parsed = replaceOrderItemSchema.safeParse(body);
+  if (!parsed.success) {
+    return c.json({ error: parsed.error.flatten().fieldErrors }, 400);
+  }
+
+  const order = await loadOrderForMutation(kavaId, id);
+  if (!order) return c.json({ error: "Η παραγγελία δεν βρέθηκε" }, 404);
+  const guard = assertOrderMutable(order);
+  if (!guard.ok) return c.json({ error: guard.error }, 409);
+
+  const [existing] = await db
+    .select()
+    .from(orderItems)
+    .where(and(eq(orderItems.id, itemId), eq(orderItems.orderId, id)))
+    .limit(1);
+  if (!existing) return c.json({ error: "Το προϊόν δεν βρέθηκε στην παραγγελία" }, 404);
+  if (existing.status === "cancelled") {
+    return c.json({ error: "Το προϊόν έχει ήδη ακυρωθεί" }, 409);
+  }
+
+  const resolved = await resolveProductPriceForOrder(
+    kavaId,
+    order.customerId,
+    parsed.data.productId,
+  );
+  if (!resolved) return c.json({ error: "Το προϊόν αντικατάστασης δεν είναι διαθέσιμο" }, 400);
+
+  const result = await db.transaction(async (tx) => {
+    const [newItem] = await tx
+      .insert(orderItems)
+      .values({
+        orderId: id,
+        productId: resolved.product.id,
+        quantity: parsed.data.quantity,
+        unitPrice: String(resolved.unitPrice),
+        productName: resolved.product.name,
+      })
+      .returning();
+
+    if (!newItem) throw new Error("Failed to insert replacement item");
+
+    await tx
+      .update(orderItems)
+      .set({ status: "cancelled", replacedByItemId: newItem.id })
+      .where(eq(orderItems.id, itemId));
+
+    await tx.update(orders).set({ updatedAt: new Date() }).where(eq(orders.id, id));
+
+    return { newItem };
+  });
+
+  await logAudit(c, {
+    action: "order.item.replaced",
+    targetType: "order",
+    targetId: id,
+    metadata: {
+      oldItemId: itemId,
+      oldProductName: existing.productName,
+      oldQuantity: existing.quantity,
+      newItemId: result.newItem.id,
+      newProductId: resolved.product.id,
+      newProductName: resolved.product.name,
+      newQuantity: parsed.data.quantity,
+      newUnitPrice: resolved.unitPrice,
+    },
+  });
+
+  return c.json(result.newItem, 201);
 });
 
 export { ordersRouter };

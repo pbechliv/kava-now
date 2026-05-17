@@ -108,6 +108,7 @@ ordersRouter.post("/", async (c) => {
         orderId: order.id,
         productId: item.productId,
         quantity: item.quantity,
+        originalQuantity: item.quantity,
         unitPrice: String(unitPrice),
         productName: product.name,
       };
@@ -157,8 +158,8 @@ ordersRouter.get("/", async (c) => {
       status: orders.status,
       notes: orders.notes,
       createdAt: orders.createdAt,
-      itemCount: sql<number>`count(${orderItems.id})::int`,
-      totalAmount: sql<number>`coalesce(sum(${orderItems.unitPrice}::numeric * ${orderItems.quantity}), 0)::float`,
+      itemCount: sql<number>`(count(${orderItems.id}) filter (where ${orderItems.status} = 'active'))::int`,
+      totalAmount: sql<number>`coalesce(sum(${orderItems.unitPrice}::numeric * ${orderItems.quantity}) filter (where ${orderItems.status} = 'active'), 0)::float`,
     })
     .from(orders)
     .leftJoin(orderItems, eq(orders.id, orderItems.orderId))
@@ -264,8 +265,9 @@ ordersRouter.post("/:id/reorder", async (c) => {
 
   const brandDiscountMap = new Map(brandPricing.map((bp) => [bp.brand, bp.discountPct]));
 
-  // Filter out items for products no longer available
+  // Skip cancelled items and products no longer available
   const validItems = originalItems.filter((item) => {
+    if (item.status !== "active") return false;
     const product = productMap.get(item.productId);
     return product && product.active;
   });
@@ -302,6 +304,7 @@ ordersRouter.post("/:id/reorder", async (c) => {
         orderId: newOrder.id,
         productId: item.productId,
         quantity: item.quantity,
+        originalQuantity: item.quantity,
         unitPrice: String(unitPrice),
         productName: product.name,
       };

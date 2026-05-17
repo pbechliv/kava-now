@@ -81,6 +81,7 @@ Tenants live under a URL path, not a subdomain. The entire app runs from a singl
 - `/k/<slug>/login`, `/k/<slug>/auth/*`, `/k/<slug>/welcome` — tenant auth
 
 API mirrors this:
+
 - `/api/auth/*` — better-auth (global; no tenant context needed)
 - `/api/auth/me`, `/api/auth/set-password` — custom auth endpoints (return memberships)
 - `/api/superadmin/*` — requires `requireSuperAdmin`
@@ -110,6 +111,7 @@ Auth instance in [packages/api/src/auth/index.ts](packages/api/src/auth/index.ts
 - `sendResetPassword` callback dispatches via the local email service; if the redirect URL contains `/welcome`, the "invite" copy is used (otherwise the "reset" copy)
 - `user.additionalFields`: `isSuperAdmin` only
 - Single canonical origin (`config.appOrigin`) for `baseURL` and `trustedOrigins`. No cross-subdomain cookies — host-only cookies on one origin
+- **Invite-only**: `databaseHooks.user.create.before` throws on any signup attempt. The only legitimate path to a new `users` row is the invite flow ([invite-user.ts](packages/api/src/services/invite-user.ts)), which inserts via Drizzle directly. Seed scripts ([seed.ts](packages/api/src/db/seed.ts), [demo-tenant.ts](packages/api/src/db/seeds/demo-tenant.ts)) do the same — direct `users` + `accounts` inserts using `hashPassword` from `better-auth/crypto`. **Do not call `auth.api.signUpEmail`** anywhere; it will be rejected by the hook.
 
 **Route mounting order** ([packages/api/src/app.ts](packages/api/src/app.ts)):
 
@@ -160,6 +162,14 @@ Audit logging via [packages/api/src/services/audit.ts](packages/api/src/services
 Drizzle tables ([packages/api/src/db/schema/](packages/api/src/db/schema/)): `kavas`, `users`, `kava_memberships`, `sessions`, **`accounts`**, **`verifications`** (both required by better-auth), `categories`, `products`, `customer_brand_pricing`, `customers`, `orders`, `order_items`, `audit_logs`.
 
 The `postgres` driver (not `pg`) is used. RLS is enforced at the DB level for tenant-scoped tables (categories, products, customers, customer_brand_pricing, orders, order_items) via the `app.current_kava_id` session variable set by `tenantMiddleware`. `users` and `kava_memberships` are global — tenant scoping for those is enforced in application code via `requireRole`.
+
+### Orders + ERP transmission
+
+`erp_status` (`pending | transmitted`) on `orders` is **orthogonal** to fulfillment `status` — an order can be `delivered` and `transmitted` independently. Transmission is recorded via `PATCH /api/k/:slug/admin/orders/:id/erp` with the AADE MARK; the endpoint is one-shot (409 on retry). `products.erpRef` is the ERP-side code; the name is **intentionally abstract** (not `galaxyCode`) so a future ERP swap doesn't require renaming.
+
+`erp_status='transmitted'` is a **hard lock** — line items can no longer be added/edited/cancelled/replaced. Enforced by `assertOrderMutable` in [routes/admin/orders.ts](packages/api/src/routes/admin/orders.ts), which also rejects mutations when the order's fulfillment status isn't `pending` or `confirmed`.
+
+`order_items.status` (`active | cancelled`) + `replacedByItemId` form a soft-cancel/replacement chain: cancelled lines stay in the table for audit. Totals and item counts must filter `status='active'` — see the SQL `filter (where ... = 'active')` clauses in the orders list query.
 
 ### Frontend structure
 

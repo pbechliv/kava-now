@@ -15,6 +15,7 @@ export const orders = pgTable("orders", {
   status: orderStatusEnum("status").notNull().default("pending"),
   notes: text("notes"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   erpStatus: erpStatusEnum("erp_status").notNull().default("pending"),
   erpMark: text("erp_mark"),
   erpTransmittedAt: timestamp("erp_transmitted_at", { withTimezone: true }),

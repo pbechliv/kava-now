@@ -1,5 +1,6 @@
 CREATE TYPE "public"."erp_status" AS ENUM('pending', 'transmitted');--> statement-breakpoint
 CREATE TYPE "public"."membership_role" AS ENUM('owner', 'staff', 'customer');--> statement-breakpoint
+CREATE TYPE "public"."order_item_status" AS ENUM('active', 'cancelled');--> statement-breakpoint
 CREATE TYPE "public"."order_status" AS ENUM('pending', 'confirmed', 'shipped', 'delivered', 'cancelled');--> statement-breakpoint
 CREATE TYPE "public"."product_unit" AS ENUM('bottle', 'case', 'keg');--> statement-breakpoint
 CREATE TABLE "kavas" (
@@ -132,6 +133,7 @@ CREATE TABLE "orders" (
 	"status" "order_status" DEFAULT 'pending' NOT NULL,
 	"notes" text,
 	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
+	"updated_at" timestamp with time zone DEFAULT now() NOT NULL,
 	"erp_status" "erp_status" DEFAULT 'pending' NOT NULL,
 	"erp_mark" text,
 	"erp_transmitted_at" timestamp with time zone,
@@ -143,8 +145,11 @@ CREATE TABLE "order_items" (
 	"order_id" uuid NOT NULL,
 	"product_id" uuid NOT NULL,
 	"quantity" integer NOT NULL,
+	"original_quantity" integer,
 	"unit_price" numeric(10, 2) NOT NULL,
-	"product_name" text NOT NULL
+	"product_name" text NOT NULL,
+	"status" "order_item_status" DEFAULT 'active' NOT NULL,
+	"replaced_by_item_id" uuid
 );
 --> statement-breakpoint
 CREATE TABLE "audit_logs" (
@@ -175,6 +180,7 @@ ALTER TABLE "orders" ADD CONSTRAINT "orders_customer_id_customers_id_fk" FOREIGN
 ALTER TABLE "orders" ADD CONSTRAINT "orders_erp_transmitted_by_users_id_fk" FOREIGN KEY ("erp_transmitted_by") REFERENCES "public"."users"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "order_items" ADD CONSTRAINT "order_items_order_id_orders_id_fk" FOREIGN KEY ("order_id") REFERENCES "public"."orders"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "order_items" ADD CONSTRAINT "order_items_product_id_products_id_fk" FOREIGN KEY ("product_id") REFERENCES "public"."products"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "order_items" ADD CONSTRAINT "order_items_replaced_by_item_id_order_items_id_fk" FOREIGN KEY ("replaced_by_item_id") REFERENCES "public"."order_items"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "audit_logs" ADD CONSTRAINT "audit_logs_kava_id_kavas_id_fk" FOREIGN KEY ("kava_id") REFERENCES "public"."kavas"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "audit_logs" ADD CONSTRAINT "audit_logs_actor_user_id_users_id_fk" FOREIGN KEY ("actor_user_id") REFERENCES "public"."users"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
 CREATE UNIQUE INDEX "kava_memberships_user_kava_idx" ON "kava_memberships" USING btree ("user_id","kava_id");--> statement-breakpoint

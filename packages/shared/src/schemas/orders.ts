@@ -19,3 +19,23 @@ export const markOrderTransmittedSchema = z.object({
 });
 
 export type MarkOrderTransmittedInput = z.infer<typeof markOrderTransmittedSchema>;
+
+export const addOrderItemSchema = z.object({
+  productId: z.string().uuid(),
+  quantity: z.number().int().positive(),
+});
+
+export type AddOrderItemInput = z.infer<typeof addOrderItemSchema>;
+
+export const updateOrderItemSchema = z.object({
+  quantity: z.number().int().positive(),
+});
+
+export type UpdateOrderItemInput = z.infer<typeof updateOrderItemSchema>;
+
+export const replaceOrderItemSchema = z.object({
+  productId: z.string().uuid(),
+  quantity: z.number().int().positive(),
+});
+
+export type ReplaceOrderItemInput = z.infer<typeof replaceOrderItemSchema>;
