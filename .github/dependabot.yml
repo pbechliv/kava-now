@@ -1,0 +1,79 @@
+version: 2
+updates:
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+      time: "06:00"
+      timezone: Europe/Berlin
+    open-pull-requests-limit: 10
+    versioning-strategy: increase
+    labels:
+      - dependencies
+    commit-message:
+      prefix: chore
+      include: scope
+    groups:
+      react:
+        patterns:
+          - react
+          - react-dom
+          - react-router
+          - "@types/react"
+          - "@types/react-dom"
+      tanstack:
+        patterns:
+          - "@tanstack/*"
+      tailwind:
+        patterns:
+          - tailwindcss
+          - "@tailwindcss/*"
+      drizzle:
+        patterns:
+          - drizzle-orm
+          - drizzle-kit
+      better-auth:
+        patterns:
+          - better-auth
+      hono:
+        patterns:
+          - hono
+          - "@hono/*"
+      vite-plus:
+        patterns:
+          - vite-plus
+          - "@voidzero-dev/*"
+      types:
+        patterns:
+          - "@types/*"
+        exclude-patterns:
+          - "@types/react"
+          - "@types/react-dom"
+
+  - package-ecosystem: docker-compose
+    directories:
+      - /
+    schedule:
+      interval: weekly
+      day: monday
+      time: "06:00"
+      timezone: Europe/Berlin
+    labels:
+      - dependencies
+    commit-message:
+      prefix: chore
+      include: scope
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+      time: "06:00"
+      timezone: Europe/Berlin
+    labels:
+      - dependencies
+    commit-message:
+      prefix: chore
+      include: scope
