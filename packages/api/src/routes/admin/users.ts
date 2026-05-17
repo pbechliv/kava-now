@@ -11,7 +11,6 @@ import {
   InviteConflict,
   userHasPassword,
 } from "../../services/invite-user";
-import { logAudit } from "../../services/audit";
 import type { AppEnv } from "../../types";
 
 const usersRouter = new Hono<AppEnv>();
@@ -77,12 +76,6 @@ usersRouter.post("/invite", async (c) => {
     throw err;
   }
 
-  await logAudit(c, {
-    action: "user.invite",
-    targetType: "user",
-    metadata: { email: parsed.data.email, role: parsed.data.role },
-  });
-
   return c.json({ success: true });
 });
 
@@ -115,13 +108,6 @@ usersRouter.post("/:id/resend-invite", async (c) => {
   await db.delete(verifications).where(eq(verifications.identifier, target.email));
 
   await sendInviteSetPassword(c, target.email, c.get("tenant")!.slug);
-
-  await logAudit(c, {
-    action: "user.invite.resend",
-    targetType: "user",
-    targetId: id,
-    metadata: { email: target.email },
-  });
 
   return c.json({ success: true });
 });
@@ -157,13 +143,6 @@ usersRouter.post("/:id/promote-to-owner", async (c) => {
     .update(tenantMemberships)
     .set({ role: "owner" })
     .where(and(eq(tenantMemberships.userId, id), eq(tenantMemberships.tenantId, tenantId)));
-
-  await logAudit(c, {
-    action: "user.promote",
-    targetType: "user",
-    targetId: id,
-    metadata: { email: target.email, newRole: "owner" },
-  });
 
   return c.json({ success: true });
 });
@@ -229,13 +208,6 @@ usersRouter.delete("/:id", async (c) => {
     await db.delete(accounts).where(eq(accounts.userId, id));
     await db.delete(users).where(eq(users.id, id));
   }
-
-  await logAudit(c, {
-    action: "user.delete",
-    targetType: "user",
-    targetId: id,
-    metadata: { email: target.email, role: target.role },
-  });
 
   return c.json({ success: true });
 });

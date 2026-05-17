@@ -10,7 +10,6 @@ import {
   customerBrandPricing,
 } from "../../db/schema/index";
 import { sendOrderStatusChange } from "../../services/email";
-import { logAudit } from "../../services/audit";
 import { resolvePrice } from "../../services/pricing";
 import type { AppEnv } from "../../types";
 import {
@@ -293,13 +292,6 @@ ordersRouter.patch("/:id/erp", async (c) => {
     .where(eq(orders.id, id))
     .returning();
 
-  await logAudit(c, {
-    action: "order.erp.transmitted",
-    targetType: "order",
-    targetId: id,
-    metadata: { mark: parsed.data.mark },
-  });
-
   return c.json(updated);
 });
 
@@ -389,19 +381,6 @@ ordersRouter.post("/:id/items", async (c) => {
     return item;
   });
 
-  await logAudit(c, {
-    action: "order.item.added",
-    targetType: "order",
-    targetId: id,
-    metadata: {
-      itemId: inserted?.id,
-      productId: resolved.product.id,
-      productName: resolved.product.name,
-      quantity: parsed.data.quantity,
-      unitPrice: resolved.unitPrice,
-    },
-  });
-
   return c.json(inserted, 201);
 });
 
@@ -441,18 +420,6 @@ ordersRouter.patch("/:id/items/:itemId", async (c) => {
     return u;
   });
 
-  await logAudit(c, {
-    action: "order.item.quantityUpdated",
-    targetType: "order",
-    targetId: id,
-    metadata: {
-      itemId,
-      productName: item.productName,
-      oldQuantity: item.quantity,
-      newQuantity: parsed.data.quantity,
-    },
-  });
-
   return c.json(updated);
 });
 
@@ -485,17 +452,6 @@ ordersRouter.post("/:id/items/:itemId/cancel", async (c) => {
       .returning();
     await tx.update(orders).set({ updatedAt: new Date() }).where(eq(orders.id, id));
     return u;
-  });
-
-  await logAudit(c, {
-    action: "order.item.cancelled",
-    targetType: "order",
-    targetId: id,
-    metadata: {
-      itemId,
-      productName: item.productName,
-      quantity: item.quantity,
-    },
   });
 
   return c.json(cancelled);
@@ -556,22 +512,6 @@ ordersRouter.post("/:id/items/:itemId/replace", async (c) => {
     await tx.update(orders).set({ updatedAt: new Date() }).where(eq(orders.id, id));
 
     return { newItem };
-  });
-
-  await logAudit(c, {
-    action: "order.item.replaced",
-    targetType: "order",
-    targetId: id,
-    metadata: {
-      oldItemId: itemId,
-      oldProductName: existing.productName,
-      oldQuantity: existing.quantity,
-      newItemId: result.newItem.id,
-      newProductId: resolved.product.id,
-      newProductName: resolved.product.name,
-      newQuantity: parsed.data.quantity,
-      newUnitPrice: resolved.unitPrice,
-    },
   });
 
   return c.json(result.newItem, 201);

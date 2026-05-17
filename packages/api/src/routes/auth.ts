@@ -7,7 +7,6 @@ import { db } from "../db/connection";
 import { accounts, tenantMemberships, tenants, users } from "../db/schema/index";
 import { auth as betterAuth } from "../auth";
 import { requireAuth } from "../middleware/require-auth";
-import { logAudit } from "../services/audit";
 import { isUniqueViolation, UNIQUE_CONSTRAINTS } from "../db/errors";
 import type { AppEnv } from "../types";
 
@@ -35,7 +34,6 @@ auth.post("/set-password", requireAuth, async (c) => {
     body: { newPassword: parsed.data.newPassword },
     headers: c.req.raw.headers,
   });
-  await logAudit(c, { action: "auth.set-password" });
   return c.json({ success: true });
 });
 
@@ -139,13 +137,6 @@ auth.patch("/me", requireAuth, async (c) => {
     }
     throw err;
   }
-
-  await logAudit(c, {
-    action: "user.profile.update",
-    targetType: "user",
-    targetId: authUser.id,
-    metadata: { fields: Object.keys(updateData) },
-  });
 
   return c.json({ success: true });
 });

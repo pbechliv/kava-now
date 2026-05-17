@@ -7,7 +7,6 @@ import { auth } from "../../auth";
 import { sendInviteSetPassword } from "../../services/invite-user";
 import { requireAuth } from "../../middleware/require-auth";
 import { requireSuperAdmin } from "../../middleware/require-superadmin";
-import { logAudit } from "../../services/audit";
 import { isUniqueViolation, UNIQUE_CONSTRAINTS } from "../../db/errors";
 import type { AppEnv } from "../../types";
 
@@ -123,13 +122,6 @@ superadmin.post("/tenants", async (c) => {
     await sendInviteSetPassword(c, email, slug);
   }
 
-  await logAudit(c, {
-    action: "superadmin.tenant.create",
-    targetType: "tenant",
-    targetId: tenant.id,
-    metadata: { name, slug, ownerEmail: email, hasPassword: !!password },
-  });
-
   return c.json({ success: true, slug, hasPassword: !!password });
 });
 
@@ -146,20 +138,7 @@ superadmin.delete("/tenants/:id", async (c) => {
     return c.json({ error: "Tenant not found" }, 404);
   }
 
-  const [full] = await db
-    .select({ name: tenants.name, slug: tenants.slug })
-    .from(tenants)
-    .where(eq(tenants.id, id))
-    .limit(1);
-
   await db.delete(tenants).where(eq(tenants.id, id));
-
-  await logAudit(c, {
-    action: "superadmin.tenant.delete",
-    targetType: "tenant",
-    targetId: id,
-    metadata: { name: full?.name, slug: full?.slug },
-  });
 
   return c.json({ success: true });
 });

@@ -10,7 +10,6 @@ import {
 } from "@kava-now/shared";
 import { db } from "../../db/connection";
 import { products, categories, orderItems } from "../../db/schema/index";
-import { logAudit } from "../../services/audit";
 import { isUniqueViolation, UNIQUE_CONSTRAINTS } from "../../db/errors";
 import type { AppEnv } from "../../types";
 
@@ -210,17 +209,6 @@ productsRouter.post("/import", async (c) => {
       categoriesCreated,
       total: rows.length,
     } satisfies ImportProductsResult;
-  });
-
-  await logAudit(c, {
-    action: "product.import",
-    metadata: {
-      inserted: result.inserted,
-      updated: result.updated,
-      categoriesCreated: result.categoriesCreated,
-      total: result.total,
-      source: "csv-upload",
-    },
   });
 
   return c.json(result);

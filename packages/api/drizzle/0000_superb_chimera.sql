@@ -153,18 +153,6 @@ CREATE TABLE "order_items" (
 	"replaced_by_item_id" uuid
 );
 --> statement-breakpoint
-CREATE TABLE "audit_logs" (
-	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
-	"tenant_id" uuid,
-	"actor_user_id" uuid,
-	"actor_email" text,
-	"action" text NOT NULL,
-	"target_type" text,
-	"target_id" text,
-	"metadata" jsonb DEFAULT '{}'::jsonb NOT NULL,
-	"created_at" timestamp with time zone DEFAULT now() NOT NULL
-);
---> statement-breakpoint
 ALTER TABLE "tenant_memberships" ADD CONSTRAINT "tenant_memberships_user_id_users_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."users"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "tenant_memberships" ADD CONSTRAINT "tenant_memberships_tenant_id_tenants_id_fk" FOREIGN KEY ("tenant_id") REFERENCES "public"."tenants"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "tenant_memberships" ADD CONSTRAINT "tenant_memberships_customer_id_customers_id_fk" FOREIGN KEY ("customer_id") REFERENCES "public"."customers"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
@@ -182,8 +170,6 @@ ALTER TABLE "orders" ADD CONSTRAINT "orders_erp_transmitted_by_users_id_fk" FORE
 ALTER TABLE "order_items" ADD CONSTRAINT "order_items_order_id_orders_id_fk" FOREIGN KEY ("order_id") REFERENCES "public"."orders"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "order_items" ADD CONSTRAINT "order_items_product_id_products_id_fk" FOREIGN KEY ("product_id") REFERENCES "public"."products"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "order_items" ADD CONSTRAINT "order_items_replaced_by_item_id_order_items_id_fk" FOREIGN KEY ("replaced_by_item_id") REFERENCES "public"."order_items"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "audit_logs" ADD CONSTRAINT "audit_logs_tenant_id_tenants_id_fk" FOREIGN KEY ("tenant_id") REFERENCES "public"."tenants"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "audit_logs" ADD CONSTRAINT "audit_logs_actor_user_id_users_id_fk" FOREIGN KEY ("actor_user_id") REFERENCES "public"."users"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
 CREATE UNIQUE INDEX "tenant_memberships_user_tenant_idx" ON "tenant_memberships" USING btree ("user_id","tenant_id");--> statement-breakpoint
 CREATE INDEX "tenant_memberships_tenant_idx" ON "tenant_memberships" USING btree ("tenant_id");--> statement-breakpoint
 CREATE INDEX "tenant_memberships_customer_idx" ON "tenant_memberships" USING btree ("customer_id");--> statement-breakpoint
@@ -193,6 +179,4 @@ CREATE INDEX "verifications_identifier_idx" ON "verifications" USING btree ("ide
 CREATE UNIQUE INDEX "categories_tenant_name_lower_idx" ON "categories" USING btree ("tenant_id",lower("name"));--> statement-breakpoint
 CREATE UNIQUE INDEX "products_tenant_name_brand_idx" ON "products" USING btree ("tenant_id","name","brand");--> statement-breakpoint
 CREATE UNIQUE INDEX "products_tenant_erp_ref_idx" ON "products" USING btree ("tenant_id","erp_ref") WHERE "products"."erp_ref" is not null;--> statement-breakpoint
-CREATE UNIQUE INDEX "customers_tenant_erp_ref_idx" ON "customers" USING btree ("tenant_id","erp_ref") WHERE "customers"."erp_ref" is not null;--> statement-breakpoint
-CREATE INDEX "audit_logs_tenant_id_created_at_idx" ON "audit_logs" USING btree ("tenant_id","created_at");--> statement-breakpoint
-CREATE INDEX "audit_logs_actor_user_id_idx" ON "audit_logs" USING btree ("actor_user_id");
+CREATE UNIQUE INDEX "customers_tenant_erp_ref_idx" ON "customers" USING btree ("tenant_id","erp_ref") WHERE "customers"."erp_ref" is not null;

@@ -4,7 +4,6 @@ import { z } from "zod";
 import { API_ERROR_CODES } from "@kava-now/shared";
 import { db } from "../../db/connection";
 import { customers } from "../../db/schema/index";
-import { logAudit } from "../../services/audit";
 import type { AppEnv } from "../../types";
 
 const profileRouter = new Hono<AppEnv>();
@@ -75,13 +74,6 @@ profileRouter.patch("/", async (c) => {
   if (!updated) {
     return c.json({ error: "Customer not found" }, 404);
   }
-
-  await logAudit(c, {
-    action: "customer.profile.update",
-    targetType: "customer",
-    targetId: customerId,
-    metadata: { fields: Object.keys(updateData) },
-  });
 
   return c.json(updated);
 });

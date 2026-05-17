@@ -155,11 +155,9 @@ packages/api/src/routes/
 
 `adminRoutes`/`customerRoutes` are mounted under the tenant subrouter (`/api/k/:slug/admin/*`, `/api/k/:slug/customer/*`). They apply `requireAuth` + `requireRole(...)` at the router root.
 
-Audit logging via [packages/api/src/services/audit.ts](packages/api/src/services/audit.ts) (`logAudit(c, { action, targetType?, targetId?, metadata? })`), persisted in `audit_logs`.
-
 ### Database schema
 
-Drizzle tables ([packages/api/src/db/schema/](packages/api/src/db/schema/)): `tenants`, `users`, `tenant_memberships`, `sessions`, **`accounts`**, **`verifications`** (both required by better-auth), `categories`, `products`, `customer_brand_pricing`, `customers`, `orders`, `order_items`, `audit_logs`.
+Drizzle tables ([packages/api/src/db/schema/](packages/api/src/db/schema/)): `tenants`, `users`, `tenant_memberships`, `sessions`, **`accounts`**, **`verifications`** (both required by better-auth), `categories`, `products`, `customer_brand_pricing`, `customers`, `orders`, `order_items`.
 
 The `postgres` driver (not `pg`) is used. RLS is enforced at the DB level for tenant-scoped tables (categories, products, customers, customer_brand_pricing, orders, order_items) via the `app.current_tenant_id` session variable set by `tenantMiddleware`. `users` and `tenant_memberships` are global — tenant scoping for those is enforced in application code via `requireRole`.
 

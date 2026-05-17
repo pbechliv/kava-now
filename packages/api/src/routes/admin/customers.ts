@@ -25,7 +25,6 @@ import {
   InviteConflict,
   userHasPassword,
 } from "../../services/invite-user";
-import { logAudit } from "../../services/audit";
 import { isUniqueViolation, UNIQUE_CONSTRAINTS } from "../../db/errors";
 import type { AppEnv } from "../../types";
 
@@ -243,13 +242,6 @@ customersRouter.delete("/:id", async (c) => {
     );
   }
 
-  // Capture linked memberships for the audit log before the cascade removes them.
-  const linkedUsers = await db
-    .select({ id: users.id, email: users.email })
-    .from(tenantMemberships)
-    .innerJoin(users, eq(users.id, tenantMemberships.userId))
-    .where(and(eq(tenantMemberships.customerId, id), eq(tenantMemberships.tenantId, tenantId)));
-
   const [deleted] = await db
     .delete(customers)
     .where(and(eq(customers.id, id), eq(customers.tenantId, tenantId)))
@@ -258,13 +250,6 @@ customersRouter.delete("/:id", async (c) => {
   if (!deleted) {
     return c.json({ error: "Customer not found" }, 404);
   }
-
-  await logAudit(c, {
-    action: "customer.delete",
-    targetType: "customer",
-    targetId: id,
-    metadata: { name: deleted.name, deletedUsers: linkedUsers },
-  });
 
   return c.json({ message: "Customer deleted" });
 });
@@ -414,13 +399,6 @@ customersRouter.post("/:customerId/users/:userId/resend-invite", async (c) => {
   await db.delete(verifications).where(eq(verifications.identifier, target.email));
 
   await sendInviteSetPassword(c, target.email, c.get("tenant")!.slug);
-
-  await logAudit(c, {
-    action: "customer.user.invite.resend",
-    targetType: "user",
-    targetId: userId,
-    metadata: { email: target.email, customerId },
-  });
 
   return c.json({ success: true });
 });
