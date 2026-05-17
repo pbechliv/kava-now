@@ -1,7 +1,11 @@
+import type { ApiErrorCode, ApiErrorBody } from "@kava-now/shared";
+import { translateApiErrorCode } from "./api-error-messages";
+
 export class ApiError extends Error {
   constructor(
     public status: number,
     message: string,
+    public code?: ApiErrorCode,
   ) {
     super(message);
     this.name = "ApiError";
@@ -32,9 +36,14 @@ async function request<T>(method: string, path: string, body?: unknown): Promise
   }
 
   if (!res.ok) {
-    const data = await res.json().catch(() => ({ error: res.statusText }));
-    const typed = data as { error?: string; message?: string };
-    throw new ApiError(res.status, typed.error ?? typed.message ?? res.statusText);
+    const data = (await res.json().catch(() => ({ error: res.statusText }))) as Partial<
+      ApiErrorBody & { message: string }
+    >;
+    const code = data.code;
+    const localized = translateApiErrorCode(code);
+    const fallback =
+      typeof data.error === "string" ? data.error : (data.message ?? res.statusText);
+    throw new ApiError(res.status, localized ?? fallback, code);
   }
 
   // Handle 204 No Content

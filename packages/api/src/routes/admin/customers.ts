@@ -7,6 +7,7 @@ import {
   updateCustomerSchema,
   updateCustomerBrandPricingSchema,
   paginationQuerySchema,
+  API_ERROR_CODES,
 } from "@kava-now/shared";
 import { db } from "../../db/connection";
 import {
@@ -25,7 +26,13 @@ import {
   userHasPassword,
 } from "../../services/invite-user";
 import { logAudit } from "../../services/audit";
+import { isUniqueViolation, UNIQUE_CONSTRAINTS } from "../../db/errors";
 import type { AppEnv } from "../../types";
+
+const DUPLICATE_ERP_REF_RESPONSE = {
+  code: API_ERROR_CODES.DUPLICATE_CUSTOMER_ERP_REF,
+  error: "Duplicate ERP reference for customer in this tenant",
+} as const;
 
 const customersRouter = new Hono<AppEnv>();
 
@@ -108,10 +115,18 @@ customersRouter.post("/", async (c) => {
     return c.json({ error: parsed.error.flatten().fieldErrors }, 400);
   }
 
-  const [customer] = await db
-    .insert(customers)
-    .values({ ...parsed.data, tenantId })
-    .returning();
+  let customer;
+  try {
+    [customer] = await db
+      .insert(customers)
+      .values({ ...parsed.data, tenantId })
+      .returning();
+  } catch (err) {
+    if (isUniqueViolation(err, UNIQUE_CONSTRAINTS.customerErpRef)) {
+      return c.json(DUPLICATE_ERP_REF_RESPONSE, 409);
+    }
+    throw err;
+  }
 
   // If email provided, also create a linked customer-user + send the
   // welcome set-password link. We don't fail the whole request if email
@@ -185,11 +200,19 @@ customersRouter.put("/:id", async (c) => {
     return c.json({ error: parsed.error.flatten().fieldErrors }, 400);
   }
 
-  const [customer] = await db
-    .update(customers)
-    .set(parsed.data)
-    .where(and(eq(customers.id, id), eq(customers.tenantId, tenantId)))
-    .returning();
+  let customer;
+  try {
+    [customer] = await db
+      .update(customers)
+      .set(parsed.data)
+      .where(and(eq(customers.id, id), eq(customers.tenantId, tenantId)))
+      .returning();
+  } catch (err) {
+    if (isUniqueViolation(err, UNIQUE_CONSTRAINTS.customerErpRef)) {
+      return c.json(DUPLICATE_ERP_REF_RESPONSE, 409);
+    }
+    throw err;
+  }
 
   if (!customer) {
     return c.json({ error: "Ο πελάτης δεν βρέθηκε" }, 404);

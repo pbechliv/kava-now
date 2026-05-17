@@ -8,6 +8,7 @@ import {
   timestamp,
   uniqueIndex,
 } from "drizzle-orm/pg-core";
+import { sql } from "drizzle-orm";
 import { productUnitEnum } from "./enums";
 import { tenants } from "./tenants";
 import { categories } from "./categories";
@@ -37,5 +38,8 @@ export const products = pgTable(
   },
   (table) => [
     uniqueIndex("products_tenant_name_brand_idx").on(table.tenantId, table.name, table.brand),
+    uniqueIndex("products_tenant_erp_ref_idx")
+      .on(table.tenantId, table.erpRef)
+      .where(sql`${table.erpRef} is not null`),
   ],
 );

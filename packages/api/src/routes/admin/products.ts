@@ -6,11 +6,18 @@ import {
   importProductsBatchSchema,
   paginationQuerySchema,
   type ImportProductsResult,
+  API_ERROR_CODES,
 } from "@kava-now/shared";
 import { db } from "../../db/connection";
 import { products, categories, orderItems } from "../../db/schema/index";
 import { logAudit } from "../../services/audit";
+import { isUniqueViolation, UNIQUE_CONSTRAINTS } from "../../db/errors";
 import type { AppEnv } from "../../types";
+
+const DUPLICATE_ERP_REF_RESPONSE = {
+  code: API_ERROR_CODES.DUPLICATE_PRODUCT_ERP_REF,
+  error: "Duplicate ERP reference for product in this tenant",
+} as const;
 
 const productsRouter = new Hono<AppEnv>();
 
@@ -214,15 +221,23 @@ productsRouter.post("/", async (c) => {
     return c.json({ error: parsed.error.flatten().fieldErrors }, 400);
   }
 
-  const [product] = await db
-    .insert(products)
-    .values({
-      ...parsed.data,
-      basePrice: String(parsed.data.basePrice),
-      alcoholPct: parsed.data.alcoholPct != null ? String(parsed.data.alcoholPct) : null,
-      tenantId,
-    })
-    .returning();
+  let product;
+  try {
+    [product] = await db
+      .insert(products)
+      .values({
+        ...parsed.data,
+        basePrice: String(parsed.data.basePrice),
+        alcoholPct: parsed.data.alcoholPct != null ? String(parsed.data.alcoholPct) : null,
+        tenantId,
+      })
+      .returning();
+  } catch (err) {
+    if (isUniqueViolation(err, UNIQUE_CONSTRAINTS.productErpRef)) {
+      return c.json(DUPLICATE_ERP_REF_RESPONSE, 409);
+    }
+    throw err;
+  }
 
   return c.json(product, 201);
 });
@@ -285,11 +300,19 @@ productsRouter.put("/:id", async (c) => {
     updates.alcoholPct = null;
   }
 
-  const [product] = await db
-    .update(products)
-    .set(updates)
-    .where(and(eq(products.id, id), eq(products.tenantId, tenantId)))
-    .returning();
+  let product;
+  try {
+    [product] = await db
+      .update(products)
+      .set(updates)
+      .where(and(eq(products.id, id), eq(products.tenantId, tenantId)))
+      .returning();
+  } catch (err) {
+    if (isUniqueViolation(err, UNIQUE_CONSTRAINTS.productErpRef)) {
+      return c.json(DUPLICATE_ERP_REF_RESPONSE, 409);
+    }
+    throw err;
+  }
 
   if (!product) {
     return c.json({ error: "Το προϊόν δεν βρέθηκε" }, 404);
