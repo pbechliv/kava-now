@@ -12,6 +12,7 @@ export const createProductSchema = z.object({
   volumeMl: z.number().int().positive().optional().nullable(),
   alcoholPct: z.number().min(0).max(100).optional().nullable(),
   sku: z.string().optional(),
+  erpRef: z.string().optional().nullable(),
   imageUrl: z.string().url().optional().nullable(),
 });
 
@@ -25,6 +26,7 @@ export const updateProductSchema = z.object({
   volumeMl: z.number().int().positive().optional().nullable(),
   alcoholPct: z.number().min(0).max(100).optional().nullable(),
   sku: z.string().optional().nullable(),
+  erpRef: z.string().optional().nullable(),
   imageUrl: z.string().url().optional().nullable(),
   active: z.boolean().optional(),
 });
@@ -36,6 +38,7 @@ export const importProductRowSchema = z.object({
   categoryName: z.string().trim().min(1).optional(),
   description: z.string().trim().optional(),
   sku: z.string().trim().optional(),
+  erpRef: z.string().trim().optional(),
   unit: z.enum(["bottle", "case", "keg"]).optional(),
   volumeMl: z.number().int().positive().optional(),
   alcoholPct: z.number().min(0).max(100).optional(),

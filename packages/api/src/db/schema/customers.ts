@@ -12,5 +12,9 @@ export const customers = pgTable("customers", {
   phone: text("phone"),
   contactPerson: text("contact_person"),
   notes: text("notes"),
+  vatId: text("vat_id"),
+  taxOffice: text("tax_office"),
+  profession: text("profession"),
+  billingAddress: text("billing_address"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });

@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient, keepPreviousData } from "@tanstack/react-query";
 import { useTenantApi, useTenantSlug } from "./use-tenant-api";
-import type { OrderStatus, PaginatedResponse } from "@kava-now/shared";
+import type { ErpStatus, OrderStatus, PaginatedResponse } from "@kava-now/shared";
 
 interface OrderFilters {
   status?: OrderStatus;
@@ -18,6 +18,7 @@ export interface AdminOrderRow {
   notes: string | null;
   createdAt: string;
   customerName: string | null;
+  erpStatus: ErpStatus;
   itemCount: number;
   total: number;
 }
@@ -31,12 +32,25 @@ export interface AdminOrderDetail {
   customerName: string | null;
   customerEmail: string | null;
   customerPhone: string | null;
+  customerAddress: string | null;
+  customerVatId: string | null;
+  customerTaxOffice: string | null;
+  customerProfession: string | null;
+  customerBillingAddress: string | null;
+  erpStatus: ErpStatus;
+  erpMark: string | null;
+  erpTransmittedAt: string | null;
+  erpTransmittedBy: string | null;
+  erpTransmittedByName: string | null;
+  erpTransmittedByEmail: string | null;
   items: {
     id: string;
     productId: string;
     productName: string;
     quantity: number;
     unitPrice: string;
+    sku: string | null;
+    erpRef: string | null;
   }[];
   total: number;
 }
@@ -83,6 +97,20 @@ export function useUpdateOrderStatus() {
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: ["admin", slug, "orders"] });
       void qc.invalidateQueries({ queryKey: ["admin", slug, "dashboard"] });
+    },
+  });
+}
+
+export function useMarkOrderTransmitted() {
+  const slug = useTenantSlug();
+  const tApi = useTenantApi();
+  const qc = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ id, mark }: { id: string; mark: string }) =>
+      tApi.patch(`/admin/orders/${id}/erp`, { mark }),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ["admin", slug, "orders"] });
     },
   });
 }

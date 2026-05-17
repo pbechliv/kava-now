@@ -20,13 +20,14 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Badge } from "@/components/ui/badge";
 import { Spinner } from "@/components/spinner";
 import { EmptyState } from "@/components/empty-state";
 import { OrderStatusBadge } from "@/components/order-status-badge";
 import { PaginationControls } from "@/components/PaginationControls";
 import { useAdminOrders } from "@/lib/hooks/use-admin-orders";
 import { useCustomers } from "@/lib/hooks/use-customers";
-import type { OrderStatus } from "@kava-now/shared";
+import { ERP_STATUS_LABELS, type OrderStatus } from "@kava-now/shared";
 
 const PAGE_SIZE = 50;
 const CUSTOMER_FILTER_LIMIT = 100;
@@ -141,6 +142,7 @@ export function OrdersPage() {
                     <TableHead className="text-center">Προϊόντα</TableHead>
                     <TableHead className="text-right">Σύνολο</TableHead>
                     <TableHead>Κατάσταση</TableHead>
+                    <TableHead>ERP</TableHead>
                     <TableHead />
                   </TableRow>
                 </TableHeader>
@@ -162,6 +164,11 @@ export function OrdersPage() {
                       </TableCell>
                       <TableCell>
                         <OrderStatusBadge status={order.status} />
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant={order.erpStatus === "transmitted" ? "success" : "muted"}>
+                          {ERP_STATUS_LABELS[order.erpStatus]}
+                        </Badge>
                       </TableCell>
                       <TableCell className="text-right">
                         <Link

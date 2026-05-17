@@ -3,6 +3,7 @@
 export type MembershipRole = "owner" | "staff" | "customer";
 export type OrderStatus = "pending" | "confirmed" | "shipped" | "delivered" | "cancelled";
 export type ProductUnit = "bottle" | "case" | "keg";
+export type ErpStatus = "pending" | "transmitted";
 
 export interface Kava {
   id: string;
@@ -56,6 +57,7 @@ export interface Product {
   description: string | null;
   imageUrl: string | null;
   sku: string | null;
+  erpRef: string | null;
   basePrice: number;
   unit: ProductUnit;
   volumeMl: number | null;
@@ -73,6 +75,10 @@ export interface Customer {
   phone: string | null;
   contactPerson: string | null;
   notes: string | null;
+  vatId: string | null;
+  taxOffice: string | null;
+  profession: string | null;
+  billingAddress: string | null;
   createdAt: string;
 }
 
@@ -89,6 +95,9 @@ export interface Order {
   status: OrderStatus;
   notes: string | null;
   createdAt: string;
+  erpStatus: ErpStatus;
+  erpMark: string | null;
+  erpTransmittedAt: string | null;
 }
 
 export interface OrderItem {

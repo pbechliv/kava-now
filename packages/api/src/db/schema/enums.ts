@@ -11,3 +11,5 @@ export const orderStatusEnum = pgEnum("order_status", [
 ]);
 
 export const productUnitEnum = pgEnum("product_unit", ["bottle", "case", "keg"]);
+
+export const erpStatusEnum = pgEnum("erp_status", ["pending", "transmitted"]);

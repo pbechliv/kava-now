@@ -1,4 +1,4 @@
-import type { OrderStatus, MembershipRole, ProductUnit } from "./types";
+import type { OrderStatus, MembershipRole, ProductUnit, ErpStatus } from "./types";
 
 export const ORDER_STATUS_LABELS: Record<OrderStatus, string> = {
   pending: "Σε αναμονή",
@@ -18,4 +18,9 @@ export const UNIT_LABELS: Record<ProductUnit, string> = {
   bottle: "Φιάλη",
   case: "Κιβώτιο",
   keg: "Βαρέλι",
+};
+
+export const ERP_STATUS_LABELS: Record<ErpStatus, string> = {
+  pending: "Εκκρεμεί",
+  transmitted: "Διαβιβασμένη",
 };

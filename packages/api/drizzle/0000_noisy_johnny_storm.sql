@@ -1,3 +1,4 @@
+CREATE TYPE "public"."erp_status" AS ENUM('pending', 'transmitted');--> statement-breakpoint
 CREATE TYPE "public"."membership_role" AS ENUM('owner', 'staff', 'customer');--> statement-breakpoint
 CREATE TYPE "public"."order_status" AS ENUM('pending', 'confirmed', 'shipped', 'delivered', 'cancelled');--> statement-breakpoint
 CREATE TYPE "public"."product_unit" AS ENUM('bottle', 'case', 'keg');--> statement-breakpoint
@@ -92,6 +93,7 @@ CREATE TABLE "products" (
 	"description" text,
 	"image_url" text,
 	"sku" text,
+	"erp_ref" text,
 	"base_price" numeric(10, 2) NOT NULL,
 	"unit" "product_unit" DEFAULT 'bottle' NOT NULL,
 	"volume_ml" integer,
@@ -109,6 +111,10 @@ CREATE TABLE "customers" (
 	"phone" text,
 	"contact_person" text,
 	"notes" text,
+	"vat_id" text,
+	"tax_office" text,
+	"profession" text,
+	"billing_address" text,
 	"created_at" timestamp with time zone DEFAULT now() NOT NULL
 );
 --> statement-breakpoint
@@ -125,7 +131,11 @@ CREATE TABLE "orders" (
 	"customer_id" uuid NOT NULL,
 	"status" "order_status" DEFAULT 'pending' NOT NULL,
 	"notes" text,
-	"created_at" timestamp with time zone DEFAULT now() NOT NULL
+	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
+	"erp_status" "erp_status" DEFAULT 'pending' NOT NULL,
+	"erp_mark" text,
+	"erp_transmitted_at" timestamp with time zone,
+	"erp_transmitted_by" uuid
 );
 --> statement-breakpoint
 CREATE TABLE "order_items" (
@@ -162,6 +172,7 @@ ALTER TABLE "customers" ADD CONSTRAINT "customers_kava_id_kavas_id_fk" FOREIGN K
 ALTER TABLE "customer_brand_pricing" ADD CONSTRAINT "customer_brand_pricing_customer_id_customers_id_fk" FOREIGN KEY ("customer_id") REFERENCES "public"."customers"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "orders" ADD CONSTRAINT "orders_kava_id_kavas_id_fk" FOREIGN KEY ("kava_id") REFERENCES "public"."kavas"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "orders" ADD CONSTRAINT "orders_customer_id_customers_id_fk" FOREIGN KEY ("customer_id") REFERENCES "public"."customers"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "orders" ADD CONSTRAINT "orders_erp_transmitted_by_users_id_fk" FOREIGN KEY ("erp_transmitted_by") REFERENCES "public"."users"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "order_items" ADD CONSTRAINT "order_items_order_id_orders_id_fk" FOREIGN KEY ("order_id") REFERENCES "public"."orders"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "order_items" ADD CONSTRAINT "order_items_product_id_products_id_fk" FOREIGN KEY ("product_id") REFERENCES "public"."products"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "audit_logs" ADD CONSTRAINT "audit_logs_kava_id_kavas_id_fk" FOREIGN KEY ("kava_id") REFERENCES "public"."kavas"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint

@@ -61,6 +61,7 @@ export function ProductFormPage() {
         volumeMl: product.volumeMl,
         alcoholPct: product.alcoholPct != null ? Number(product.alcoholPct) : undefined,
         sku: product.sku ?? undefined,
+        erpRef: product.erpRef ?? undefined,
         imageUrl: product.imageUrl,
       });
     }
@@ -207,6 +208,23 @@ export function ProductFormPage() {
                       <FormLabel>SKU</FormLabel>
                       <FormControl>
                         <Input {...field} value={field.value ?? ""} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="erpRef"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Κωδικός ERP</FormLabel>
+                      <FormControl>
+                        <Input
+                          {...field}
+                          value={field.value ?? ""}
+                          onChange={(e) => field.onChange(e.target.value || null)}
+                        />
                       </FormControl>
                       <FormMessage />
                     </FormItem>

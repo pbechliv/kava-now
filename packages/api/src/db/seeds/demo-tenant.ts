@@ -1,7 +1,8 @@
 import { eq } from "drizzle-orm";
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js";
-import { auth } from "../../auth/index.js";
+import { hashPassword } from "better-auth/crypto";
 import {
+  accounts,
   categories,
   customerBrandPricing,
   customers,
@@ -44,6 +45,10 @@ const DEMO_CUSTOMERS = [
     address: "Αδριανού 88, Πλάκα, Αθήνα",
     contactPerson: "Νίκος Παπαδόπουλος",
     notes: "Παράδοση Δευτέρα & Πέμπτη πρωί",
+    vatId: "099123456",
+    taxOffice: "Α' Αθηνών",
+    profession: "Ταβέρνα / Εστιατόριο",
+    billingAddress: "Αδριανού 88, Πλάκα, 10558 Αθήνα",
   },
   {
     name: "Εστιατόριο Διόνυσος",
@@ -52,6 +57,10 @@ const DEMO_CUSTOMERS = [
     address: "Σκουφά 21, Κολωνάκι, Αθήνα",
     contactPerson: "Μαρία Αντωνίου",
     notes: "Premium προμηθευτής — άριστη πιστωτική γραμμή",
+    vatId: "099887766",
+    taxOffice: "Δ' Αθηνών",
+    profession: "Εστιατόριο",
+    billingAddress: "Σκουφά 21, Κολωνάκι, 10673 Αθήνα",
   },
   {
     name: "Καφέ Αγορά",
@@ -60,6 +69,10 @@ const DEMO_CUSTOMERS = [
     address: "Πανδρόσου 14, Μοναστηράκι, Αθήνα",
     contactPerson: "Γιώργος Δημητρίου",
     notes: null,
+    vatId: "099445522",
+    taxOffice: "ΙΓ' Αθηνών",
+    profession: "Καφετέρια",
+    billingAddress: "Πανδρόσου 14, Μοναστηράκι, 10555 Αθήνα",
   },
   {
     name: "Μπαρ Στοά Μύλος",
@@ -68,6 +81,10 @@ const DEMO_CUSTOMERS = [
     address: "Μιαούλη 17, Ψυρρή, Αθήνα",
     contactPerson: "Έλενα Σταυρίδη",
     notes: "Παραγγελίες κάθε δεύτερη Τετάρτη",
+    vatId: "099334411",
+    taxOffice: "ΙΕ' Αθηνών",
+    profession: "Μπαρ",
+    billingAddress: "Μιαούλη 17, Ψυρρή, 10554 Αθήνα",
   },
   {
     name: "Πιτσαρία Bella Napoli",
@@ -76,6 +93,10 @@ const DEMO_CUSTOMERS = [
     address: "Θεμιστοκλέους 65, Εξάρχεια, Αθήνα",
     contactPerson: "Stefano Conti",
     notes: null,
+    vatId: "099556677",
+    taxOffice: "Στ' Αθηνών",
+    profession: "Πιτσαρία",
+    billingAddress: "Θεμιστοκλέους 65, Εξάρχεια, 10683 Αθήνα",
   },
 ] as const;
 
@@ -256,7 +277,7 @@ export async function seedDemoTenant(db: PostgresJsDatabase): Promise<void> {
   const insertedProducts = await db
     .insert(products)
     .values(
-      DEMO_PRODUCTS.map((sp) => ({
+      DEMO_PRODUCTS.map((sp, index) => ({
         kavaId: demoKava.id,
         name: sp.name,
         brand: sp.brand ?? sp.name,
@@ -267,6 +288,7 @@ export async function seedDemoTenant(db: PostgresJsDatabase): Promise<void> {
         unit: sp.unit,
         volumeMl: sp.volumeMl ?? null,
         alcoholPct: sp.alcoholPct ?? null,
+        erpRef: String(100001 + index),
         active: true,
       })),
     )
@@ -292,16 +314,22 @@ export async function seedDemoTenant(db: PostgresJsDatabase): Promise<void> {
   const linkedCustomerId = customerByName.get("Ταβέρνα Ο Νίκος");
   if (!linkedCustomerId) throw new Error("Demo customer org missing: Ταβέρνα Ο Νίκος");
 
-  await auth.api.signUpEmail({
-    body: { email: customerEmail, password: customerPassword, name: "Demo Customer" },
-  });
-  await db.update(users).set({ emailVerified: true }).where(eq(users.email, customerEmail));
   const [customerUser] = await db
-    .select({ id: users.id })
-    .from(users)
-    .where(eq(users.email, customerEmail))
-    .limit(1);
+    .insert(users)
+    .values({
+      email: customerEmail,
+      name: "Demo Customer",
+      emailVerified: true,
+    })
+    .returning({ id: users.id });
   if (!customerUser) throw new Error("Failed to create demo customer user");
+
+  await db.insert(accounts).values({
+    accountId: customerUser.id,
+    providerId: "credential",
+    userId: customerUser.id,
+    password: await hashPassword(customerPassword),
+  });
 
   await db.insert(kavaMemberships).values({
     userId: customerUser.id,
@@ -318,9 +346,15 @@ export async function seedDemoTenant(db: PostgresJsDatabase): Promise<void> {
     }),
   );
 
+  let transmittedSeq = 0;
   for (const order of DEMO_ORDERS) {
     const customerId = customerByName.get(order.customerName);
     if (!customerId) throw new Error(`Demo customer missing: ${order.customerName}`);
+
+    // Demo: pre-mark delivered orders as already transmitted to the ERP so the
+    // "transmitted" state is visible in the UI without manual setup.
+    const isTransmitted = order.status === "delivered";
+    if (isTransmitted) transmittedSeq++;
 
     const [createdOrder] = await db
       .insert(orders)
@@ -329,6 +363,10 @@ export async function seedDemoTenant(db: PostgresJsDatabase): Promise<void> {
         customerId,
         status: order.status,
         notes: order.notes,
+        erpStatus: isTransmitted ? "transmitted" : "pending",
+        erpMark: isTransmitted ? `4000${String(transmittedSeq).padStart(4, "0")}` : null,
+        erpTransmittedAt: isTransmitted ? new Date() : null,
+        erpTransmittedBy: isTransmitted ? superadminUser.id : null,
       })
       .returning({ id: orders.id });
 

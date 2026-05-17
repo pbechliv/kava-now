@@ -1,10 +1,15 @@
 import { Hono } from "hono";
 import { eq, and, sql, gte, lte, desc } from "drizzle-orm";
 import { db } from "../../db/connection";
-import { orders, orderItems, customers } from "../../db/schema/index";
+import { orders, orderItems, customers, products, users } from "../../db/schema/index";
 import { sendOrderStatusChange } from "../../services/email";
+import { logAudit } from "../../services/audit";
 import type { AppEnv } from "../../types";
-import { paginationQuerySchema, type OrderStatus } from "@kava-now/shared";
+import {
+  paginationQuerySchema,
+  markOrderTransmittedSchema,
+  type OrderStatus,
+} from "@kava-now/shared";
 
 const ordersRouter = new Hono<AppEnv>();
 
@@ -70,6 +75,7 @@ ordersRouter.get("/", async (c) => {
       notes: orders.notes,
       createdAt: orders.createdAt,
       customerName: customers.name,
+      erpStatus: orders.erpStatus,
       itemCount: sql<number>`count(${orderItems.id})::int`,
       total: sql<number>`coalesce(sum(${orderItems.quantity} * ${orderItems.unitPrice}::numeric), 0)::numeric`,
     })
@@ -100,9 +106,21 @@ ordersRouter.get("/:id", async (c) => {
       customerName: customers.name,
       customerEmail: customers.email,
       customerPhone: customers.phone,
+      customerAddress: customers.address,
+      customerVatId: customers.vatId,
+      customerTaxOffice: customers.taxOffice,
+      customerProfession: customers.profession,
+      customerBillingAddress: customers.billingAddress,
+      erpStatus: orders.erpStatus,
+      erpMark: orders.erpMark,
+      erpTransmittedAt: orders.erpTransmittedAt,
+      erpTransmittedBy: orders.erpTransmittedBy,
+      erpTransmittedByName: users.name,
+      erpTransmittedByEmail: users.email,
     })
     .from(orders)
     .leftJoin(customers, eq(orders.customerId, customers.id))
+    .leftJoin(users, eq(orders.erpTransmittedBy, users.id))
     .where(and(eq(orders.id, id), eq(orders.kavaId, kavaId)))
     .limit(1);
 
@@ -117,8 +135,11 @@ ordersRouter.get("/:id", async (c) => {
       productName: orderItems.productName,
       quantity: orderItems.quantity,
       unitPrice: orderItems.unitPrice,
+      sku: products.sku,
+      erpRef: products.erpRef,
     })
     .from(orderItems)
+    .leftJoin(products, eq(orderItems.productId, products.id))
     .where(eq(orderItems.orderId, id));
 
   const total = items.reduce((sum, item) => sum + Number(item.unitPrice) * item.quantity, 0);
@@ -184,6 +205,53 @@ ordersRouter.put("/:id/status", async (c) => {
       console.error("[orders] Failed to send status change email:", err);
     }
   }
+
+  return c.json(updated);
+});
+
+// PATCH /:id/erp — mark an order as transmitted to the ERP, store the AADE MARK
+ordersRouter.patch("/:id/erp", async (c) => {
+  const kavaId = c.get("kavaId")!;
+  const user = c.get("user")!;
+  const id = c.req.param("id");
+  const body = await c.req.json();
+  const parsed = markOrderTransmittedSchema.safeParse(body);
+
+  if (!parsed.success) {
+    return c.json({ error: parsed.error.flatten().fieldErrors }, 400);
+  }
+
+  const [existing] = await db
+    .select({ erpStatus: orders.erpStatus })
+    .from(orders)
+    .where(and(eq(orders.id, id), eq(orders.kavaId, kavaId)))
+    .limit(1);
+
+  if (!existing) {
+    return c.json({ error: "Η παραγγελία δεν βρέθηκε" }, 404);
+  }
+
+  if (existing.erpStatus === "transmitted") {
+    return c.json({ error: "Η παραγγελία έχει ήδη διαβιβαστεί" }, 409);
+  }
+
+  const [updated] = await db
+    .update(orders)
+    .set({
+      erpStatus: "transmitted",
+      erpMark: parsed.data.mark,
+      erpTransmittedAt: new Date(),
+      erpTransmittedBy: user.id,
+    })
+    .where(eq(orders.id, id))
+    .returning();
+
+  await logAudit(c, {
+    action: "order.erp.transmitted",
+    targetType: "order",
+    targetId: id,
+    metadata: { mark: parsed.data.mark },
+  });
 
   return c.json(updated);
 });

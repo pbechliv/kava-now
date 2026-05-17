@@ -2,8 +2,8 @@ import "../load-env";
 import { drizzle } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
 import { eq } from "drizzle-orm";
-import { users } from "./schema/index.js";
-import { auth } from "../auth/index.js";
+import { hashPassword } from "better-auth/crypto";
+import { accounts, users } from "./schema/index.js";
 import {
   SUPERADMIN_EMAIL,
   SUPERADMIN_NAME,
@@ -18,8 +18,8 @@ async function main() {
   const sql = postgres(connectionString, { max: 1 });
   const db = drizzle(sql);
 
-  // Seed superadmin via better-auth so they get a usable credential account.
-  // Default dev password is logged below; reset via /forgot-password in prod.
+  // Direct drizzle inserts bypass better-auth's signup path, which is locked
+  // down by the invite-only `databaseHooks.user.create.before` guard.
   console.log("Seeding superadmin user...");
 
   const [existing] = await db
@@ -29,13 +29,23 @@ async function main() {
     .limit(1);
 
   if (!existing) {
-    await auth.api.signUpEmail({
-      body: { email: SUPERADMIN_EMAIL, password: SUPERADMIN_PASSWORD, name: SUPERADMIN_NAME },
+    const [createdUser] = await db
+      .insert(users)
+      .values({
+        email: SUPERADMIN_EMAIL,
+        name: SUPERADMIN_NAME,
+        isSuperAdmin: true,
+        emailVerified: true,
+      })
+      .returning({ id: users.id });
+    if (!createdUser) throw new Error("Failed to insert superadmin user");
+
+    await db.insert(accounts).values({
+      accountId: createdUser.id,
+      providerId: "credential",
+      userId: createdUser.id,
+      password: await hashPassword(SUPERADMIN_PASSWORD),
     });
-    await db
-      .update(users)
-      .set({ isSuperAdmin: true, emailVerified: true })
-      .where(eq(users.email, SUPERADMIN_EMAIL));
   }
   console.log(`Superadmin: ${SUPERADMIN_EMAIL} / ${SUPERADMIN_PASSWORD}`);
 

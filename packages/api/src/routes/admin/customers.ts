@@ -81,6 +81,10 @@ customersRouter.get("/", async (c) => {
       phone: customers.phone,
       contactPerson: customers.contactPerson,
       notes: customers.notes,
+      vatId: customers.vatId,
+      taxOffice: customers.taxOffice,
+      profession: customers.profession,
+      billingAddress: customers.billingAddress,
       createdAt: customers.createdAt,
     })
     .from(customers)
@@ -151,6 +155,10 @@ customersRouter.get("/:id", async (c) => {
       phone: customers.phone,
       contactPerson: customers.contactPerson,
       notes: customers.notes,
+      vatId: customers.vatId,
+      taxOffice: customers.taxOffice,
+      profession: customers.profession,
+      billingAddress: customers.billingAddress,
       createdAt: customers.createdAt,
     })
     .from(customers)

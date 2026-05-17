@@ -13,3 +13,9 @@ export const createOrderSchema = z.object({
 });
 
 export type CreateOrderInput = z.infer<typeof createOrderSchema>;
+
+export const markOrderTransmittedSchema = z.object({
+  mark: z.string().trim().min(1, "Το MARK είναι υποχρεωτικό"),
+});
+
+export type MarkOrderTransmittedInput = z.infer<typeof markOrderTransmittedSchema>;

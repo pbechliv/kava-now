@@ -58,6 +58,10 @@ export function CustomerFormModal({ open, customerId, onClose }: Props) {
         phone: null,
         contactPerson: null,
         notes: null,
+        vatId: null,
+        taxOffice: null,
+        profession: null,
+        billingAddress: null,
       });
     }
   }, [open, isEdit, form]);
@@ -71,6 +75,10 @@ export function CustomerFormModal({ open, customerId, onClose }: Props) {
         phone: customer.phone,
         contactPerson: customer.contactPerson,
         notes: customer.notes,
+        vatId: customer.vatId,
+        taxOffice: customer.taxOffice,
+        profession: customer.profession,
+        billingAddress: customer.billingAddress,
       });
     }
   }, [customer, isEdit, form]);
@@ -83,6 +91,10 @@ export function CustomerFormModal({ open, customerId, onClose }: Props) {
       phone: data.phone || null,
       contactPerson: data.contactPerson || null,
       notes: data.notes || null,
+      vatId: data.vatId || null,
+      taxOffice: data.taxOffice || null,
+      profession: data.profession || null,
+      billingAddress: data.billingAddress || null,
     };
 
     if (isEdit) {
@@ -197,6 +209,83 @@ export function CustomerFormModal({ open, customerId, onClose }: Props) {
                   </FormItem>
                 )}
               />
+              <div className="border-t pt-4">
+                <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                  Στοιχεία τιμολόγησης
+                </p>
+                <div className="space-y-4">
+                  <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                    <FormField
+                      control={form.control}
+                      name="vatId"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>ΑΦΜ</FormLabel>
+                          <FormControl>
+                            <Input
+                              {...field}
+                              value={field.value ?? ""}
+                              onChange={(e) => field.onChange(e.target.value || null)}
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name="taxOffice"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>ΔΟΥ</FormLabel>
+                          <FormControl>
+                            <Input
+                              {...field}
+                              value={field.value ?? ""}
+                              onChange={(e) => field.onChange(e.target.value || null)}
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+                  <FormField
+                    control={form.control}
+                    name="profession"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Επάγγελμα / Δραστηριότητα</FormLabel>
+                        <FormControl>
+                          <Input
+                            {...field}
+                            value={field.value ?? ""}
+                            onChange={(e) => field.onChange(e.target.value || null)}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="billingAddress"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Διεύθυνση χρέωσης</FormLabel>
+                        <FormControl>
+                          <Input
+                            {...field}
+                            value={field.value ?? ""}
+                            onChange={(e) => field.onChange(e.target.value || null)}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+              </div>
               <FormField
                 control={form.control}
                 name="notes"

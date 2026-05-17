@@ -27,6 +27,7 @@ export const products = pgTable(
     description: text("description"),
     imageUrl: text("image_url"),
     sku: text("sku"),
+    erpRef: text("erp_ref"),
     basePrice: numeric("base_price", { precision: 10, scale: 2 }).notNull(),
     unit: productUnitEnum("unit").notNull().default("bottle"),
     volumeMl: integer("volume_ml"),
