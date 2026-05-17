@@ -62,6 +62,7 @@ const ALLOWED_TRANSITIONS: Record<OrderStatus, OrderStatus[]> = {
 
 function buildBillingBlock(order: AdminOrderDetail): string {
   const lines = [
+    order.customerErpRef && `Κωδικός ERP: ${order.customerErpRef}`,
     order.customerName && `Επωνυμία: ${order.customerName}`,
     order.customerVatId && `ΑΦΜ: ${order.customerVatId}`,
     order.customerTaxOffice && `ΔΟΥ: ${order.customerTaxOffice}`,
@@ -267,6 +268,7 @@ export function OrderDetailPage() {
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-1 gap-x-6 gap-y-3 sm:grid-cols-2">
+            <CopyField label="Κωδικός ERP" value={order.customerErpRef} />
             <CopyField label="Επωνυμία" value={order.customerName} />
             <CopyField label="ΑΦΜ" value={order.customerVatId} />
             <CopyField label="ΔΟΥ" value={order.customerTaxOffice} />

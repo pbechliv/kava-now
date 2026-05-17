@@ -62,6 +62,7 @@ export function CustomerFormModal({ open, customerId, onClose }: Props) {
         taxOffice: null,
         profession: null,
         billingAddress: null,
+        erpRef: null,
       });
     }
   }, [open, isEdit, form]);
@@ -79,6 +80,7 @@ export function CustomerFormModal({ open, customerId, onClose }: Props) {
         taxOffice: customer.taxOffice,
         profession: customer.profession,
         billingAddress: customer.billingAddress,
+        erpRef: customer.erpRef,
       });
     }
   }, [customer, isEdit, form]);
@@ -95,6 +97,7 @@ export function CustomerFormModal({ open, customerId, onClose }: Props) {
       taxOffice: data.taxOffice || null,
       profession: data.profession || null,
       billingAddress: data.billingAddress || null,
+      erpRef: data.erpRef || null,
     };
 
     if (isEdit) {
@@ -214,6 +217,23 @@ export function CustomerFormModal({ open, customerId, onClose }: Props) {
                   Στοιχεία τιμολόγησης
                 </p>
                 <div className="space-y-4">
+                  <FormField
+                    control={form.control}
+                    name="erpRef"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Κωδικός ERP</FormLabel>
+                        <FormControl>
+                          <Input
+                            {...field}
+                            value={field.value ?? ""}
+                            onChange={(e) => field.onChange(e.target.value || null)}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
                   <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                     <FormField
                       control={form.control}

@@ -116,6 +116,7 @@ CREATE TABLE "customers" (
 	"tax_office" text,
 	"profession" text,
 	"billing_address" text,
+	"erp_ref" text,
 	"created_at" timestamp with time zone DEFAULT now() NOT NULL
 );
 --> statement-breakpoint

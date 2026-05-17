@@ -142,6 +142,7 @@ ordersRouter.get("/:id", async (c) => {
       customerTaxOffice: customers.taxOffice,
       customerProfession: customers.profession,
       customerBillingAddress: customers.billingAddress,
+      customerErpRef: customers.erpRef,
       erpStatus: orders.erpStatus,
       erpMark: orders.erpMark,
       erpTransmittedAt: orders.erpTransmittedAt,

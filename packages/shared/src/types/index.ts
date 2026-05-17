@@ -80,6 +80,7 @@ export interface Customer {
   taxOffice: string | null;
   profession: string | null;
   billingAddress: string | null;
+  erpRef: string | null;
   createdAt: string;
 }
 

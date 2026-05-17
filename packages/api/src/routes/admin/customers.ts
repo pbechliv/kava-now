@@ -85,6 +85,7 @@ customersRouter.get("/", async (c) => {
       taxOffice: customers.taxOffice,
       profession: customers.profession,
       billingAddress: customers.billingAddress,
+      erpRef: customers.erpRef,
       createdAt: customers.createdAt,
     })
     .from(customers)
@@ -159,6 +160,7 @@ customersRouter.get("/:id", async (c) => {
       taxOffice: customers.taxOffice,
       profession: customers.profession,
       billingAddress: customers.billingAddress,
+      erpRef: customers.erpRef,
       createdAt: customers.createdAt,
     })
     .from(customers)

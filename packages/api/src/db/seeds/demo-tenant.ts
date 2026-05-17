@@ -49,6 +49,7 @@ const DEMO_CUSTOMERS = [
     taxOffice: "Α' Αθηνών",
     profession: "Ταβέρνα / Εστιατόριο",
     billingAddress: "Αδριανού 88, Πλάκα, 10558 Αθήνα",
+    erpRef: "C-0001",
   },
   {
     name: "Εστιατόριο Διόνυσος",
@@ -61,6 +62,7 @@ const DEMO_CUSTOMERS = [
     taxOffice: "Δ' Αθηνών",
     profession: "Εστιατόριο",
     billingAddress: "Σκουφά 21, Κολωνάκι, 10673 Αθήνα",
+    erpRef: "C-0002",
   },
   {
     name: "Καφέ Αγορά",
@@ -73,6 +75,7 @@ const DEMO_CUSTOMERS = [
     taxOffice: "ΙΓ' Αθηνών",
     profession: "Καφετέρια",
     billingAddress: "Πανδρόσου 14, Μοναστηράκι, 10555 Αθήνα",
+    erpRef: "C-0003",
   },
   {
     name: "Μπαρ Στοά Μύλος",
@@ -85,6 +88,7 @@ const DEMO_CUSTOMERS = [
     taxOffice: "ΙΕ' Αθηνών",
     profession: "Μπαρ",
     billingAddress: "Μιαούλη 17, Ψυρρή, 10554 Αθήνα",
+    erpRef: "C-0004",
   },
   {
     name: "Πιτσαρία Bella Napoli",
@@ -97,6 +101,7 @@ const DEMO_CUSTOMERS = [
     taxOffice: "Στ' Αθηνών",
     profession: "Πιτσαρία",
     billingAddress: "Θεμιστοκλέους 65, Εξάρχεια, 10683 Αθήνα",
+    erpRef: "C-0005",
   },
 ] as const;
 

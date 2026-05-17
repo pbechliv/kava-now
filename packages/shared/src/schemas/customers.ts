@@ -11,6 +11,7 @@ export const createCustomerSchema = z.object({
   taxOffice: z.string().optional().nullable(),
   profession: z.string().optional().nullable(),
   billingAddress: z.string().optional().nullable(),
+  erpRef: z.string().optional().nullable(),
 });
 
 export const updateCustomerSchema = z.object({
@@ -24,6 +25,7 @@ export const updateCustomerSchema = z.object({
   taxOffice: z.string().optional().nullable(),
   profession: z.string().optional().nullable(),
   billingAddress: z.string().optional().nullable(),
+  erpRef: z.string().optional().nullable(),
 });
 
 export type CreateCustomerInput = z.infer<typeof createCustomerSchema>;

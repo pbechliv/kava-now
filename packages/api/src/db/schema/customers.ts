@@ -16,5 +16,6 @@ export const customers = pgTable("customers", {
   taxOffice: text("tax_office"),
   profession: text("profession"),
   billingAddress: text("billing_address"),
+  erpRef: text("erp_ref"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });

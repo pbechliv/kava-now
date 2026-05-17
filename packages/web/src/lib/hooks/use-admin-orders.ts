@@ -42,6 +42,7 @@ export interface AdminOrderDetail {
   customerTaxOffice: string | null;
   customerProfession: string | null;
   customerBillingAddress: string | null;
+  customerErpRef: string | null;
   erpStatus: ErpStatus;
   erpMark: string | null;
   erpTransmittedAt: string | null;
