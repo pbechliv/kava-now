@@ -87,20 +87,42 @@ Do all of these before any code or VM work. Allow ~2 hours.
 - Copy both DSNs (`SENTRY_DSN_API`, `SENTRY_DSN_WEB`).
 - Generate an org-scoped Auth Token with `project:releases` + `project:write` for later sourcemap upload (`SENTRY_AUTH_TOKEN`).
 
-### 1.7 Better Stack (uptime monitoring)
+### 1.7 Google OAuth (optional — "Continue with Google" button)
+
+The repo already supports Google OAuth via better-auth — the web SPA renders the button only when `GOOGLE_CLIENT_ID` + `GOOGLE_CLIENT_SECRET` are set. Skip this section if you want password-only login at launch; come back to it later (just add the env vars and redeploy).
+
+- Go to [Google Cloud Console](https://console.cloud.google.com) → create project `kavanow-prod` (or reuse an existing project).
+- **OAuth consent screen** (APIs & Services → OAuth consent screen):
+  - User Type: **External** (for B2B SaaS where customers have their own Google accounts). Internal only works if all users are in your Google Workspace org.
+  - App name: `KavaNow`
+  - User support email: `ops@kavanow.gr`
+  - App logo: optional but recommended (square PNG, ≥128 px)
+  - **Authorized domains:** `kavanow.gr`
+  - Developer contact: `ops@kavanow.gr`
+  - **Scopes:** add `.../auth/userinfo.email` + `.../auth/userinfo.profile` + `openid` (the three defaults for sign-in). No sensitive scopes → no verification required.
+  - **Publishing status:** start in **Testing** mode (Google shows a "this app isn't verified" interstitial but works for up to 100 test users). Click **Publish App** once you're ready for general availability — for the basic scopes above no Google review is needed.
+- **Credentials** → Create Credentials → **OAuth client ID**:
+  - Application type: **Web application**
+  - Name: `KavaNow Production`
+  - **Authorized JavaScript origins:** `https://kavanow.gr`
+  - **Authorized redirect URIs:** `https://kavanow.gr/api/auth/callback/google` (this is the exact path better-auth registers — must match character-for-character)
+- Save **Client ID** and **Client Secret** to 1Password as `GOOGLE_CLIENT_ID` + `GOOGLE_CLIENT_SECRET`. These go into `.env.production` on the VM and into GitHub Secrets so the deploy workflow can pipe them through.
+- **Optional second client for local dev:** repeat with redirect URI `http://localhost:3200/api/auth/callback/google` so devs can test the flow without sharing the prod credential.
+
+### 1.8 Better Stack (uptime monitoring)
 
 - Sign up at [betterstack.com/uptime](https://betterstack.com/uptime) (free tier: 10 monitors, 3-min interval).
 - Create one HTTP(S) monitor: `https://kavanow.gr/api/healthz`, expect 200, alert via email.
 - Add a Heartbeat monitor named `backup-verify` (URL ping every 7 days). The weekly backup-verify workflow will POST to it on success; if it stops pinging, you get alerted.
 
-### 1.8 GitHub repo prep
+### 1.9 GitHub repo prep
 
 - Push the current repo to GitHub if not already (`gh repo create kavanow --private --source=. --push`).
 - Create two **GitHub Environments** at repo Settings → Environments:
   - `production` — required reviewer: you. No deployment branch restrictions (deploy is gated by `main` branch implicitly).
   - `infrastructure` — required reviewer: you. Used for `provision.yml` and `restore-backup.yml`.
 
-### 1.9 Local crypto material (one-time, on your laptop)
+### 1.10 Local crypto material (one-time, on your laptop)
 
 ```bash
 # SSH key for VM access (separate from your personal key — easier to rotate)
@@ -113,7 +135,7 @@ mkdir -p ~/.config/age && age-keygen -o ~/.config/age/kavanow-backup.key
 
 Save both to 1Password. Add a printed paper copy of the age private key to a safe place — if you lose it, your backups become unreadable.
 
-### 1.10 Pre-generate production secrets (on your laptop, never on the VM)
+### 1.11 Pre-generate production secrets (on your laptop, never on the VM)
 
 ```bash
 openssl rand -base64 32   # → POSTGRES_PASSWORD
@@ -123,7 +145,7 @@ openssl rand -hex 32      # → BETTER_AUTH_SECRET
 
 Save in 1Password. Will go into the VM's `.env.production` later.
 
-### 1.11 Inventory checklist before moving on
+### 1.12 Inventory checklist before moving on
 
 You should now have:
 
@@ -135,6 +157,7 @@ You should now have:
 - [ ] Resend domain verified + API key
 - [ ] Backblaze B2 bucket `kavanow-backups` + Key ID + App Key
 - [ ] Sentry org + 2 projects + 2 DSNs + auth token
+- [ ] Google OAuth client (`GOOGLE_CLIENT_ID` + `GOOGLE_CLIENT_SECRET`) — or skip if launching password-only
 - [ ] Better Stack monitor + heartbeat URL
 - [ ] GitHub repo with `production` + `infrastructure` environments
 - [ ] `~/.ssh/kavanow_deploy{,.pub}` and `~/.config/age/kavanow-backup.key`
@@ -467,6 +490,7 @@ SENTRY_AUTH_TOKEN             # build-images.yml (sourcemap upload)
 SENTRY_DSN_API + SENTRY_DSN_WEB
 SUPERADMIN_EMAIL + SUPERADMIN_PASSWORD  # piped into seed
 POSTGRES_PASSWORD + COOKIE_SECRET + BETTER_AUTH_SECRET
+GOOGLE_CLIENT_ID + GOOGLE_CLIENT_SECRET  # optional; only if §1.7 was done
 BETTERSTACK_HEARTBEAT_URL     # backup-verify ping
 ```
 
