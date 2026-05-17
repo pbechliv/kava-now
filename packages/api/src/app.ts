@@ -65,7 +65,7 @@ tenantApp.use("*", sentryContextMiddleware);
 
 tenantApp.get("/tenant", (c) => {
   const tenant = c.get("tenant");
-  if (!tenant) return c.json({ error: "Δεν βρέθηκε" }, 404);
+  if (!tenant) return c.json({ error: "Tenant not found" }, 404);
   return c.json({ name: tenant.name, slug: tenant.slug });
 });
 

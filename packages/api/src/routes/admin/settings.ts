@@ -39,7 +39,7 @@ settingsRouter.put("/", async (c) => {
     .returning();
 
   if (!updated) {
-    return c.json({ error: "Αποτυχία ενημέρωσης" }, 500);
+    return c.json({ error: "Failed to update settings" }, 500);
   }
 
   return c.json({

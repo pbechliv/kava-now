@@ -1,14 +1,24 @@
 import { Hono } from "hono";
 import { eq, and, sql, asc } from "drizzle-orm";
-import { createCategorySchema, updateCategorySchema } from "@kava-now/shared";
+import {
+  createCategorySchema,
+  updateCategorySchema,
+  API_ERROR_CODES,
+} from "@kava-now/shared";
 import { db } from "../../db/connection";
 import { categories, products } from "../../db/schema/index";
+import { isUniqueViolation, UNIQUE_CONSTRAINTS } from "../../db/errors";
 import type { AppEnv } from "../../types";
 import { alias } from "drizzle-orm/pg-core";
 
 const categoriesRouter = new Hono<AppEnv>();
 
 const parentCategory = alias(categories, "parentCategory");
+
+const DUPLICATE_CATEGORY_NAME_RESPONSE = {
+  code: API_ERROR_CODES.DUPLICATE_CATEGORY_NAME,
+  error: "Duplicate category name in this tenant",
+} as const;
 
 // GET / — list categories ordered by sortOrder, include parent info
 categoriesRouter.get("/", async (c) => {
@@ -42,13 +52,21 @@ categoriesRouter.post("/", async (c) => {
     return c.json({ error: parsed.error.flatten().fieldErrors }, 400);
   }
 
-  const [category] = await db
-    .insert(categories)
-    .values({
-      ...parsed.data,
-      tenantId,
-    })
-    .returning();
+  let category;
+  try {
+    [category] = await db
+      .insert(categories)
+      .values({
+        ...parsed.data,
+        tenantId,
+      })
+      .returning();
+  } catch (err) {
+    if (isUniqueViolation(err, UNIQUE_CONSTRAINTS.categoryName)) {
+      return c.json(DUPLICATE_CATEGORY_NAME_RESPONSE, 409);
+    }
+    throw err;
+  }
 
   return c.json(category, 201);
 });
@@ -64,14 +82,22 @@ categoriesRouter.put("/:id", async (c) => {
     return c.json({ error: parsed.error.flatten().fieldErrors }, 400);
   }
 
-  const [category] = await db
-    .update(categories)
-    .set(parsed.data)
-    .where(and(eq(categories.id, id), eq(categories.tenantId, tenantId)))
-    .returning();
+  let category;
+  try {
+    [category] = await db
+      .update(categories)
+      .set(parsed.data)
+      .where(and(eq(categories.id, id), eq(categories.tenantId, tenantId)))
+      .returning();
+  } catch (err) {
+    if (isUniqueViolation(err, UNIQUE_CONSTRAINTS.categoryName)) {
+      return c.json(DUPLICATE_CATEGORY_NAME_RESPONSE, 409);
+    }
+    throw err;
+  }
 
   if (!category) {
-    return c.json({ error: "Η κατηγορία δεν βρέθηκε" }, 404);
+    return c.json({ error: "Category not found" }, 404);
   }
 
   return c.json(category);
@@ -92,7 +118,8 @@ categoriesRouter.delete("/:id", async (c) => {
   if (ref && ref.count > 0) {
     return c.json(
       {
-        error: `Δεν μπορεί να διαγραφεί: ${ref.count} προϊόντα χρησιμοποιούν αυτή την κατηγορία`,
+        code: API_ERROR_CODES.CATEGORY_HAS_PRODUCTS,
+        error: `Cannot delete: ${ref.count} products use this category`,
       },
       400,
     );
@@ -104,10 +131,10 @@ categoriesRouter.delete("/:id", async (c) => {
     .returning();
 
   if (!deleted) {
-    return c.json({ error: "Η κατηγορία δεν βρέθηκε" }, 404);
+    return c.json({ error: "Category not found" }, 404);
   }
 
-  return c.json({ message: "Η κατηγορία διαγράφηκε" });
+  return c.json({ message: "Category deleted" });
 });
 
 export { categoriesRouter };

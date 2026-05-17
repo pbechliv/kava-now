@@ -19,6 +19,8 @@ import {
   addOrderItemSchema,
   updateOrderItemSchema,
   replaceOrderItemSchema,
+  API_ERROR_CODES,
+  type ApiErrorCode,
   type OrderStatus,
   type ErpStatus,
 } from "@kava-now/shared";
@@ -36,20 +38,26 @@ const ALLOWED_TRANSITIONS: Record<OrderStatus, OrderStatus[]> = {
   cancelled: [], // terminal
 };
 
+type MutableGuard =
+  | { ok: true }
+  | { ok: false; code: ApiErrorCode; error: string };
+
 function assertOrderMutable(order: {
   status: OrderStatus;
   erpStatus: ErpStatus;
-}): { ok: true } | { ok: false; error: string } {
+}): MutableGuard {
   if (order.status !== "pending" && order.status !== "confirmed") {
     return {
       ok: false,
-      error: "Η παραγγελία δεν μπορεί να τροποποιηθεί σε αυτή την κατάσταση",
+      code: API_ERROR_CODES.ORDER_LOCKED_BY_STATUS,
+      error: "Order cannot be modified in its current status",
     };
   }
   if (order.erpStatus === "transmitted") {
     return {
       ok: false,
-      error: "Η παραγγελία έχει ήδη διαβιβαστεί στο ERP και δεν μπορεί να τροποποιηθεί",
+      code: API_ERROR_CODES.ORDER_LOCKED_BY_ERP,
+      error: "Order has already been transmitted to ERP and cannot be modified",
     };
   }
   return { ok: true };
@@ -157,7 +165,7 @@ ordersRouter.get("/:id", async (c) => {
     .limit(1);
 
   if (!order) {
-    return c.json({ error: "Η παραγγελία δεν βρέθηκε" }, 404);
+    return c.json({ error: "Order not found" }, 404);
   }
 
   const items = await db
@@ -193,7 +201,7 @@ ordersRouter.put("/:id/status", async (c) => {
   const newStatus = body.status as OrderStatus;
 
   if (!newStatus || !VALID_STATUSES.includes(newStatus)) {
-    return c.json({ error: "Μη έγκυρη κατάσταση" }, 400);
+    return c.json({ error: "Invalid status", code: API_ERROR_CODES.ORDER_INVALID_STATUS }, 400);
   }
 
   // Get current order
@@ -208,7 +216,7 @@ ordersRouter.put("/:id/status", async (c) => {
     .limit(1);
 
   if (!order) {
-    return c.json({ error: "Η παραγγελία δεν βρέθηκε" }, 404);
+    return c.json({ error: "Order not found" }, 404);
   }
 
   // Validate transition
@@ -216,7 +224,8 @@ ordersRouter.put("/:id/status", async (c) => {
   if (!allowed.includes(newStatus)) {
     return c.json(
       {
-        error: `Δεν επιτρέπεται η μετάβαση από "${order.status}" σε "${newStatus}"`,
+        code: API_ERROR_CODES.ORDER_INVALID_STATUS,
+        error: `Status transition not allowed: "${order.status}" → "${newStatus}"`,
       },
       400,
     );
@@ -266,11 +275,11 @@ ordersRouter.patch("/:id/erp", async (c) => {
     .limit(1);
 
   if (!existing) {
-    return c.json({ error: "Η παραγγελία δεν βρέθηκε" }, 404);
+    return c.json({ error: "Order not found" }, 404);
   }
 
   if (existing.erpStatus === "transmitted") {
-    return c.json({ error: "Η παραγγελία έχει ήδη διαβιβαστεί" }, 409);
+    return c.json({ code: API_ERROR_CODES.ORDER_ALREADY_TRANSMITTED, error: "Order already transmitted to ERP" }, 409);
   }
 
   const [updated] = await db
@@ -354,16 +363,16 @@ ordersRouter.post("/:id/items", async (c) => {
   }
 
   const order = await loadOrderForMutation(tenantId, id);
-  if (!order) return c.json({ error: "Η παραγγελία δεν βρέθηκε" }, 404);
+  if (!order) return c.json({ error: "Order not found" }, 404);
   const guard = assertOrderMutable(order);
-  if (!guard.ok) return c.json({ error: guard.error }, 409);
+  if (!guard.ok) return c.json({ code: guard.code, error: guard.error }, 409);
 
   const resolved = await resolveProductPriceForOrder(
     tenantId,
     order.customerId,
     parsed.data.productId,
   );
-  if (!resolved) return c.json({ error: "Το προϊόν δεν είναι διαθέσιμο" }, 400);
+  if (!resolved) return c.json({ code: API_ERROR_CODES.PRODUCT_NOT_AVAILABLE, error: "Product is not available" }, 400);
 
   const inserted = await db.transaction(async (tx) => {
     const [item] = await tx
@@ -408,18 +417,18 @@ ordersRouter.patch("/:id/items/:itemId", async (c) => {
   }
 
   const order = await loadOrderForMutation(tenantId, id);
-  if (!order) return c.json({ error: "Η παραγγελία δεν βρέθηκε" }, 404);
+  if (!order) return c.json({ error: "Order not found" }, 404);
   const guard = assertOrderMutable(order);
-  if (!guard.ok) return c.json({ error: guard.error }, 409);
+  if (!guard.ok) return c.json({ code: guard.code, error: guard.error }, 409);
 
   const [item] = await db
     .select()
     .from(orderItems)
     .where(and(eq(orderItems.id, itemId), eq(orderItems.orderId, id)))
     .limit(1);
-  if (!item) return c.json({ error: "Το προϊόν δεν βρέθηκε στην παραγγελία" }, 404);
+  if (!item) return c.json({ error: "Order item not found" }, 404);
   if (item.status === "cancelled") {
-    return c.json({ error: "Το προϊόν έχει ακυρωθεί" }, 409);
+    return c.json({ code: API_ERROR_CODES.ORDER_ITEM_CANCELLED, error: "Order item is cancelled" }, 409);
   }
 
   const updated = await db.transaction(async (tx) => {
@@ -454,18 +463,18 @@ ordersRouter.post("/:id/items/:itemId/cancel", async (c) => {
   const itemId = c.req.param("itemId");
 
   const order = await loadOrderForMutation(tenantId, id);
-  if (!order) return c.json({ error: "Η παραγγελία δεν βρέθηκε" }, 404);
+  if (!order) return c.json({ error: "Order not found" }, 404);
   const guard = assertOrderMutable(order);
-  if (!guard.ok) return c.json({ error: guard.error }, 409);
+  if (!guard.ok) return c.json({ code: guard.code, error: guard.error }, 409);
 
   const [item] = await db
     .select()
     .from(orderItems)
     .where(and(eq(orderItems.id, itemId), eq(orderItems.orderId, id)))
     .limit(1);
-  if (!item) return c.json({ error: "Το προϊόν δεν βρέθηκε στην παραγγελία" }, 404);
+  if (!item) return c.json({ error: "Order item not found" }, 404);
   if (item.status === "cancelled") {
-    return c.json({ error: "Το προϊόν έχει ήδη ακυρωθεί" }, 409);
+    return c.json({ code: API_ERROR_CODES.ORDER_ITEM_CANCELLED, error: "Order item is already cancelled" }, 409);
   }
 
   const cancelled = await db.transaction(async (tx) => {
@@ -504,18 +513,18 @@ ordersRouter.post("/:id/items/:itemId/replace", async (c) => {
   }
 
   const order = await loadOrderForMutation(tenantId, id);
-  if (!order) return c.json({ error: "Η παραγγελία δεν βρέθηκε" }, 404);
+  if (!order) return c.json({ error: "Order not found" }, 404);
   const guard = assertOrderMutable(order);
-  if (!guard.ok) return c.json({ error: guard.error }, 409);
+  if (!guard.ok) return c.json({ code: guard.code, error: guard.error }, 409);
 
   const [existing] = await db
     .select()
     .from(orderItems)
     .where(and(eq(orderItems.id, itemId), eq(orderItems.orderId, id)))
     .limit(1);
-  if (!existing) return c.json({ error: "Το προϊόν δεν βρέθηκε στην παραγγελία" }, 404);
+  if (!existing) return c.json({ error: "Order item not found" }, 404);
   if (existing.status === "cancelled") {
-    return c.json({ error: "Το προϊόν έχει ήδη ακυρωθεί" }, 409);
+    return c.json({ code: API_ERROR_CODES.ORDER_ITEM_CANCELLED, error: "Order item is already cancelled" }, 409);
   }
 
   const resolved = await resolveProductPriceForOrder(
@@ -523,7 +532,7 @@ ordersRouter.post("/:id/items/:itemId/replace", async (c) => {
     order.customerId,
     parsed.data.productId,
   );
-  if (!resolved) return c.json({ error: "Το προϊόν αντικατάστασης δεν είναι διαθέσιμο" }, 400);
+  if (!resolved) return c.json({ code: API_ERROR_CODES.REPLACEMENT_PRODUCT_NOT_AVAILABLE, error: "Replacement product is not available" }, 400);
 
   const result = await db.transaction(async (tx) => {
     const [newItem] = await tx

@@ -6,7 +6,7 @@ import { config } from "../config";
 import { sendMembershipAdded } from "./email";
 import type { Context } from "hono";
 import type { AppEnv } from "../types";
-import type { MembershipRole } from "@kava-now/shared";
+import { API_ERROR_CODES, type ApiErrorCode, type MembershipRole } from "@kava-now/shared";
 
 interface InviteOptions {
   c: Context<AppEnv>;
@@ -19,9 +19,11 @@ interface InviteOptions {
 }
 
 export class InviteConflict extends Error {
-  constructor(message: string) {
+  readonly code: ApiErrorCode;
+  constructor(message: string, code: ApiErrorCode = API_ERROR_CODES.DUPLICATE_TENANT_MEMBERSHIP) {
     super(message);
     this.name = "InviteConflict";
+    this.code = code;
   }
 }
 
@@ -49,7 +51,7 @@ export async function inviteUserToTenant({
     .from(tenants)
     .where(eq(tenants.id, tenantId))
     .limit(1);
-  if (!tenant) throw new Error("Δεν βρέθηκε λογαριασμό");
+  if (!tenant) throw new Error("Tenant not found");
 
   const [existingUser] = await db
     .select({ id: users.id })
@@ -69,7 +71,7 @@ export async function inviteUserToTenant({
       )
       .limit(1);
     if (existingMembership) {
-      throw new InviteConflict("Αυτός ο χρήστης είναι ήδη μέλος αυτής του λογαριασμού");
+      throw new InviteConflict("User is already a member of this tenant");
     }
 
     await db.insert(tenantMemberships).values({
@@ -94,7 +96,7 @@ export async function inviteUserToTenant({
     .insert(users)
     .values({ email, name, emailVerified: false })
     .returning({ id: users.id });
-  if (!createdUser) throw new Error("Αποτυχία δημιουργίας χρήστη");
+  if (!createdUser) throw new Error("User insert returned no row");
 
   await db.insert(tenantMemberships).values({
     userId: createdUser.id,

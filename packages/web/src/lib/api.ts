@@ -1,5 +1,5 @@
 import type { ApiErrorCode, ApiErrorBody } from "@kava-now/shared";
-import { translateApiErrorCode } from "./api-error-messages";
+import { translateApiErrorCode, translateApiErrorStatus } from "./api-error-messages";
 
 export class ApiError extends Error {
   constructor(
@@ -40,10 +40,11 @@ async function request<T>(method: string, path: string, body?: unknown): Promise
       ApiErrorBody & { message: string }
     >;
     const code = data.code;
-    const localized = translateApiErrorCode(code);
-    const fallback =
+    const englishFallback =
       typeof data.error === "string" ? data.error : (data.message ?? res.statusText);
-    throw new ApiError(res.status, localized ?? fallback, code);
+    const message =
+      translateApiErrorCode(code) ?? translateApiErrorStatus(res.status) ?? englishFallback;
+    throw new ApiError(res.status, message, code);
   }
 
   // Handle 204 No Content

@@ -16,7 +16,7 @@ export const tenantMiddleware = createMiddleware<AppEnv>(async (c, next) => {
   const [tenant] = await db.select().from(tenants).where(eq(tenants.slug, slug)).limit(1);
 
   if (!tenant) {
-    return c.json({ error: "Ο λογαριασμός δεν βρέθηκε" }, 404);
+    return c.json({ error: "Tenant not found" }, 404);
   }
 
   c.set("tenant", tenant);

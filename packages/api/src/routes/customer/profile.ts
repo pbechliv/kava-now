@@ -1,6 +1,7 @@
 import { Hono } from "hono";
 import { eq } from "drizzle-orm";
 import { z } from "zod";
+import { API_ERROR_CODES } from "@kava-now/shared";
 import { db } from "../../db/connection";
 import { customers } from "../../db/schema/index";
 import { logAudit } from "../../services/audit";
@@ -8,18 +9,23 @@ import type { AppEnv } from "../../types";
 
 const profileRouter = new Hono<AppEnv>();
 
+const CUSTOMER_PROFILE_MISSING_RESPONSE = {
+  code: API_ERROR_CODES.CUSTOMER_PROFILE_MISSING,
+  error: "Customer profile not linked to this user",
+} as const;
+
 // GET / — return customer record for authenticated user
 profileRouter.get("/", async (c) => {
   const customerId = c.get("membership")!.customerId;
 
   if (!customerId) {
-    return c.json({ error: "Δεν βρέθηκε λογαριασμός πελάτη" }, 400);
+    return c.json(CUSTOMER_PROFILE_MISSING_RESPONSE, 400);
   }
 
   const [customer] = await db.select().from(customers).where(eq(customers.id, customerId)).limit(1);
 
   if (!customer) {
-    return c.json({ error: "Ο πελάτης δεν βρέθηκε" }, 404);
+    return c.json({ error: "Customer not found" }, 404);
   }
 
   return c.json(customer);
@@ -36,7 +42,7 @@ profileRouter.patch("/", async (c) => {
   const customerId = c.get("membership")!.customerId;
 
   if (!customerId) {
-    return c.json({ error: "Δεν βρέθηκε λογαριασμός πελάτη" }, 400);
+    return c.json(CUSTOMER_PROFILE_MISSING_RESPONSE, 400);
   }
 
   const body = await c.req.json();
@@ -54,7 +60,10 @@ profileRouter.patch("/", async (c) => {
   }
 
   if (Object.keys(updateData).length === 0) {
-    return c.json({ error: "Δεν δόθηκαν πεδία για ενημέρωση" }, 400);
+    return c.json(
+      { code: API_ERROR_CODES.NO_UPDATE_FIELDS, error: "No fields provided to update" },
+      400,
+    );
   }
 
   const [updated] = await db
@@ -64,7 +73,7 @@ profileRouter.patch("/", async (c) => {
     .returning();
 
   if (!updated) {
-    return c.json({ error: "Ο πελάτης δεν βρέθηκε" }, 404);
+    return c.json({ error: "Customer not found" }, 404);
   }
 
   await logAudit(c, {

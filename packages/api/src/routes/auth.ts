@@ -2,12 +2,19 @@ import { Hono } from "hono";
 import { eq, ne, and } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
 import { z } from "zod";
+import { API_ERROR_CODES } from "@kava-now/shared";
 import { db } from "../db/connection";
 import { accounts, tenantMemberships, tenants, users } from "../db/schema/index";
 import { auth as betterAuth } from "../auth";
 import { requireAuth } from "../middleware/require-auth";
 import { logAudit } from "../services/audit";
+import { isUniqueViolation, UNIQUE_CONSTRAINTS } from "../db/errors";
 import type { AppEnv } from "../types";
+
+const DUPLICATE_USER_EMAIL_RESPONSE = {
+  code: API_ERROR_CODES.DUPLICATE_USER_EMAIL,
+  error: "Email is already in use by another user",
+} as const;
 
 const auth = new Hono<AppEnv>();
 
@@ -95,7 +102,10 @@ auth.patch("/me", requireAuth, async (c) => {
     return c.json({ error: parsed.error.flatten().fieldErrors }, 400);
   }
   if (!parsed.data.name && !parsed.data.email) {
-    return c.json({ error: "Δεν δόθηκαν πεδία για ενημέρωση" }, 400);
+    return c.json(
+      { code: API_ERROR_CODES.NO_UPDATE_FIELDS, error: "No fields provided to update" },
+      400,
+    );
   }
 
   const updateData: { name?: string; email?: string } = {};
@@ -112,7 +122,7 @@ auth.patch("/me", requireAuth, async (c) => {
       .where(and(eq(users.email, newEmail), ne(users.id, authUser.id)))
       .limit(1);
     if (collision) {
-      return c.json({ error: "Αυτό το email χρησιμοποιείται ήδη" }, 409);
+      return c.json(DUPLICATE_USER_EMAIL_RESPONSE, 409);
     }
     updateData.email = newEmail;
   }
@@ -124,9 +134,8 @@ auth.patch("/me", requireAuth, async (c) => {
   try {
     await db.update(users).set(updateData).where(eq(users.id, authUser.id));
   } catch (err) {
-    const message = err instanceof Error ? err.message : "";
-    if (message.includes("unique") || message.includes("duplicate")) {
-      return c.json({ error: "Αυτό το email χρησιμοποιείται ήδη" }, 409);
+    if (isUniqueViolation(err, UNIQUE_CONSTRAINTS.userEmail)) {
+      return c.json(DUPLICATE_USER_EMAIL_RESPONSE, 409);
     }
     throw err;
   }

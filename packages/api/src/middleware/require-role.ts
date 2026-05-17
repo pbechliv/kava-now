@@ -19,12 +19,12 @@ export function requireRole(...roles: Array<MembershipRole>) {
   return createMiddleware<AppEnv>(async (c, next) => {
     const user = c.get("user");
     if (!user) {
-      return c.json({ error: "Απαιτείται σύνδεση" }, 401);
+      return c.json({ error: "Authentication required" }, 401);
     }
 
     const tenantId = c.get("tenantId");
     if (!tenantId) {
-      return c.json({ error: "Δεν έχετε δικαίωμα πρόσβασης" }, 403);
+      return c.json({ error: "Access denied" }, 403);
     }
 
     if (user.isSuperAdmin) {
@@ -42,7 +42,7 @@ export function requireRole(...roles: Array<MembershipRole>) {
       .limit(1);
 
     if (!membership || !roles.includes(membership.role)) {
-      return c.json({ error: "Δεν έχετε δικαίωμα πρόσβασης" }, 403);
+      return c.json({ error: "Access denied" }, 403);
     }
 
     c.set("membership", membership);

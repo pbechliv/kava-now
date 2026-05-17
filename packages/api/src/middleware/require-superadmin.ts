@@ -5,7 +5,7 @@ export const requireSuperAdmin = createMiddleware<AppEnv>(async (c, next) => {
   const user = c.get("user");
 
   if (!user || !user.isSuperAdmin) {
-    return c.json({ error: "Δεν έχετε δικαίωμα πρόσβασης" }, 403);
+    return c.json({ error: "Access denied" }, 403);
   }
 
   return next();

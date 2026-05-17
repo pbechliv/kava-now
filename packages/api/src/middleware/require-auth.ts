@@ -5,7 +5,7 @@ export const requireAuth = createMiddleware<AppEnv>(async (c, next) => {
   const user = c.get("user");
 
   if (!user) {
-    return c.json({ error: "Απαιτείται σύνδεση" }, 401);
+    return c.json({ error: "Authentication required" }, 401);
   }
 
   return next();

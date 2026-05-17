@@ -55,7 +55,7 @@ export function rateLimit(config: {
     for (const limit of config.perIp ?? []) {
       const bk = `${config.key}:ip:${ip}:${limit.windowMs}`;
       if (!hitBucket(bk, limit, now)) {
-        return c.json({ error: "Πάρα πολλές αιτήσεις. Δοκιμάστε ξανά αργότερα." }, 429);
+        return c.json({ error: "Too many requests. Please try again later." }, 429);
       }
     }
 
@@ -72,7 +72,7 @@ export function rateLimit(config: {
         for (const limit of config.perExtra.limits) {
           const bk = `${config.key}:x:${extra}:${limit.windowMs}`;
           if (!hitBucket(bk, limit, now)) {
-            return c.json({ error: "Πάρα πολλές αιτήσεις. Δοκιμάστε ξανά αργότερα." }, 429);
+            return c.json({ error: "Too many requests. Please try again later." }, 429);
           }
         }
       }

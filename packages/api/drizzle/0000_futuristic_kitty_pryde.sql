@@ -190,6 +190,7 @@ CREATE INDEX "tenant_memberships_customer_idx" ON "tenant_memberships" USING btr
 CREATE INDEX "sessions_user_id_idx" ON "sessions" USING btree ("user_id");--> statement-breakpoint
 CREATE INDEX "accounts_user_id_idx" ON "accounts" USING btree ("user_id");--> statement-breakpoint
 CREATE INDEX "verifications_identifier_idx" ON "verifications" USING btree ("identifier");--> statement-breakpoint
+CREATE UNIQUE INDEX "categories_tenant_name_lower_idx" ON "categories" USING btree ("tenant_id",lower("name"));--> statement-breakpoint
 CREATE UNIQUE INDEX "products_tenant_name_brand_idx" ON "products" USING btree ("tenant_id","name","brand");--> statement-breakpoint
 CREATE UNIQUE INDEX "products_tenant_erp_ref_idx" ON "products" USING btree ("tenant_id","erp_ref") WHERE "products"."erp_ref" is not null;--> statement-breakpoint
 CREATE UNIQUE INDEX "customers_tenant_erp_ref_idx" ON "customers" USING btree ("tenant_id","erp_ref") WHERE "customers"."erp_ref" is not null;--> statement-breakpoint

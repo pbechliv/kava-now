@@ -183,7 +183,7 @@ customersRouter.get("/:id", async (c) => {
     .limit(1);
 
   if (!customer) {
-    return c.json({ error: "Ο πελάτης δεν βρέθηκε" }, 404);
+    return c.json({ error: "Customer not found" }, 404);
   }
 
   return c.json(customer);
@@ -215,7 +215,7 @@ customersRouter.put("/:id", async (c) => {
   }
 
   if (!customer) {
-    return c.json({ error: "Ο πελάτης δεν βρέθηκε" }, 404);
+    return c.json({ error: "Customer not found" }, 404);
   }
 
   return c.json(customer);
@@ -234,7 +234,13 @@ customersRouter.delete("/:id", async (c) => {
     .limit(1);
 
   if (ref && ref.count > 0) {
-    return c.json({ error: "Δεν μπορείτε να διαγράψετε πελάτη με παραγγελίες" }, 400);
+    return c.json(
+      {
+        code: API_ERROR_CODES.CUSTOMER_HAS_ORDERS,
+        error: "Cannot delete a customer with existing orders",
+      },
+      400,
+    );
   }
 
   // Capture linked memberships for the audit log before the cascade removes them.
@@ -250,7 +256,7 @@ customersRouter.delete("/:id", async (c) => {
     .returning();
 
   if (!deleted) {
-    return c.json({ error: "Ο πελάτης δεν βρέθηκε" }, 404);
+    return c.json({ error: "Customer not found" }, 404);
   }
 
   await logAudit(c, {
@@ -260,7 +266,7 @@ customersRouter.delete("/:id", async (c) => {
     metadata: { name: deleted.name, deletedUsers: linkedUsers },
   });
 
-  return c.json({ message: "Ο πελάτης διαγράφηκε" });
+  return c.json({ message: "Customer deleted" });
 });
 
 // GET /:id/brand-pricing — list all brands with this customer's discounts
@@ -276,7 +282,7 @@ customersRouter.get("/:id/brand-pricing", async (c) => {
     .limit(1);
 
   if (!customer) {
-    return c.json({ error: "Ο πελάτης δεν βρέθηκε" }, 404);
+    return c.json({ error: "Customer not found" }, 404);
   }
 
   const brands = await db
@@ -318,7 +324,7 @@ customersRouter.put("/:id/brand-pricing", async (c) => {
     .limit(1);
 
   if (!customer) {
-    return c.json({ error: "Ο πελάτης δεν βρέθηκε" }, 404);
+    return c.json({ error: "Customer not found" }, 404);
   }
 
   await db.delete(customerBrandPricing).where(eq(customerBrandPricing.customerId, id));
@@ -334,7 +340,7 @@ customersRouter.put("/:id/brand-pricing", async (c) => {
     );
   }
 
-  return c.json({ message: "Η τιμολόγηση ενημερώθηκε" });
+  return c.json({ message: "Pricing updated" });
 });
 
 // GET /:id/users — list users linked to a customer in this tenant
@@ -350,7 +356,7 @@ customersRouter.get("/:id/users", async (c) => {
     .limit(1);
 
   if (!customer) {
-    return c.json({ error: "Ο πελάτης δεν βρέθηκε" }, 404);
+    return c.json({ error: "Customer not found" }, 404);
   }
 
   const rows = await db
@@ -392,11 +398,17 @@ customersRouter.post("/:customerId/users/:userId/resend-invite", async (c) => {
     .limit(1);
 
   if (!target) {
-    return c.json({ error: "Δεν βρέθηκε χρήστης" }, 404);
+    return c.json({ error: "User not found" }, 404);
   }
 
   if (await userHasPassword(target.id)) {
-    return c.json({ error: "Ο χρήστης έχει ήδη ενεργοποιηθεί" }, 400);
+    return c.json(
+      {
+        code: API_ERROR_CODES.USER_ALREADY_ACTIVATED,
+        error: "User is already activated",
+      },
+      400,
+    );
   }
 
   await db.delete(verifications).where(eq(verifications.identifier, target.email));
@@ -437,7 +449,7 @@ customersRouter.post("/:id/users/invite", async (c) => {
     .limit(1);
 
   if (!customer) {
-    return c.json({ error: "Ο πελάτης δεν βρέθηκε" }, 404);
+    return c.json({ error: "Customer not found" }, 404);
   }
 
   try {
@@ -452,7 +464,7 @@ customersRouter.post("/:id/users/invite", async (c) => {
     });
   } catch (err) {
     if (err instanceof InviteConflict) {
-      return c.json({ error: err.message }, 409);
+      return c.json({ code: err.code, error: err.message }, 409);
     }
     throw err;
   }

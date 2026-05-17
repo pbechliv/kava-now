@@ -19,6 +19,21 @@ const DUPLICATE_ERP_REF_RESPONSE = {
   error: "Duplicate ERP reference for product in this tenant",
 } as const;
 
+const DUPLICATE_NAME_BRAND_RESPONSE = {
+  code: API_ERROR_CODES.DUPLICATE_PRODUCT_NAME_BRAND,
+  error: "Duplicate product name and brand in this tenant",
+} as const;
+
+function handleProductUniqueViolation(err: unknown) {
+  if (isUniqueViolation(err, UNIQUE_CONSTRAINTS.productErpRef)) {
+    return { body: DUPLICATE_ERP_REF_RESPONSE };
+  }
+  if (isUniqueViolation(err, UNIQUE_CONSTRAINTS.productNameBrand)) {
+    return { body: DUPLICATE_NAME_BRAND_RESPONSE };
+  }
+  return null;
+}
+
 const productsRouter = new Hono<AppEnv>();
 
 // GET / — list products with optional filters
@@ -233,9 +248,8 @@ productsRouter.post("/", async (c) => {
       })
       .returning();
   } catch (err) {
-    if (isUniqueViolation(err, UNIQUE_CONSTRAINTS.productErpRef)) {
-      return c.json(DUPLICATE_ERP_REF_RESPONSE, 409);
-    }
+    const handled = handleProductUniqueViolation(err);
+    if (handled) return c.json(handled.body, 409);
     throw err;
   }
 
@@ -272,7 +286,7 @@ productsRouter.get("/:id", async (c) => {
     .limit(1);
 
   if (!product) {
-    return c.json({ error: "Το προϊόν δεν βρέθηκε" }, 404);
+    return c.json({ error: "Product not found" }, 404);
   }
 
   return c.json(product);
@@ -308,14 +322,13 @@ productsRouter.put("/:id", async (c) => {
       .where(and(eq(products.id, id), eq(products.tenantId, tenantId)))
       .returning();
   } catch (err) {
-    if (isUniqueViolation(err, UNIQUE_CONSTRAINTS.productErpRef)) {
-      return c.json(DUPLICATE_ERP_REF_RESPONSE, 409);
-    }
+    const handled = handleProductUniqueViolation(err);
+    if (handled) return c.json(handled.body, 409);
     throw err;
   }
 
   if (!product) {
-    return c.json({ error: "Το προϊόν δεν βρέθηκε" }, 404);
+    return c.json({ error: "Product not found" }, 404);
   }
 
   return c.json(product);
@@ -342,10 +355,10 @@ productsRouter.delete("/:id", async (c) => {
       .returning();
 
     if (!product) {
-      return c.json({ error: "Το προϊόν δεν βρέθηκε" }, 404);
+      return c.json({ error: "Product not found" }, 404);
     }
 
-    return c.json({ message: "Το προϊόν απενεργοποιήθηκε", product });
+    return c.json({ message: "Product deactivated", product });
   }
 
   // Hard delete
@@ -355,10 +368,10 @@ productsRouter.delete("/:id", async (c) => {
     .returning();
 
   if (!deleted) {
-    return c.json({ error: "Το προϊόν δεν βρέθηκε" }, 404);
+    return c.json({ error: "Product not found" }, 404);
   }
 
-  return c.json({ message: "Το προϊόν διαγράφηκε" });
+  return c.json({ message: "Product deleted" });
 });
 
 export { productsRouter };

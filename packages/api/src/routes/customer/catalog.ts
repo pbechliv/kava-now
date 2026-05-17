@@ -1,6 +1,6 @@
 import { Hono } from "hono";
 import { eq, and, ilike, or, sql } from "drizzle-orm";
-import { paginationQuerySchema } from "@kava-now/shared";
+import { paginationQuerySchema, API_ERROR_CODES } from "@kava-now/shared";
 import { db } from "../../db/connection";
 import { products, categories, customers, customerBrandPricing } from "../../db/schema/index";
 import { resolvePrice } from "../../services/pricing";
@@ -13,7 +13,13 @@ catalogRouter.get("/", async (c) => {
   const customerId = c.get("membership")!.customerId;
 
   if (!customerId) {
-    return c.json({ error: "Δεν βρέθηκε λογαριασμός πελάτη" }, 400);
+    return c.json(
+      {
+        code: API_ERROR_CODES.CUSTOMER_PROFILE_MISSING,
+        error: "Customer profile not linked to this user",
+      },
+      400,
+    );
   }
 
   // Verify customer exists
@@ -24,7 +30,7 @@ catalogRouter.get("/", async (c) => {
     .limit(1);
 
   if (!customer) {
-    return c.json({ error: "Ο πελάτης δεν βρέθηκε" }, 404);
+    return c.json({ error: "Customer not found" }, 404);
   }
 
   // Fetch customer's brand pricing

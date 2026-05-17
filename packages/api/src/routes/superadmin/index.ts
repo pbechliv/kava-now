@@ -1,6 +1,6 @@
 import { Hono } from "hono";
 import { eq, sql } from "drizzle-orm";
-import { registerSchema, paginationQuerySchema } from "@kava-now/shared";
+import { registerSchema, paginationQuerySchema, API_ERROR_CODES } from "@kava-now/shared";
 import { db } from "../../db/connection";
 import { tenantMemberships, tenants, users } from "../../db/schema/index";
 import { auth } from "../../auth";
@@ -8,7 +8,13 @@ import { sendInviteSetPassword } from "../../services/invite-user";
 import { requireAuth } from "../../middleware/require-auth";
 import { requireSuperAdmin } from "../../middleware/require-superadmin";
 import { logAudit } from "../../services/audit";
+import { isUniqueViolation, UNIQUE_CONSTRAINTS } from "../../db/errors";
 import type { AppEnv } from "../../types";
+
+const DUPLICATE_TENANT_SLUG_RESPONSE = {
+  code: API_ERROR_CODES.DUPLICATE_TENANT_SLUG,
+  error: "Tenant slug is already taken",
+} as const;
 
 const superadmin = new Hono<AppEnv>();
 
@@ -63,11 +69,19 @@ superadmin.post("/tenants", async (c) => {
     .limit(1);
 
   if (existingTenant) {
-    return c.json({ error: "Αυτό το slug χρησιμοποιείται ήδη" }, 409);
+    return c.json(DUPLICATE_TENANT_SLUG_RESPONSE, 409);
   }
 
-  const [tenant] = await db.insert(tenants).values({ name, slug, email }).returning();
-  if (!tenant) throw new Error("Αποτυχία δημιουργίας λογαριασμού");
+  let tenant;
+  try {
+    [tenant] = await db.insert(tenants).values({ name, slug, email }).returning();
+  } catch (err) {
+    if (isUniqueViolation(err, UNIQUE_CONSTRAINTS.tenantSlug)) {
+      return c.json(DUPLICATE_TENANT_SLUG_RESPONSE, 409);
+    }
+    throw err;
+  }
+  if (!tenant) throw new Error("Tenant insert returned no row");
 
   // Find or create the owner user.
   const [existingUser] = await db
@@ -87,7 +101,7 @@ superadmin.post("/tenants", async (c) => {
       .from(users)
       .where(eq(users.email, email))
       .limit(1);
-    if (!created) throw new Error("Αποτυχία δημιουργίας χρήστη");
+    if (!created) throw new Error("User insert returned no row");
     ownerUserId = created.id;
   } else {
     // No password yet — create the user row, attach the membership, send invite.
@@ -95,7 +109,7 @@ superadmin.post("/tenants", async (c) => {
       .insert(users)
       .values({ email, name, emailVerified: false })
       .returning({ id: users.id });
-    if (!created) throw new Error("Αποτυχία δημιουργίας χρήστη");
+    if (!created) throw new Error("User insert returned no row");
     ownerUserId = created.id;
   }
 
@@ -129,7 +143,7 @@ superadmin.delete("/tenants/:id", async (c) => {
     .where(eq(tenants.id, id))
     .limit(1);
   if (!tenant) {
-    return c.json({ error: "Δεν βρέθηκε λογαριασμό" }, 404);
+    return c.json({ error: "Tenant not found" }, 404);
   }
 
   const [full] = await db

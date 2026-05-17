@@ -2,6 +2,7 @@ import { Hono } from "hono";
 import { eq, and, ne, sql } from "drizzle-orm";
 import { z } from "zod";
 import { alias } from "drizzle-orm/pg-core";
+import { API_ERROR_CODES } from "@kava-now/shared";
 import { db } from "../../db/connection";
 import { accounts, tenantMemberships, users, verifications } from "../../db/schema/index";
 import {
@@ -71,7 +72,7 @@ usersRouter.post("/invite", async (c) => {
     });
   } catch (err) {
     if (err instanceof InviteConflict) {
-      return c.json({ error: err.message }, 409);
+      return c.json({ code: err.code, error: err.message }, 409);
     }
     throw err;
   }
@@ -102,11 +103,11 @@ usersRouter.post("/:id/resend-invite", async (c) => {
     .limit(1);
 
   if (!target) {
-    return c.json({ error: "Δεν βρέθηκε χρήστης" }, 404);
+    return c.json({ error: "User not found" }, 404);
   }
 
   if (await userHasPassword(target.id)) {
-    return c.json({ error: "Ο χρήστης έχει ήδη ενεργοποιηθεί" }, 400);
+    return c.json({ code: API_ERROR_CODES.USER_ALREADY_ACTIVATED, error: "User is already activated" }, 400);
   }
 
   // Invalidate any outstanding reset tokens so the new email is the only
@@ -132,7 +133,7 @@ usersRouter.post("/:id/promote-to-owner", async (c) => {
   const myMembership = c.get("membership")!;
 
   if (myMembership.role !== "owner") {
-    return c.json({ error: "Μόνο ιδιοκτήτης μπορεί να προωθήσει σε ιδιοκτήτη" }, 403);
+    return c.json({ code: API_ERROR_CODES.ONLY_OWNER_CAN_PROMOTE, error: "Only an owner can promote to owner" }, 403);
   }
 
   const [target] = await db
@@ -143,13 +144,13 @@ usersRouter.post("/:id/promote-to-owner", async (c) => {
     .limit(1);
 
   if (!target) {
-    return c.json({ error: "Δεν βρέθηκε χρήστης" }, 404);
+    return c.json({ error: "User not found" }, 404);
   }
   if (target.role === "owner") {
     return c.json({ success: true });
   }
   if (target.role !== "staff") {
-    return c.json({ error: "Μόνο χρήστες προσωπικού μπορούν να προωθηθούν σε ιδιοκτήτη" }, 400);
+    return c.json({ code: API_ERROR_CODES.ONLY_STAFF_PROMOTABLE, error: "Only staff users can be promoted to owner" }, 400);
   }
 
   await db
@@ -175,7 +176,7 @@ usersRouter.delete("/:id", async (c) => {
   const id = c.req.param("id");
 
   if (id === me.id) {
-    return c.json({ error: "Δεν μπορείτε να διαγράψετε τον εαυτό σας" }, 400);
+    return c.json({ code: API_ERROR_CODES.CANT_DELETE_SELF, error: "You cannot delete yourself" }, 400);
   }
 
   const [target] = await db
@@ -186,11 +187,11 @@ usersRouter.delete("/:id", async (c) => {
     .limit(1);
 
   if (!target) {
-    return c.json({ error: "Δεν βρέθηκε χρήστης" }, 404);
+    return c.json({ error: "User not found" }, 404);
   }
 
   if (target.role === "owner" && myMembership.role !== "owner") {
-    return c.json({ error: "Μόνο ιδιοκτήτης μπορεί να διαγράψει ιδιοκτήτη" }, 403);
+    return c.json({ code: API_ERROR_CODES.ONLY_OWNER_CAN_DELETE_OWNER, error: "Only an owner can delete an owner" }, 403);
   }
 
   // Prevent removing the final owner of the tenant.
@@ -207,7 +208,7 @@ usersRouter.delete("/:id", async (c) => {
       );
     if (!remaining || remaining.count === 0) {
       return c.json(
-        { error: "Δεν μπορείτε να διαγράψετε τον τελευταίο ιδιοκτήτη του λογαριασμού" },
+        { code: API_ERROR_CODES.LAST_OWNER_PROTECTION, error: "Cannot delete the last owner of the tenant" },
         400,
       );
     }

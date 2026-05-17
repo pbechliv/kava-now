@@ -1,6 +1,6 @@
 import { Hono } from "hono";
 import { eq, and, desc, sql, inArray } from "drizzle-orm";
-import { createOrderSchema, paginationQuerySchema } from "@kava-now/shared";
+import { createOrderSchema, paginationQuerySchema, API_ERROR_CODES } from "@kava-now/shared";
 import { db } from "../../db/connection";
 import {
   orders,
@@ -21,7 +21,7 @@ ordersRouter.post("/", async (c) => {
   const customerId = c.get("membership")!.customerId;
 
   if (!customerId) {
-    return c.json({ error: "Δεν βρέθηκε λογαριασμός πελάτη" }, 400);
+    return c.json({ code: API_ERROR_CODES.CUSTOMER_PROFILE_MISSING, error: "Customer profile not linked to this user" }, 400);
   }
 
   const body = await c.req.json();
@@ -52,7 +52,8 @@ ordersRouter.post("/", async (c) => {
     if (!productMap.has(item.productId)) {
       return c.json(
         {
-          error: `Το προϊόν ${item.productId} δεν είναι διαθέσιμο`,
+          code: API_ERROR_CODES.PRODUCT_NOT_AVAILABLE,
+          error: `Product ${item.productId} is not available`,
         },
         400,
       );
@@ -71,7 +72,7 @@ ordersRouter.post("/", async (c) => {
     .limit(1);
 
   if (!customer) {
-    return c.json({ error: "Ο πελάτης δεν βρέθηκε" }, 404);
+    return c.json({ error: "Customer not found" }, 404);
   }
 
   const brandPricing = await db
@@ -132,7 +133,7 @@ ordersRouter.get("/", async (c) => {
   const customerId = c.get("membership")!.customerId;
 
   if (!customerId) {
-    return c.json({ error: "Δεν βρέθηκε λογαριασμός πελάτη" }, 400);
+    return c.json({ code: API_ERROR_CODES.CUSTOMER_PROFILE_MISSING, error: "Customer profile not linked to this user" }, 400);
   }
 
   const pagination = paginationQuerySchema.safeParse({
@@ -178,7 +179,7 @@ ordersRouter.get("/:id", async (c) => {
   const orderId = c.req.param("id");
 
   if (!customerId) {
-    return c.json({ error: "Δεν βρέθηκε λογαριασμός πελάτη" }, 400);
+    return c.json({ code: API_ERROR_CODES.CUSTOMER_PROFILE_MISSING, error: "Customer profile not linked to this user" }, 400);
   }
 
   const [order] = await db
@@ -188,7 +189,7 @@ ordersRouter.get("/:id", async (c) => {
     .limit(1);
 
   if (!order) {
-    return c.json({ error: "Η παραγγελία δεν βρέθηκε" }, 404);
+    return c.json({ error: "Order not found" }, 404);
   }
 
   const items = await db.select().from(orderItems).where(eq(orderItems.orderId, orderId));
@@ -203,7 +204,7 @@ ordersRouter.post("/:id/reorder", async (c) => {
   const orderId = c.req.param("id");
 
   if (!customerId) {
-    return c.json({ error: "Δεν βρέθηκε λογαριασμός πελάτη" }, 400);
+    return c.json({ code: API_ERROR_CODES.CUSTOMER_PROFILE_MISSING, error: "Customer profile not linked to this user" }, 400);
   }
 
   // Get original order
@@ -214,14 +215,14 @@ ordersRouter.post("/:id/reorder", async (c) => {
     .limit(1);
 
   if (!originalOrder) {
-    return c.json({ error: "Η παραγγελία δεν βρέθηκε" }, 404);
+    return c.json({ error: "Order not found" }, 404);
   }
 
   // Get original items
   const originalItems = await db.select().from(orderItems).where(eq(orderItems.orderId, orderId));
 
   if (originalItems.length === 0) {
-    return c.json({ error: "Η παραγγελία δεν περιέχει προϊόντα" }, 400);
+    return c.json({ code: API_ERROR_CODES.ORDER_EMPTY, error: "Order has no items" }, 400);
   }
 
   const productIds = originalItems.map((i) => i.productId);
@@ -252,7 +253,7 @@ ordersRouter.post("/:id/reorder", async (c) => {
     .limit(1);
 
   if (!customer) {
-    return c.json({ error: "Ο πελάτης δεν βρέθηκε" }, 404);
+    return c.json({ error: "Customer not found" }, 404);
   }
 
   const brandPricing = await db
@@ -275,7 +276,7 @@ ordersRouter.post("/:id/reorder", async (c) => {
   if (validItems.length === 0) {
     return c.json(
       {
-        error: "Κανένα προϊόν από την αρχική παραγγελία δεν είναι πλέον διαθέσιμο",
+        code: API_ERROR_CODES.ORIGINAL_ITEMS_UNAVAILABLE, error: "None of the original order items are still available",
       },
       400,
     );
