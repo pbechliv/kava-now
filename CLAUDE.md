@@ -28,7 +28,7 @@ Oxlint **rules** (`rules`) and **ignore patterns** (`ignorePatterns`) live in th
 # Start infrastructure (Postgres + Mailpit)
 docker compose -f docker-compose.dev.yml up -d
 
-# Run API (port 3000) + Web (port 5173) together
+# Run API (port 3300) + Web (port 3200) together
 pnpm dev
 pnpm dev:api    # API only (vp dev with @hono/vite-dev-server)
 pnpm dev:web    # Web only
@@ -38,7 +38,7 @@ Mailpit: SMTP on `localhost:1025`, Web UI on `localhost:8025`.
 
 ### Browser verification
 
-Use the **Claude Preview MCP** tools (`mcp__Claude_Preview__*`) to verify UI changes — `preview_start` to boot the dev server if it isn't already, then `preview_snapshot` / `preview_console_logs` / `preview_network` / `preview_screenshot` to inspect. Drive interactions with `preview_click` / `preview_fill` / `preview_eval`. Routes: `/` (platform landing), `/admin/*` (superadmin), `/k/<slug>/*` (tenant). Everything runs on a single origin (`http://localhost:5173`), so the preview tools work without any subdomain trickery.
+Use the **Claude Preview MCP** tools (`mcp__Claude_Preview__*`) to verify UI changes — `preview_start` to boot the dev server if it isn't already, then `preview_snapshot` / `preview_console_logs` / `preview_network` / `preview_screenshot` to inspect. Drive interactions with `preview_click` / `preview_fill` / `preview_eval`. Routes: `/` (platform landing), `/admin/*` (superadmin), `/k/<slug>/*` (tenant). Everything runs on a single origin (`http://localhost:3200`), so the preview tools work without any subdomain trickery.
 
 ### Database
 
@@ -72,7 +72,7 @@ pnpm build           # Build shared (if present) first, then API + Web in parall
 
 ### Multi-tenancy (path-based)
 
-Tenants live under a URL path, not a subdomain. The entire app runs from a single origin (`APP_ORIGIN`, default `http://localhost:5173` in dev):
+Tenants live under a URL path, not a subdomain. The entire app runs from a single origin (`APP_ORIGIN`, default `http://localhost:3200` in dev):
 
 - `/` — platform landing (kava selector / membership list)
 - `/admin/*` — superadmin (kava management)

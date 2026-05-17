@@ -56,7 +56,7 @@ Tick boxes as phases complete. Each phase is independently shippable — `pnpm d
 - [ ] `packages/api/wrangler.toml` committed with bindings, `nodejs_compat`, Rate Limiting binding
 - [ ] Request path swapped: `postgres.js` → `@neondatabase/serverless` in `createRequestDb` (CLI scripts keep `postgres.js`)
 - [ ] [`packages/api/src/middleware/rate-limit.ts`](packages/api/src/middleware/rate-limit.ts) uses CF Rate Limiting binding
-- [ ] `wrangler dev` boots; `http://demo.lvh.me:8787` flows work locally (Vite proxy updated to point at 8787)
+- [ ] `wrangler dev` boots; tenant flows work locally at `http://localhost:3200/k/demo` (Vite proxy points at 8787)
 
 **Phase 4 — Frontend on Pages + DNS**
 
@@ -244,9 +244,9 @@ Both are compatible with the existing Docker Compose Mailpit service for mail in
 
 **Mail.** Keep the dual transport from §5. In dev leave `RESEND_API_KEY` unset and nodemailer still routes to Mailpit (`localhost:1025`, UI at `localhost:8025`). To test the Resend path, set `RESEND_API_KEY` to a dev key and send to your own inbox.
 
-**Running both servers.** `wrangler dev --port 8787` in `packages/api/`, `pnpm dev:web` in `packages/web/`. Update [`packages/web/vite.config.ts`](packages/web/vite.config.ts) proxy target from `http://localhost:${API_PORT}` to `http://localhost:8787`, keeping `changeOrigin: false` so `Host: demo.lvh.me:5173` is preserved through the proxy to the Worker — which is exactly what `tenantMiddleware` needs.
+**Running both servers.** `wrangler dev --port 8787` in `packages/api/`, `pnpm dev:web` in `packages/web/`. Update [`packages/web/vite.config.ts`](packages/web/vite.config.ts) proxy target from `http://localhost:${API_PORT}` to `http://localhost:8787`. `tenantMiddleware` resolves the slug from the URL `:slug` param, so no Host-header gymnastics are required.
 
-**Subdomain routing.** `*.lvh.me` resolves to 127.0.0.1 via public DNS; no hosts-file changes. The web app lives at `demo.lvh.me:5173`, `admin.lvh.me:5173`, etc. Wrangler's own dev server on `:8787` is never hit directly by the browser — only via the Vite proxy.
+**Local URLs.** The browser hits Vite at `http://localhost:3200`. Tenant routes live at `/k/<slug>/*` (e.g. `/k/demo`), superadmin at `/admin/*`. Wrangler's own dev server on `:8787` is never hit directly by the browser — only via the Vite `/api/*` proxy.
 
 **One-liner.** `pnpm dev` (from the root) should orchestrate both. Phase 3 updates the `dev` script in [`packages/api/package.json`](packages/api/package.json) from `vp dev` to `wrangler dev --port 8787`.
 

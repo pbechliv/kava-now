@@ -7,7 +7,7 @@ export const config = {
   // Canonical origin of the running app — used for absolute URLs in outbound
   // email (invites, password resets, order notifications) and as better-auth's
   // baseURL / trustedOrigins. Single-host now that tenants live in URL paths.
-  appOrigin: process.env.APP_ORIGIN || (isDev ? "http://localhost:5173" : "https://kavanow.gr"),
+  appOrigin: process.env.APP_ORIGIN || (isDev ? "http://localhost:3200" : "https://kavanow.gr"),
   cookieSecret: process.env.COOKIE_SECRET || "dev-secret-change-in-production-at-least-32-chars",
   smtp: {
     host: process.env.SMTP_HOST || "localhost",

@@ -354,6 +354,6 @@ export async function seedDemoTenant(db: PostgresJsDatabase): Promise<void> {
   console.log(
     `Demo tenant seeded: kava "${DEMO_SLUG}" + ${DEMO_CUSTOMERS.length} customers + ${DEMO_ORDERS.length} orders. ` +
       `Owner: the superadmin (use /admin to switch into /k/${DEMO_SLUG}). ` +
-      `Customer login: ${customerEmail} / ${customerPassword} at localhost:5173/k/${DEMO_SLUG}/login`,
+      `Customer login: ${customerEmail} / ${customerPassword} at localhost:3200/k/${DEMO_SLUG}/login`,
   );
 }

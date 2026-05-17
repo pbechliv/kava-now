@@ -29,10 +29,11 @@ export default defineConfig({
     "import.meta.env.VITE_GOOGLE_CLIENT_ID": JSON.stringify(googleClientId),
   },
   server: {
-    port: 5173,
+    port: 3200,
+    strictPort: true,
     proxy: {
       "/api": {
-        target: `http://localhost:${process.env.API_PORT || 3000}`,
+        target: `http://localhost:${process.env.API_PORT || 3300}`,
       },
     },
   },

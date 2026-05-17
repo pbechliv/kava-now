@@ -194,7 +194,7 @@ This is also the place to convert from "stack trace in logs" to a stable JSON sh
 
 - `pnpm typecheck` clean.
 - `pnpm dev:api` boots with `SENTRY_DSN_API` empty → no Sentry traffic (verified via `enabled` guard).
-- Add a temporary `app.get("/api/sentry-test", () => { throw new Error("sentry smoke test"); })`, hit it with `SENTRY_DSN_API` set, confirm event arrives in Sentry tagged with `kava.slug=demo` when called via `demo.lvh.me`. Remove the test route before commit.
+- Add a temporary `app.get("/api/sentry-test", () => { throw new Error("sentry smoke test"); })`, hit it with `SENTRY_DSN_API` set, confirm event arrives in Sentry tagged with `kava.slug=demo` when called via `http://localhost:3200/k/demo`. Remove the test route before commit.
 
 ---
 
@@ -242,7 +242,6 @@ Edit [packages/web/vite.config.ts](../packages/web/vite.config.ts):
 ```ts
 process.loadEnvFile(resolve(__dirname, "../../.env"));
 
-const baseDomain = process.env.BASE_DOMAIN || "lvh.me:5173";
 const sentryDsn = process.env.SENTRY_DSN_WEB || "";
 const sentryEnv = process.env.SENTRY_ENVIRONMENT || "development";
 const sentryRelease = process.env.SENTRY_RELEASE || "";
@@ -250,7 +249,6 @@ const sentryRelease = process.env.SENTRY_RELEASE || "";
 export default defineConfig({
   // ...
   define: {
-    "import.meta.env.VITE_BASE_DOMAIN": JSON.stringify(baseDomain),
     "import.meta.env.VITE_SENTRY_DSN": JSON.stringify(sentryDsn),
     "import.meta.env.VITE_SENTRY_ENVIRONMENT": JSON.stringify(sentryEnv),
     "import.meta.env.VITE_SENTRY_RELEASE": JSON.stringify(sentryRelease),
@@ -259,7 +257,7 @@ export default defineConfig({
 });
 ```
 
-Following the existing `VITE_BASE_DOMAIN` pattern so the env-var contract stays consistent. **Do not** prefix with `VITE_` in `.env` — the `define` block whitelists explicitly which is what we want for production builds.
+**Do not** prefix Sentry env vars with `VITE_` in `.env` — the `define` block whitelists exactly what is exposed at build time, which is what we want for production builds.
 
 ### 2.3 Set user + tenant scope after auth resolves
 
@@ -283,22 +281,26 @@ useEffect(() => {
 }, [user]);
 ```
 
-The `kava.slug` tag is set from the subdomain — derive it from `window.location.hostname` once at boot in `main.tsx` (right after `Sentry.init`):
+The `kava.slug` tag is set from the URL path — derive it once at boot in `main.tsx` (right after `Sentry.init`):
 
 ```ts
-const host = window.location.hostname;
-const sub = host.split(".")[0];
-Sentry.setTag("domain.mode", sub === "admin" ? "superadmin" : sub && sub !== "lvh" && sub !== "localhost" ? "tenant" : "platform");
-Sentry.setTag("kava.slug", sub === "admin" || sub === "lvh" || sub === "localhost" ? null : sub);
+const path = window.location.pathname;
+const tenantMatch = path.match(/^\/k\/([^/]+)/);
+const isAdmin = path.startsWith("/admin");
+Sentry.setTag(
+  "domain.mode",
+  isAdmin ? "superadmin" : tenantMatch ? "tenant" : "platform",
+);
+Sentry.setTag("kava.slug", tenantMatch?.[1] ?? null);
 ```
 
-(This is a small duplication of the logic in `lib/is-platform.ts` / `lib/auth-home.ts` — acceptable here because Sentry needs it inline before any other code has a chance to throw.)
+(Sentry needs this inline before any other code has a chance to throw, hence reading directly from `window.location` rather than waiting for React Router to resolve the `:slug` param.)
 
 ### 2.4 Verify
 
 - `pnpm typecheck` clean.
 - `pnpm dev:web` with `SENTRY_DSN_WEB` empty → no `Sentry.init` call (guard).
-- Add a temporary route or button: `<button onClick={() => { throw new Error("sentry web smoke test"); }}>`. With DSN set, click it via `demo.lvh.me:5173`, confirm event arrives tagged `kava.slug=demo`, `domain.mode=tenant`. Remove the button.
+- Add a temporary route or button: `<button onClick={() => { throw new Error("sentry web smoke test"); }}>`. With DSN set, click it via `http://localhost:3200/k/demo`, confirm event arrives tagged `kava.slug=demo`, `domain.mode=tenant`. Remove the button.
 - Verify the `<Sentry.ErrorBoundary>` fallback renders by throwing during a render (not in an event handler). Confirm the event is captured and the fallback DOM is what users see.
 
 ---

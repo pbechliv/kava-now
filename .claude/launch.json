@@ -5,15 +5,15 @@
       "name": "api",
       "runtimeExecutable": "pnpm",
       "runtimeArgs": ["--filter", "@kava-now/api", "dev"],
-      "env": { "API_PORT": "3002" },
-      "port": 3002
+      "env": { "API_PORT": "3300" },
+      "port": 3300
     },
     {
       "name": "web",
       "runtimeExecutable": "pnpm",
       "runtimeArgs": ["--filter", "@kava-now/web", "dev"],
-      "env": { "API_PORT": "3002" },
-      "port": 5173
+      "env": { "API_PORT": "3300" },
+      "port": 3200
     }
   ]
 }
