@@ -1,12 +1,12 @@
 import { pgTable, uuid, text, jsonb, timestamp, index } from "drizzle-orm/pg-core";
-import { kavas } from "./kavas";
+import { tenants } from "./tenants";
 import { users } from "./users";
 
 export const auditLogs = pgTable(
   "audit_logs",
   {
     id: uuid("id").primaryKey().defaultRandom(),
-    kavaId: uuid("kava_id").references(() => kavas.id, {
+    tenantId: uuid("tenant_id").references(() => tenants.id, {
       onDelete: "set null",
     }),
     actorUserId: uuid("actor_user_id").references(() => users.id, {
@@ -20,7 +20,7 @@ export const auditLogs = pgTable(
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (table) => [
-    index("audit_logs_kava_id_created_at_idx").on(table.kavaId, table.createdAt),
+    index("audit_logs_tenant_id_created_at_idx").on(table.tenantId, table.createdAt),
     index("audit_logs_actor_user_id_idx").on(table.actorUserId),
   ],
 );

@@ -3,7 +3,7 @@ CREATE TYPE "public"."membership_role" AS ENUM('owner', 'staff', 'customer');-->
 CREATE TYPE "public"."order_item_status" AS ENUM('active', 'cancelled');--> statement-breakpoint
 CREATE TYPE "public"."order_status" AS ENUM('pending', 'confirmed', 'shipped', 'delivered', 'cancelled');--> statement-breakpoint
 CREATE TYPE "public"."product_unit" AS ENUM('bottle', 'case', 'keg');--> statement-breakpoint
-CREATE TABLE "kavas" (
+CREATE TABLE "tenants" (
 	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
 	"name" text NOT NULL,
 	"slug" text NOT NULL,
@@ -14,7 +14,7 @@ CREATE TABLE "kavas" (
 	"notification_emails" text[] DEFAULT '{}' NOT NULL,
 	"settings" jsonb DEFAULT '{}'::jsonb NOT NULL,
 	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
-	CONSTRAINT "kavas_slug_unique" UNIQUE("slug")
+	CONSTRAINT "tenants_slug_unique" UNIQUE("slug")
 );
 --> statement-breakpoint
 CREATE TABLE "users" (
@@ -29,10 +29,10 @@ CREATE TABLE "users" (
 	CONSTRAINT "users_email_unique" UNIQUE("email")
 );
 --> statement-breakpoint
-CREATE TABLE "kava_memberships" (
+CREATE TABLE "tenant_memberships" (
 	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
 	"user_id" uuid NOT NULL,
-	"kava_id" uuid NOT NULL,
+	"tenant_id" uuid NOT NULL,
 	"role" "membership_role" NOT NULL,
 	"customer_id" uuid,
 	"invited_by_id" uuid,
@@ -78,7 +78,7 @@ CREATE TABLE "verifications" (
 --> statement-breakpoint
 CREATE TABLE "categories" (
 	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
-	"kava_id" uuid NOT NULL,
+	"tenant_id" uuid NOT NULL,
 	"name" text NOT NULL,
 	"parent_id" uuid,
 	"sort_order" integer DEFAULT 0 NOT NULL,
@@ -87,7 +87,7 @@ CREATE TABLE "categories" (
 --> statement-breakpoint
 CREATE TABLE "products" (
 	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
-	"kava_id" uuid NOT NULL,
+	"tenant_id" uuid NOT NULL,
 	"name" text NOT NULL,
 	"brand" text NOT NULL,
 	"category_id" uuid,
@@ -105,7 +105,7 @@ CREATE TABLE "products" (
 --> statement-breakpoint
 CREATE TABLE "customers" (
 	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
-	"kava_id" uuid NOT NULL,
+	"tenant_id" uuid NOT NULL,
 	"name" text NOT NULL,
 	"email" text,
 	"address" text,
@@ -129,7 +129,7 @@ CREATE TABLE "customer_brand_pricing" (
 --> statement-breakpoint
 CREATE TABLE "orders" (
 	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
-	"kava_id" uuid NOT NULL,
+	"tenant_id" uuid NOT NULL,
 	"customer_id" uuid NOT NULL,
 	"status" "order_status" DEFAULT 'pending' NOT NULL,
 	"notes" text,
@@ -155,7 +155,7 @@ CREATE TABLE "order_items" (
 --> statement-breakpoint
 CREATE TABLE "audit_logs" (
 	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
-	"kava_id" uuid,
+	"tenant_id" uuid,
 	"actor_user_id" uuid,
 	"actor_email" text,
 	"action" text NOT NULL,
@@ -165,31 +165,31 @@ CREATE TABLE "audit_logs" (
 	"created_at" timestamp with time zone DEFAULT now() NOT NULL
 );
 --> statement-breakpoint
-ALTER TABLE "kava_memberships" ADD CONSTRAINT "kava_memberships_user_id_users_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."users"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "kava_memberships" ADD CONSTRAINT "kava_memberships_kava_id_kavas_id_fk" FOREIGN KEY ("kava_id") REFERENCES "public"."kavas"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "kava_memberships" ADD CONSTRAINT "kava_memberships_customer_id_customers_id_fk" FOREIGN KEY ("customer_id") REFERENCES "public"."customers"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "kava_memberships" ADD CONSTRAINT "kava_memberships_invited_by_id_users_id_fk" FOREIGN KEY ("invited_by_id") REFERENCES "public"."users"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "tenant_memberships" ADD CONSTRAINT "tenant_memberships_user_id_users_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."users"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "tenant_memberships" ADD CONSTRAINT "tenant_memberships_tenant_id_tenants_id_fk" FOREIGN KEY ("tenant_id") REFERENCES "public"."tenants"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "tenant_memberships" ADD CONSTRAINT "tenant_memberships_customer_id_customers_id_fk" FOREIGN KEY ("customer_id") REFERENCES "public"."customers"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "tenant_memberships" ADD CONSTRAINT "tenant_memberships_invited_by_id_users_id_fk" FOREIGN KEY ("invited_by_id") REFERENCES "public"."users"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "sessions" ADD CONSTRAINT "sessions_user_id_users_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."users"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "accounts" ADD CONSTRAINT "accounts_user_id_users_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."users"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "categories" ADD CONSTRAINT "categories_kava_id_kavas_id_fk" FOREIGN KEY ("kava_id") REFERENCES "public"."kavas"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "products" ADD CONSTRAINT "products_kava_id_kavas_id_fk" FOREIGN KEY ("kava_id") REFERENCES "public"."kavas"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "categories" ADD CONSTRAINT "categories_tenant_id_tenants_id_fk" FOREIGN KEY ("tenant_id") REFERENCES "public"."tenants"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "products" ADD CONSTRAINT "products_tenant_id_tenants_id_fk" FOREIGN KEY ("tenant_id") REFERENCES "public"."tenants"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "products" ADD CONSTRAINT "products_category_id_categories_id_fk" FOREIGN KEY ("category_id") REFERENCES "public"."categories"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "customers" ADD CONSTRAINT "customers_kava_id_kavas_id_fk" FOREIGN KEY ("kava_id") REFERENCES "public"."kavas"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "customers" ADD CONSTRAINT "customers_tenant_id_tenants_id_fk" FOREIGN KEY ("tenant_id") REFERENCES "public"."tenants"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "customer_brand_pricing" ADD CONSTRAINT "customer_brand_pricing_customer_id_customers_id_fk" FOREIGN KEY ("customer_id") REFERENCES "public"."customers"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "orders" ADD CONSTRAINT "orders_kava_id_kavas_id_fk" FOREIGN KEY ("kava_id") REFERENCES "public"."kavas"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "orders" ADD CONSTRAINT "orders_tenant_id_tenants_id_fk" FOREIGN KEY ("tenant_id") REFERENCES "public"."tenants"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "orders" ADD CONSTRAINT "orders_customer_id_customers_id_fk" FOREIGN KEY ("customer_id") REFERENCES "public"."customers"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "orders" ADD CONSTRAINT "orders_erp_transmitted_by_users_id_fk" FOREIGN KEY ("erp_transmitted_by") REFERENCES "public"."users"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "order_items" ADD CONSTRAINT "order_items_order_id_orders_id_fk" FOREIGN KEY ("order_id") REFERENCES "public"."orders"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "order_items" ADD CONSTRAINT "order_items_product_id_products_id_fk" FOREIGN KEY ("product_id") REFERENCES "public"."products"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "order_items" ADD CONSTRAINT "order_items_replaced_by_item_id_order_items_id_fk" FOREIGN KEY ("replaced_by_item_id") REFERENCES "public"."order_items"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "audit_logs" ADD CONSTRAINT "audit_logs_kava_id_kavas_id_fk" FOREIGN KEY ("kava_id") REFERENCES "public"."kavas"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "audit_logs" ADD CONSTRAINT "audit_logs_tenant_id_tenants_id_fk" FOREIGN KEY ("tenant_id") REFERENCES "public"."tenants"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "audit_logs" ADD CONSTRAINT "audit_logs_actor_user_id_users_id_fk" FOREIGN KEY ("actor_user_id") REFERENCES "public"."users"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
-CREATE UNIQUE INDEX "kava_memberships_user_kava_idx" ON "kava_memberships" USING btree ("user_id","kava_id");--> statement-breakpoint
-CREATE INDEX "kava_memberships_kava_idx" ON "kava_memberships" USING btree ("kava_id");--> statement-breakpoint
-CREATE INDEX "kava_memberships_customer_idx" ON "kava_memberships" USING btree ("customer_id");--> statement-breakpoint
+CREATE UNIQUE INDEX "tenant_memberships_user_tenant_idx" ON "tenant_memberships" USING btree ("user_id","tenant_id");--> statement-breakpoint
+CREATE INDEX "tenant_memberships_tenant_idx" ON "tenant_memberships" USING btree ("tenant_id");--> statement-breakpoint
+CREATE INDEX "tenant_memberships_customer_idx" ON "tenant_memberships" USING btree ("customer_id");--> statement-breakpoint
 CREATE INDEX "sessions_user_id_idx" ON "sessions" USING btree ("user_id");--> statement-breakpoint
 CREATE INDEX "accounts_user_id_idx" ON "accounts" USING btree ("user_id");--> statement-breakpoint
 CREATE INDEX "verifications_identifier_idx" ON "verifications" USING btree ("identifier");--> statement-breakpoint
-CREATE UNIQUE INDEX "products_kava_name_brand_idx" ON "products" USING btree ("kava_id","name","brand");--> statement-breakpoint
-CREATE INDEX "audit_logs_kava_id_created_at_idx" ON "audit_logs" USING btree ("kava_id","created_at");--> statement-breakpoint
+CREATE UNIQUE INDEX "products_tenant_name_brand_idx" ON "products" USING btree ("tenant_id","name","brand");--> statement-breakpoint
+CREATE INDEX "audit_logs_tenant_id_created_at_idx" ON "audit_logs" USING btree ("tenant_id","created_at");--> statement-breakpoint
 CREATE INDEX "audit_logs_actor_user_id_idx" ON "audit_logs" USING btree ("actor_user_id");

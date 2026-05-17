@@ -2,7 +2,7 @@ import { z } from "zod";
 
 const optionalEmail = z.string().email("Μη έγκυρο email").max(254);
 
-export const updateKavaSettingsSchema = z
+export const updateTenantSettingsSchema = z
   .object({
     name: z.string().trim().min(1, "Το όνομα είναι υποχρεωτικό").max(200).optional(),
     address: z.string().trim().max(500).optional().nullable(),
@@ -16,4 +16,4 @@ export const updateKavaSettingsSchema = z
     message: "Δεν δόθηκαν πεδία για ενημέρωση",
   });
 
-export type UpdateKavaSettingsInput = z.infer<typeof updateKavaSettingsSchema>;
+export type UpdateTenantSettingsInput = z.infer<typeof updateTenantSettingsSchema>;

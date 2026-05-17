@@ -19,17 +19,17 @@ The goal of this plan is to turn the existing deployment plan into a set of repr
 
 All files live under `.github/workflows/`. Names are deliberate so the Actions UI is browsable.
 
-| File | Trigger | Purpose | Gated? |
-|---|---|---|---|
-| `ci.yml` | PR to `main`, push to non-`main` branches | typecheck, lint, `fmt:check`, build. No deploy. | No |
-| `build-images.yml` | `workflow_call` only | Reusable: builds API + Caddy images, pushes to GHCR with `<sha>` and `latest` tags. | No |
-| `deploy.yml` | push to `main`, `workflow_dispatch` | Calls `build-images`, SSHes to VM, `docker compose pull`, `up -d`, runs migrations, smoke-tests. | `environment: production` (optional manual approval after first weeks) |
-| `provision.yml` | `workflow_dispatch` | Runs `terraform plan` or `apply` on `infra/terraform/`. Creates/updates VM + firewall + DNS. | `environment: infrastructure` (required approval) |
-| `migrate.yml` | `workflow_dispatch` | Runs `pnpm db:migrate` on the VM without rebuilding. For when schema needs human-timed application separate from a deploy. | `environment: production` |
-| `rollback.yml` | `workflow_dispatch` (input: `sha`) | Validates `ghcr.io/.../kava-now-api:<sha>` exists, then redeploys that tag. No new build. | `environment: production` (approval) |
-| `backup-verify.yml` | `schedule` (weekly Sun 04:00 UTC) + `workflow_dispatch` | Pulls latest B2 backup, decrypts with age key, restores into a service-container Postgres in the runner, runs sanity SELECTs. Fails loudly. | No |
-| `restore-backup.yml` | `workflow_dispatch` (inputs: `archive_name`, `confirm_phrase`) | DR workflow. Pulls a chosen B2 archive, decrypts, copies to VM, stops API, restores into prod Postgres, restarts. | `environment: infrastructure` (approval) + typed-phrase gate |
-| `smoke-test.yml` | `workflow_call` | Reusable: hits `/api/healthz` and `/login` on `kavanow.tld` with retries. Called by deploy/rollback/restore. | No |
+| File                 | Trigger                                                        | Purpose                                                                                                                                     | Gated?                                                                 |
+| -------------------- | -------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------- |
+| `ci.yml`             | PR to `main`, push to non-`main` branches                      | typecheck, lint, `fmt:check`, build. No deploy.                                                                                             | No                                                                     |
+| `build-images.yml`   | `workflow_call` only                                           | Reusable: builds API + Caddy images, pushes to GHCR with `<sha>` and `latest` tags.                                                         | No                                                                     |
+| `deploy.yml`         | push to `main`, `workflow_dispatch`                            | Calls `build-images`, SSHes to VM, `docker compose pull`, `up -d`, runs migrations, smoke-tests.                                            | `environment: production` (optional manual approval after first weeks) |
+| `provision.yml`      | `workflow_dispatch`                                            | Runs `terraform plan` or `apply` on `infra/terraform/`. Creates/updates VM + firewall + DNS.                                                | `environment: infrastructure` (required approval)                      |
+| `migrate.yml`        | `workflow_dispatch`                                            | Runs `pnpm db:migrate` on the VM without rebuilding. For when schema needs human-timed application separate from a deploy.                  | `environment: production`                                              |
+| `rollback.yml`       | `workflow_dispatch` (input: `sha`)                             | Validates `ghcr.io/.../kava-now-api:<sha>` exists, then redeploys that tag. No new build.                                                   | `environment: production` (approval)                                   |
+| `backup-verify.yml`  | `schedule` (weekly Sun 04:00 UTC) + `workflow_dispatch`        | Pulls latest B2 backup, decrypts with age key, restores into a service-container Postgres in the runner, runs sanity SELECTs. Fails loudly. | No                                                                     |
+| `restore-backup.yml` | `workflow_dispatch` (inputs: `archive_name`, `confirm_phrase`) | DR workflow. Pulls a chosen B2 archive, decrypts, copies to VM, stops API, restores into prod Postgres, restarts.                           | `environment: infrastructure` (approval) + typed-phrase gate           |
+| `smoke-test.yml`     | `workflow_call`                                                | Reusable: hits `/api/healthz` and `/login` on `kavanow.tld` with retries. Called by deploy/rollback/restore.                                | No                                                                     |
 
 A user with only `repo:read` permissions cannot run any of the gated workflows; they go through the protected-environment approval flow.
 
@@ -40,12 +40,14 @@ A user with only `repo:read` permissions cannot run any of the gated workflows; 
 These supersede the corresponding sections of `plans/hetzner-deployment-plan.md`:
 
 1. **`docker-compose.prod.yml` switches `build:` → `image:`** for `api` and `caddy`. Example:
+
    ```yaml
    api:
      image: ghcr.io/<org>/kava-now-api:${IMAGE_TAG:-latest}
    caddy:
      image: ghcr.io/<org>/kava-now-caddy:${IMAGE_TAG:-latest}
    ```
+
    The VM no longer needs the source tree to deploy — only the compose file, the Caddyfile, and `.env.production`. Git clone on the VM is kept for the compose file/Caddyfile only.
 
 2. **VM logs in to GHCR once** with a `read:packages`-scoped Personal Access Token written to `~deploy/.docker/config.json` via `docker login ghcr.io`. Documented in the bootstrap script.
@@ -95,17 +97,17 @@ Nothing else in the existing plan changes — Caddyfile, secrets layout, backup 
 
 ### GitHub repo secrets (Settings → Secrets and variables → Actions)
 
-| Secret | Used by | Notes |
-|---|---|---|
-| `HETZNER_HOST` | deploy, migrate, rollback, restore-backup | VM IPv4 from Terraform output |
-| `HETZNER_SSH_KEY` | deploy, migrate, rollback, restore-backup, bootstrap | Private key paired with the public key Terraform installs |
-| `HETZNER_SSH_KNOWN_HOSTS` | same | `ssh-keyscan <ip>` output; rotate when VM IP changes |
-| `HCLOUD_TOKEN` | provision | Hetzner Cloud API token, project-scoped |
-| `CLOUDFLARE_API_TOKEN` | provision | Same Zone:DNS:Edit token from the existing plan |
-| `GHCR_VM_PAT` | bootstrap-vm.sh writes this into the VM | Read-only PAT scoped to `read:packages`, used by the VM to pull images |
-| `B2_KEY_ID`, `B2_APP_KEY` | backup-verify, restore-backup | Reuses the bucket's existing app key |
-| `AGE_PRIVATE_KEY` | backup-verify, restore-backup | The private half of the age keypair. **Sensitive — controls all backup decryption.** Store with extra care. |
-| `TF_STATE_TOKEN` | provision | If using Terraform Cloud free; skip if using B2-as-S3 backend |
+| Secret                    | Used by                                              | Notes                                                                                                       |
+| ------------------------- | ---------------------------------------------------- | ----------------------------------------------------------------------------------------------------------- |
+| `HETZNER_HOST`            | deploy, migrate, rollback, restore-backup            | VM IPv4 from Terraform output                                                                               |
+| `HETZNER_SSH_KEY`         | deploy, migrate, rollback, restore-backup, bootstrap | Private key paired with the public key Terraform installs                                                   |
+| `HETZNER_SSH_KNOWN_HOSTS` | same                                                 | `ssh-keyscan <ip>` output; rotate when VM IP changes                                                        |
+| `HCLOUD_TOKEN`            | provision                                            | Hetzner Cloud API token, project-scoped                                                                     |
+| `CLOUDFLARE_API_TOKEN`    | provision                                            | Same Zone:DNS:Edit token from the existing plan                                                             |
+| `GHCR_VM_PAT`             | bootstrap-vm.sh writes this into the VM              | Read-only PAT scoped to `read:packages`, used by the VM to pull images                                      |
+| `B2_KEY_ID`, `B2_APP_KEY` | backup-verify, restore-backup                        | Reuses the bucket's existing app key                                                                        |
+| `AGE_PRIVATE_KEY`         | backup-verify, restore-backup                        | The private half of the age keypair. **Sensitive — controls all backup decryption.** Store with extra care. |
+| `TF_STATE_TOKEN`          | provision                                            | If using Terraform Cloud free; skip if using B2-as-S3 backend                                               |
 
 `GITHUB_TOKEN` is used for GHCR push from `build-images.yml` (no PAT needed; the workflow gets `packages: write`).
 
@@ -208,7 +210,7 @@ runcmd:
   - mkdir -p /srv/kava-now && chown deploy:deploy /srv/kava-now
 ```
 
-`scripts/bootstrap-vm.sh` runs the one-time *post*-cloud-init steps the workflow needs (GHCR login as `deploy`, age public key install, rclone B2 remote config writeup, cron entry for backup). It is idempotent and SSHed in by a separate `bootstrap.yml` (or inlined into `provision.yml` after the first apply).
+`scripts/bootstrap-vm.sh` runs the one-time _post_-cloud-init steps the workflow needs (GHCR login as `deploy`, age public key install, rclone B2 remote config writeup, cron entry for backup). It is idempotent and SSHed in by a separate `bootstrap.yml` (or inlined into `provision.yml` after the first apply).
 
 ### `migrate.yml` (manual migrate without deploy)
 
@@ -274,7 +276,7 @@ runcmd:
 - `plans/hetzner-deployment-plan.md:394` — `docker-compose.prod.yml` is defined here; needs the `build:` → `image:` change.
 - `plans/hetzner-deployment-plan.md:825` — the existing `deploy.yml` sketch; this plan replaces it.
 - [Dockerfile:55](Dockerfile:55) — existing multi-stage `target: api` already exists; reused unchanged.
-- [Dockerfile:80](Dockerfile:80) — existing `caddy` target. The Hetzner plan introduces a *separate* `Caddyfile.Dockerfile` for the Cloudflare DNS plugin; that file is what `build-images.yml` pushes as `kava-now-caddy`.
+- [Dockerfile:80](Dockerfile:80) — existing `caddy` target. The Hetzner plan introduces a _separate_ `Caddyfile.Dockerfile` for the Cloudflare DNS plugin; that file is what `build-images.yml` pushes as `kava-now-caddy`.
 - [package.json:5](package.json:5) — the `pnpm` scripts (`db:migrate`, `typecheck`, `lint`, `fmt:check`, `build`) used by `ci.yml` and `migrate.yml` are already wired and need no changes.
 - [scripts/deploy.sh:1](scripts/deploy.sh:1) — keep as a local convenience for SSH-in manual deploys; the workflows do not call it.
 
@@ -298,11 +300,11 @@ End-to-end, in order:
 
 ## Risks
 
-| Risk | Mitigation |
-|---|---|
+| Risk                                                                                          | Mitigation                                                                                                                                                                                                                                                                                                                                     |
+| --------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `AGE_PRIVATE_KEY` in GitHub Secrets means a compromised repo settings page = readable backups | Restrict who can read/edit repo secrets. Backups themselves still require B2 credentials to download. Consider a separate "verify-only" age key whose pubkey signs every archive, while a different "restore" key — held only by humans — does prod restores. (Costs one extra encryption step in the backup script; defer until post-launch.) |
-| Terraform state divergence (someone edits the VM in the Hetzner Console) | Quarterly `terraform plan` as a reminder; treat any drift as a bug. Keep human-edited resources out of Terraform (e.g. don't put backups bucket in TF if you also manage it via the B2 UI). |
-| GHCR pull failure on the VM (rotated PAT) breaks deploys | The PAT for VM pulls is `read:packages`-only and has a calendar reminder for annual rotation; the rotation is a 2-min `docker login` over SSH, documented in `scripts/bootstrap-vm.sh`. |
-| `restore-backup.yml` accidentally fires against the wrong archive | Two-layer gate: `environment: infrastructure` approval + typed `confirm_phrase` matching the archive name. A "last-chance dump" before the DROP DATABASE buys 7 days to undo. |
-| Backup verify silently flakes (cron miss, B2 outage) | The verify job opens/updates a GH Issue on failure; a second metric — alert if no successful run in 14 days — should be added to UptimeRobot/Better Stack as a Heartbeat check. |
-| Schema-incompatible rollback corrupts state | The rollback workflow explicitly does **not** revert migrations and the job summary states this. The documented escape hatch is `restore-backup.yml` to a pre-deploy archive. |
+| Terraform state divergence (someone edits the VM in the Hetzner Console)                      | Quarterly `terraform plan` as a reminder; treat any drift as a bug. Keep human-edited resources out of Terraform (e.g. don't put backups bucket in TF if you also manage it via the B2 UI).                                                                                                                                                    |
+| GHCR pull failure on the VM (rotated PAT) breaks deploys                                      | The PAT for VM pulls is `read:packages`-only and has a calendar reminder for annual rotation; the rotation is a 2-min `docker login` over SSH, documented in `scripts/bootstrap-vm.sh`.                                                                                                                                                        |
+| `restore-backup.yml` accidentally fires against the wrong archive                             | Two-layer gate: `environment: infrastructure` approval + typed `confirm_phrase` matching the archive name. A "last-chance dump" before the DROP DATABASE buys 7 days to undo.                                                                                                                                                                  |
+| Backup verify silently flakes (cron miss, B2 outage)                                          | The verify job opens/updates a GH Issue on failure; a second metric — alert if no successful run in 14 days — should be added to UptimeRobot/Better Stack as a Heartbeat check.                                                                                                                                                                |
+| Schema-incompatible rollback corrupts state                                                   | The rollback workflow explicitly does **not** revert migrations and the job summary states this. The documented escape hatch is `restore-backup.yml` to a pre-deploy archive.                                                                                                                                                                  |

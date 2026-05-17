@@ -59,7 +59,7 @@ const PREVIEW_LIMIT = 20;
 
 export function ProductsImportPage() {
   const navigate = useNavigate();
-  const { kava } = useAuth();
+  const { tenant } = useAuth();
   const slug = useTenantSlug();
   const productsPath = `/k/${slug}/admin/products`;
   const importMutation = useImportProducts();
@@ -123,7 +123,7 @@ export function ProductsImportPage() {
       } else {
         setParsed(result);
         const suggested = suggestMapping(result.columns);
-        const persisted = kava ? loadMapping(kava.slug) : null;
+        const persisted = tenant ? loadMapping(tenant.slug) : null;
         const merged: Mapping = { ...suggested };
         if (persisted) {
           for (const [k, v] of Object.entries(persisted) as [TargetField, string][]) {
@@ -161,7 +161,7 @@ export function ProductsImportPage() {
   };
 
   const handleContinueToPreview = () => {
-    if (kava) persistMapping(kava.slug, mapping);
+    if (tenant) persistMapping(tenant.slug, mapping);
     setStep("preview");
   };
 

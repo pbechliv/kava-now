@@ -3,7 +3,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useNavigate, Link } from "react-router";
 import { ArrowLeft, Loader2 } from "lucide-react";
 import { registerSchema, type RegisterInput } from "@kava-now/shared";
-import { useCreateKava } from "@/lib/hooks/use-superadmin-kavas";
+import { useCreateTenant } from "@/lib/hooks/use-superadmin-tenants";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
@@ -17,9 +17,9 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 
-export function NewKavaPage() {
+export function NewTenantPage() {
   const navigate = useNavigate();
-  const createKava = useCreateKava();
+  const createTenant = useCreateTenant();
 
   const form = useForm<RegisterInput>({
     resolver: zodResolver(registerSchema),
@@ -28,17 +28,17 @@ export function NewKavaPage() {
   const slug = form.watch("slug", "");
 
   const onSubmit = (data: RegisterInput) => {
-    createKava.mutate(data, {
-      onSuccess: () => navigate("/admin/kavas", { replace: true }),
+    createTenant.mutate(data, {
+      onSuccess: () => navigate("/admin/tenants", { replace: true }),
     });
   };
 
   return (
     <div className="max-w-xl space-y-6">
       <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-        <h1 className="text-2xl font-bold tracking-tight">Νέα κάβα</h1>
+        <h1 className="text-2xl font-bold tracking-tight">Νέος λογαριασμός</h1>
         <Link
-          to="/admin/kavas"
+          to="/admin/tenants"
           className="inline-flex items-center gap-1 text-sm font-medium text-primary hover:underline"
         >
           <ArrowLeft className="h-4 w-4" /> Πίσω
@@ -54,9 +54,9 @@ export function NewKavaPage() {
                 name="name"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Όνομα κάβας</FormLabel>
+                    <FormLabel>Όνομα λογαριασμού</FormLabel>
                     <FormControl>
-                      <Input placeholder="Η Κάβα της Πελοποννήσου" {...field} />
+                      <Input placeholder="Η Επιχείρηση της Πελοποννήσου" {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -69,7 +69,7 @@ export function NewKavaPage() {
                   <FormItem>
                     <FormLabel>Slug</FormLabel>
                     <FormControl>
-                      <Input placeholder="i-kava-mou" {...field} />
+                      <Input placeholder="i-tenant-mou" {...field} />
                     </FormControl>
                     {slug && <FormDescription>kavanow.gr/k/{slug}</FormDescription>}
                     <FormMessage />
@@ -129,16 +129,16 @@ export function NewKavaPage() {
                 Αν δεν ορίσετε κωδικό, ο ιδιοκτήτης θα λάβει σύνδεσμο για να ορίσει τον κωδικό του.
               </p>
 
-              {createKava.error && (
+              {createTenant.error && (
                 <p className="text-sm text-destructive">
-                  {createKava.error instanceof Error
-                    ? createKava.error.message
+                  {createTenant.error instanceof Error
+                    ? createTenant.error.message
                     : "Κάτι πήγε στραβά"}
                 </p>
               )}
 
-              <Button type="submit" disabled={createKava.isPending}>
-                {createKava.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              <Button type="submit" disabled={createTenant.isPending}>
+                {createTenant.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 Δημιουργία
               </Button>
             </form>

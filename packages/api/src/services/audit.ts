@@ -11,7 +11,7 @@ interface LogAuditOptions {
 }
 
 /**
- * Write a row to audit_logs. Captures the caller from context (kavaId,
+ * Write a row to audit_logs. Captures the caller from context (tenantId,
  * user.id, user.email). Failures are swallowed — auditing never breaks
  * the primary request.
  */
@@ -21,9 +21,9 @@ export async function logAudit(
 ): Promise<void> {
   try {
     const user = c.get("user");
-    const kavaId = c.get("kavaId");
+    const tenantId = c.get("tenantId");
     await db.insert(auditLogs).values({
-      kavaId: kavaId ?? null,
+      tenantId: tenantId ?? null,
       actorUserId: user?.id ?? null,
       actorEmail: user?.email ?? null,
       action,

@@ -1,6 +1,6 @@
 import { eq, and } from "drizzle-orm";
 import { db } from "../db/connection";
-import { accounts, kavaMemberships, kavas, users } from "../db/schema/index";
+import { accounts, tenantMemberships, tenants, users } from "../db/schema/index";
 import { auth } from "../auth";
 import { config } from "../config";
 import { sendMembershipAdded } from "./email";
@@ -10,7 +10,7 @@ import type { MembershipRole } from "@kava-now/shared";
 
 interface InviteOptions {
   c: Context<AppEnv>;
-  kavaId: string;
+  tenantId: string;
   email: string;
   name: string;
   role: MembershipRole;
@@ -26,30 +26,30 @@ export class InviteConflict extends Error {
 }
 
 /**
- * Attach a user to a kava with a role. Two paths:
+ * Attach a user to a tenant with a role. Two paths:
  * - Email already exists globally: create the membership only; notify the
  *   existing user that they were added (they sign in with their existing
  *   password).
  * - Email is new: create the user without a password, create the membership,
  *   send a set-password invite that lands them on `/k/<slug>/welcome`.
  *
- * Throws `InviteConflict` if the user already has a membership in this kava.
+ * Throws `InviteConflict` if the user already has a membership in this tenant.
  */
-export async function inviteUserToKava({
+export async function inviteUserToTenant({
   c,
-  kavaId,
+  tenantId,
   email,
   name,
   role,
   customerId = null,
   inviterId = null,
 }: InviteOptions): Promise<void> {
-  const [kava] = await db
-    .select({ slug: kavas.slug, name: kavas.name })
-    .from(kavas)
-    .where(eq(kavas.id, kavaId))
+  const [tenant] = await db
+    .select({ slug: tenants.slug, name: tenants.name })
+    .from(tenants)
+    .where(eq(tenants.id, tenantId))
     .limit(1);
-  if (!kava) throw new Error("Δεν βρέθηκε κάβα");
+  if (!tenant) throw new Error("Δεν βρέθηκε λογαριασμό");
 
   const [existingUser] = await db
     .select({ id: users.id })
@@ -59,17 +59,22 @@ export async function inviteUserToKava({
 
   if (existingUser) {
     const [existingMembership] = await db
-      .select({ id: kavaMemberships.id })
-      .from(kavaMemberships)
-      .where(and(eq(kavaMemberships.userId, existingUser.id), eq(kavaMemberships.kavaId, kavaId)))
+      .select({ id: tenantMemberships.id })
+      .from(tenantMemberships)
+      .where(
+        and(
+          eq(tenantMemberships.userId, existingUser.id),
+          eq(tenantMemberships.tenantId, tenantId),
+        ),
+      )
       .limit(1);
     if (existingMembership) {
-      throw new InviteConflict("Αυτός ο χρήστης είναι ήδη μέλος αυτής της κάβας");
+      throw new InviteConflict("Αυτός ο χρήστης είναι ήδη μέλος αυτής του λογαριασμού");
     }
 
-    await db.insert(kavaMemberships).values({
+    await db.insert(tenantMemberships).values({
       userId: existingUser.id,
-      kavaId,
+      tenantId,
       role,
       customerId,
       invitedById: inviterId,
@@ -77,8 +82,8 @@ export async function inviteUserToKava({
 
     // Best-effort notification — the membership is already persisted.
     try {
-      const loginUrl = `${config.appOrigin}/k/${kava.slug}/login`;
-      await sendMembershipAdded(email, loginUrl, kava.name);
+      const loginUrl = `${config.appOrigin}/k/${tenant.slug}/login`;
+      await sendMembershipAdded(email, loginUrl, tenant.name);
     } catch (err) {
       console.error("[invite] Failed to send membership-added notification:", err);
     }
@@ -91,15 +96,15 @@ export async function inviteUserToKava({
     .returning({ id: users.id });
   if (!createdUser) throw new Error("Αποτυχία δημιουργίας χρήστη");
 
-  await db.insert(kavaMemberships).values({
+  await db.insert(tenantMemberships).values({
     userId: createdUser.id,
-    kavaId,
+    tenantId,
     role,
     customerId,
     invitedById: inviterId,
   });
 
-  await sendInviteSetPassword(c, email, kava.slug);
+  await sendInviteSetPassword(c, email, tenant.slug);
 }
 
 /**
@@ -111,9 +116,9 @@ export async function inviteUserToKava({
 export async function sendInviteSetPassword(
   c: Context<AppEnv>,
   email: string,
-  kavaSlug: string,
+  tenantSlug: string,
 ): Promise<void> {
-  const redirectTo = `${config.appOrigin}/k/${kavaSlug}/welcome`;
+  const redirectTo = `${config.appOrigin}/k/${tenantSlug}/welcome`;
 
   await auth.api.requestPasswordReset({
     body: { email, redirectTo },

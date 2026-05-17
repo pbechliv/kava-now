@@ -1,25 +1,25 @@
 import { type AnyPgColumn } from "drizzle-orm/pg-core";
 import { pgTable, uuid, timestamp, uniqueIndex, index } from "drizzle-orm/pg-core";
 import { membershipRoleEnum } from "./enums";
-import { kavas } from "./kavas";
+import { tenants } from "./tenants";
 import { customers } from "./customers";
 import { users } from "./users";
 
 /**
- * Many-to-many between users and kavas. Each row grants a single role to a
- * user inside one kava. `customerId` is non-null only for customer-role rows,
- * linking the user to a specific customer entity within that kava.
+ * Many-to-many between users and tenants. Each row grants a single role to a
+ * user inside one tenant. `customerId` is non-null only for customer-role
+ * rows, linking the user to a specific customer entity within that tenant.
  */
-export const kavaMemberships = pgTable(
-  "kava_memberships",
+export const tenantMemberships = pgTable(
+  "tenant_memberships",
   {
     id: uuid("id").primaryKey().defaultRandom(),
     userId: uuid("user_id")
       .notNull()
       .references(() => users.id, { onDelete: "cascade" }),
-    kavaId: uuid("kava_id")
+    tenantId: uuid("tenant_id")
       .notNull()
-      .references(() => kavas.id, { onDelete: "cascade" }),
+      .references(() => tenants.id, { onDelete: "cascade" }),
     role: membershipRoleEnum("role").notNull(),
     customerId: uuid("customer_id").references(() => customers.id, {
       onDelete: "cascade",
@@ -30,8 +30,8 @@ export const kavaMemberships = pgTable(
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (table) => [
-    uniqueIndex("kava_memberships_user_kava_idx").on(table.userId, table.kavaId),
-    index("kava_memberships_kava_idx").on(table.kavaId),
-    index("kava_memberships_customer_idx").on(table.customerId),
+    uniqueIndex("tenant_memberships_user_tenant_idx").on(table.userId, table.tenantId),
+    index("tenant_memberships_tenant_idx").on(table.tenantId),
+    index("tenant_memberships_customer_idx").on(table.customerId),
   ],
 );

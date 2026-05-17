@@ -163,10 +163,7 @@ export function OrderDetailPage() {
 
   const confirmCancel = () => {
     if (!cancelTarget) return;
-    cancelItem.mutate(
-      { itemId: cancelTarget.id },
-      { onSuccess: () => setCancelTarget(null) },
-    );
+    cancelItem.mutate({ itemId: cancelTarget.id }, { onSuccess: () => setCancelTarget(null) });
   };
 
   return (
@@ -371,195 +368,182 @@ export function OrderDetailPage() {
                 </TableFooter>
               </Table>
             ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Προϊόν</TableHead>
-                  <TableHead>Κωδικός ERP</TableHead>
-                  <TableHead className="text-center">Ποσότητα</TableHead>
-                  <TableHead className="text-right">Τιμή</TableHead>
-                  <TableHead className="text-right">Υποσύνολο</TableHead>
-                  {canEditItems && <TableHead className="w-12" />}
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {order.items.map((item) => {
-                  const code = item.erpRef ?? item.sku;
-                  const isCancelled = item.status === "cancelled";
-                  const isEditing = editingItemId === item.id;
-                  const replacement = replacementMap.get(item.id);
-                  const isAdminAdded = item.originalQuantity == null;
-                  const qtyChanged =
-                    item.originalQuantity != null && item.originalQuantity !== item.quantity;
-                  const rowClass = isCancelled ? "text-muted-foreground" : "";
-                  const nameClass = isCancelled
-                    ? "font-medium line-through"
-                    : "font-medium";
-                  return (
-                    <TableRow key={item.id} className={rowClass}>
-                      <TableCell>
-                        <div className="flex flex-col gap-0.5">
-                          <div className="flex items-center gap-2">
-                            <span className={nameClass}>{item.productName}</span>
-                            {isCancelled && (
-                              <Badge variant="muted" className="text-[10px]">
-                                Ακυρωμένο
-                              </Badge>
-                            )}
-                            {!isCancelled && isAdminAdded && (
-                              <Badge variant="secondary" className="text-[10px]">
-                                Προστέθηκε
-                              </Badge>
-                            )}
-                          </div>
-                          {replacement && (
-                            <span className="text-xs text-muted-foreground">
-                              → Αντικαταστάθηκε με{" "}
-                              <span className="font-medium">{replacement.productName}</span>
-                            </span>
-                          )}
-                        </div>
-                      </TableCell>
-                      <TableCell className="text-muted-foreground">
-                        <div className="flex items-center gap-1">
-                          <span
-                            className={
-                              isCancelled
-                                ? "font-mono text-xs line-through"
-                                : "font-mono text-xs"
-                            }
-                          >
-                            {code ?? "—"}
-                          </span>
-                          {code && !isCancelled && (
-                            <Button
-                              type="button"
-                              size="icon"
-                              variant="ghost"
-                              className="h-6 w-6"
-                              onClick={() => copyToClipboard(code, "Αντιγραφή κωδικού")}
-                              aria-label="Αντιγραφή κωδικού"
-                            >
-                              <Copy className="h-3 w-3" />
-                            </Button>
-                          )}
-                        </div>
-                      </TableCell>
-                      <TableCell className="text-center">
-                        {isEditing ? (
-                          <div className="flex items-center justify-center gap-1">
-                            <Input
-                              type="number"
-                              min={1}
-                              value={editingQty}
-                              onChange={(e) =>
-                                setEditingQty(Math.max(1, Number(e.target.value)))
-                              }
-                              className="h-8 w-20 text-center"
-                            />
-                            <Button
-                              size="sm"
-                              variant="default"
-                              disabled={updateItem.isPending}
-                              onClick={() => saveEditQty(item.id)}
-                            >
-                              {updateItem.isPending ? (
-                                <Loader2 className="h-3 w-3 animate-spin" />
-                              ) : (
-                                "OK"
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Προϊόν</TableHead>
+                    <TableHead>Κωδικός ERP</TableHead>
+                    <TableHead className="text-center">Ποσότητα</TableHead>
+                    <TableHead className="text-right">Τιμή</TableHead>
+                    <TableHead className="text-right">Υποσύνολο</TableHead>
+                    {canEditItems && <TableHead className="w-12" />}
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {order.items.map((item) => {
+                    const code = item.erpRef ?? item.sku;
+                    const isCancelled = item.status === "cancelled";
+                    const isEditing = editingItemId === item.id;
+                    const replacement = replacementMap.get(item.id);
+                    const isAdminAdded = item.originalQuantity == null;
+                    const qtyChanged =
+                      item.originalQuantity != null && item.originalQuantity !== item.quantity;
+                    const rowClass = isCancelled ? "text-muted-foreground" : "";
+                    const nameClass = isCancelled ? "font-medium line-through" : "font-medium";
+                    return (
+                      <TableRow key={item.id} className={rowClass}>
+                        <TableCell>
+                          <div className="flex flex-col gap-0.5">
+                            <div className="flex items-center gap-2">
+                              <span className={nameClass}>{item.productName}</span>
+                              {isCancelled && (
+                                <Badge variant="muted" className="text-[10px]">
+                                  Ακυρωμένο
+                                </Badge>
                               )}
-                            </Button>
-                            <Button size="sm" variant="ghost" onClick={cancelEditQty}>
-                              ✕
-                            </Button>
-                          </div>
-                        ) : (
-                          <div className="flex flex-col items-center gap-0.5">
-                            <span className={isCancelled ? "line-through" : ""}>
-                              {item.quantity}
-                            </span>
-                            {qtyChanged && !isCancelled && (
-                              <span className="text-[10px] text-muted-foreground">
-                                Αρχικά: {item.originalQuantity}
+                              {!isCancelled && isAdminAdded && (
+                                <Badge variant="secondary" className="text-[10px]">
+                                  Προστέθηκε
+                                </Badge>
+                              )}
+                            </div>
+                            {replacement && (
+                              <span className="text-xs text-muted-foreground">
+                                → Αντικαταστάθηκε με{" "}
+                                <span className="font-medium">{replacement.productName}</span>
                               </span>
                             )}
                           </div>
-                        )}
-                      </TableCell>
-                      <TableCell
-                        className={
-                          isCancelled
-                            ? "text-right text-muted-foreground line-through"
-                            : "text-right text-muted-foreground"
-                        }
-                      >
-                        {Number(item.unitPrice).toFixed(2)}&nbsp;€
-                      </TableCell>
-                      <TableCell
-                        className={isCancelled ? "text-right line-through" : "text-right"}
-                      >
-                        {(Number(item.unitPrice) * item.quantity).toFixed(2)}&nbsp;€
-                      </TableCell>
-                      {canEditItems && (
-                        <TableCell className="text-right">
-                          {!isCancelled && !isEditing && (
-                            <DropdownMenu>
-                              <DropdownMenuTrigger asChild>
-                                <Button
-                                  variant="ghost"
-                                  size="icon"
-                                  className="h-7 w-7"
-                                  aria-label="Ενέργειες"
-                                >
-                                  <MoreHorizontal className="h-4 w-4" />
-                                </Button>
-                              </DropdownMenuTrigger>
-                              <DropdownMenuContent align="end">
-                                <DropdownMenuItem onClick={() => beginEditQty(item)}>
-                                  Επεξεργασία ποσότητας
-                                </DropdownMenuItem>
-                                <DropdownMenuItem
-                                  onClick={() => setReplaceTarget(item)}
-                                >
-                                  Αντικατάσταση...
-                                </DropdownMenuItem>
-                                <DropdownMenuItem
-                                  variant="destructive"
-                                  onClick={() => setCancelTarget(item)}
-                                >
-                                  Ακύρωση γραμμής
-                                </DropdownMenuItem>
-                              </DropdownMenuContent>
-                            </DropdownMenu>
+                        </TableCell>
+                        <TableCell className="text-muted-foreground">
+                          <div className="flex items-center gap-1">
+                            <span
+                              className={
+                                isCancelled ? "font-mono text-xs line-through" : "font-mono text-xs"
+                              }
+                            >
+                              {code ?? "—"}
+                            </span>
+                            {code && !isCancelled && (
+                              <Button
+                                type="button"
+                                size="icon"
+                                variant="ghost"
+                                className="h-6 w-6"
+                                onClick={() => copyToClipboard(code, "Αντιγραφή κωδικού")}
+                                aria-label="Αντιγραφή κωδικού"
+                              >
+                                <Copy className="h-3 w-3" />
+                              </Button>
+                            )}
+                          </div>
+                        </TableCell>
+                        <TableCell className="text-center">
+                          {isEditing ? (
+                            <div className="flex items-center justify-center gap-1">
+                              <Input
+                                type="number"
+                                min={1}
+                                value={editingQty}
+                                onChange={(e) => setEditingQty(Math.max(1, Number(e.target.value)))}
+                                className="h-8 w-20 text-center"
+                              />
+                              <Button
+                                size="sm"
+                                variant="default"
+                                disabled={updateItem.isPending}
+                                onClick={() => saveEditQty(item.id)}
+                              >
+                                {updateItem.isPending ? (
+                                  <Loader2 className="h-3 w-3 animate-spin" />
+                                ) : (
+                                  "OK"
+                                )}
+                              </Button>
+                              <Button size="sm" variant="ghost" onClick={cancelEditQty}>
+                                ✕
+                              </Button>
+                            </div>
+                          ) : (
+                            <div className="flex flex-col items-center gap-0.5">
+                              <span className={isCancelled ? "line-through" : ""}>
+                                {item.quantity}
+                              </span>
+                              {qtyChanged && !isCancelled && (
+                                <span className="text-[10px] text-muted-foreground">
+                                  Αρχικά: {item.originalQuantity}
+                                </span>
+                              )}
+                            </div>
                           )}
                         </TableCell>
-                      )}
-                    </TableRow>
-                  );
-                })}
-              </TableBody>
-              <TableFooter>
-                <TableRow>
-                  <TableCell
-                    colSpan={canEditItems ? 5 : 4}
-                    className="text-right font-semibold"
-                  >
-                    Σύνολο
-                  </TableCell>
-                  <TableCell className="text-right font-semibold">
-                    {Number(order.total).toFixed(2)}&nbsp;€
-                  </TableCell>
-                </TableRow>
-              </TableFooter>
-            </Table>
+                        <TableCell
+                          className={
+                            isCancelled
+                              ? "text-right text-muted-foreground line-through"
+                              : "text-right text-muted-foreground"
+                          }
+                        >
+                          {Number(item.unitPrice).toFixed(2)}&nbsp;€
+                        </TableCell>
+                        <TableCell
+                          className={isCancelled ? "text-right line-through" : "text-right"}
+                        >
+                          {(Number(item.unitPrice) * item.quantity).toFixed(2)}&nbsp;€
+                        </TableCell>
+                        {canEditItems && (
+                          <TableCell className="text-right">
+                            {!isCancelled && !isEditing && (
+                              <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="h-7 w-7"
+                                    aria-label="Ενέργειες"
+                                  >
+                                    <MoreHorizontal className="h-4 w-4" />
+                                  </Button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent align="end">
+                                  <DropdownMenuItem onClick={() => beginEditQty(item)}>
+                                    Επεξεργασία ποσότητας
+                                  </DropdownMenuItem>
+                                  <DropdownMenuItem onClick={() => setReplaceTarget(item)}>
+                                    Αντικατάσταση...
+                                  </DropdownMenuItem>
+                                  <DropdownMenuItem
+                                    variant="destructive"
+                                    onClick={() => setCancelTarget(item)}
+                                  >
+                                    Ακύρωση γραμμής
+                                  </DropdownMenuItem>
+                                </DropdownMenuContent>
+                              </DropdownMenu>
+                            )}
+                          </TableCell>
+                        )}
+                      </TableRow>
+                    );
+                  })}
+                </TableBody>
+                <TableFooter>
+                  <TableRow>
+                    <TableCell colSpan={canEditItems ? 5 : 4} className="text-right font-semibold">
+                      Σύνολο
+                    </TableCell>
+                    <TableCell className="text-right font-semibold">
+                      {Number(order.total).toFixed(2)}&nbsp;€
+                    </TableCell>
+                  </TableRow>
+                </TableFooter>
+              </Table>
             )}
           </div>
         </Card>
       </div>
 
-      {id && (
-        <AddItemModal open={showAdd} orderId={id} onClose={() => setShowAdd(false)} />
-      )}
+      {id && <AddItemModal open={showAdd} orderId={id} onClose={() => setShowAdd(false)} />}
       {id && replaceTarget && (
         <ReplaceItemModal
           open={!!replaceTarget}
@@ -571,19 +555,14 @@ export function OrderDetailPage() {
           onClose={() => setReplaceTarget(null)}
         />
       )}
-      <Dialog
-        open={!!cancelTarget}
-        onOpenChange={(o) => !o && setCancelTarget(null)}
-      >
+      <Dialog open={!!cancelTarget} onOpenChange={(o) => !o && setCancelTarget(null)}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Ακύρωση γραμμής</DialogTitle>
             <DialogDescription>
               Είστε σίγουρος ότι θέλετε να ακυρώσετε{" "}
-              <span className="font-medium text-foreground">
-                {cancelTarget?.productName}
-              </span>
-              ; Η γραμμή θα παραμείνει στο ιστορικό σημαδεμένη ως ακυρωμένη.
+              <span className="font-medium text-foreground">{cancelTarget?.productName}</span>; Η
+              γραμμή θα παραμείνει στο ιστορικό σημαδεμένη ως ακυρωμένη.
             </DialogDescription>
           </DialogHeader>
           {cancelItem.error && (
@@ -593,11 +572,7 @@ export function OrderDetailPage() {
             <Button variant="outline" onClick={() => setCancelTarget(null)}>
               Άκυρο
             </Button>
-            <Button
-              variant="destructive"
-              onClick={confirmCancel}
-              disabled={cancelItem.isPending}
-            >
+            <Button variant="destructive" onClick={confirmCancel} disabled={cancelItem.isPending}>
               {cancelItem.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               Ακύρωση γραμμής
             </Button>

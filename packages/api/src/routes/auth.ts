@@ -3,7 +3,7 @@ import { eq, ne, and } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
 import { z } from "zod";
 import { db } from "../db/connection";
-import { accounts, kavaMemberships, kavas, users } from "../db/schema/index";
+import { accounts, tenantMemberships, tenants, users } from "../db/schema/index";
 import { auth as betterAuth } from "../auth";
 import { requireAuth } from "../middleware/require-auth";
 import { logAudit } from "../services/audit";
@@ -41,28 +41,28 @@ auth.get("/me", requireAuth, async (c) => {
     .where(and(eq(accounts.userId, authUser.id), eq(accounts.providerId, "credential")))
     .limit(1);
 
-  // All kavas this user is a member of, with role + linked customer (if any).
+  // All tenants this user is a member of, with role + linked customer (if any).
   const inviter = alias(users, "inviter");
   const rows = await db
     .select({
-      kavaId: kavaMemberships.kavaId,
-      kavaSlug: kavas.slug,
-      kavaName: kavas.name,
-      role: kavaMemberships.role,
-      customerId: kavaMemberships.customerId,
+      tenantId: tenantMemberships.tenantId,
+      tenantSlug: tenants.slug,
+      tenantName: tenants.name,
+      role: tenantMemberships.role,
+      customerId: tenantMemberships.customerId,
       invitedByName: inviter.name,
       invitedByEmail: inviter.email,
     })
-    .from(kavaMemberships)
-    .innerJoin(kavas, eq(kavas.id, kavaMemberships.kavaId))
-    .leftJoin(inviter, eq(inviter.id, kavaMemberships.invitedById))
-    .where(eq(kavaMemberships.userId, authUser.id))
-    .orderBy(kavas.name);
+    .from(tenantMemberships)
+    .innerJoin(tenants, eq(tenants.id, tenantMemberships.tenantId))
+    .leftJoin(inviter, eq(inviter.id, tenantMemberships.invitedById))
+    .where(eq(tenantMemberships.userId, authUser.id))
+    .orderBy(tenants.name);
 
   const memberships = rows.map((r) => ({
-    kavaId: r.kavaId,
-    kavaSlug: r.kavaSlug,
-    kavaName: r.kavaName,
+    tenantId: r.tenantId,
+    tenantSlug: r.tenantSlug,
+    tenantName: r.tenantName,
     role: r.role,
     customerId: r.customerId,
     invitedBy: r.invitedByName ? { name: r.invitedByName, email: r.invitedByEmail ?? "" } : null,

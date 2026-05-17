@@ -3,7 +3,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useParams } from "react-router";
 import * as Sentry from "@sentry/react";
 import { api } from "../api";
-import type { KavaMembership } from "@kava-now/shared";
+import type { TenantMembership } from "@kava-now/shared";
 
 export interface AuthUser {
   id: string;
@@ -15,12 +15,12 @@ export interface AuthUser {
 
 export interface AuthMeResponse {
   user: AuthUser;
-  memberships: KavaMembership[];
+  memberships: TenantMembership[];
 }
 
 /**
  * Hook for authenticated user state. Returns the global user + their list of
- * kava memberships. The "current" membership (matching the URL's `:slug`
+ * tenant memberships. The "current" membership (matching the URL's `:slug`
  * param, if any) is also exposed for convenience.
  */
 export function useAuth() {
@@ -33,12 +33,12 @@ export function useAuth() {
 
   const user = data?.user ?? null;
   const memberships = data?.memberships ?? [];
-  const currentMembership = slug ? (memberships.find((m) => m.kavaSlug === slug) ?? null) : null;
-  const kava = currentMembership
+  const currentMembership = slug ? (memberships.find((m) => m.tenantSlug === slug) ?? null) : null;
+  const tenant = currentMembership
     ? {
-        id: currentMembership.kavaId,
-        slug: currentMembership.kavaSlug,
-        name: currentMembership.kavaName,
+        id: currentMembership.tenantId,
+        slug: currentMembership.tenantSlug,
+        name: currentMembership.tenantName,
       }
     : null;
 
@@ -49,16 +49,16 @@ export function useAuth() {
     } else {
       Sentry.setUser(null);
     }
-    Sentry.setTag("kava.id", kava?.id ?? null);
-    Sentry.setTag("kava.slug", kava?.slug ?? null);
+    Sentry.setTag("tenant.id", tenant?.id ?? null);
+    Sentry.setTag("tenant.slug", tenant?.slug ?? null);
     Sentry.setTag("membership.role", currentMembership?.role ?? null);
-  }, [user, kava, currentMembership]);
+  }, [user, tenant, currentMembership]);
 
   return {
     user,
     memberships,
     currentMembership,
-    kava,
+    tenant,
     isLoading,
     isAuthenticated: !!user,
     error,

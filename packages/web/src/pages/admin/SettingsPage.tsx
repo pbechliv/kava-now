@@ -11,10 +11,10 @@ import { ChangePasswordCard } from "@/components/auth/ChangePasswordCard";
 import { useSettings, useUpdateSettings } from "@/lib/hooks/use-settings";
 import { useAuth, useUpdateMe } from "@/lib/hooks/use-auth";
 
-type Tab = "kava" | "profile" | "password";
+type Tab = "tenant" | "profile" | "password";
 
 export function SettingsPage() {
-  const [tab, setTab] = useState<Tab>("kava");
+  const [tab, setTab] = useState<Tab>("tenant");
 
   return (
     <div className="space-y-6">
@@ -22,12 +22,12 @@ export function SettingsPage() {
 
       <Tabs value={tab} onValueChange={(v) => setTab(v as Tab)}>
         <TabsList className="grid w-full grid-cols-3 sm:w-auto sm:inline-flex">
-          <TabsTrigger value="kava">Κάβα</TabsTrigger>
+          <TabsTrigger value="tenant">Λογαριασμός</TabsTrigger>
           <TabsTrigger value="profile">Προφίλ</TabsTrigger>
           <TabsTrigger value="password">Κωδικός</TabsTrigger>
         </TabsList>
-        <TabsContent value="kava" className="mt-6">
-          <KavaSettingsTab />
+        <TabsContent value="tenant" className="mt-6">
+          <TenantSettingsTab />
         </TabsContent>
         <TabsContent value="profile" className="mt-6">
           <ProfileTab />
@@ -40,7 +40,7 @@ export function SettingsPage() {
   );
 }
 
-function KavaSettingsTab() {
+function TenantSettingsTab() {
   const { data: settings, isLoading } = useSettings();
   const updateSettings = useUpdateSettings();
 

@@ -13,7 +13,7 @@ import {
   Text,
 } from "@react-email/components";
 
-interface OrderNotificationKava {
+interface OrderNotificationTenant {
   name: string;
   slug: string;
 }
@@ -35,7 +35,7 @@ interface OrderNotificationItem {
 }
 
 interface OrderNotificationEmailProps {
-  kava: OrderNotificationKava;
+  tenant: OrderNotificationTenant;
   customer: OrderNotificationCustomer;
   order: OrderNotificationOrder;
   items: OrderNotificationItem[];
@@ -168,7 +168,7 @@ export function subject({ customer }: Pick<OrderNotificationEmailProps, "custome
 export default OrderNotificationEmail;
 
 OrderNotificationEmail.PreviewProps = {
-  kava: { name: "Demo Κάβα", slug: "demo" },
+  tenant: { name: "Demo Λογαριασμός", slug: "demo" },
   customer: { name: "Παναγιώτης Παπαδόπουλος" },
   order: { notes: "Παράδοση μετά τις 18:00", createdAt: new Date() },
   items: [

@@ -1,6 +1,7 @@
 # Hetzner Cloud Deployment Plan — KavaNow
 
 > ⚠️ **SUPERSEDED — written against the pre-refactor architecture.** See [CLAUDE.md](../CLAUDE.md) for the current model. Major drifts to update before reusing this plan:
+>
 > - **Tenancy is path-based now**, not subdomain-based. Caddy doesn't need a wildcard cert or DNS-01; a single cert on the canonical origin is enough. The `header_up Host {host}` line in the proxy block is no longer load-bearing — `tenantMiddleware` reads the slug from the URL path, not the Host header.
 > - **`BASE_DOMAIN` env var was replaced by `APP_ORIGIN`** (a complete origin URL, e.g. `https://kavanow.gr`). No `VITE_BASE_DOMAIN`.
 > - **No magic-link auth.** Login is email + password. Invites go through `auth.api.requestPasswordReset` and land on `/k/<slug>/welcome`. The `rewriteForTenant` URL-rewriting code is gone.
@@ -87,17 +88,17 @@ Key properties of this topology:
 
 ## Cost breakdown (steady state)
 
-| Item | Monthly | Notes |
-|---|---|---|
-| Hetzner CX22 VM | €4.49 | 2 vCPU shared (AMD), 4 GB RAM, 40 GB NVMe, 20 TB egress included |
-| Hetzner snapshot backups | €0.90 | +20% of VM cost; nightly snapshots, kept 7 days |
-| Domain `kavanow.tld` | ~$1 | Amortized; assumes ~$12/yr registration |
-| Backblaze B2 storage | ~$0.50 | $0.006/GB-mo; expect 5–20 GB of compressed `pg_dump` archives over a year |
-| Backblaze B2 egress | ~$0 | Free up to 3× stored data per month; you only download on restore |
-| Resend (free tier) | $0 | 3,000 emails/mo, 100/day. Magic-link traffic is <100/day at pre-release. |
-| Cloudflare DNS | $0 | Free tier sufficient (DNS hosting + API token for Caddy) |
-| UptimeRobot / Better Stack (uptime) | $0 | Free tier: one HTTP check every 5 min |
-| **Total** | **~$7/mo** | All-in, including offsite backups and monitoring |
+| Item                                | Monthly    | Notes                                                                     |
+| ----------------------------------- | ---------- | ------------------------------------------------------------------------- |
+| Hetzner CX22 VM                     | €4.49      | 2 vCPU shared (AMD), 4 GB RAM, 40 GB NVMe, 20 TB egress included          |
+| Hetzner snapshot backups            | €0.90      | +20% of VM cost; nightly snapshots, kept 7 days                           |
+| Domain `kavanow.tld`                | ~$1        | Amortized; assumes ~$12/yr registration                                   |
+| Backblaze B2 storage                | ~$0.50     | $0.006/GB-mo; expect 5–20 GB of compressed `pg_dump` archives over a year |
+| Backblaze B2 egress                 | ~$0        | Free up to 3× stored data per month; you only download on restore         |
+| Resend (free tier)                  | $0         | 3,000 emails/mo, 100/day. Magic-link traffic is <100/day at pre-release.  |
+| Cloudflare DNS                      | $0         | Free tier sufficient (DNS hosting + API token for Caddy)                  |
+| UptimeRobot / Better Stack (uptime) | $0         | Free tier: one HTTP check every 5 min                                     |
+| **Total**                           | **~$7/mo** | All-in, including offsite backups and monitoring                          |
 
 Cost growth signals (when to pay more):
 
@@ -287,6 +288,7 @@ AAAA  | *              | <VM_IPv6>    | DNS only     | Auto
 ```
 
 Notes:
+
 - **DNS only (grey cloud), NOT proxied.** With proxy ON, traffic flows through Cloudflare's edge before reaching your VM, which complicates Caddy's cert acquisition and changes the `X-Forwarded-For` story. You can flip it on later for DDoS protection once the system is stable. For now, keep it simple.
 - `@` is the apex (`kavanow.tld`). `*` is the wildcard (`anything.kavanow.tld`).
 - Both A (IPv4) and AAAA (IPv6) records are recommended; Hetzner gives you free IPv6.
@@ -413,7 +415,7 @@ services:
       - "443:443"
     volumes:
       - ./Caddyfile:/etc/caddy/Caddyfile:ro
-      - caddy_data:/data       # certs + ACME account live here — persist!
+      - caddy_data:/data # certs + ACME account live here — persist!
       - caddy_config:/config
       - ./packages/web/dist:/srv/web:ro
     environment:
@@ -427,7 +429,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-      target: api                  # multi-stage target; confirm name in existing Dockerfile
+      target: api # multi-stage target; confirm name in existing Dockerfile
     restart: unless-stopped
     environment:
       NODE_ENV: production
@@ -482,6 +484,7 @@ networks:
 ```
 
 Notes:
+
 - **No host port published for Postgres.** It's reachable only from `api` (and from your shell if you `docker compose exec`).
 - **`caddy_data` volume is critical.** It stores Let's Encrypt certs and the ACME account key. Losing it means re-issuing certs (and potentially hitting LE rate limits).
 - **`./infra/postgres/postgresql.conf`** is optional but recommended — see 3.4.
@@ -633,11 +636,13 @@ docker compose -f docker-compose.prod.yml --env-file .env.production logs -f
 ```
 
 Expected log output:
+
 1. Postgres reports `database system is ready to accept connections`.
 2. API container starts, runs `await drizzle migrate` (your existing logic), then `Server listening on port 3000`.
 3. Caddy logs `serving initial configuration` then within 30–90 s logs successful cert acquisition for `kavanow.tld` and `*.kavanow.tld`.
 
 If Caddy fails the cert challenge:
+
 - Check that `CLOUDFLARE_API_TOKEN` is set (`docker compose exec caddy env | grep CLOUD`).
 - Check DNS propagation (`dig kavanow.tld @1.1.1.1`).
 - Check Cloudflare API token permissions (must be Zone:DNS:Edit on this exact zone).
@@ -838,11 +843,11 @@ name: Deploy to Hetzner
 on:
   push:
     branches: [main]
-  workflow_dispatch:  # manual trigger button
+  workflow_dispatch: # manual trigger button
 
 concurrency:
   group: deploy-prod
-  cancel-in-progress: false   # never cancel a deploy mid-flight
+  cancel-in-progress: false # never cancel a deploy mid-flight
 
 jobs:
   build-and-deploy:
@@ -915,6 +920,7 @@ jobs:
 ```
 
 What this gives you:
+
 - Push to `main` → CI runs typecheck/lint/build/fmt locally on the GitHub runner first.
 - If green, it SSHes into the VM, fast-forwards the repo, rebuilds only the API+Caddy images (Postgres untouched), restarts them, runs migrations, prunes old images.
 - Smoke-tests `/api/healthz` after deploy and fails the workflow if it doesn't return 200 within 30 seconds.
@@ -933,6 +939,7 @@ Bump a version comment or tweak a string. Push to `main`. Watch the Action run, 
 Sign up for **Better Stack** (or UptimeRobot, Hetzner has no first-party offering).
 
 Configure:
+
 - HTTPS check on `https://kavanow.tld/api/healthz`, every 60 s.
 - Alert via email and (optionally) Slack/SMS.
 - Expected status: 200.
@@ -1166,19 +1173,19 @@ Triggers: sustained >50% CPU on a CPX31, OR a customer-facing SLA requiring >99.
 
 ## Risks and mitigations
 
-| Risk | Likelihood | Impact | Mitigation |
-|---|---|---|---|
-| You delete the wrong Docker volume | Medium | Catastrophic (data loss) | Daily encrypted offsite backups; never run `docker volume rm` carelessly; consider `docker compose down --volumes` as a tripwire word |
-| Hetzner region outage | Low | Medium (hours of downtime) | Hetzner snapshots help if disk survives. Restore from B2 to a new VM in another region — practiced procedure, ~1 h |
-| Ransomware on the VM | Low | Catastrophic if no offsite | Offsite B2 backups with age encryption keep your data; you re-provision the VM |
-| SSH brute force | Medium | Low | fail2ban + key-only auth means this is essentially a non-event. Logs may show attempts |
-| Postgres major version EOL | Certain over years | Medium | Schedule quarterly review of Postgres release calendar; major upgrade procedure documented above |
-| Domain expiry | Low | Catastrophic | Auto-renew at registrar; calendar reminder 30 days before expiry as a backup |
-| Cloudflare API token leaked | Low | Medium (DNS hijack possible) | Token scoped to `Zone:DNS:Edit` on one zone only. Rotate annually. Stored only in `.env.production` (`chmod 600`) and password manager |
-| age private key lost | Low | Catastrophic (backups become unreadable) | Store the key in a password manager AND printed in a fireproof safe AND share with one trusted person |
-| Resend account suspended | Low | High (no auth emails = no logins) | Have a secondary mail provider (Postmark) ready as a documented fallback. Switching is one config change + DNS records |
-| Disk fills up (40 GB) | Medium (over 1–2 years) | High (Postgres stops writing) | Disk alert at 80%; weekly `docker system prune`; attach Hetzner Volume when DB grows past 20 GB |
-| You forget how to do any of this in 6 months | Certain | Medium | Keep this plan file in the repo (`docs/operations.md`); update it whenever you change anything |
+| Risk                                         | Likelihood              | Impact                                   | Mitigation                                                                                                                             |
+| -------------------------------------------- | ----------------------- | ---------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
+| You delete the wrong Docker volume           | Medium                  | Catastrophic (data loss)                 | Daily encrypted offsite backups; never run `docker volume rm` carelessly; consider `docker compose down --volumes` as a tripwire word  |
+| Hetzner region outage                        | Low                     | Medium (hours of downtime)               | Hetzner snapshots help if disk survives. Restore from B2 to a new VM in another region — practiced procedure, ~1 h                     |
+| Ransomware on the VM                         | Low                     | Catastrophic if no offsite               | Offsite B2 backups with age encryption keep your data; you re-provision the VM                                                         |
+| SSH brute force                              | Medium                  | Low                                      | fail2ban + key-only auth means this is essentially a non-event. Logs may show attempts                                                 |
+| Postgres major version EOL                   | Certain over years      | Medium                                   | Schedule quarterly review of Postgres release calendar; major upgrade procedure documented above                                       |
+| Domain expiry                                | Low                     | Catastrophic                             | Auto-renew at registrar; calendar reminder 30 days before expiry as a backup                                                           |
+| Cloudflare API token leaked                  | Low                     | Medium (DNS hijack possible)             | Token scoped to `Zone:DNS:Edit` on one zone only. Rotate annually. Stored only in `.env.production` (`chmod 600`) and password manager |
+| age private key lost                         | Low                     | Catastrophic (backups become unreadable) | Store the key in a password manager AND printed in a fireproof safe AND share with one trusted person                                  |
+| Resend account suspended                     | Low                     | High (no auth emails = no logins)        | Have a secondary mail provider (Postmark) ready as a documented fallback. Switching is one config change + DNS records                 |
+| Disk fills up (40 GB)                        | Medium (over 1–2 years) | High (Postgres stops writing)            | Disk alert at 80%; weekly `docker system prune`; attach Hetzner Volume when DB grows past 20 GB                                        |
+| You forget how to do any of this in 6 months | Certain                 | Medium                                   | Keep this plan file in the repo (`docs/operations.md`); update it whenever you change anything                                         |
 
 ---
 
@@ -1202,13 +1209,13 @@ Nothing is deleted. The existing `Dockerfile`, `docker-compose.dev.yml`, and the
 
 ## Timeline summary
 
-| Day | Tasks | Hours |
-|---|---|---|
-| 1 | Provision VM, harden OS, install Docker, configure DNS, Cloudflare API token | 3–4 |
-| 2 | Author compose/Caddyfile/Caddy build/Resend swap, first deploy, migrations, seed, smoke test | 4–6 |
-| 3 | Backup script, B2 setup, test restore, GitHub Actions workflow, deploy test | 3–4 |
-| 4 | Uptime monitoring, disk alerts, verification checklist, documentation | 2–3 |
-| | **Total** | **12–17 hours over 3–4 calendar days** |
+| Day | Tasks                                                                                        | Hours                                  |
+| --- | -------------------------------------------------------------------------------------------- | -------------------------------------- |
+| 1   | Provision VM, harden OS, install Docker, configure DNS, Cloudflare API token                 | 3–4                                    |
+| 2   | Author compose/Caddyfile/Caddy build/Resend swap, first deploy, migrations, seed, smoke test | 4–6                                    |
+| 3   | Backup script, B2 setup, test restore, GitHub Actions workflow, deploy test                  | 3–4                                    |
+| 4   | Uptime monitoring, disk alerts, verification checklist, documentation                        | 2–3                                    |
+|     | **Total**                                                                                    | **12–17 hours over 3–4 calendar days** |
 
 This is realistic for someone comfortable in a Linux shell. First-timer: double it.
 

@@ -16,8 +16,7 @@ export const orderItems = pgTable("order_items", {
   unitPrice: numeric("unit_price", { precision: 10, scale: 2 }).notNull(),
   productName: text("product_name").notNull(),
   status: orderItemStatusEnum("status").notNull().default("active"),
-  replacedByItemId: uuid("replaced_by_item_id").references(
-    (): AnyPgColumn => orderItems.id,
-    { onDelete: "set null" },
-  ),
+  replacedByItemId: uuid("replaced_by_item_id").references((): AnyPgColumn => orderItems.id, {
+    onDelete: "set null",
+  }),
 });

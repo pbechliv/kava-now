@@ -1,38 +1,42 @@
 import { Hono } from "hono";
 import { eq } from "drizzle-orm";
-import { updateKavaSettingsSchema } from "@kava-now/shared";
+import { updateTenantSettingsSchema } from "@kava-now/shared";
 import { db } from "../../db/connection";
-import { kavas } from "../../db/schema/index";
+import { tenants } from "../../db/schema/index";
 import type { AppEnv } from "../../types";
 
 const settingsRouter = new Hono<AppEnv>();
 
-// GET / — return current kava record
+// GET / — return current tenant record
 settingsRouter.get("/", async (c) => {
-  const kava = c.get("kava")!;
+  const tenant = c.get("tenant")!;
   return c.json({
-    id: kava.id,
-    name: kava.name,
-    slug: kava.slug,
-    address: kava.address,
-    phone: kava.phone,
-    email: kava.email,
-    notificationEmails: kava.notificationEmails,
-    logoUrl: kava.logoUrl,
+    id: tenant.id,
+    name: tenant.name,
+    slug: tenant.slug,
+    address: tenant.address,
+    phone: tenant.phone,
+    email: tenant.email,
+    notificationEmails: tenant.notificationEmails,
+    logoUrl: tenant.logoUrl,
   });
 });
 
-// PUT / — update kava fields
+// PUT / — update tenant fields
 settingsRouter.put("/", async (c) => {
-  const kavaId = c.get("kavaId")!;
+  const tenantId = c.get("tenantId")!;
   const body = await c.req.json();
-  const parsed = updateKavaSettingsSchema.safeParse(body);
+  const parsed = updateTenantSettingsSchema.safeParse(body);
 
   if (!parsed.success) {
     return c.json({ error: parsed.error.flatten().fieldErrors }, 400);
   }
 
-  const [updated] = await db.update(kavas).set(parsed.data).where(eq(kavas.id, kavaId)).returning();
+  const [updated] = await db
+    .update(tenants)
+    .set(parsed.data)
+    .where(eq(tenants.id, tenantId))
+    .returning();
 
   if (!updated) {
     return c.json({ error: "Αποτυχία ενημέρωσης" }, 500);

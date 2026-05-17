@@ -8,7 +8,7 @@ const dashboardRouter = new Hono<AppEnv>();
 
 // GET /stats
 dashboardRouter.get("/stats", async (c) => {
-  const kavaId = c.get("kavaId")!;
+  const tenantId = c.get("tenantId")!;
 
   const now = new Date();
   const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
@@ -21,19 +21,19 @@ dashboardRouter.get("/stats", async (c) => {
       db
         .select({ count: sql<number>`count(*)::int` })
         .from(orders)
-        .where(and(eq(orders.kavaId, kavaId), gte(orders.createdAt, todayStart))),
+        .where(and(eq(orders.tenantId, tenantId), gte(orders.createdAt, todayStart))),
       db
         .select({ count: sql<number>`count(*)::int` })
         .from(orders)
-        .where(and(eq(orders.kavaId, kavaId), eq(orders.status, "pending"))),
+        .where(and(eq(orders.tenantId, tenantId), eq(orders.status, "pending"))),
       db
         .select({ count: sql<number>`count(*)::int` })
         .from(orders)
-        .where(and(eq(orders.kavaId, kavaId), gte(orders.createdAt, weekAgo))),
+        .where(and(eq(orders.tenantId, tenantId), gte(orders.createdAt, weekAgo))),
       db
         .select({ count: sql<number>`count(*)::int` })
         .from(customers)
-        .where(eq(customers.kavaId, kavaId)),
+        .where(eq(customers.tenantId, tenantId)),
       db
         .select({
           id: orders.id,
@@ -46,7 +46,7 @@ dashboardRouter.get("/stats", async (c) => {
         .from(orders)
         .leftJoin(customers, eq(orders.customerId, customers.id))
         .leftJoin(orderItems, eq(orders.id, orderItems.orderId))
-        .where(eq(orders.kavaId, kavaId))
+        .where(eq(orders.tenantId, tenantId))
         .groupBy(orders.id, customers.name)
         .orderBy(sql`${orders.createdAt} desc`)
         .limit(5),

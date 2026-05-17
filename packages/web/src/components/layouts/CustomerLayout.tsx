@@ -29,7 +29,7 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
 import { useCartStore } from "@/lib/store/cart";
-import { KavaSwitcher } from "@/components/KavaSwitcher";
+import { TenantSwitcher } from "@/components/TenantSwitcher";
 
 function initials(name: string | null | undefined) {
   if (!name) return "?";
@@ -42,7 +42,7 @@ function initials(name: string | null | undefined) {
 }
 
 export function CustomerLayout() {
-  const { user, kava } = useAuth();
+  const { user, tenant } = useAuth();
   const logout = useLogout();
   const { slug } = useParams<{ slug: string }>();
   const base = `/k/${slug}`;
@@ -63,8 +63,8 @@ export function CustomerLayout() {
         <SidebarHeader>
           <div className="flex flex-col px-2 py-1.5">
             <span className="text-lg font-bold leading-tight text-primary">KavaNow</span>
-            {kava && (
-              <span className="truncate text-sm text-sidebar-foreground/70">{kava.name}</span>
+            {tenant && (
+              <span className="truncate text-sm text-sidebar-foreground/70">{tenant.name}</span>
             )}
           </div>
         </SidebarHeader>
@@ -131,7 +131,7 @@ export function CustomerLayout() {
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-56">
               <DropdownMenuLabel className="truncate">{user?.email}</DropdownMenuLabel>
-              <KavaSwitcher currentSlug={slug ?? null} />
+              <TenantSwitcher currentSlug={slug ?? null} />
               <DropdownMenuSeparator />
               <DropdownMenuItem onSelect={() => logout.mutate()}>
                 <LogOut className="mr-2 h-4 w-4" />

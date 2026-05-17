@@ -19,19 +19,19 @@ This plan covers the integration. It does **not** cover the Sentry account/proje
 
 Mapped from the codebase as it stands today:
 
-| Concern | File | Lines | Current state |
-|---|---|---|---|
-| API entry (must `Sentry.init` before this) | `packages/api/src/index.ts` | 1–6 | Imports `./load-env`, then `./app` |
-| Hono app + middleware stack | `packages/api/src/app.ts` | 15–63 | No `onError`, no `notFound`; `tenant` → `auth` order |
-| Tenant context (kava resolution) | `packages/api/src/middleware/tenant.ts` | — | Sets `c.var.kava`, `c.var.kavaId`, `c.var.isPlatform`, `c.var.isSuperAdmin` |
-| Auth context (user resolution) | `packages/api/src/middleware/auth.ts` | — | Sets `c.var.user`, `c.var.session` |
-| API config (env access) | `packages/api/src/config.ts` | 1–22 | Plain `process.env` reads; no Zod |
-| API build | `packages/api/vite.config.ts` | 13–22 | `@hono/vite-build/node`, entry `./src/index.ts` |
-| Web entry (must `Sentry.init` before render) | `packages/web/src/main.tsx` | 1–10 | Plain `createRoot().render(<App />)` |
-| Web router | `packages/web/src/App.tsx` | 1–194 | `<BrowserRouter>` + 3 conditional Routes trees |
-| Web build | `packages/web/vite.config.ts` | 11–34 | No sourcemap config |
-| Env shape | `.env.example` | 1–31 | No Sentry vars |
-| Future CI (sourcemap upload destination) | `plans/github-actions-automation-plan.md` | 133–147 | `build-images.yml` planned but not yet created |
+| Concern                                      | File                                      | Lines   | Current state                                                               |
+| -------------------------------------------- | ----------------------------------------- | ------- | --------------------------------------------------------------------------- |
+| API entry (must `Sentry.init` before this)   | `packages/api/src/index.ts`               | 1–6     | Imports `./load-env`, then `./app`                                          |
+| Hono app + middleware stack                  | `packages/api/src/app.ts`                 | 15–63   | No `onError`, no `notFound`; `tenant` → `auth` order                        |
+| Tenant context (kava resolution)             | `packages/api/src/middleware/tenant.ts`   | —       | Sets `c.var.kava`, `c.var.kavaId`, `c.var.isPlatform`, `c.var.isSuperAdmin` |
+| Auth context (user resolution)               | `packages/api/src/middleware/auth.ts`     | —       | Sets `c.var.user`, `c.var.session`                                          |
+| API config (env access)                      | `packages/api/src/config.ts`              | 1–22    | Plain `process.env` reads; no Zod                                           |
+| API build                                    | `packages/api/vite.config.ts`             | 13–22   | `@hono/vite-build/node`, entry `./src/index.ts`                             |
+| Web entry (must `Sentry.init` before render) | `packages/web/src/main.tsx`               | 1–10    | Plain `createRoot().render(<App />)`                                        |
+| Web router                                   | `packages/web/src/App.tsx`                | 1–194   | `<BrowserRouter>` + 3 conditional Routes trees                              |
+| Web build                                    | `packages/web/vite.config.ts`             | 11–34   | No sourcemap config                                                         |
+| Env shape                                    | `.env.example`                            | 1–31    | No Sentry vars                                                              |
+| Future CI (sourcemap upload destination)     | `plans/github-actions-automation-plan.md` | 133–147 | `build-images.yml` planned but not yet created                              |
 
 ---
 
@@ -287,10 +287,7 @@ The `kava.slug` tag is set from the URL path — derive it once at boot in `main
 const path = window.location.pathname;
 const tenantMatch = path.match(/^\/k\/([^/]+)/);
 const isAdmin = path.startsWith("/admin");
-Sentry.setTag(
-  "domain.mode",
-  isAdmin ? "superadmin" : tenantMatch ? "tenant" : "platform",
-);
+Sentry.setTag("domain.mode", isAdmin ? "superadmin" : tenantMatch ? "tenant" : "platform");
 Sentry.setTag("kava.slug", tenantMatch?.[1] ?? null);
 ```
 
@@ -365,15 +362,15 @@ Per `plans/github-actions-automation-plan.md:133-147`, `build-images.yml` is the
 
 Two repo-level secrets to add when CI lands:
 
-| Secret | Notes |
-|---|---|
+| Secret              | Notes                                                                                                                                  |
+| ------------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
 | `SENTRY_AUTH_TOKEN` | Project-scoped token with `project:releases` + `project:write`. Generate in Sentry settings → Auth Tokens. **Not** an org-level token. |
-| `SENTRY_ORG` | Slug, e.g. `kavanow`. Could also be hardcoded in the workflow — it isn't secret. |
+| `SENTRY_ORG`        | Slug, e.g. `kavanow`. Could also be hardcoded in the workflow — it isn't secret.                                                       |
 
 Two repo-level variables (`vars`, not `secrets`):
 
-| Variable | Example |
-|---|---|
+| Variable             | Example       |
+| -------------------- | ------------- |
 | `SENTRY_PROJECT_API` | `kavanow-api` |
 | `SENTRY_PROJECT_WEB` | `kavanow-web` |
 
@@ -391,7 +388,7 @@ Inside `build-images.yml`, before the `docker build` step (assuming images are b
     SENTRY_ENVIRONMENT: production
 ```
 
-If the current `Dockerfile` does `pnpm build` *inside* the image (it does — see the multi-stage `builder` target), one of two changes is needed:
+If the current `Dockerfile` does `pnpm build` _inside_ the image (it does — see the multi-stage `builder` target), one of two changes is needed:
 
 1. **Preferred**: keep build-in-Docker; add `--build-arg`s for the four Sentry inputs and `ARG`/`ENV` them inside the Dockerfile's `builder` stage so the plugin sees them. The `SENTRY_AUTH_TOKEN` must be passed via `--secret` (BuildKit) so it doesn't end up in image layers.
 2. **Alternative**: split build out of Docker (the `plans/github-actions-automation-plan.md` already moves toward this for resource reasons — Hetzner CX22 can't build). Then sourcemap upload is just a regular workflow step.
@@ -431,16 +428,16 @@ Both options should be a single line added to the CI plan when `build-images.yml
 
 ### Env vars introduced
 
-| Var | API | Web | Notes |
-|---|---|---|---|
-| `SENTRY_DSN_API` | ✓ | | Empty → SDK disabled |
-| `SENTRY_DSN_WEB` | | ✓ (via `define`) | Empty → SDK disabled. **Not secret**; DSNs are public. |
-| `SENTRY_ENVIRONMENT` | ✓ | ✓ | `development` / `production` |
-| `SENTRY_RELEASE` | ✓ | ✓ | Empty in dev; `$GITHUB_SHA` in CI |
-| `SENTRY_AUTH_TOKEN` | (build) | (build) | CI-only, Phase 3 |
-| `SENTRY_ORG` | (build) | (build) | CI-only, Phase 3 |
-| `SENTRY_PROJECT_API` | (build) | | CI-only, Phase 3 |
-| `SENTRY_PROJECT_WEB` | | (build) | CI-only, Phase 3 |
+| Var                  | API     | Web              | Notes                                                  |
+| -------------------- | ------- | ---------------- | ------------------------------------------------------ |
+| `SENTRY_DSN_API`     | ✓       |                  | Empty → SDK disabled                                   |
+| `SENTRY_DSN_WEB`     |         | ✓ (via `define`) | Empty → SDK disabled. **Not secret**; DSNs are public. |
+| `SENTRY_ENVIRONMENT` | ✓       | ✓                | `development` / `production`                           |
+| `SENTRY_RELEASE`     | ✓       | ✓                | Empty in dev; `$GITHUB_SHA` in CI                      |
+| `SENTRY_AUTH_TOKEN`  | (build) | (build)          | CI-only, Phase 3                                       |
+| `SENTRY_ORG`         | (build) | (build)          | CI-only, Phase 3                                       |
+| `SENTRY_PROJECT_API` | (build) |                  | CI-only, Phase 3                                       |
+| `SENTRY_PROJECT_WEB` |         | (build)          | CI-only, Phase 3                                       |
 
 ---
 
@@ -451,6 +448,7 @@ Sentry integration is fully gated on DSN env vars. To disable in production with
 To disable on the API at runtime: `SENTRY_DSN_API=""` and restart the container. The `config.sentry.enabled` flag short-circuits `Sentry.init` and `Sentry.captureException` becomes a no-op when the SDK isn't initialized.
 
 To rip the integration out entirely:
+
 1. Revert the commit set tagged for this plan.
 2. Remove `@sentry/node` and `@sentry/react` from the two `package.json` files.
 3. `pnpm install`.

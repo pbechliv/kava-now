@@ -23,15 +23,15 @@ import type { CatalogProduct } from "@/lib/store/cart";
 const PAGE_SIZE = 50;
 
 export function CatalogPage() {
-  const { kava } = useAuth();
+  const { tenant } = useAuth();
   const [selectedCategory, setSelectedCategory] = useState<string>("");
   const [search, setSearch] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [quantities, setQuantities] = useState<Record<string, number>>({});
   const [page, setPage] = useState(1);
 
-  if (kava?.slug) {
-    setCartSlug(kava.slug);
+  if (tenant?.slug) {
+    setCartSlug(tenant.slug);
   }
 
   const addItem = useCartStore((s) => s.addItem);

@@ -64,23 +64,23 @@ async function deliver({
 export async function sendPasswordSet(
   email: string,
   link: string,
-  kavaName: string,
+  tenantName: string,
   mode: SetPasswordMode,
 ): Promise<void> {
-  const html = await render(SetPasswordEmail({ link, kavaName, mode }));
-  await deliver({ to: email, subject: setPasswordSubject({ kavaName, mode }), html });
+  const html = await render(SetPasswordEmail({ link, tenantName, mode }));
+  await deliver({ to: email, subject: setPasswordSubject({ tenantName, mode }), html });
 }
 
 export async function sendMembershipAdded(
   email: string,
   loginUrl: string,
-  kavaName: string,
+  tenantName: string,
 ): Promise<void> {
-  const html = await render(MembershipAddedEmail({ loginUrl, kavaName }));
-  await deliver({ to: email, subject: membershipAddedSubject({ kavaName }), html });
+  const html = await render(MembershipAddedEmail({ loginUrl, tenantName }));
+  await deliver({ to: email, subject: membershipAddedSubject({ tenantName }), html });
 }
 
-interface OrderNotificationKava {
+interface OrderNotificationTenant {
   id: string;
   name: string;
   slug: string;
@@ -107,21 +107,21 @@ interface OrderNotificationItem {
 }
 
 export async function sendOrderNotification(
-  kava: OrderNotificationKava,
+  tenant: OrderNotificationTenant,
   customer: OrderNotificationCustomer,
   order: OrderNotificationOrder,
   items: OrderNotificationItem[],
 ): Promise<void> {
-  const recipients = kava.notificationEmails;
+  const recipients = tenant.notificationEmails;
   if (!recipients || recipients.length === 0) {
-    console.log("[email] No notification emails configured for kava:", kava.slug);
+    console.log("[email] No notification emails configured for tenant:", tenant.slug);
     return;
   }
 
-  const adminOrderUrl = `${config.appOrigin}/k/${kava.slug}/admin/orders/${order.id}`;
+  const adminOrderUrl = `${config.appOrigin}/k/${tenant.slug}/admin/orders/${order.id}`;
   const html = await render(
     OrderNotificationEmail({
-      kava: { name: kava.name, slug: kava.slug },
+      tenant: { name: tenant.name, slug: tenant.slug },
       customer: { name: customer.name },
       order: { notes: order.notes, createdAt: order.createdAt },
       items,

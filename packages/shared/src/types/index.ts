@@ -6,7 +6,7 @@ export type ProductUnit = "bottle" | "case" | "keg";
 export type ErpStatus = "pending" | "transmitted";
 export type OrderItemStatus = "active" | "cancelled";
 
-export interface Kava {
+export interface Tenant {
   id: string;
   name: string;
   slug: string;
@@ -29,12 +29,12 @@ export interface User {
 }
 
 /**
- * A user's membership in a single kava. One row per (userId, kavaId).
+ * A user's membership in a single tenant. One row per (userId, tenantId).
  */
-export interface KavaMembership {
-  kavaId: string;
-  kavaSlug: string;
-  kavaName: string;
+export interface TenantMembership {
+  tenantId: string;
+  tenantSlug: string;
+  tenantName: string;
   role: MembershipRole;
   customerId: string | null;
   invitedBy: { name: string; email: string } | null;
@@ -42,7 +42,7 @@ export interface KavaMembership {
 
 export interface Category {
   id: string;
-  kavaId: string;
+  tenantId: string;
   name: string;
   parentId: string | null;
   sortOrder: number;
@@ -51,7 +51,7 @@ export interface Category {
 
 export interface Product {
   id: string;
-  kavaId: string;
+  tenantId: string;
   name: string;
   brand: string;
   categoryId: string | null;
@@ -69,7 +69,7 @@ export interface Product {
 
 export interface Customer {
   id: string;
-  kavaId: string;
+  tenantId: string;
   name: string;
   email: string | null;
   address: string | null;
@@ -92,7 +92,7 @@ export interface CustomerBrandPricing {
 
 export interface Order {
   id: string;
-  kavaId: string;
+  tenantId: string;
   customerId: string;
   status: OrderStatus;
   notes: string | null;

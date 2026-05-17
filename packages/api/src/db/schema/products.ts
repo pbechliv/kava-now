@@ -9,16 +9,16 @@ import {
   uniqueIndex,
 } from "drizzle-orm/pg-core";
 import { productUnitEnum } from "./enums";
-import { kavas } from "./kavas";
+import { tenants } from "./tenants";
 import { categories } from "./categories";
 
 export const products = pgTable(
   "products",
   {
     id: uuid("id").primaryKey().defaultRandom(),
-    kavaId: uuid("kava_id")
+    tenantId: uuid("tenant_id")
       .notNull()
-      .references(() => kavas.id, { onDelete: "cascade" }),
+      .references(() => tenants.id, { onDelete: "cascade" }),
     name: text("name").notNull(),
     brand: text("brand").notNull(),
     categoryId: uuid("category_id").references(() => categories.id, {
@@ -36,6 +36,6 @@ export const products = pgTable(
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (table) => [
-    uniqueIndex("products_kava_name_brand_idx").on(table.kavaId, table.name, table.brand),
+    uniqueIndex("products_tenant_name_brand_idx").on(table.tenantId, table.name, table.brand),
   ],
 );

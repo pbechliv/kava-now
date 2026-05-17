@@ -44,7 +44,7 @@ Use the **Claude Preview MCP** tools (`mcp__Claude_Preview__*`) to verify UI cha
 
 ```bash
 pnpm db:migrate      # Run migrations
-pnpm db:seed         # Seed data (includes superadmin user + demo kava)
+pnpm db:seed         # Seed data (includes superadmin user + demo tenant)
 pnpm db:reset        # Drop + recreate db (then run db:migrate + db:seed)
 pnpm db:reseed       # Convenience: reset + migrate + seed in one command
 pnpm db:generate     # Generate migrations from schema changes
@@ -74,8 +74,8 @@ pnpm build           # Build shared (if present) first, then API + Web in parall
 
 Tenants live under a URL path, not a subdomain. The entire app runs from a single origin (`APP_ORIGIN`, default `http://localhost:3200` in dev):
 
-- `/` — platform landing (kava selector / membership list)
-- `/admin/*` — superadmin (kava management)
+- `/` — platform landing (tenant selector / membership list)
+- `/admin/*` — superadmin (tenant management)
 - `/k/<slug>/*` — tenant (e.g. `/k/demo/admin/dashboard`, `/k/demo/catalog`, `/k/demo/login`)
 - `/login`, `/auth/forgot-password`, `/auth/reset-password` — superadmin auth (and the canonical fallback)
 - `/k/<slug>/login`, `/k/<slug>/auth/*`, `/k/<slug>/welcome` — tenant auth
@@ -85,22 +85,22 @@ API mirrors this:
 - `/api/auth/*` — better-auth (global; no tenant context needed)
 - `/api/auth/me`, `/api/auth/set-password` — custom auth endpoints (return memberships)
 - `/api/superadmin/*` — requires `requireSuperAdmin`
-- `/api/platform/*` — public utilities (e.g. `kava-exists`)
+- `/api/platform/*` — public utilities (e.g. `tenant-exists`)
 - `/api/k/:slug/*` — tenant-scoped, mounted under a sub-router that runs `tenantMiddleware`
 
-`tenantMiddleware` ([packages/api/src/middleware/tenant.ts](packages/api/src/middleware/tenant.ts)) reads `:slug` from the URL, resolves the kava, sets `c.set("kava", ...)` / `c.set("kavaId", ...)`, and sets the Postgres session variable `app.current_kava_id` used by RLS policies. No tenant context outside `/api/k/:slug/*`.
+`tenantMiddleware` ([packages/api/src/middleware/tenant.ts](packages/api/src/middleware/tenant.ts)) reads `:slug` from the URL, resolves the tenant, sets `c.set("tenant", ...)` / `c.set("tenantId", ...)`, and sets the Postgres session variable `app.current_tenant_id` used by RLS policies. No tenant context outside `/api/k/:slug/*`.
 
-`requireRole` ([packages/api/src/middleware/require-role.ts](packages/api/src/middleware/require-role.ts)) looks up `kava_memberships` for the authenticated user + URL-resolved kava and 403s if no membership matches. Superadmins bypass the lookup and get a synthetic `owner` membership. The resolved membership is exposed on the context via `c.get("membership")` (`{ role, customerId }`).
+`requireRole` ([packages/api/src/middleware/require-role.ts](packages/api/src/middleware/require-role.ts)) looks up `tenant_memberships` for the authenticated user + URL-resolved tenant and 403s if no membership matches. Superadmins bypass the lookup and get a synthetic `owner` membership. The resolved membership is exposed on the context via `c.get("membership")` (`{ role, customerId }`).
 
-`AppEnv` context variables ([packages/api/src/types.ts](packages/api/src/types.ts)): `kava`, `kavaId`, `user`, `session`, `membership`.
+`AppEnv` context variables ([packages/api/src/types.ts](packages/api/src/types.ts)): `tenant`, `tenantId`, `user`, `session`, `membership`.
 
 ### Users + memberships (many-to-many)
 
-`users` is global — one row per real human, identified by `users.email` (globally unique, the real email). The only cross-kava attribute is `users.isSuperAdmin: boolean`.
+`users` is global — one row per real human, identified by `users.email` (globally unique, the real email). The only cross-tenant attribute is `users.isSuperAdmin: boolean`.
 
-`kava_memberships(userId, kavaId, role, customerId, invitedById)` ([packages/api/src/db/schema/kava-memberships.ts](packages/api/src/db/schema/kava-memberships.ts)) is the relationship table: one row grants a `role` (`owner | staff | customer`) to a user inside one kava. `customerId` is non-null only for customer-role rows, linking to a `customers` row. `(userId, kavaId)` is unique.
+`tenant_memberships(userId, tenantId, role, customerId, invitedById)` ([packages/api/src/db/schema/tenant-memberships.ts](packages/api/src/db/schema/tenant-memberships.ts)) is the relationship table: one row grants a `role` (`owner | staff | customer`) to a user inside one tenant. `customerId` is non-null only for customer-role rows, linking to a `customers` row. `(userId, tenantId)` is unique.
 
-A single user can belong to many kavas with different roles in each. The same email can't be re-invited to the same kava (returns 409 `InviteConflict`).
+A single user can belong to many tenants with different roles in each. The same email can't be re-invited to the same tenant (returns 409 `InviteConflict`).
 
 ### Authentication (better-auth)
 
@@ -121,24 +121,24 @@ Auth instance in [packages/api/src/auth/index.ts](packages/api/src/auth/index.ts
 4. Rate limits on `/api/auth/sign-in/*`, `/api/auth/sign-in`, `/api/auth/request-password-reset`
 5. better-auth catch-all: `app.on(["POST","GET"], "/api/auth/*", c => auth.handler(c.req.raw))`
 6. `/api/platform`, `/api/superadmin`
-7. Tenant subrouter mounted at `/api/k/:slug` — runs `tenantMiddleware`, then routes `/admin`, `/customer`, `/kava`
+7. Tenant subrouter mounted at `/api/k/:slug` — runs `tenantMiddleware`, then routes `/admin`, `/customer`, `/tenant`
 
-`/api/auth/me` returns `{ user: { id, email, name, isSuperAdmin, hasPassword }, memberships: [{ kavaId, kavaSlug, kavaName, role, customerId, invitedBy }] }`. `hasPassword` is derived from the presence of a credential row in `accounts`. `PATCH /api/auth/me` updates `name` and/or `email` with a uniqueness check.
+`/api/auth/me` returns `{ user: { id, email, name, isSuperAdmin, hasPassword }, memberships: [{ tenantId, tenantSlug, tenantName, role, customerId, invitedBy }] }`. `hasPassword` is derived from the presence of a credential row in `accounts`. `PATCH /api/auth/me` updates `name` and/or `email` with a uniqueness check.
 
 `POST /api/auth/set-password` is a thin wrapper around `auth.api.setPassword` (better-auth's API is server-only).
 
 ### Invite flow
 
-[packages/api/src/services/invite-user.ts](packages/api/src/services/invite-user.ts) `inviteUserToKava({ kavaId, email, name, role, customerId, inviterId })`:
+[packages/api/src/services/invite-user.ts](packages/api/src/services/invite-user.ts) `inviteUserToTenant({ tenantId, email, name, role, customerId, inviterId })`:
 
 - If a user with that email already exists globally: insert the membership and send a "you've been added to X" notification via [MembershipAddedEmail.tsx](packages/api/src/emails/MembershipAddedEmail.tsx). They sign in with their existing password.
 - If new: create the user (no password), insert the membership, send a set-password invite via [SetPasswordEmail.tsx](packages/api/src/emails/SetPasswordEmail.tsx) with `redirectTo = ${config.appOrigin}/k/${slug}/welcome`.
 
-`InviteConflict` fires when the user already has a membership in this kava. Email send failures are non-fatal — the membership is persisted regardless.
+`InviteConflict` fires when the user already has a membership in this tenant. Email send failures are non-fatal — the membership is persisted regardless.
 
 ### Superadmin
 
-`isSuperAdmin: boolean` on `users`. Lives at `/admin/*` (no slug). Bypasses `requireRole` for tenant routes. Can use the in-app kava switcher to enter any kava they have a membership in. Seeded by `pnpm db:seed` with `SUPERADMIN_EMAIL` / `SUPERADMIN_PASSWORD` (defaults in [seeds/superadmin.ts](packages/api/src/db/seeds/superadmin.ts)). The demo seed grants the superadmin an owner membership in the demo kava.
+`isSuperAdmin: boolean` on `users`. Lives at `/admin/*` (no slug). Bypasses `requireRole` for tenant routes. Can use the in-app tenant switcher to enter any tenant they have a membership in. Seeded by `pnpm db:seed` with `SUPERADMIN_EMAIL` / `SUPERADMIN_PASSWORD` (defaults in [seeds/superadmin.ts](packages/api/src/db/seeds/superadmin.ts)). The demo seed grants the superadmin an owner membership in the demo tenant.
 
 ### API route layout
 
@@ -159,9 +159,9 @@ Audit logging via [packages/api/src/services/audit.ts](packages/api/src/services
 
 ### Database schema
 
-Drizzle tables ([packages/api/src/db/schema/](packages/api/src/db/schema/)): `kavas`, `users`, `kava_memberships`, `sessions`, **`accounts`**, **`verifications`** (both required by better-auth), `categories`, `products`, `customer_brand_pricing`, `customers`, `orders`, `order_items`, `audit_logs`.
+Drizzle tables ([packages/api/src/db/schema/](packages/api/src/db/schema/)): `tenants`, `users`, `tenant_memberships`, `sessions`, **`accounts`**, **`verifications`** (both required by better-auth), `categories`, `products`, `customer_brand_pricing`, `customers`, `orders`, `order_items`, `audit_logs`.
 
-The `postgres` driver (not `pg`) is used. RLS is enforced at the DB level for tenant-scoped tables (categories, products, customers, customer_brand_pricing, orders, order_items) via the `app.current_kava_id` session variable set by `tenantMiddleware`. `users` and `kava_memberships` are global — tenant scoping for those is enforced in application code via `requireRole`.
+The `postgres` driver (not `pg`) is used. RLS is enforced at the DB level for tenant-scoped tables (categories, products, customers, customer_brand_pricing, orders, order_items) via the `app.current_tenant_id` session variable set by `tenantMiddleware`. `users` and `tenant_memberships` are global — tenant scoping for those is enforced in application code via `requireRole`.
 
 ### Orders + ERP transmission
 
@@ -175,21 +175,21 @@ The `postgres` driver (not `pg`) is used. RLS is enforced at the DB level for te
 
 [packages/web/src/App.tsx](packages/web/src/App.tsx) is a single React Router tree:
 
-- `/` → `KavaSelectPage` (renders a kava-slug input for anonymous users; renders the list of memberships for logged-in users)
+- `/` → `TenantSelectPage` (renders a tenant-slug input for anonymous users; renders the list of memberships for logged-in users)
 - `/login`, `/auth/forgot-password`, `/auth/reset-password` → superadmin auth (also serves as canonical fallback)
-- `/admin/*` → `SuperAdminLayout` (RequireAuth + RequireRole `superadmin`) — `kavas`, `kavas/new`, `settings`
+- `/admin/*` → `SuperAdminLayout` (RequireAuth + RequireRole `superadmin`) — `tenants`, `tenants/new`, `settings`
 - `/k/:slug/login`, `/k/:slug/auth/*`, `/k/:slug/welcome` → tenant auth
 - `/k/:slug/admin/*` → `AdminLayout` (RequireAuth + RequireRole `owner|staff`) — products, categories, customers, customer users, customer brand pricing, orders, users, settings, dashboard
 - `/k/:slug/{catalog, cart, orders, orders/:id, profile}` → `CustomerLayout` (RequireRole `customer`)
-- `/k/:slug` → `HomePage` (redirects to the user's home based on their membership in this kava)
+- `/k/:slug` → `HomePage` (redirects to the user's home based on their membership in this tenant)
 
 [packages/web/src/lib/auth-client.ts](packages/web/src/lib/auth-client.ts): `createAuthClient` from `better-auth/react` with `baseURL: window.location.origin`. Requests flow through Vite's `/api` proxy. **Do not hand-roll fetches to `/api/auth` routes** — use the better-auth client.
 
-[useAuth](packages/web/src/lib/hooks/use-auth.ts) wraps `/api/auth/me` and exposes `{ user, memberships, currentMembership, kava, isAuthenticated }`. `currentMembership` is the membership matching the current URL `:slug` (if any).
+[useAuth](packages/web/src/lib/hooks/use-auth.ts) wraps `/api/auth/me` and exposes `{ user, memberships, currentMembership, tenant, isAuthenticated }`. `currentMembership` is the membership matching the current URL `:slug` (if any).
 
 [useTenantApi](packages/web/src/lib/hooks/use-tenant-api.ts) is a small wrapper around `api` that prefixes all paths with `/api/k/<slug>` (slug from `useParams`). All admin/customer-scoped data hooks use it.
 
-[KavaSwitcher](packages/web/src/components/KavaSwitcher.tsx) is a shared dropdown section embedded in all three layouts' user menus. Shows the user's other memberships (and an "Admin" link if they're a superadmin not currently on `/admin/*`).
+[TenantSwitcher](packages/web/src/components/TenantSwitcher.tsx) is a shared dropdown section embedded in all three layouts' user menus. Shows the user's other memberships (and an "Admin" link if they're a superadmin not currently on `/admin/*`).
 
 `RequireAuth` / `RequireRole` guards live in [packages/web/src/components/guards/](packages/web/src/components/guards/). `RequireRole` accepts `["superadmin", "owner", "staff", "customer"]` and reads role from `currentMembership` (superadmin bypasses).
 

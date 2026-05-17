@@ -41,8 +41,8 @@ import { OrderDetailPage as CustomerOrderDetailPage } from "./pages/customer/Ord
 import { ProfilePage } from "./pages/customer/ProfilePage";
 
 // Superadmin pages
-import { KavasPage } from "./pages/superadmin/KavasPage";
-import { NewKavaPage } from "./pages/superadmin/NewKavaPage";
+import { TenantsPage } from "./pages/superadmin/TenantsPage";
+import { NewTenantPage } from "./pages/superadmin/NewTenantPage";
 import { SuperAdminSettingsPage } from "./pages/superadmin/SettingsPage";
 
 // Other
@@ -54,10 +54,10 @@ export function App() {
     <QueryClientProvider client={queryClient}>
       <BrowserRouter>
         <Routes>
-          {/* Platform-level auth — used by superadmin (no kava context).
+          {/* Platform-level auth — used by superadmin (no tenant context).
               `/` and `/login` both render LoginPage: anonymous users see the
               login form, authenticated users are redirected to their home (or
-              see a kava picker if they belong to multiple kavas). */}
+              see a tenant picker if they belong to multiple tenants). */}
           <Route element={<AuthLayout />}>
             <Route index element={<LoginPage />} />
             <Route path="/login" element={<LoginPage />} />
@@ -76,9 +76,9 @@ export function App() {
               </RequireAuth>
             }
           >
-            <Route index element={<Navigate to="kavas" replace />} />
-            <Route path="kavas" element={<KavasPage />} />
-            <Route path="kavas/new" element={<NewKavaPage />} />
+            <Route index element={<Navigate to="tenants" replace />} />
+            <Route path="tenants" element={<TenantsPage />} />
+            <Route path="tenants/new" element={<NewTenantPage />} />
             <Route path="settings" element={<SuperAdminSettingsPage />} />
           </Route>
 

@@ -14,7 +14,7 @@ export type SetPasswordMode = "invite" | "reset";
 
 interface SetPasswordEmailProps {
   link: string;
-  kavaName: string;
+  tenantName: string;
   mode: SetPasswordMode;
 }
 
@@ -47,14 +47,14 @@ const button = {
 };
 const muted = { color: "#6b7280", fontSize: "12px", lineHeight: "18px", margin: "24px 0 0" };
 
-export function SetPasswordEmail({ link, kavaName, mode }: SetPasswordEmailProps) {
+export function SetPasswordEmail({ link, tenantName, mode }: SetPasswordEmailProps) {
   const isInvite = mode === "invite";
   const previewText = isInvite
-    ? `Καλώς ήρθατε στο ${kavaName}. Ορίστε τον κωδικό σας.`
-    : `Επαναφορά κωδικού — ${kavaName}.`;
-  const title = isInvite ? `Καλώς ήρθατε στο ${kavaName}` : "Επαναφορά κωδικού";
+    ? `Καλώς ήρθατε στο ${tenantName}. Ορίστε τον κωδικό σας.`
+    : `Επαναφορά κωδικού — ${tenantName}.`;
+  const title = isInvite ? `Καλώς ήρθατε στο ${tenantName}` : "Επαναφορά κωδικού";
   const intro = isInvite
-    ? `Έχετε προσκληθεί στο ${kavaName}. Πατήστε τον παρακάτω σύνδεσμο για να ορίσετε τον κωδικό σας και να συνδεθείτε.`
+    ? `Έχετε προσκληθεί στο ${tenantName}. Πατήστε τον παρακάτω σύνδεσμο για να ορίσετε τον κωδικό σας και να συνδεθείτε.`
     : "Πατήστε τον παρακάτω σύνδεσμο για να ορίσετε νέο κωδικό:";
   const cta = isInvite ? "Ορισμός κωδικού" : "Επαναφορά κωδικού";
   const footer = isInvite
@@ -82,18 +82,18 @@ export function SetPasswordEmail({ link, kavaName, mode }: SetPasswordEmailProps
 }
 
 export function subject({
-  kavaName,
+  tenantName,
   mode,
-}: Pick<SetPasswordEmailProps, "kavaName" | "mode">): string {
+}: Pick<SetPasswordEmailProps, "tenantName" | "mode">): string {
   return mode === "invite"
-    ? `Καλώς ήρθατε στο ${kavaName} — Ορίστε τον κωδικό σας`
-    : `Επαναφορά κωδικού — ${kavaName}`;
+    ? `Καλώς ήρθατε στο ${tenantName} — Ορίστε τον κωδικό σας`
+    : `Επαναφορά κωδικού — ${tenantName}`;
 }
 
 export default SetPasswordEmail;
 
 SetPasswordEmail.PreviewProps = {
   link: "https://kavanow.gr/k/demo/welcome?token=preview",
-  kavaName: "Demo Κάβα",
+  tenantName: "Demo Λογαριασμός",
   mode: "invite",
 } satisfies SetPasswordEmailProps;

@@ -3,9 +3,9 @@ import { eq, and, ne, sql } from "drizzle-orm";
 import { z } from "zod";
 import { alias } from "drizzle-orm/pg-core";
 import { db } from "../../db/connection";
-import { accounts, kavaMemberships, users, verifications } from "../../db/schema/index";
+import { accounts, tenantMemberships, users, verifications } from "../../db/schema/index";
 import {
-  inviteUserToKava,
+  inviteUserToTenant,
   sendInviteSetPassword,
   InviteConflict,
   userHasPassword,
@@ -23,9 +23,9 @@ const inviteSchema = z.object({
   role: z.enum(["staff"], { error: "Επιλέξτε ρόλο" }),
 });
 
-// GET / — list users with a non-customer membership in this kava (owners + staff)
+// GET / — list users with a non-customer membership in this tenant (owners + staff)
 usersRouter.get("/", async (c) => {
-  const kavaId = c.get("kavaId")!;
+  const tenantId = c.get("tenantId")!;
   const inviter = alias(users, "inviter");
 
   const rows = await db
@@ -34,24 +34,24 @@ usersRouter.get("/", async (c) => {
       email: users.email,
       emailVerified: users.emailVerified,
       name: users.name,
-      role: kavaMemberships.role,
-      createdAt: kavaMemberships.createdAt,
-      invitedById: kavaMemberships.invitedById,
+      role: tenantMemberships.role,
+      createdAt: tenantMemberships.createdAt,
+      invitedById: tenantMemberships.invitedById,
       invitedByName: inviter.name,
       invitedByEmail: inviter.email,
     })
-    .from(kavaMemberships)
-    .innerJoin(users, eq(users.id, kavaMemberships.userId))
-    .leftJoin(inviter, eq(kavaMemberships.invitedById, inviter.id))
-    .where(and(eq(kavaMemberships.kavaId, kavaId), ne(kavaMemberships.role, "customer")))
-    .orderBy(kavaMemberships.createdAt);
+    .from(tenantMemberships)
+    .innerJoin(users, eq(users.id, tenantMemberships.userId))
+    .leftJoin(inviter, eq(tenantMemberships.invitedById, inviter.id))
+    .where(and(eq(tenantMemberships.tenantId, tenantId), ne(tenantMemberships.role, "customer")))
+    .orderBy(tenantMemberships.createdAt);
 
   return c.json({ users: rows });
 });
 
 // POST /invite — invite a staff user
 usersRouter.post("/invite", async (c) => {
-  const kavaId = c.get("kavaId")!;
+  const tenantId = c.get("tenantId")!;
   const inviter = c.get("user")!;
   const body = await c.req.json();
   const parsed = inviteSchema.safeParse(body);
@@ -61,9 +61,9 @@ usersRouter.post("/invite", async (c) => {
   }
 
   try {
-    await inviteUserToKava({
+    await inviteUserToTenant({
       c,
-      kavaId,
+      tenantId,
       email: parsed.data.email,
       name: parsed.data.name,
       role: parsed.data.role,
@@ -87,18 +87,18 @@ usersRouter.post("/invite", async (c) => {
 
 // POST /:id/resend-invite — re-issue the set-password invite for a pending user
 usersRouter.post("/:id/resend-invite", async (c) => {
-  const kavaId = c.get("kavaId")!;
+  const tenantId = c.get("tenantId")!;
   const id = c.req.param("id");
 
   const [target] = await db
     .select({
       id: users.id,
       email: users.email,
-      role: kavaMemberships.role,
+      role: tenantMemberships.role,
     })
-    .from(kavaMemberships)
-    .innerJoin(users, eq(users.id, kavaMemberships.userId))
-    .where(and(eq(kavaMemberships.userId, id), eq(kavaMemberships.kavaId, kavaId)))
+    .from(tenantMemberships)
+    .innerJoin(users, eq(users.id, tenantMemberships.userId))
+    .where(and(eq(tenantMemberships.userId, id), eq(tenantMemberships.tenantId, tenantId)))
     .limit(1);
 
   if (!target) {
@@ -113,7 +113,7 @@ usersRouter.post("/:id/resend-invite", async (c) => {
   // working link. better-auth stores hashed tokens under the same identifier.
   await db.delete(verifications).where(eq(verifications.identifier, target.email));
 
-  await sendInviteSetPassword(c, target.email, c.get("kava")!.slug);
+  await sendInviteSetPassword(c, target.email, c.get("tenant")!.slug);
 
   await logAudit(c, {
     action: "user.invite.resend",
@@ -127,7 +127,7 @@ usersRouter.post("/:id/resend-invite", async (c) => {
 
 // POST /:id/promote-to-owner — promote a staff member to owner
 usersRouter.post("/:id/promote-to-owner", async (c) => {
-  const kavaId = c.get("kavaId")!;
+  const tenantId = c.get("tenantId")!;
   const id = c.req.param("id");
   const myMembership = c.get("membership")!;
 
@@ -136,10 +136,10 @@ usersRouter.post("/:id/promote-to-owner", async (c) => {
   }
 
   const [target] = await db
-    .select({ id: users.id, email: users.email, role: kavaMemberships.role })
-    .from(kavaMemberships)
-    .innerJoin(users, eq(users.id, kavaMemberships.userId))
-    .where(and(eq(kavaMemberships.userId, id), eq(kavaMemberships.kavaId, kavaId)))
+    .select({ id: users.id, email: users.email, role: tenantMemberships.role })
+    .from(tenantMemberships)
+    .innerJoin(users, eq(users.id, tenantMemberships.userId))
+    .where(and(eq(tenantMemberships.userId, id), eq(tenantMemberships.tenantId, tenantId)))
     .limit(1);
 
   if (!target) {
@@ -153,9 +153,9 @@ usersRouter.post("/:id/promote-to-owner", async (c) => {
   }
 
   await db
-    .update(kavaMemberships)
+    .update(tenantMemberships)
     .set({ role: "owner" })
-    .where(and(eq(kavaMemberships.userId, id), eq(kavaMemberships.kavaId, kavaId)));
+    .where(and(eq(tenantMemberships.userId, id), eq(tenantMemberships.tenantId, tenantId)));
 
   await logAudit(c, {
     action: "user.promote",
@@ -167,9 +167,9 @@ usersRouter.post("/:id/promote-to-owner", async (c) => {
   return c.json({ success: true });
 });
 
-// DELETE /:id — remove a user's membership in this kava
+// DELETE /:id — remove a user's membership in this tenant
 usersRouter.delete("/:id", async (c) => {
-  const kavaId = c.get("kavaId")!;
+  const tenantId = c.get("tenantId")!;
   const me = c.get("user")!;
   const myMembership = c.get("membership")!;
   const id = c.req.param("id");
@@ -179,10 +179,10 @@ usersRouter.delete("/:id", async (c) => {
   }
 
   const [target] = await db
-    .select({ id: users.id, email: users.email, role: kavaMemberships.role })
-    .from(kavaMemberships)
-    .innerJoin(users, eq(users.id, kavaMemberships.userId))
-    .where(and(eq(kavaMemberships.userId, id), eq(kavaMemberships.kavaId, kavaId)))
+    .select({ id: users.id, email: users.email, role: tenantMemberships.role })
+    .from(tenantMemberships)
+    .innerJoin(users, eq(users.id, tenantMemberships.userId))
+    .where(and(eq(tenantMemberships.userId, id), eq(tenantMemberships.tenantId, tenantId)))
     .limit(1);
 
   if (!target) {
@@ -193,34 +193,37 @@ usersRouter.delete("/:id", async (c) => {
     return c.json({ error: "Μόνο ιδιοκτήτης μπορεί να διαγράψει ιδιοκτήτη" }, 403);
   }
 
-  // Prevent removing the final owner of the kava.
+  // Prevent removing the final owner of the tenant.
   if (target.role === "owner") {
     const [remaining] = await db
       .select({ count: sql<number>`count(*)::int` })
-      .from(kavaMemberships)
+      .from(tenantMemberships)
       .where(
         and(
-          eq(kavaMemberships.kavaId, kavaId),
-          eq(kavaMemberships.role, "owner"),
-          ne(kavaMemberships.userId, id),
+          eq(tenantMemberships.tenantId, tenantId),
+          eq(tenantMemberships.role, "owner"),
+          ne(tenantMemberships.userId, id),
         ),
       );
     if (!remaining || remaining.count === 0) {
-      return c.json({ error: "Δεν μπορείτε να διαγράψετε τον τελευταίο ιδιοκτήτη της κάβας" }, 400);
+      return c.json(
+        { error: "Δεν μπορείτε να διαγράψετε τον τελευταίο ιδιοκτήτη του λογαριασμού" },
+        400,
+      );
     }
   }
 
   await db
-    .delete(kavaMemberships)
-    .where(and(eq(kavaMemberships.userId, id), eq(kavaMemberships.kavaId, kavaId)));
+    .delete(tenantMemberships)
+    .where(and(eq(tenantMemberships.userId, id), eq(tenantMemberships.tenantId, tenantId)));
 
   // If this was the user's last membership, also delete the credential row
   // and user — keeps the global account list tidy for orphans created by
   // earlier invites.
   const [remainingForUser] = await db
     .select({ count: sql<number>`count(*)::int` })
-    .from(kavaMemberships)
-    .where(eq(kavaMemberships.userId, id));
+    .from(tenantMemberships)
+    .where(eq(tenantMemberships.userId, id));
   if (remainingForUser && remainingForUser.count === 0) {
     await db.delete(accounts).where(eq(accounts.userId, id));
     await db.delete(users).where(eq(users.id, id));

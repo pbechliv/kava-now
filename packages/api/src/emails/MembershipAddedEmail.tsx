@@ -12,7 +12,7 @@ import {
 
 interface MembershipAddedEmailProps {
   loginUrl: string;
-  kavaName: string;
+  tenantName: string;
 }
 
 const main = {
@@ -41,16 +41,16 @@ const button = {
   textDecoration: "none",
 };
 
-export function MembershipAddedEmail({ loginUrl, kavaName }: MembershipAddedEmailProps) {
+export function MembershipAddedEmail({ loginUrl, tenantName }: MembershipAddedEmailProps) {
   return (
     <Html lang="el">
       <Head />
-      <Preview>Έχετε προστεθεί στο {kavaName} στο KavaNow.</Preview>
+      <Preview>Έχετε προστεθεί στο {tenantName} στο KavaNow.</Preview>
       <Body style={main}>
         <Container style={container}>
-          <Heading style={heading}>Έχετε προστεθεί στο {kavaName}</Heading>
+          <Heading style={heading}>Έχετε προστεθεί στο {tenantName}</Heading>
           <Text style={paragraph}>
-            Ένας υπάρχων λογαριασμός σας έχει συνδεθεί με την κάβα {kavaName}. Μπορείτε να
+            Ένας υπάρχων λογαριασμός σας έχει συνδεθεί με τον λογαριασμό {tenantName}. Μπορείτε να
             συνδεθείτε με τον τρέχοντα κωδικό σας.
           </Text>
           <Section style={{ margin: "24px 0" }}>
@@ -64,13 +64,13 @@ export function MembershipAddedEmail({ loginUrl, kavaName }: MembershipAddedEmai
   );
 }
 
-export function subject({ kavaName }: { kavaName: string }): string {
-  return `Έχετε προστεθεί στο ${kavaName} — KavaNow`;
+export function subject({ tenantName }: { tenantName: string }): string {
+  return `Έχετε προστεθεί στο ${tenantName} — KavaNow`;
 }
 
 export default MembershipAddedEmail;
 
 MembershipAddedEmail.PreviewProps = {
   loginUrl: "https://kavanow.gr/k/demo/login",
-  kavaName: "Demo Κάβα",
+  tenantName: "Demo Λογαριασμός",
 } satisfies MembershipAddedEmailProps;

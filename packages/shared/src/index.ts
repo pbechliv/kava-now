@@ -6,7 +6,7 @@ export * from "./schemas/products";
 export * from "./schemas/categories";
 export * from "./schemas/customers";
 export * from "./schemas/customer-brand-pricing";
-export * from "./schemas/kava-settings";
+export * from "./schemas/tenant-settings";
 export * from "./schemas/orders";
 export * from "./schemas/pagination";
 export * from "./types";

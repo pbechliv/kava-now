@@ -14,12 +14,12 @@ import {
   products,
   customerBrandPricing,
   orders,
-  kavaMemberships,
+  tenantMemberships,
   users,
   verifications,
 } from "../../db/schema/index";
 import {
-  inviteUserToKava,
+  inviteUserToTenant,
   sendInviteSetPassword,
   InviteConflict,
   userHasPassword,
@@ -29,14 +29,14 @@ import type { AppEnv } from "../../types";
 
 const customersRouter = new Hono<AppEnv>();
 
-// GET /brands — list distinct brands for this kava's products
+// GET /brands — list distinct brands for this tenant's products
 customersRouter.get("/brands", async (c) => {
-  const kavaId = c.get("kavaId")!;
+  const tenantId = c.get("tenantId")!;
 
   const brands = await db
     .selectDistinct({ brand: products.brand })
     .from(products)
-    .where(and(eq(products.kavaId, kavaId), eq(products.active, true)))
+    .where(and(eq(products.tenantId, tenantId), eq(products.active, true)))
     .orderBy(products.brand);
 
   return c.json(brands.map((b) => b.brand));
@@ -44,7 +44,7 @@ customersRouter.get("/brands", async (c) => {
 
 // GET / — list customers with optional ?search
 customersRouter.get("/", async (c) => {
-  const kavaId = c.get("kavaId")!;
+  const tenantId = c.get("tenantId")!;
   const search = c.req.query("search");
 
   const pagination = paginationQuerySchema.safeParse({
@@ -56,7 +56,7 @@ customersRouter.get("/", async (c) => {
   }
   const { page, pageSize } = pagination.data;
 
-  const conditions = [eq(customers.kavaId, kavaId)];
+  const conditions = [eq(customers.tenantId, tenantId)];
 
   if (search) {
     const pattern = `%${search}%`;
@@ -74,7 +74,7 @@ customersRouter.get("/", async (c) => {
   const rows = await db
     .select({
       id: customers.id,
-      kavaId: customers.kavaId,
+      tenantId: customers.tenantId,
       name: customers.name,
       email: customers.email,
       address: customers.address,
@@ -99,7 +99,7 @@ customersRouter.get("/", async (c) => {
 
 // POST / — create customer (also creates a customer-user when email is set)
 customersRouter.post("/", async (c) => {
-  const kavaId = c.get("kavaId")!;
+  const tenantId = c.get("tenantId")!;
   const inviter = c.get("user")!;
   const body = await c.req.json();
   const parsed = createCustomerSchema.safeParse(body);
@@ -110,19 +110,19 @@ customersRouter.post("/", async (c) => {
 
   const [customer] = await db
     .insert(customers)
-    .values({ ...parsed.data, kavaId })
+    .values({ ...parsed.data, tenantId })
     .returning();
 
   // If email provided, also create a linked customer-user + send the
   // welcome set-password link. We don't fail the whole request if email
-  // already belongs to another user in this kava — the customer row is
+  // already belongs to another user in this tenant — the customer row is
   // still useful.
   let userInviteError: string | null = null;
   if (parsed.data.email) {
     try {
-      await inviteUserToKava({
+      await inviteUserToTenant({
         c,
-        kavaId,
+        tenantId,
         email: parsed.data.email,
         name: parsed.data.name,
         role: "customer",
@@ -143,13 +143,13 @@ customersRouter.post("/", async (c) => {
 
 // GET /:id — single customer
 customersRouter.get("/:id", async (c) => {
-  const kavaId = c.get("kavaId")!;
+  const tenantId = c.get("tenantId")!;
   const id = c.req.param("id");
 
   const [customer] = await db
     .select({
       id: customers.id,
-      kavaId: customers.kavaId,
+      tenantId: customers.tenantId,
       name: customers.name,
       email: customers.email,
       address: customers.address,
@@ -164,7 +164,7 @@ customersRouter.get("/:id", async (c) => {
       createdAt: customers.createdAt,
     })
     .from(customers)
-    .where(and(eq(customers.id, id), eq(customers.kavaId, kavaId)))
+    .where(and(eq(customers.id, id), eq(customers.tenantId, tenantId)))
     .limit(1);
 
   if (!customer) {
@@ -176,7 +176,7 @@ customersRouter.get("/:id", async (c) => {
 
 // PUT /:id — update customer
 customersRouter.put("/:id", async (c) => {
-  const kavaId = c.get("kavaId")!;
+  const tenantId = c.get("tenantId")!;
   const id = c.req.param("id");
   const body = await c.req.json();
   const parsed = updateCustomerSchema.safeParse(body);
@@ -188,7 +188,7 @@ customersRouter.put("/:id", async (c) => {
   const [customer] = await db
     .update(customers)
     .set(parsed.data)
-    .where(and(eq(customers.id, id), eq(customers.kavaId, kavaId)))
+    .where(and(eq(customers.id, id), eq(customers.tenantId, tenantId)))
     .returning();
 
   if (!customer) {
@@ -200,7 +200,7 @@ customersRouter.put("/:id", async (c) => {
 
 // DELETE /:id — fail if customer has orders. Linked memberships cascade.
 customersRouter.delete("/:id", async (c) => {
-  const kavaId = c.get("kavaId")!;
+  const tenantId = c.get("tenantId")!;
   const id = c.req.param("id");
 
   // Check for existing orders
@@ -217,13 +217,13 @@ customersRouter.delete("/:id", async (c) => {
   // Capture linked memberships for the audit log before the cascade removes them.
   const linkedUsers = await db
     .select({ id: users.id, email: users.email })
-    .from(kavaMemberships)
-    .innerJoin(users, eq(users.id, kavaMemberships.userId))
-    .where(and(eq(kavaMemberships.customerId, id), eq(kavaMemberships.kavaId, kavaId)));
+    .from(tenantMemberships)
+    .innerJoin(users, eq(users.id, tenantMemberships.userId))
+    .where(and(eq(tenantMemberships.customerId, id), eq(tenantMemberships.tenantId, tenantId)));
 
   const [deleted] = await db
     .delete(customers)
-    .where(and(eq(customers.id, id), eq(customers.kavaId, kavaId)))
+    .where(and(eq(customers.id, id), eq(customers.tenantId, tenantId)))
     .returning();
 
   if (!deleted) {
@@ -242,14 +242,14 @@ customersRouter.delete("/:id", async (c) => {
 
 // GET /:id/brand-pricing — list all brands with this customer's discounts
 customersRouter.get("/:id/brand-pricing", async (c) => {
-  const kavaId = c.get("kavaId")!;
+  const tenantId = c.get("tenantId")!;
   const id = c.req.param("id");
 
   // Verify customer exists
   const [customer] = await db
     .select({ id: customers.id })
     .from(customers)
-    .where(and(eq(customers.id, id), eq(customers.kavaId, kavaId)))
+    .where(and(eq(customers.id, id), eq(customers.tenantId, tenantId)))
     .limit(1);
 
   if (!customer) {
@@ -259,7 +259,7 @@ customersRouter.get("/:id/brand-pricing", async (c) => {
   const brands = await db
     .selectDistinct({ brand: products.brand })
     .from(products)
-    .where(and(eq(products.kavaId, kavaId), eq(products.active, true)))
+    .where(and(eq(products.tenantId, tenantId), eq(products.active, true)))
     .orderBy(products.brand);
 
   const pricing = await db
@@ -279,7 +279,7 @@ customersRouter.get("/:id/brand-pricing", async (c) => {
 
 // PUT /:id/brand-pricing — bulk update brand discounts for customer
 customersRouter.put("/:id/brand-pricing", async (c) => {
-  const kavaId = c.get("kavaId")!;
+  const tenantId = c.get("tenantId")!;
   const id = c.req.param("id");
   const body = await c.req.json();
   const parsed = updateCustomerBrandPricingSchema.safeParse(body);
@@ -291,7 +291,7 @@ customersRouter.put("/:id/brand-pricing", async (c) => {
   const [customer] = await db
     .select({ id: customers.id })
     .from(customers)
-    .where(and(eq(customers.id, id), eq(customers.kavaId, kavaId)))
+    .where(and(eq(customers.id, id), eq(customers.tenantId, tenantId)))
     .limit(1);
 
   if (!customer) {
@@ -314,16 +314,16 @@ customersRouter.put("/:id/brand-pricing", async (c) => {
   return c.json({ message: "Η τιμολόγηση ενημερώθηκε" });
 });
 
-// GET /:id/users — list users linked to a customer in this kava
+// GET /:id/users — list users linked to a customer in this tenant
 customersRouter.get("/:id/users", async (c) => {
-  const kavaId = c.get("kavaId")!;
+  const tenantId = c.get("tenantId")!;
   const id = c.req.param("id");
   const inviterAlias = alias(users, "inviter");
 
   const [customer] = await db
     .select({ id: customers.id })
     .from(customers)
-    .where(and(eq(customers.id, id), eq(customers.kavaId, kavaId)))
+    .where(and(eq(customers.id, id), eq(customers.tenantId, tenantId)))
     .limit(1);
 
   if (!customer) {
@@ -336,34 +336,34 @@ customersRouter.get("/:id/users", async (c) => {
       email: users.email,
       emailVerified: users.emailVerified,
       name: users.name,
-      createdAt: kavaMemberships.createdAt,
+      createdAt: tenantMemberships.createdAt,
       invitedByName: inviterAlias.name,
       invitedByEmail: inviterAlias.email,
     })
-    .from(kavaMemberships)
-    .innerJoin(users, eq(users.id, kavaMemberships.userId))
-    .leftJoin(inviterAlias, eq(kavaMemberships.invitedById, inviterAlias.id))
-    .where(and(eq(kavaMemberships.customerId, id), eq(kavaMemberships.kavaId, kavaId)))
-    .orderBy(kavaMemberships.createdAt);
+    .from(tenantMemberships)
+    .innerJoin(users, eq(users.id, tenantMemberships.userId))
+    .leftJoin(inviterAlias, eq(tenantMemberships.invitedById, inviterAlias.id))
+    .where(and(eq(tenantMemberships.customerId, id), eq(tenantMemberships.tenantId, tenantId)))
+    .orderBy(tenantMemberships.createdAt);
 
   return c.json({ users: rows });
 });
 
 // POST /:customerId/users/:userId/resend-invite — re-issue the set-password invite
 customersRouter.post("/:customerId/users/:userId/resend-invite", async (c) => {
-  const kavaId = c.get("kavaId")!;
+  const tenantId = c.get("tenantId")!;
   const customerId = c.req.param("customerId");
   const userId = c.req.param("userId");
 
   const [target] = await db
     .select({ id: users.id, email: users.email })
-    .from(kavaMemberships)
-    .innerJoin(users, eq(users.id, kavaMemberships.userId))
+    .from(tenantMemberships)
+    .innerJoin(users, eq(users.id, tenantMemberships.userId))
     .where(
       and(
-        eq(kavaMemberships.userId, userId),
-        eq(kavaMemberships.kavaId, kavaId),
-        eq(kavaMemberships.customerId, customerId),
+        eq(tenantMemberships.userId, userId),
+        eq(tenantMemberships.tenantId, tenantId),
+        eq(tenantMemberships.customerId, customerId),
       ),
     )
     .limit(1);
@@ -378,7 +378,7 @@ customersRouter.post("/:customerId/users/:userId/resend-invite", async (c) => {
 
   await db.delete(verifications).where(eq(verifications.identifier, target.email));
 
-  await sendInviteSetPassword(c, target.email, c.get("kava")!.slug);
+  await sendInviteSetPassword(c, target.email, c.get("tenant")!.slug);
 
   await logAudit(c, {
     action: "customer.user.invite.resend",
@@ -397,7 +397,7 @@ const inviteCustomerUserSchema = z.object({
 
 // POST /:id/users/invite — add another user account to an existing customer
 customersRouter.post("/:id/users/invite", async (c) => {
-  const kavaId = c.get("kavaId")!;
+  const tenantId = c.get("tenantId")!;
   const inviter = c.get("user")!;
   const id = c.req.param("id");
   const body = await c.req.json();
@@ -410,7 +410,7 @@ customersRouter.post("/:id/users/invite", async (c) => {
   const [customer] = await db
     .select({ id: customers.id })
     .from(customers)
-    .where(and(eq(customers.id, id), eq(customers.kavaId, kavaId)))
+    .where(and(eq(customers.id, id), eq(customers.tenantId, tenantId)))
     .limit(1);
 
   if (!customer) {
@@ -418,9 +418,9 @@ customersRouter.post("/:id/users/invite", async (c) => {
   }
 
   try {
-    await inviteUserToKava({
+    await inviteUserToTenant({
       c,
-      kavaId,
+      tenantId,
       email: parsed.data.email,
       name: parsed.data.name,
       role: "customer",

@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Link } from "react-router";
 import { Loader2 } from "lucide-react";
-import { useSuperAdminKavas, useDeleteKava } from "@/lib/hooks/use-superadmin-kavas";
+import { useSuperAdminTenants, useDeleteTenant } from "@/lib/hooks/use-superadmin-tenants";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import {
@@ -17,10 +17,10 @@ import { PaginationControls } from "@/components/PaginationControls";
 
 const PAGE_SIZE = 50;
 
-export function KavasPage() {
+export function TenantsPage() {
   const [page, setPage] = useState(1);
-  const { data, isLoading } = useSuperAdminKavas({ page, pageSize: PAGE_SIZE });
-  const deleteMutation = useDeleteKava();
+  const { data, isLoading } = useSuperAdminTenants({ page, pageSize: PAGE_SIZE });
+  const deleteMutation = useDeleteTenant();
   const [confirmId, setConfirmId] = useState<string | null>(null);
 
   if (isLoading) {
@@ -31,20 +31,20 @@ export function KavasPage() {
     );
   }
 
-  const kavas = data?.data ?? [];
+  const tenants = data?.data ?? [];
   const total = data?.total ?? 0;
 
   return (
     <div className="space-y-6">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <h1 className="text-2xl font-bold tracking-tight">Κάβες</h1>
-        <Link to="/admin/kavas/new" className="self-start sm:self-auto">
-          <Button>+ Νέα κάβα</Button>
+        <h1 className="text-2xl font-bold tracking-tight">Λογαριασμοί</h1>
+        <Link to="/admin/tenants/new" className="self-start sm:self-auto">
+          <Button>+ Νέος λογαριασμός</Button>
         </Link>
       </div>
 
-      {kavas.length === 0 ? (
-        <p className="text-sm text-muted-foreground">Δεν υπάρχουν κάβες.</p>
+      {tenants.length === 0 ? (
+        <p className="text-sm text-muted-foreground">Δεν υπάρχουν λογαριασμοί.</p>
       ) : (
         <>
           <Card className="overflow-hidden">
@@ -60,16 +60,16 @@ export function KavasPage() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {kavas.map((kava) => (
-                    <TableRow key={kava.id}>
-                      <TableCell className="font-medium">{kava.name}</TableCell>
-                      <TableCell className="text-muted-foreground">{kava.slug}</TableCell>
-                      <TableCell className="text-muted-foreground">{kava.email}</TableCell>
+                  {tenants.map((tenant) => (
+                    <TableRow key={tenant.id}>
+                      <TableCell className="font-medium">{tenant.name}</TableCell>
+                      <TableCell className="text-muted-foreground">{tenant.slug}</TableCell>
+                      <TableCell className="text-muted-foreground">{tenant.email}</TableCell>
                       <TableCell className="text-muted-foreground">
-                        {new Date(kava.createdAt).toLocaleDateString("el-GR")}
+                        {new Date(tenant.createdAt).toLocaleDateString("el-GR")}
                       </TableCell>
                       <TableCell className="text-right">
-                        {confirmId === kava.id ? (
+                        {confirmId === tenant.id ? (
                           <div className="flex items-center justify-end gap-2">
                             <span className="text-xs text-destructive">Σίγουρα;</span>
                             <Button
@@ -77,7 +77,7 @@ export function KavasPage() {
                               size="sm"
                               disabled={deleteMutation.isPending}
                               onClick={() =>
-                                deleteMutation.mutate(kava.id, {
+                                deleteMutation.mutate(tenant.id, {
                                   onSuccess: () => setConfirmId(null),
                                 })
                               }
@@ -96,7 +96,7 @@ export function KavasPage() {
                             variant="ghost"
                             size="sm"
                             className="text-destructive hover:bg-destructive/10 hover:text-destructive"
-                            onClick={() => setConfirmId(kava.id)}
+                            onClick={() => setConfirmId(tenant.id)}
                           >
                             Διαγραφή
                           </Button>

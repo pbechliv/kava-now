@@ -1,6 +1,7 @@
 # KavaNow Cloud Deployment Plan — Cloudflare Workers + Resend (Free / ≈$0/mo)
 
 > ⚠️ **SUPERSEDED — written against the pre-refactor architecture.** See [CLAUDE.md](../CLAUDE.md) for the current model. Major drifts to update before reusing this plan:
+>
 > - **Tenancy is path-based now**, not subdomain-based. No `*.<domain>` wildcard cert, no cross-subdomain cookies, no Host-header tenant resolution. Tenants live under `/k/<slug>/*` on a single origin (`APP_ORIGIN`).
 > - **`BASE_DOMAIN` env var was replaced by `APP_ORIGIN`** (a complete origin URL, e.g. `https://kavanow.gr`).
 > - **No magic-link auth.** Login is email + password. Invites go through `auth.api.requestPasswordReset` and land on `/k/<slug>/welcome`.

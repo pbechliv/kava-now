@@ -1,12 +1,12 @@
 -- Row-Level Security policies for multi-tenant isolation
--- Every tenant-scoped data table uses current_setting('app.current_kava_id') to filter rows
+-- Every tenant-scoped data table uses current_setting('app.current_tenant_id') to filter rows
 -- This script is idempotent (safe to run multiple times)
 --
 -- NOTE: better-auth owns users, sessions, accounts, verifications — these tables
 -- do NOT have RLS because better-auth queries them globally (by session token,
 -- by user id). Tenant scoping for auth is enforced in application code via
--- require-role / require-auth middleware, which looks up `kava_memberships`
--- to verify the authenticated user belongs to the kava resolved from the URL.
+-- require-role / require-auth middleware, which looks up `tenant_memberships`
+-- to verify the authenticated user belongs to the tenant resolved from the URL.
 
 -- Enable RLS on tenant-scoped data tables
 ALTER TABLE categories ENABLE ROW LEVEL SECURITY;
@@ -32,59 +32,59 @@ DROP POLICY IF EXISTS tenant_isolation_customer_brand_pricing ON customer_brand_
 DROP POLICY IF EXISTS tenant_isolation_orders ON orders;
 DROP POLICY IF EXISTS tenant_isolation_order_items ON order_items;
 
--- Categories: scoped by kava_id
+-- Categories: scoped by tenant_id
 CREATE POLICY tenant_isolation_categories ON categories
-  USING (kava_id = current_setting('app.current_kava_id', true)::uuid)
-  WITH CHECK (kava_id = current_setting('app.current_kava_id', true)::uuid);
+  USING (tenant_id = current_setting('app.current_tenant_id', true)::uuid)
+  WITH CHECK (tenant_id = current_setting('app.current_tenant_id', true)::uuid);
 
--- Products: scoped by kava_id
+-- Products: scoped by tenant_id
 CREATE POLICY tenant_isolation_products ON products
-  USING (kava_id = current_setting('app.current_kava_id', true)::uuid)
-  WITH CHECK (kava_id = current_setting('app.current_kava_id', true)::uuid);
+  USING (tenant_id = current_setting('app.current_tenant_id', true)::uuid)
+  WITH CHECK (tenant_id = current_setting('app.current_tenant_id', true)::uuid);
 
--- Customers: scoped by kava_id
+-- Customers: scoped by tenant_id
 CREATE POLICY tenant_isolation_customers ON customers
-  USING (kava_id = current_setting('app.current_kava_id', true)::uuid)
-  WITH CHECK (kava_id = current_setting('app.current_kava_id', true)::uuid);
+  USING (tenant_id = current_setting('app.current_tenant_id', true)::uuid)
+  WITH CHECK (tenant_id = current_setting('app.current_tenant_id', true)::uuid);
 
--- Customer Brand Pricing: scoped via customer's kava_id
+-- Customer Brand Pricing: scoped via customer's tenant_id
 CREATE POLICY tenant_isolation_customer_brand_pricing ON customer_brand_pricing
   USING (
     customer_id IN (
       SELECT id FROM customers
-      WHERE kava_id = current_setting('app.current_kava_id', true)::uuid
+      WHERE tenant_id = current_setting('app.current_tenant_id', true)::uuid
     )
   )
   WITH CHECK (
     customer_id IN (
       SELECT id FROM customers
-      WHERE kava_id = current_setting('app.current_kava_id', true)::uuid
+      WHERE tenant_id = current_setting('app.current_tenant_id', true)::uuid
     )
   );
 
--- Orders: scoped by kava_id
+-- Orders: scoped by tenant_id
 CREATE POLICY tenant_isolation_orders ON orders
-  USING (kava_id = current_setting('app.current_kava_id', true)::uuid)
-  WITH CHECK (kava_id = current_setting('app.current_kava_id', true)::uuid);
+  USING (tenant_id = current_setting('app.current_tenant_id', true)::uuid)
+  WITH CHECK (tenant_id = current_setting('app.current_tenant_id', true)::uuid);
 
--- Order Items: scoped via order's kava_id
+-- Order Items: scoped via order's tenant_id
 CREATE POLICY tenant_isolation_order_items ON order_items
   USING (
     order_id IN (
       SELECT id FROM orders
-      WHERE kava_id = current_setting('app.current_kava_id', true)::uuid
+      WHERE tenant_id = current_setting('app.current_tenant_id', true)::uuid
     )
   )
   WITH CHECK (
     order_id IN (
       SELECT id FROM orders
-      WHERE kava_id = current_setting('app.current_kava_id', true)::uuid
+      WHERE tenant_id = current_setting('app.current_tenant_id', true)::uuid
     )
   );
 
--- Note: kavas, sessions, accounts, verifications, users, and kava_memberships
+-- Note: tenants, sessions, accounts, verifications, users, and tenant_memberships
 -- do NOT have RLS:
--- - kavas: needed for tenant lookup before RLS var is set
+-- - tenants: needed for tenant lookup before RLS var is set
 -- - sessions/accounts/verifications: owned by better-auth, queried globally by token
--- - users: global by design (one user can belong to multiple kavas)
--- - kava_memberships: lookup table consulted by application middleware
+-- - users: global by design (one user can belong to multiple tenants)
+-- - tenant_memberships: lookup table consulted by application middleware

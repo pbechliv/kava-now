@@ -1,14 +1,14 @@
 import { pgTable, uuid, text, timestamp } from "drizzle-orm/pg-core";
 import { erpStatusEnum, orderStatusEnum } from "./enums";
-import { kavas } from "./kavas";
+import { tenants } from "./tenants";
 import { customers } from "./customers";
 import { users } from "./users";
 
 export const orders = pgTable("orders", {
   id: uuid("id").primaryKey().defaultRandom(),
-  kavaId: uuid("kava_id")
+  tenantId: uuid("tenant_id")
     .notNull()
-    .references(() => kavas.id, { onDelete: "cascade" }),
+    .references(() => tenants.id, { onDelete: "cascade" }),
   customerId: uuid("customer_id")
     .notNull()
     .references(() => customers.id, { onDelete: "cascade" }),

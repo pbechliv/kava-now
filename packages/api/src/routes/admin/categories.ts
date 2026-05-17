@@ -12,12 +12,12 @@ const parentCategory = alias(categories, "parentCategory");
 
 // GET / — list categories ordered by sortOrder, include parent info
 categoriesRouter.get("/", async (c) => {
-  const kavaId = c.get("kavaId")!;
+  const tenantId = c.get("tenantId")!;
 
   const rows = await db
     .select({
       id: categories.id,
-      kavaId: categories.kavaId,
+      tenantId: categories.tenantId,
       name: categories.name,
       parentId: categories.parentId,
       sortOrder: categories.sortOrder,
@@ -26,7 +26,7 @@ categoriesRouter.get("/", async (c) => {
     })
     .from(categories)
     .leftJoin(parentCategory, eq(categories.parentId, parentCategory.id))
-    .where(eq(categories.kavaId, kavaId))
+    .where(eq(categories.tenantId, tenantId))
     .orderBy(asc(categories.sortOrder), asc(categories.name));
 
   return c.json(rows);
@@ -34,7 +34,7 @@ categoriesRouter.get("/", async (c) => {
 
 // POST / — create category
 categoriesRouter.post("/", async (c) => {
-  const kavaId = c.get("kavaId")!;
+  const tenantId = c.get("tenantId")!;
   const body = await c.req.json();
   const parsed = createCategorySchema.safeParse(body);
 
@@ -46,7 +46,7 @@ categoriesRouter.post("/", async (c) => {
     .insert(categories)
     .values({
       ...parsed.data,
-      kavaId,
+      tenantId,
     })
     .returning();
 
@@ -55,7 +55,7 @@ categoriesRouter.post("/", async (c) => {
 
 // PUT /:id — update category
 categoriesRouter.put("/:id", async (c) => {
-  const kavaId = c.get("kavaId")!;
+  const tenantId = c.get("tenantId")!;
   const id = c.req.param("id");
   const body = await c.req.json();
   const parsed = updateCategorySchema.safeParse(body);
@@ -67,7 +67,7 @@ categoriesRouter.put("/:id", async (c) => {
   const [category] = await db
     .update(categories)
     .set(parsed.data)
-    .where(and(eq(categories.id, id), eq(categories.kavaId, kavaId)))
+    .where(and(eq(categories.id, id), eq(categories.tenantId, tenantId)))
     .returning();
 
   if (!category) {
@@ -79,14 +79,14 @@ categoriesRouter.put("/:id", async (c) => {
 
 // DELETE /:id — fail if products reference it
 categoriesRouter.delete("/:id", async (c) => {
-  const kavaId = c.get("kavaId")!;
+  const tenantId = c.get("tenantId")!;
   const id = c.req.param("id");
 
   // Check if products reference this category
   const [ref] = await db
     .select({ count: sql<number>`count(*)::int` })
     .from(products)
-    .where(and(eq(products.categoryId, id), eq(products.kavaId, kavaId)))
+    .where(and(eq(products.categoryId, id), eq(products.tenantId, tenantId)))
     .limit(1);
 
   if (ref && ref.count > 0) {
@@ -100,7 +100,7 @@ categoriesRouter.delete("/:id", async (c) => {
 
   const [deleted] = await db
     .delete(categories)
-    .where(and(eq(categories.id, id), eq(categories.kavaId, kavaId)))
+    .where(and(eq(categories.id, id), eq(categories.tenantId, tenantId)))
     .returning();
 
   if (!deleted) {

@@ -17,7 +17,7 @@ const ordersRouter = new Hono<AppEnv>();
 
 // POST / — create order
 ordersRouter.post("/", async (c) => {
-  const kava = c.get("kava")!;
+  const tenant = c.get("tenant")!;
   const customerId = c.get("membership")!.customerId;
 
   if (!customerId) {
@@ -89,7 +89,7 @@ ordersRouter.post("/", async (c) => {
     const [order] = await tx
       .insert(orders)
       .values({
-        kavaId: kava.id,
+        tenantId: tenant.id,
         customerId,
         notes: notes || null,
       })
@@ -120,7 +120,7 @@ ordersRouter.post("/", async (c) => {
   });
 
   // Send notification email (fire and forget)
-  sendOrderNotification(kava, customer, result.order, result.items).catch((err) =>
+  sendOrderNotification(tenant, customer, result.order, result.items).catch((err) =>
     console.error("[email] Failed to send order notification:", err),
   );
 
@@ -198,7 +198,7 @@ ordersRouter.get("/:id", async (c) => {
 
 // POST /:id/reorder — clone items from referenced order into a new order
 ordersRouter.post("/:id/reorder", async (c) => {
-  const kava = c.get("kava")!;
+  const tenant = c.get("tenant")!;
   const customerId = c.get("membership")!.customerId;
   const orderId = c.req.param("id");
 
@@ -286,7 +286,7 @@ ordersRouter.post("/:id/reorder", async (c) => {
     const [newOrder] = await tx
       .insert(orders)
       .values({
-        kavaId: kava.id,
+        tenantId: tenant.id,
         customerId,
       })
       .returning();
@@ -316,7 +316,7 @@ ordersRouter.post("/:id/reorder", async (c) => {
   });
 
   // Send notification email (fire and forget)
-  sendOrderNotification(kava, customer, result.order, result.items).catch((err) =>
+  sendOrderNotification(tenant, customer, result.order, result.items).catch((err) =>
     console.error("[email] Failed to send order notification:", err),
   );
 

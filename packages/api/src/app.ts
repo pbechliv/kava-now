@@ -27,8 +27,8 @@ app.use(
 
 // Default empty tenant context; tenant-scoped routes set it explicitly.
 app.use("*", async (c, next) => {
-  c.set("kava", null);
-  c.set("kavaId", null);
+  c.set("tenant", null);
+  c.set("tenantId", null);
   c.set("user", null);
   c.set("session", null);
   c.set("membership", null);
@@ -38,7 +38,7 @@ app.use("*", async (c, next) => {
 // Auth session resolution — no tenant context required.
 app.use("*", authMiddleware);
 
-// Attach kava + user context to Sentry scope (after tenant + auth populate vars)
+// Attach tenant + user context to Sentry scope (after tenant + auth populate vars)
 app.use("*", sentryContextMiddleware);
 
 // Custom auth routes (register BEFORE better-auth catch-all so /me matches first)
@@ -56,17 +56,17 @@ app.on(["POST", "GET"], "/api/auth/*", (c) => auth.handler(c.req.raw));
 app.route("/api/superadmin", superadminRoutes);
 
 // Tenant-scoped routes. tenantMiddleware reads the :slug param, resolves the
-// kava, and sets the PostgreSQL session variable for RLS.
+// tenant, and sets the PostgreSQL session variable for RLS.
 const tenantApp = new Hono<AppEnv>();
 tenantApp.use("*", tenantMiddleware);
-// Re-tag Sentry scope now that the kava (and later, membership via requireRole)
-// is resolved for tenant-scoped requests.
+// Re-tag Sentry scope now that the tenant (and later, membership via
+// requireRole) is resolved for tenant-scoped requests.
 tenantApp.use("*", sentryContextMiddleware);
 
-tenantApp.get("/kava", (c) => {
-  const kava = c.get("kava");
-  if (!kava) return c.json({ error: "Δεν βρέθηκε" }, 404);
-  return c.json({ name: kava.name, slug: kava.slug });
+tenantApp.get("/tenant", (c) => {
+  const tenant = c.get("tenant");
+  if (!tenant) return c.json({ error: "Δεν βρέθηκε" }, 404);
+  return c.json({ name: tenant.name, slug: tenant.slug });
 });
 
 tenantApp.route("/admin", adminRoutes);

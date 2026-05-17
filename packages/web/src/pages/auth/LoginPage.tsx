@@ -43,9 +43,9 @@ export function LoginPage() {
     },
   });
 
-  const { data: kavaInfo } = useQuery({
-    queryKey: ["kava-info", slug],
-    queryFn: () => api.get<{ name: string; slug: string }>(`/api/k/${slug}/kava`),
+  const { data: tenantInfo } = useQuery({
+    queryKey: ["tenant-info", slug],
+    queryFn: () => api.get<{ name: string; slug: string }>(`/api/k/${slug}/tenant`),
     enabled: !!slug,
     retry: false,
     staleTime: Infinity,
@@ -59,11 +59,11 @@ export function LoginPage() {
   useEffect(() => {
     if (!isAuthenticated || !user) return;
     if (user.isSuperAdmin) {
-      void navigate("/admin/kavas", { replace: true });
+      void navigate("/admin/tenants", { replace: true });
       return;
     }
     if (slug) {
-      const match = memberships.find((m) => m.kavaSlug === slug);
+      const match = memberships.find((m) => m.tenantSlug === slug);
       if (match) {
         void navigate(membershipHome(match), { replace: true });
         return;
@@ -79,16 +79,16 @@ export function LoginPage() {
     if (memberships.length > 1) {
       return (
         <div className="space-y-4">
-          <h2 className="text-center text-lg font-semibold">Οι κάβες σας</h2>
+          <h2 className="text-center text-lg font-semibold">Οι λογαριασμοί σας</h2>
           <ul className="space-y-2">
             {memberships.map((m) => (
-              <li key={m.kavaId}>
+              <li key={m.tenantId}>
                 <Button
                   variant="outline"
                   className="w-full justify-between"
                   onClick={() => void navigate(membershipHome(m))}
                 >
-                  <span>{m.kavaName}</span>
+                  <span>{m.tenantName}</span>
                   <span className="text-xs text-muted-foreground">{m.role}</span>
                 </Button>
               </li>
@@ -100,9 +100,9 @@ export function LoginPage() {
     if (memberships.length === 0) {
       return (
         <div className="space-y-4 text-center">
-          <h2 className="text-lg font-semibold">Δεν έχετε πρόσβαση σε κάβα</h2>
+          <h2 className="text-lg font-semibold">Δεν έχετε πρόσβαση σε λογαριασμό</h2>
           <p className="text-sm text-muted-foreground">
-            Επικοινωνήστε με τον διαχειριστή της κάβας σας για πρόσκληση.
+            Επικοινωνήστε με τον διαχειριστή της λογαριασμού σας για πρόσκληση.
           </p>
           <Button
             variant="outline"
@@ -129,7 +129,7 @@ export function LoginPage() {
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-        {kavaInfo?.name && <h2 className="text-center text-xl font-bold">{kavaInfo.name}</h2>}
+        {tenantInfo?.name && <h2 className="text-center text-xl font-bold">{tenantInfo.name}</h2>}
         <h2 className="text-center text-lg font-semibold">Σύνδεση</h2>
 
         {googleEnabled && (

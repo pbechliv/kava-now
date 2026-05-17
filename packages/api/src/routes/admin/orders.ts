@@ -57,7 +57,7 @@ function assertOrderMutable(order: {
 
 // GET / — list orders with filters
 ordersRouter.get("/", async (c) => {
-  const kavaId = c.get("kavaId")!;
+  const tenantId = c.get("tenantId")!;
   const status = c.req.query("status") as OrderStatus | undefined;
   const customerId = c.req.query("customerId");
   const dateFrom = c.req.query("dateFrom");
@@ -72,7 +72,7 @@ ordersRouter.get("/", async (c) => {
   }
   const { page, pageSize } = pagination.data;
 
-  const conditions: ReturnType<typeof eq>[] = [eq(orders.kavaId, kavaId)];
+  const conditions: ReturnType<typeof eq>[] = [eq(orders.tenantId, tenantId)];
 
   if (status && VALID_STATUSES.includes(status)) {
     conditions.push(eq(orders.status, status));
@@ -124,7 +124,7 @@ ordersRouter.get("/", async (c) => {
 
 // GET /:id — order detail with items and customer info
 ordersRouter.get("/:id", async (c) => {
-  const kavaId = c.get("kavaId")!;
+  const tenantId = c.get("tenantId")!;
   const id = c.req.param("id");
 
   const [order] = await db
@@ -153,7 +153,7 @@ ordersRouter.get("/:id", async (c) => {
     .from(orders)
     .leftJoin(customers, eq(orders.customerId, customers.id))
     .leftJoin(users, eq(orders.erpTransmittedBy, users.id))
-    .where(and(eq(orders.id, id), eq(orders.kavaId, kavaId)))
+    .where(and(eq(orders.id, id), eq(orders.tenantId, tenantId)))
     .limit(1);
 
   if (!order) {
@@ -178,8 +178,7 @@ ordersRouter.get("/:id", async (c) => {
     .where(eq(orderItems.orderId, id));
 
   const total = items.reduce(
-    (sum, item) =>
-      item.status === "active" ? sum + Number(item.unitPrice) * item.quantity : sum,
+    (sum, item) => (item.status === "active" ? sum + Number(item.unitPrice) * item.quantity : sum),
     0,
   );
 
@@ -188,7 +187,7 @@ ordersRouter.get("/:id", async (c) => {
 
 // PUT /:id/status — update order status
 ordersRouter.put("/:id/status", async (c) => {
-  const kavaId = c.get("kavaId")!;
+  const tenantId = c.get("tenantId")!;
   const id = c.req.param("id");
   const body = await c.req.json();
   const newStatus = body.status as OrderStatus;
@@ -205,7 +204,7 @@ ordersRouter.put("/:id/status", async (c) => {
       customerId: orders.customerId,
     })
     .from(orders)
-    .where(and(eq(orders.id, id), eq(orders.kavaId, kavaId)))
+    .where(and(eq(orders.id, id), eq(orders.tenantId, tenantId)))
     .limit(1);
 
   if (!order) {
@@ -250,7 +249,7 @@ ordersRouter.put("/:id/status", async (c) => {
 
 // PATCH /:id/erp — mark an order as transmitted to the ERP, store the AADE MARK
 ordersRouter.patch("/:id/erp", async (c) => {
-  const kavaId = c.get("kavaId")!;
+  const tenantId = c.get("tenantId")!;
   const user = c.get("user")!;
   const id = c.req.param("id");
   const body = await c.req.json();
@@ -263,7 +262,7 @@ ordersRouter.patch("/:id/erp", async (c) => {
   const [existing] = await db
     .select({ erpStatus: orders.erpStatus })
     .from(orders)
-    .where(and(eq(orders.id, id), eq(orders.kavaId, kavaId)))
+    .where(and(eq(orders.id, id), eq(orders.tenantId, tenantId)))
     .limit(1);
 
   if (!existing) {
@@ -296,7 +295,7 @@ ordersRouter.patch("/:id/erp", async (c) => {
 });
 
 async function resolveProductPriceForOrder(
-  kavaId: string,
+  tenantId: string,
   customerId: string,
   productId: string,
 ) {
@@ -309,7 +308,7 @@ async function resolveProductPriceForOrder(
       active: products.active,
     })
     .from(products)
-    .where(and(eq(products.id, productId), eq(products.kavaId, kavaId)))
+    .where(and(eq(products.id, productId), eq(products.tenantId, tenantId)))
     .limit(1);
 
   if (!product || !product.active) return null;
@@ -329,24 +328,24 @@ async function resolveProductPriceForOrder(
   return { product, unitPrice };
 }
 
-async function loadOrderForMutation(kavaId: string, id: string) {
+async function loadOrderForMutation(tenantId: string, id: string) {
   const [order] = await db
     .select({
       id: orders.id,
-      kavaId: orders.kavaId,
+      tenantId: orders.tenantId,
       customerId: orders.customerId,
       status: orders.status,
       erpStatus: orders.erpStatus,
     })
     .from(orders)
-    .where(and(eq(orders.id, id), eq(orders.kavaId, kavaId)))
+    .where(and(eq(orders.id, id), eq(orders.tenantId, tenantId)))
     .limit(1);
   return order ?? null;
 }
 
 // POST /:id/items — add a new line item to an existing order
 ordersRouter.post("/:id/items", async (c) => {
-  const kavaId = c.get("kavaId")!;
+  const tenantId = c.get("tenantId")!;
   const id = c.req.param("id");
   const body = await c.req.json();
   const parsed = addOrderItemSchema.safeParse(body);
@@ -354,12 +353,16 @@ ordersRouter.post("/:id/items", async (c) => {
     return c.json({ error: parsed.error.flatten().fieldErrors }, 400);
   }
 
-  const order = await loadOrderForMutation(kavaId, id);
+  const order = await loadOrderForMutation(tenantId, id);
   if (!order) return c.json({ error: "Η παραγγελία δεν βρέθηκε" }, 404);
   const guard = assertOrderMutable(order);
   if (!guard.ok) return c.json({ error: guard.error }, 409);
 
-  const resolved = await resolveProductPriceForOrder(kavaId, order.customerId, parsed.data.productId);
+  const resolved = await resolveProductPriceForOrder(
+    tenantId,
+    order.customerId,
+    parsed.data.productId,
+  );
   if (!resolved) return c.json({ error: "Το προϊόν δεν είναι διαθέσιμο" }, 400);
 
   const inserted = await db.transaction(async (tx) => {
@@ -395,7 +398,7 @@ ordersRouter.post("/:id/items", async (c) => {
 
 // PATCH /:id/items/:itemId — adjust quantity on an active line item
 ordersRouter.patch("/:id/items/:itemId", async (c) => {
-  const kavaId = c.get("kavaId")!;
+  const tenantId = c.get("tenantId")!;
   const id = c.req.param("id");
   const itemId = c.req.param("itemId");
   const body = await c.req.json();
@@ -404,7 +407,7 @@ ordersRouter.patch("/:id/items/:itemId", async (c) => {
     return c.json({ error: parsed.error.flatten().fieldErrors }, 400);
   }
 
-  const order = await loadOrderForMutation(kavaId, id);
+  const order = await loadOrderForMutation(tenantId, id);
   if (!order) return c.json({ error: "Η παραγγελία δεν βρέθηκε" }, 404);
   const guard = assertOrderMutable(order);
   if (!guard.ok) return c.json({ error: guard.error }, 409);
@@ -446,11 +449,11 @@ ordersRouter.patch("/:id/items/:itemId", async (c) => {
 
 // POST /:id/items/:itemId/cancel — soft-cancel a line item
 ordersRouter.post("/:id/items/:itemId/cancel", async (c) => {
-  const kavaId = c.get("kavaId")!;
+  const tenantId = c.get("tenantId")!;
   const id = c.req.param("id");
   const itemId = c.req.param("itemId");
 
-  const order = await loadOrderForMutation(kavaId, id);
+  const order = await loadOrderForMutation(tenantId, id);
   if (!order) return c.json({ error: "Η παραγγελία δεν βρέθηκε" }, 404);
   const guard = assertOrderMutable(order);
   if (!guard.ok) return c.json({ error: guard.error }, 409);
@@ -491,7 +494,7 @@ ordersRouter.post("/:id/items/:itemId/cancel", async (c) => {
 
 // POST /:id/items/:itemId/replace — swap a line item for a different product
 ordersRouter.post("/:id/items/:itemId/replace", async (c) => {
-  const kavaId = c.get("kavaId")!;
+  const tenantId = c.get("tenantId")!;
   const id = c.req.param("id");
   const itemId = c.req.param("itemId");
   const body = await c.req.json();
@@ -500,7 +503,7 @@ ordersRouter.post("/:id/items/:itemId/replace", async (c) => {
     return c.json({ error: parsed.error.flatten().fieldErrors }, 400);
   }
 
-  const order = await loadOrderForMutation(kavaId, id);
+  const order = await loadOrderForMutation(tenantId, id);
   if (!order) return c.json({ error: "Η παραγγελία δεν βρέθηκε" }, 404);
   const guard = assertOrderMutable(order);
   if (!guard.ok) return c.json({ error: guard.error }, 409);
@@ -516,7 +519,7 @@ ordersRouter.post("/:id/items/:itemId/replace", async (c) => {
   }
 
   const resolved = await resolveProductPriceForOrder(
-    kavaId,
+    tenantId,
     order.customerId,
     parsed.data.productId,
   );

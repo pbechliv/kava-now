@@ -1,7 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useTenantApi, useTenantSlug } from "./use-tenant-api";
 
-export interface KavaUser {
+export interface TenantUser {
   id: string;
   email: string;
   emailVerified: boolean;
@@ -14,7 +14,7 @@ export interface KavaUser {
 }
 
 interface UsersResponse {
-  users: KavaUser[];
+  users: TenantUser[];
 }
 
 export interface InviteUserInput {

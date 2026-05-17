@@ -1,11 +1,11 @@
 import { pgTable, uuid, text, timestamp } from "drizzle-orm/pg-core";
-import { kavas } from "./kavas";
+import { tenants } from "./tenants";
 
 export const customers = pgTable("customers", {
   id: uuid("id").primaryKey().defaultRandom(),
-  kavaId: uuid("kava_id")
+  tenantId: uuid("tenant_id")
     .notNull()
-    .references(() => kavas.id, { onDelete: "cascade" }),
+    .references(() => tenants.id, { onDelete: "cascade" }),
   name: text("name").notNull(),
   email: text("email"),
   address: text("address"),

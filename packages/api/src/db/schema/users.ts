@@ -2,8 +2,8 @@ import { pgTable, uuid, text, timestamp, boolean } from "drizzle-orm/pg-core";
 
 /**
  * Global user account. One row per real human identified by their email.
- * Membership in a specific kava (with a role) lives in `kava_memberships`.
- * `isSuperAdmin` is the only cross-kava capability we model directly here.
+ * Membership in a specific tenant (with a role) lives in `tenant_memberships`.
+ * `isSuperAdmin` is the only cross-tenant capability we model directly here.
  */
 export const users = pgTable("users", {
   id: uuid("id").primaryKey().defaultRandom(),

@@ -2,13 +2,14 @@ import { createMiddleware } from "hono/factory";
 import { and, eq } from "drizzle-orm";
 import type { MembershipRole } from "@kava-now/shared";
 import { db } from "../db/connection";
-import { kavaMemberships } from "../db/schema/index";
+import { tenantMemberships } from "../db/schema/index";
 import type { AppEnv } from "../types";
 
 /**
- * Require the authenticated user to have a kava_memberships row in the kava
- * resolved by `tenantMiddleware`, with one of the allowed roles. The resolved
- * membership is exposed on the request context via `c.get("membership")`.
+ * Require the authenticated user to have a tenant_memberships row in the
+ * tenant resolved by `tenantMiddleware`, with one of the allowed roles. The
+ * resolved membership is exposed on the request context via
+ * `c.get("membership")`.
  *
  * Superadmins bypass this check; their membership is set to a synthetic
  * `owner` so downstream code can rely on `c.get("membership")` being non-null
@@ -21,8 +22,8 @@ export function requireRole(...roles: Array<MembershipRole>) {
       return c.json({ error: "Απαιτείται σύνδεση" }, 401);
     }
 
-    const kavaId = c.get("kavaId");
-    if (!kavaId) {
+    const tenantId = c.get("tenantId");
+    if (!tenantId) {
       return c.json({ error: "Δεν έχετε δικαίωμα πρόσβασης" }, 403);
     }
 
@@ -33,11 +34,11 @@ export function requireRole(...roles: Array<MembershipRole>) {
 
     const [membership] = await db
       .select({
-        role: kavaMemberships.role,
-        customerId: kavaMemberships.customerId,
+        role: tenantMemberships.role,
+        customerId: tenantMemberships.customerId,
       })
-      .from(kavaMemberships)
-      .where(and(eq(kavaMemberships.userId, user.id), eq(kavaMemberships.kavaId, kavaId)))
+      .from(tenantMemberships)
+      .where(and(eq(tenantMemberships.userId, user.id), eq(tenantMemberships.tenantId, tenantId)))
       .limit(1);
 
     if (!membership || !roles.includes(membership.role)) {

@@ -1,7 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useTenantApi, useTenantSlug } from "./use-tenant-api";
 
-export interface KavaSettings {
+export interface TenantSettings {
   id: string;
   name: string;
   slug: string;
@@ -26,7 +26,7 @@ export function useSettings() {
   const tApi = useTenantApi();
   return useQuery({
     queryKey: ["admin", slug, "settings"],
-    queryFn: () => tApi.get<KavaSettings>("/admin/settings"),
+    queryFn: () => tApi.get<TenantSettings>("/admin/settings"),
   });
 }
 
@@ -36,7 +36,7 @@ export function useUpdateSettings() {
   const qc = useQueryClient();
 
   return useMutation({
-    mutationFn: (data: UpdateSettingsInput) => tApi.put<KavaSettings>("/admin/settings", data),
+    mutationFn: (data: UpdateSettingsInput) => tApi.put<TenantSettings>("/admin/settings", data),
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: ["admin", slug, "settings"] });
     },

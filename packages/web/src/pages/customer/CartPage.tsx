@@ -22,15 +22,15 @@ import { useAuth } from "@/lib/hooks/use-auth";
 import { UNIT_LABELS } from "@kava-now/shared";
 
 export function CartPage() {
-  const { kava } = useAuth();
+  const { tenant } = useAuth();
   const navigate = useNavigate();
   const slug = useTenantSlug();
   const base = `/k/${slug}`;
   const [notes, setNotes] = useState("");
   const [confirming, setConfirming] = useState(false);
 
-  if (kava?.slug) {
-    setCartSlug(kava.slug);
+  if (tenant?.slug) {
+    setCartSlug(tenant.slug);
   }
 
   const items = useCartStore((s) => s.items);

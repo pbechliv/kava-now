@@ -190,19 +190,19 @@ export function applyMapping(rows: Record<string, string>[], mapping: Mapping): 
   });
 }
 
-const STORAGE_PREFIX = "kava-now:product-import-mapping:";
+const STORAGE_PREFIX = "tenant-now:product-import-mapping:";
 
-export function persistMapping(kavaSlug: string, mapping: Mapping): void {
+export function persistMapping(tenantSlug: string, mapping: Mapping): void {
   try {
-    localStorage.setItem(STORAGE_PREFIX + kavaSlug, JSON.stringify(mapping));
+    localStorage.setItem(STORAGE_PREFIX + tenantSlug, JSON.stringify(mapping));
   } catch {
     /* localStorage disabled / quota; non-fatal */
   }
 }
 
-export function loadMapping(kavaSlug: string): Mapping | null {
+export function loadMapping(tenantSlug: string): Mapping | null {
   try {
-    const raw = localStorage.getItem(STORAGE_PREFIX + kavaSlug);
+    const raw = localStorage.getItem(STORAGE_PREFIX + tenantSlug);
     if (!raw) return null;
     return JSON.parse(raw) as Mapping;
   } catch {

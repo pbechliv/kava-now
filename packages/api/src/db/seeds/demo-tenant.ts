@@ -6,8 +6,8 @@ import {
   categories,
   customerBrandPricing,
   customers,
-  kavaMemberships,
-  kavas,
+  tenantMemberships,
+  tenants,
   orderItems,
   orders,
   products,
@@ -228,22 +228,22 @@ function priceForCategory(categoryName: string): string {
 
 export async function seedDemoTenant(db: PostgresJsDatabase): Promise<void> {
   const [existing] = await db
-    .select({ id: kavas.id })
-    .from(kavas)
-    .where(eq(kavas.slug, DEMO_SLUG))
+    .select({ id: tenants.id })
+    .from(tenants)
+    .where(eq(tenants.slug, DEMO_SLUG))
     .limit(1);
 
   if (existing) {
-    console.log(`Demo kava "${DEMO_SLUG}" already exists — skipping demo seed.`);
+    console.log(`Demo tenant "${DEMO_SLUG}" already exists — skipping demo seed.`);
     return;
   }
 
   console.log("Seeding demo tenant...");
 
-  const [demoKava] = await db
-    .insert(kavas)
+  const [demoTenant] = await db
+    .insert(tenants)
     .values({
-      name: "Demo Κάβα Αθηνών",
+      name: "Demo Λογαριασμός Αθηνών",
       slug: DEMO_SLUG,
       email: "demo@kavanow.gr",
       phone: "+30 210 1234567",
@@ -251,10 +251,10 @@ export async function seedDemoTenant(db: PostgresJsDatabase): Promise<void> {
     })
     .returning();
 
-  if (!demoKava) throw new Error("Failed to create demo kava");
+  if (!demoTenant) throw new Error("Failed to create demo tenant");
 
-  // The superadmin is the owner of the demo kava — gives dev a single user to
-  // log in as and use the in-app tenant switcher to enter the kava context.
+  // The superadmin is the owner of the demo tenant — gives dev a single user to
+  // log in as and use the in-app tenant switcher to enter the tenant context.
   const [superadminUser] = await db
     .select({ id: users.id })
     .from(users)
@@ -263,14 +263,14 @@ export async function seedDemoTenant(db: PostgresJsDatabase): Promise<void> {
   if (!superadminUser) throw new Error("Superadmin must be seeded before the demo tenant");
 
   await db
-    .insert(kavaMemberships)
-    .values({ userId: superadminUser.id, kavaId: demoKava.id, role: "owner" });
+    .insert(tenantMemberships)
+    .values({ userId: superadminUser.id, tenantId: demoTenant.id, role: "owner" });
 
   const insertedCategories = await db
     .insert(categories)
     .values(
       DEMO_CATEGORIES.map((name, index) => ({
-        kavaId: demoKava.id,
+        tenantId: demoTenant.id,
         name,
         sortOrder: index,
       })),
@@ -283,7 +283,7 @@ export async function seedDemoTenant(db: PostgresJsDatabase): Promise<void> {
     .insert(products)
     .values(
       DEMO_PRODUCTS.map((sp, index) => ({
-        kavaId: demoKava.id,
+        tenantId: demoTenant.id,
         name: sp.name,
         brand: sp.brand ?? sp.name,
         categoryId: categoryByName.get(sp.categoryName) ?? null,
@@ -308,7 +308,7 @@ export async function seedDemoTenant(db: PostgresJsDatabase): Promise<void> {
 
   const insertedCustomers = await db
     .insert(customers)
-    .values(DEMO_CUSTOMERS.map((c) => ({ kavaId: demoKava.id, ...c })))
+    .values(DEMO_CUSTOMERS.map((c) => ({ tenantId: demoTenant.id, ...c })))
     .returning({ id: customers.id, name: customers.name });
 
   const customerByName = new Map(insertedCustomers.map((c) => [c.name, c.id]));
@@ -336,9 +336,9 @@ export async function seedDemoTenant(db: PostgresJsDatabase): Promise<void> {
     password: await hashPassword(customerPassword),
   });
 
-  await db.insert(kavaMemberships).values({
+  await db.insert(tenantMemberships).values({
     userId: customerUser.id,
-    kavaId: demoKava.id,
+    tenantId: demoTenant.id,
     role: "customer",
     customerId: linkedCustomerId,
   });
@@ -364,7 +364,7 @@ export async function seedDemoTenant(db: PostgresJsDatabase): Promise<void> {
     const [createdOrder] = await db
       .insert(orders)
       .values({
-        kavaId: demoKava.id,
+        tenantId: demoTenant.id,
         customerId,
         status: order.status,
         notes: order.notes,
@@ -396,7 +396,7 @@ export async function seedDemoTenant(db: PostgresJsDatabase): Promise<void> {
   }
 
   console.log(
-    `Demo tenant seeded: kava "${DEMO_SLUG}" + ${DEMO_CUSTOMERS.length} customers + ${DEMO_ORDERS.length} orders. ` +
+    `Demo tenant seeded: tenant "${DEMO_SLUG}" + ${DEMO_CUSTOMERS.length} customers + ${DEMO_ORDERS.length} orders. ` +
       `Owner: the superadmin (use /admin to switch into /k/${DEMO_SLUG}). ` +
       `Customer login: ${customerEmail} / ${customerPassword} at localhost:3200/k/${DEMO_SLUG}/login`,
   );

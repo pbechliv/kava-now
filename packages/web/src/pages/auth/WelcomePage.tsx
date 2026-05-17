@@ -26,9 +26,9 @@ export function WelcomePage() {
 
   const loginPath = slug ? `/k/${slug}/login` : "/login";
 
-  const { data: kavaInfo } = useQuery({
-    queryKey: ["kava-info", slug],
-    queryFn: () => api.get<{ name: string; slug: string }>(`/api/k/${slug}/kava`),
+  const { data: tenantInfo } = useQuery({
+    queryKey: ["tenant-info", slug],
+    queryFn: () => api.get<{ name: string; slug: string }>(`/api/k/${slug}/tenant`),
     enabled: !!slug,
     retry: false,
     staleTime: Infinity,
@@ -98,9 +98,9 @@ export function WelcomePage() {
   return (
     <div>
       <h2 className="text-center text-lg font-semibold">Καλώς ήρθατε!</h2>
-      {kavaInfo?.name && (
+      {tenantInfo?.name && (
         <p className="mt-2 text-center text-sm text-muted-foreground">
-          Έχετε προσκληθεί στο <strong>{kavaInfo.name}</strong>.
+          Έχετε προσκληθεί στο <strong>{tenantInfo.name}</strong>.
         </p>
       )}
       <p className="mt-4 text-center text-sm text-muted-foreground">

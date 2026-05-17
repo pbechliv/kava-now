@@ -66,8 +66,8 @@ export function ReplaceItemModal({
         <div className="space-y-4">
           <p className="text-sm text-muted-foreground">
             Αντικατάσταση του{" "}
-            <span className="font-medium text-foreground">{originalProductName}</span> ({originalQuantity}{" "}
-            τμχ) με:
+            <span className="font-medium text-foreground">{originalProductName}</span> (
+            {originalQuantity} τμχ) με:
           </p>
           <ProductPickerCombobox
             selected={product}

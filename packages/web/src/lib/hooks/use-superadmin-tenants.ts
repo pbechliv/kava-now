@@ -2,7 +2,7 @@ import { useQuery, useMutation, useQueryClient, keepPreviousData } from "@tansta
 import { api } from "../api";
 import type { RegisterInput, PaginatedResponse } from "@kava-now/shared";
 
-interface KavaListItem {
+interface TenantListItem {
   id: string;
   name: string;
   slug: string;
@@ -10,51 +10,51 @@ interface KavaListItem {
   createdAt: string;
 }
 
-interface CreateKavaResponse {
+interface CreateTenantResponse {
   success: boolean;
   slug: string;
   hasPassword: boolean;
 }
 
-interface SuperAdminKavasFilters {
+interface SuperAdminTenantsFilters {
   page?: number;
   pageSize?: number;
 }
 
-export function useSuperAdminKavas(filters?: SuperAdminKavasFilters) {
+export function useSuperAdminTenants(filters?: SuperAdminTenantsFilters) {
   const params = new URLSearchParams();
   if (filters?.page) params.set("page", String(filters.page));
   if (filters?.pageSize) params.set("pageSize", String(filters.pageSize));
 
   const qs = params.toString();
-  const path = `/api/superadmin/kavas${qs ? `?${qs}` : ""}`;
+  const path = `/api/superadmin/tenants${qs ? `?${qs}` : ""}`;
 
   return useQuery({
-    queryKey: ["superadmin", "kavas", filters],
-    queryFn: () => api.get<PaginatedResponse<KavaListItem>>(path),
+    queryKey: ["superadmin", "tenants", filters],
+    queryFn: () => api.get<PaginatedResponse<TenantListItem>>(path),
     placeholderData: keepPreviousData,
   });
 }
 
-export function useCreateKava() {
+export function useCreateTenant() {
   const queryClient = useQueryClient();
 
   return useMutation({
     mutationFn: (data: RegisterInput) =>
-      api.post<CreateKavaResponse>("/api/superadmin/kavas", data),
+      api.post<CreateTenantResponse>("/api/superadmin/tenants", data),
     onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: ["superadmin", "kavas"] });
+      void queryClient.invalidateQueries({ queryKey: ["superadmin", "tenants"] });
     },
   });
 }
 
-export function useDeleteKava() {
+export function useDeleteTenant() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (id: string) => api.delete(`/api/superadmin/kavas/${id}`),
+    mutationFn: (id: string) => api.delete(`/api/superadmin/tenants/${id}`),
     onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: ["superadmin", "kavas"] });
+      void queryClient.invalidateQueries({ queryKey: ["superadmin", "tenants"] });
     },
   });
 }

@@ -1,29 +1,29 @@
 import { createMiddleware } from "hono/factory";
 import { eq } from "drizzle-orm";
 import { db, queryClient } from "../db/connection";
-import { kavas } from "../db/schema/index";
+import { tenants } from "../db/schema/index";
 import type { AppEnv } from "../types";
 
 export const tenantMiddleware = createMiddleware<AppEnv>(async (c, next) => {
   const slug = c.req.param("slug");
 
   if (!slug) {
-    c.set("kava", null);
-    c.set("kavaId", null);
+    c.set("tenant", null);
+    c.set("tenantId", null);
     return next();
   }
 
-  const [kava] = await db.select().from(kavas).where(eq(kavas.slug, slug)).limit(1);
+  const [tenant] = await db.select().from(tenants).where(eq(tenants.slug, slug)).limit(1);
 
-  if (!kava) {
-    return c.json({ error: "Κάβα δεν βρέθηκε" }, 404);
+  if (!tenant) {
+    return c.json({ error: "Ο λογαριασμός δεν βρέθηκε" }, 404);
   }
 
-  c.set("kava", kava);
-  c.set("kavaId", kava.id);
+  c.set("tenant", tenant);
+  c.set("tenantId", tenant.id);
 
   // Set PostgreSQL session variable for RLS
-  await queryClient`SELECT set_config('app.current_kava_id', ${kava.id}, false)`;
+  await queryClient`SELECT set_config('app.current_tenant_id', ${tenant.id}, false)`;
 
   return next();
 });

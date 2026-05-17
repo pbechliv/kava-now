@@ -9,18 +9,18 @@ import {
 } from "@/components/ui/dropdown-menu";
 
 /**
- * Renders the kava switcher section inside a user dropdown. Lists every kava
+ * Renders the tenant switcher section inside a user dropdown. Lists every tenant
  * the user is a member of (excluding the one they're currently in), plus an
  * "Admin" entry for superadmins not already on the platform admin pages.
  *
  * Returns null if there's nothing to switch to.
  */
-export function KavaSwitcher({ currentSlug }: { currentSlug: string | null }) {
+export function TenantSwitcher({ currentSlug }: { currentSlug: string | null }) {
   const navigate = useNavigate();
   const { user, memberships } = useAuth();
 
   const onPlatformAdmin = currentSlug === null;
-  const otherMemberships = memberships.filter((m) => m.kavaSlug !== currentSlug);
+  const otherMemberships = memberships.filter((m) => m.tenantSlug !== currentSlug);
   const showAdminLink = !!user?.isSuperAdmin && !onPlatformAdmin;
 
   if (!showAdminLink && otherMemberships.length === 0) {
@@ -34,15 +34,15 @@ export function KavaSwitcher({ currentSlug }: { currentSlug: string | null }) {
         Εναλλαγή
       </DropdownMenuLabel>
       {showAdminLink && (
-        <DropdownMenuItem onSelect={() => navigate("/admin/kavas")}>
+        <DropdownMenuItem onSelect={() => navigate("/admin/tenants")}>
           <ShieldCheck className="mr-2 h-4 w-4" />
           Admin
         </DropdownMenuItem>
       )}
       {otherMemberships.map((m) => (
-        <DropdownMenuItem key={m.kavaId} onSelect={() => navigate(membershipHome(m))}>
+        <DropdownMenuItem key={m.tenantId} onSelect={() => navigate(membershipHome(m))}>
           <Building2 className="mr-2 h-4 w-4" />
-          <span className="flex-1 truncate">{m.kavaName}</span>
+          <span className="flex-1 truncate">{m.tenantName}</span>
           <span className="ml-2 text-xs text-muted-foreground">{m.role}</span>
         </DropdownMenuItem>
       ))}

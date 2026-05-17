@@ -16,7 +16,7 @@ const productsRouter = new Hono<AppEnv>();
 
 // GET / — list products with optional filters
 productsRouter.get("/", async (c) => {
-  const kavaId = c.get("kavaId")!;
+  const tenantId = c.get("tenantId")!;
   const categoryId = c.req.query("categoryId");
   const search = c.req.query("search");
   const active = c.req.query("active");
@@ -30,7 +30,7 @@ productsRouter.get("/", async (c) => {
   }
   const { page, pageSize } = pagination.data;
 
-  const conditions = [eq(products.kavaId, kavaId)];
+  const conditions = [eq(products.tenantId, tenantId)];
 
   if (categoryId) {
     conditions.push(eq(products.categoryId, categoryId));
@@ -58,7 +58,7 @@ productsRouter.get("/", async (c) => {
   const rows = await db
     .select({
       id: products.id,
-      kavaId: products.kavaId,
+      tenantId: products.tenantId,
       name: products.name,
       brand: products.brand,
       categoryId: products.categoryId,
@@ -87,9 +87,9 @@ productsRouter.get("/", async (c) => {
 // POST /import — bulk upsert products from a normalized JSON batch.
 // Client (ProductsImportPage) parses CSV/XLSX, maps columns, validates rows
 // with importProductRowSchema, and posts the result here. On conflict
-// (kavaId, name, brand) the existing row is updated.
+// (tenantId, name, brand) the existing row is updated.
 productsRouter.post("/import", async (c) => {
-  const kavaId = c.get("kavaId")!;
+  const tenantId = c.get("tenantId")!;
   const body = await c.req.json();
   const parsed = importProductsBatchSchema.safeParse(body);
 
@@ -104,7 +104,7 @@ productsRouter.post("/import", async (c) => {
     const existingCategories = await tx
       .select({ id: categories.id, name: categories.name })
       .from(categories)
-      .where(eq(categories.kavaId, kavaId));
+      .where(eq(categories.tenantId, tenantId));
 
     const categoryMap = new Map<string, string>(
       existingCategories.map((cat) => [cat.name.toLowerCase(), cat.id]),
@@ -121,7 +121,7 @@ productsRouter.post("/import", async (c) => {
       if (!categoryMap.has(catName.toLowerCase())) {
         const [newCat] = await tx
           .insert(categories)
-          .values({ name: catName, kavaId })
+          .values({ name: catName, tenantId })
           .returning({ id: categories.id });
         categoryMap.set(catName.toLowerCase(), newCat!.id);
         categoriesCreated++;
@@ -137,7 +137,7 @@ productsRouter.post("/import", async (c) => {
         : null;
 
       const values = {
-        kavaId,
+        tenantId,
         name: row.name,
         brand: row.brand,
         categoryId,
@@ -156,7 +156,7 @@ productsRouter.post("/import", async (c) => {
         .insert(products)
         .values(values)
         .onConflictDoUpdate({
-          target: [products.kavaId, products.name, products.brand],
+          target: [products.tenantId, products.name, products.brand],
           set: {
             categoryId: values.categoryId,
             description: values.description,
@@ -206,7 +206,7 @@ productsRouter.post("/import", async (c) => {
 
 // POST / — create product
 productsRouter.post("/", async (c) => {
-  const kavaId = c.get("kavaId")!;
+  const tenantId = c.get("tenantId")!;
   const body = await c.req.json();
   const parsed = createProductSchema.safeParse(body);
 
@@ -220,7 +220,7 @@ productsRouter.post("/", async (c) => {
       ...parsed.data,
       basePrice: String(parsed.data.basePrice),
       alcoholPct: parsed.data.alcoholPct != null ? String(parsed.data.alcoholPct) : null,
-      kavaId,
+      tenantId,
     })
     .returning();
 
@@ -229,13 +229,13 @@ productsRouter.post("/", async (c) => {
 
 // GET /:id — single product
 productsRouter.get("/:id", async (c) => {
-  const kavaId = c.get("kavaId")!;
+  const tenantId = c.get("tenantId")!;
   const id = c.req.param("id");
 
   const [product] = await db
     .select({
       id: products.id,
-      kavaId: products.kavaId,
+      tenantId: products.tenantId,
       name: products.name,
       brand: products.brand,
       categoryId: products.categoryId,
@@ -253,7 +253,7 @@ productsRouter.get("/:id", async (c) => {
     })
     .from(products)
     .leftJoin(categories, eq(products.categoryId, categories.id))
-    .where(and(eq(products.id, id), eq(products.kavaId, kavaId)))
+    .where(and(eq(products.id, id), eq(products.tenantId, tenantId)))
     .limit(1);
 
   if (!product) {
@@ -265,7 +265,7 @@ productsRouter.get("/:id", async (c) => {
 
 // PUT /:id — update product
 productsRouter.put("/:id", async (c) => {
-  const kavaId = c.get("kavaId")!;
+  const tenantId = c.get("tenantId")!;
   const id = c.req.param("id");
   const body = await c.req.json();
   const parsed = updateProductSchema.safeParse(body);
@@ -288,7 +288,7 @@ productsRouter.put("/:id", async (c) => {
   const [product] = await db
     .update(products)
     .set(updates)
-    .where(and(eq(products.id, id), eq(products.kavaId, kavaId)))
+    .where(and(eq(products.id, id), eq(products.tenantId, tenantId)))
     .returning();
 
   if (!product) {
@@ -300,7 +300,7 @@ productsRouter.put("/:id", async (c) => {
 
 // DELETE /:id — soft-delete if referenced, hard-delete otherwise
 productsRouter.delete("/:id", async (c) => {
-  const kavaId = c.get("kavaId")!;
+  const tenantId = c.get("tenantId")!;
   const id = c.req.param("id");
 
   // Check if product has order items
@@ -315,7 +315,7 @@ productsRouter.delete("/:id", async (c) => {
     const [product] = await db
       .update(products)
       .set({ active: false })
-      .where(and(eq(products.id, id), eq(products.kavaId, kavaId)))
+      .where(and(eq(products.id, id), eq(products.tenantId, tenantId)))
       .returning();
 
     if (!product) {
@@ -328,7 +328,7 @@ productsRouter.delete("/:id", async (c) => {
   // Hard delete
   const [deleted] = await db
     .delete(products)
-    .where(and(eq(products.id, id), eq(products.kavaId, kavaId)))
+    .where(and(eq(products.id, id), eq(products.tenantId, tenantId)))
     .returning();
 
   if (!deleted) {
