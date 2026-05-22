@@ -2,9 +2,13 @@
 import { defineConfig } from "vite-plus";
 import react from "@vitejs/plugin-react";
 import tailwindcss from "@tailwindcss/vite";
+import { existsSync } from "node:fs";
 import { resolve } from "node:path";
 
-process.loadEnvFile(resolve(__dirname, "../../.env"));
+const envPath = resolve(__dirname, "../../.env");
+if (existsSync(envPath)) {
+  process.loadEnvFile(envPath);
+}
 
 const sentryDsn = process.env.SENTRY_DSN_WEB || "";
 const sentryEnv =

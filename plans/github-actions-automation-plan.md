@@ -23,13 +23,13 @@ All files live under `.github/workflows/`. Names are deliberate so the Actions U
 | -------------------- | -------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------- |
 | `ci.yml`             | PR to `main`, push to non-`main` branches                      | typecheck, lint, `fmt:check`, build. No deploy.                                                                                             | No                                                                     |
 | `build-images.yml`   | `workflow_call` only                                           | Reusable: builds API + Caddy images, pushes to GHCR with `<sha>` and `latest` tags.                                                         | No                                                                     |
-| `deploy.yml`         | push to `main`, `workflow_dispatch`                            | Calls `build-images`, SSHes to VM, `docker compose pull`, `up -d`, runs migrations, smoke-tests.                                            | `environment: production` (optional manual approval after first weeks) |
+| `deploy.yml`         | push to `main`, `workflow_dispatch`                            | Calls `build-images`, SSHes to VM, `docker compose --profile jobs pull`, runs `api-jobs` migrations, starts app, smoke-tests.               | `environment: production` (optional manual approval after first weeks) |
 | `provision.yml`      | `workflow_dispatch`                                            | Runs `terraform plan` or `apply` on `infra/terraform/`. Creates/updates VM + firewall + DNS.                                                | `environment: infrastructure` (required approval)                      |
-| `migrate.yml`        | `workflow_dispatch`                                            | Runs `pnpm db:migrate` on the VM without rebuilding. For when schema needs human-timed application separate from a deploy.                  | `environment: production`                                              |
+| `migrate.yml`        | `workflow_dispatch`                                            | Runs `pnpm db:migrate` through `api-jobs` on the VM without rebuilding. For when schema needs human-timed application separate from a deploy. | `environment: production`                                              |
 | `rollback.yml`       | `workflow_dispatch` (input: `sha`)                             | Validates `ghcr.io/.../kava-now-api:<sha>` exists, then redeploys that tag. No new build.                                                   | `environment: production` (approval)                                   |
 | `backup-verify.yml`  | `schedule` (weekly Sun 04:00 UTC) + `workflow_dispatch`        | Pulls latest B2 backup, decrypts with age key, restores into a service-container Postgres in the runner, runs sanity SELECTs. Fails loudly. | No                                                                     |
 | `restore-backup.yml` | `workflow_dispatch` (inputs: `archive_name`, `confirm_phrase`) | DR workflow. Pulls a chosen B2 archive, decrypts, copies to VM, stops API, restores into prod Postgres, restarts.                           | `environment: infrastructure` (approval) + typed-phrase gate           |
-| `smoke-test.yml`     | `workflow_call`                                                | Reusable: hits `/api/healthz` and `/login` on `kavanow.tld` with retries. Called by deploy/rollback/restore.                                | No                                                                     |
+| `smoke-test.yml`     | `workflow_call`                                                | Reusable: hits `/api/health` and `/login` on `kavanow.tld` with retries. Called by deploy/rollback/restore.                                 | No                                                                     |
 
 A user with only `repo:read` permissions cannot run any of the gated workflows; they go through the protected-environment approval flow.
 
@@ -39,13 +39,16 @@ A user with only `repo:read` permissions cannot run any of the gated workflows; 
 
 These supersede the corresponding sections of `plans/hetzner-deployment-plan.md`:
 
-1. **`docker-compose.prod.yml` switches `build:` → `image:`** for `api` and `caddy`. Example:
+1. **`docker-compose.yml` switches `build:` → `image:`** for `api`, `api-jobs`, and `caddy`. Example:
 
    ```yaml
    api:
-     image: ghcr.io/<org>/kava-now-api:${IMAGE_TAG:-latest}
+     image: ghcr.io/pbechliv/kava-now-api:${IMAGE_TAG:-latest}
+   api-jobs:
+     image: ghcr.io/pbechliv/kava-now-api-jobs:${IMAGE_TAG:-latest}
+     profiles: ["jobs"]
    caddy:
-     image: ghcr.io/<org>/kava-now-caddy:${IMAGE_TAG:-latest}
+     image: ghcr.io/pbechliv/kava-now-caddy:${IMAGE_TAG:-latest}
    ```
 
    The VM no longer needs the source tree to deploy — only the compose file, the Caddyfile, and `.env.production`. Git clone on the VM is kept for the compose file/Caddyfile only.
@@ -54,7 +57,7 @@ These supersede the corresponding sections of `plans/hetzner-deployment-plan.md`
 
 3. **Phase 1 (Day 1 provisioning) becomes Terraform-driven.** The runbook is preserved as the "what's happening underneath" reference, but the workflow runs:
    - `hcloud_ssh_key`, `hcloud_firewall`, `hcloud_server` (with `user_data: cloud-init.yaml` doing hardening), `hcloud_server_network` if needed.
-   - `cloudflare_record` × 4 (A apex, A wildcard, AAAA apex, AAAA wildcard).
+   - `cloudflare_record` × 2 (A apex, AAAA apex). No wildcard records; tenancy is path-based.
    - Outputs `vm_ipv4`, `vm_ipv6` to the workflow log for the human to paste into GitHub Secrets (or use `tfstate` outputs in subsequent workflows — see "State backend" below).
 
 4. **Cloud-init replaces the hand-typed hardening commands** in Phase 1.3 of the plan. Same effect: creates `deploy` user, installs Docker from the official repo, configures UFW + fail2ban + unattended-upgrades, sets timezone, writes the deploy SSH key.
@@ -87,7 +90,8 @@ Nothing else in the existing plan changes — Caddyfile, secrets layout, backup 
 +   versions.tf             # provider pins + state backend
 + scripts/
 +   bootstrap-vm.sh         # one-time post-Terraform setup (GHCR login, mkdir /srv, etc.)
-~ docker-compose.prod.yml   # build: → image:
+~ docker-compose.yml        # build: → image:
+~ docker-compose.build.yml  # optional local production-image builds
 ~ packages/api/package.json # add resend (already in Hetzner plan)
 ```
 
@@ -137,9 +141,10 @@ The contracts below are the design intent — the implementation phase fills in 
 - Trigger: `workflow_call` with input `sha`.
 - Permissions: `contents: read`, `packages: write`.
 - Logs in to GHCR with `GITHUB_TOKEN`.
-- Builds two images via `docker/build-push-action@v5`:
-  - `ghcr.io/<org>/kava-now-api:<sha>` and `:latest` — `target: api`, context `.`, Dockerfile is the existing root `Dockerfile`.
-  - `ghcr.io/<org>/kava-now-caddy:<sha>` and `:latest` — uses `Caddyfile.Dockerfile`.
+- Builds three images via `docker/build-push-action@v5`:
+  - `ghcr.io/pbechliv/kava-now-api:<sha>` and `:latest` — `target: api`, context `.`, root `Dockerfile`, build arg `API_PORT=3000`.
+  - `ghcr.io/pbechliv/kava-now-api-jobs:<sha>` and `:latest` — `target: api-jobs`, context `.`, root `Dockerfile`.
+  - `ghcr.io/pbechliv/kava-now-caddy:<sha>` and `:latest` — `target: caddy`, context `.`, root `Dockerfile`, build args `GOOGLE_CLIENT_ID`, `SENTRY_DSN_WEB`, `SENTRY_ENVIRONMENT`, `SENTRY_RELEASE`.
 - Uses BuildKit cache via `cache-from: type=gha` / `cache-to: type=gha,mode=max` so subsequent builds are fast.
 
 ### `deploy.yml` (push to main → prod)
@@ -149,15 +154,16 @@ The contracts below are the design intent — the implementation phase fills in 
 - Job 2: call `build-images.yml` with `sha`.
 - Job 3 (`environment: production`, `concurrency: deploy-prod`):
   1. Set up SSH from `HETZNER_SSH_KEY` + `HETZNER_SSH_KNOWN_HOSTS`.
-  2. `scp docker-compose.prod.yml Caddyfile deploy@$HOST:/srv/kava-now/` (the VM no longer needs the full repo).
+  2. `scp docker-compose.yml Caddyfile deploy@$HOST:/srv/kava-now/` (the VM no longer needs the full repo).
   3. SSH and run:
      ```bash
      cd /srv/kava-now
      export IMAGE_TAG=<sha>
-     docker compose -f docker-compose.prod.yml --env-file .env.production pull
-     docker compose -f docker-compose.prod.yml --env-file .env.production up -d
-     docker compose -f docker-compose.prod.yml --env-file .env.production \
-       exec -T api node dist/scripts/migrate.js  # or `pnpm db:migrate` if pnpm is in the image
+     docker compose --env-file .env.production --profile jobs pull
+     docker compose --env-file .env.production up -d postgres
+     docker compose --env-file .env.production --profile jobs run --rm api-jobs \
+       pnpm --filter @kava-now/api db:migrate
+     docker compose --env-file .env.production up -d api caddy
      docker image prune -f
      ```
   4. Call `smoke-test.yml`.
@@ -216,7 +222,7 @@ runcmd:
 
 - Trigger: `workflow_dispatch`.
 - `environment: production`, `concurrency: deploy-prod`.
-- Steps: set up SSH → `ssh deploy@$HOST 'cd /srv/kava-now && docker compose -f docker-compose.prod.yml --env-file .env.production exec -T api node dist/scripts/migrate.js'`.
+- Steps: set up SSH → `ssh deploy@$HOST 'cd /srv/kava-now && docker compose --env-file .env.production --profile jobs run --rm api-jobs pnpm --filter @kava-now/api db:migrate'`.
 - Captures stdout to the job summary so the migration log is auditable in the Actions UI.
 
 ### `rollback.yml` (deploy a specific prior SHA)
@@ -237,7 +243,7 @@ runcmd:
   2. Download `b2://kava-now-backups/daily/<latest>` to `/tmp/`.
   3. `echo "$AGE_PRIVATE_KEY" > /tmp/age.key && age -d -i /tmp/age.key /tmp/kava-*.sql.gz.age | gunzip > /tmp/restore.sql`
   4. `psql -h localhost -U postgres -f /tmp/restore.sql` against the service container.
-  5. Sanity SELECTs: `SELECT count(*) FROM kavas`, `SELECT count(*) FROM users`, `SELECT count(*) FROM orders`. Each must be > 0. RLS policies must be present (`SELECT count(*) FROM pg_policies WHERE schemaname='public'`).
+  5. Sanity SELECTs: `SELECT count(*) FROM tenants`, `SELECT count(*) FROM users`, `SELECT count(*) FROM tenant_memberships`. Each must be > 0 after the first production seed. RLS policies must be present (`SELECT count(*) FROM pg_policies WHERE schemaname='public'`).
   6. On failure: open or update a GitHub Issue tagged `backup-broken` so silent regressions can't pile up.
 - Total runtime: 2–5 min depending on DB size at pre-release.
 
@@ -255,10 +261,10 @@ runcmd:
      ```bash
      cd /srv/kava-now
      docker compose stop api caddy
-     docker compose exec -T postgres pg_dump -U kava kava | gzip > /tmp/pre-restore-$(date -u +%s).sql.gz   # last-chance dump
-     docker compose exec -T postgres psql -U kava -d postgres -c "DROP DATABASE IF EXISTS kava;"
-     docker compose exec -T postgres psql -U kava -d postgres -c "CREATE DATABASE kava OWNER kava;"
-     docker compose exec -T postgres psql -U kava kava < /tmp/restore.sql
+     docker compose exec -T postgres pg_dump -U kavanow kavanow | gzip > /tmp/pre-restore-$(date -u +%s).sql.gz   # last-chance dump
+     docker compose exec -T postgres psql -U kavanow -d postgres -c "DROP DATABASE IF EXISTS kavanow;"
+     docker compose exec -T postgres psql -U kavanow -d postgres -c "CREATE DATABASE kavanow OWNER kavanow;"
+     docker compose exec -T postgres psql -U kavanow kavanow < /tmp/restore.sql
      docker compose up -d
      ```
   5. Call `smoke-test.yml`.
@@ -267,16 +273,17 @@ runcmd:
 ### `smoke-test.yml` (reusable)
 
 - Inputs: `host` (default `kavanow.tld`).
-- Steps: `curl -fS https://$host/api/healthz` with 10× retry / 3s sleep. Then `curl -fS -o /dev/null https://$host/` to confirm Caddy serves the SPA. Then a TLS check: `openssl s_client -servername $host -connect $host:443 < /dev/null 2>/dev/null | openssl x509 -noout -subject -dates` — fail if `notAfter` is within 7 days.
+- Steps: `curl -fS https://$host/api/health` with 10× retry / 3s sleep. Then `curl -fS -o /dev/null https://$host/` to confirm Caddy serves the SPA. Then a TLS check: `openssl s_client -servername $host -connect $host:443 < /dev/null 2>/dev/null | openssl x509 -noout -subject -dates` — fail if `notAfter` is within 7 days.
 
 ---
 
 ## Critical files referenced
 
-- `plans/hetzner-deployment-plan.md:394` — `docker-compose.prod.yml` is defined here; needs the `build:` → `image:` change.
+- `docker-compose.yml` — production compose now pulls GHCR images and includes the `api-jobs` profile.
 - `plans/hetzner-deployment-plan.md:825` — the existing `deploy.yml` sketch; this plan replaces it.
-- [Dockerfile:55](Dockerfile:55) — existing multi-stage `target: api` already exists; reused unchanged.
-- [Dockerfile:80](Dockerfile:80) — existing `caddy` target. The Hetzner plan introduces a _separate_ `Caddyfile.Dockerfile` for the Cloudflare DNS plugin; that file is what `build-images.yml` pushes as `kava-now-caddy`.
+- [Dockerfile:55](Dockerfile:55) — existing multi-stage `target: api` builds the slim runtime image.
+- [Dockerfile:77](Dockerfile:77) — `target: api-jobs` carries source + full dependencies for `pnpm db:migrate` and `pnpm db:seed`.
+- [Dockerfile:91](Dockerfile:91) — existing `caddy` target builds the static SPA + stock Caddy image. No Cloudflare DNS plugin is needed.
 - [package.json:5](package.json:5) — the `pnpm` scripts (`db:migrate`, `typecheck`, `lint`, `fmt:check`, `build`) used by `ci.yml` and `migrate.yml` are already wired and need no changes.
 - [scripts/deploy.sh:1](scripts/deploy.sh:1) — keep as a local convenience for SSH-in manual deploys; the workflows do not call it.
 
@@ -288,7 +295,7 @@ End-to-end, in order:
 
 1. **CI**: Open a no-op PR. `ci.yml` runs all four checks green in ~4 min.
 2. **Provision**: From a clean Hetzner project, run `provision.yml` with `action=plan`, then `apply`. Confirm VM exists, firewall attached, DNS records visible at Cloudflare, cloud-init completed (`ssh deploy@<ip>` works and `docker --version` returns 27.x).
-3. **First deploy**: Manually run `bootstrap-vm.sh` once over SSH (or extend `provision.yml`'s post-apply step to do it). Push to `main`. Watch `deploy.yml` build images, push to GHCR, SSH-pull, smoke-test. Confirm `https://kavanow.tld/api/healthz` returns 200.
+3. **First deploy**: Manually run `bootstrap-vm.sh` once over SSH (or extend `provision.yml`'s post-apply step to do it). Push to `main`. Watch `deploy.yml` build images, push to GHCR, SSH-pull, migrate, start the app, and smoke-test. Confirm `https://kavanow.tld/api/health` returns 200.
 4. **Migrate alone**: Make a no-op schema change (add nullable column on a low-traffic table), push, ensure migration ran. Then revert the column with a new migration and trigger `migrate.yml` manually — confirm only the migration runs, no image pull.
 5. **Rollback**: Note the current `sha`. Push a deliberately-bad change (e.g. wrong env var) and let it deploy. Trigger `rollback.yml` with the previous `sha`. Confirm prod returns to working state in <2 min.
 6. **Backup verify**: Trigger `backup-verify.yml` manually. Confirm it completes green and the sanity SELECTs report sensible counts.

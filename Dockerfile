@@ -8,7 +8,7 @@
 # Stage: base — shared Node + pnpm foundation
 # ---------------------------------------------------------------------------
 FROM node:24-alpine AS base
-RUN corepack enable && corepack prepare pnpm@9.15.0 --activate
+RUN corepack enable && corepack prepare pnpm@11.1.2 --activate
 WORKDIR /app
 
 # ---------------------------------------------------------------------------
@@ -28,7 +28,9 @@ FROM deps AS api-build
 COPY tsconfig.base.json ./
 COPY packages/shared/ packages/shared/
 COPY packages/api/ packages/api/
-RUN pnpm --filter @kava-now/shared build 2>/dev/null; \
+ARG API_PORT=3000
+ENV API_PORT=$API_PORT
+RUN pnpm --filter @kava-now/shared --if-present build; \
     pnpm --filter @kava-now/api build
 
 # ---------------------------------------------------------------------------
@@ -38,6 +40,14 @@ FROM deps AS web-build
 COPY tsconfig.base.json ./
 COPY packages/shared/ packages/shared/
 COPY packages/web/ packages/web/
+ARG GOOGLE_CLIENT_ID=
+ARG SENTRY_DSN_WEB=
+ARG SENTRY_ENVIRONMENT=production
+ARG SENTRY_RELEASE=
+ENV GOOGLE_CLIENT_ID=$GOOGLE_CLIENT_ID \
+    SENTRY_DSN_WEB=$SENTRY_DSN_WEB \
+    SENTRY_ENVIRONMENT=$SENTRY_ENVIRONMENT \
+    SENTRY_RELEASE=$SENTRY_RELEASE
 RUN pnpm --filter @kava-now/web build
 
 # ---------------------------------------------------------------------------
@@ -48,6 +58,15 @@ COPY pnpm-lock.yaml pnpm-workspace.yaml package.json ./
 COPY packages/shared/package.json packages/shared/
 COPY packages/api/package.json packages/api/
 RUN pnpm install --frozen-lockfile --prod
+
+# ---------------------------------------------------------------------------
+# Target: api-jobs — one-shot operational commands (migrations, seeds)
+# ---------------------------------------------------------------------------
+FROM deps AS api-jobs
+COPY tsconfig.base.json ./
+COPY packages/shared/ packages/shared/
+COPY packages/api/ packages/api/
+CMD ["pnpm", "--filter", "@kava-now/api", "db:migrate"]
 
 # ---------------------------------------------------------------------------
 # Target: api — slim Node runtime for the Hono server

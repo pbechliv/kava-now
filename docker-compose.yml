@@ -4,11 +4,11 @@
 
 services:
   postgres:
-    image: postgres:16-alpine
+    image: postgres:17-alpine
     restart: unless-stopped
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-kavanow}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env.production}
       POSTGRES_DB: ${POSTGRES_DB:-kavanow}
     volumes:
       - postgres-data:/var/lib/postgresql/data
@@ -21,10 +21,7 @@ services:
       - internal
 
   api:
-    build:
-      context: .
-      dockerfile: Dockerfile
-      target: api
+    image: ghcr.io/pbechliv/kava-now-api:${IMAGE_TAG:-latest}
     restart: unless-stopped
     depends_on:
       postgres:
@@ -32,19 +29,31 @@ services:
     environment:
       NODE_ENV: production
       DATABASE_URL: postgres://${POSTGRES_USER:-kavanow}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-kavanow}
-      PORT: 3000
+      API_PORT: 3000
     env_file:
-      - .env
+      - ${KAVANOW_ENV_FILE:-.env.production}
     expose:
       - "3000"
     networks:
       - internal
 
+  api-jobs:
+    image: ghcr.io/pbechliv/kava-now-api-jobs:${IMAGE_TAG:-latest}
+    profiles:
+      - jobs
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      NODE_ENV: production
+      DATABASE_URL: postgres://${POSTGRES_USER:-kavanow}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-kavanow}
+    env_file:
+      - ${KAVANOW_ENV_FILE:-.env.production}
+    networks:
+      - internal
+
   caddy:
-    build:
-      context: .
-      dockerfile: Dockerfile
-      target: caddy
+    image: ghcr.io/pbechliv/kava-now-caddy:${IMAGE_TAG:-latest}
     restart: unless-stopped
     depends_on:
       - api
@@ -55,6 +64,8 @@ services:
     volumes:
       - caddy-data:/data
       - caddy-config:/config
+      - /etc/kavanow/tls/origin.pem:/etc/caddy/origin.pem:ro
+      - /etc/kavanow/tls/origin.key:/etc/caddy/origin.key:ro
     networks:
       - internal
 

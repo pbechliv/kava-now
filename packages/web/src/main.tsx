@@ -14,6 +14,11 @@ if (dsn) {
     sendDefaultPii: false,
     tracesSampleRate: 0,
   });
+
+  const tenantSlug = window.location.pathname.match(/^\/k\/([^/]+)/)?.[1];
+  if (tenantSlug) {
+    Sentry.getCurrentScope().setTag("tenant.slug", tenantSlug);
+  }
 }
 
 const googleClientId = import.meta.env.VITE_GOOGLE_CLIENT_ID;

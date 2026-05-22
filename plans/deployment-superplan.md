@@ -24,12 +24,13 @@ The three plans in `plans/` were written before the path-based tenancy refactor.
 | Backup verify SQL uses `kavas` table and `users.role`                     | Use `tenants` and `tenant_memberships`                                      |
 | `pnpm db:reset` requires `postgres` superuser                             | Already fixed; works against the kava user                                  |
 
-Repo files already drifted that **must be fixed before deploy**:
+Repo changes that **must exist before deploy**:
 
-- `Caddyfile` — has apex + wildcard blocks with `dns cloudflare`. Replace with single host block.
-- `.env.production.example` — uses old var names. Replace.
-- `docker-compose.yml` — currently builds locally. Will switch to `image: ghcr.io/...` once CI exists.
-- Sentry — `config.ts` already has the `sentry` block, but `packages/api/src/sentry.ts`, the middleware, and `app.onError` aren't wired. Finish per `plans/sentry-integration-plan.md` (Phases 1.3–1.5 + 2).
+- `Caddyfile` — single apex host, Cloudflare Origin CA cert, `/api/health` active probe, no wildcard/DNS-01 block.
+- `.env.production.example` — current `APP_ORIGIN`, `COOKIE_SECRET`, `BETTER_AUTH_SECRET`, Resend, Sentry, Google, seed vars.
+- `docker-compose.yml` — pulls GHCR images, uses `.env.production`, mounts the Origin CA cert, and includes an `api-jobs` profile for migrations/seeds.
+- `Dockerfile` — builds with pnpm 11, forwards build-time env to API/web builds, and exposes an `api-jobs` target for `pnpm db:*`.
+- Sentry — API/web error capture is wired; verify web tenant tagging and sourcemap upload during the deploy workflow work as expected.
 
 ---
 
@@ -112,7 +113,7 @@ The repo already supports Google OAuth via better-auth — the web SPA renders t
 ### 1.8 Better Stack (uptime monitoring)
 
 - Sign up at [betterstack.com/uptime](https://betterstack.com/uptime) (free tier: 10 monitors, 3-min interval).
-- Create one HTTP(S) monitor: `https://kavanow.gr/api/healthz`, expect 200, alert via email.
+- Create one HTTP(S) monitor: `https://kavanow.gr/api/health`, expect 200, alert via email.
 - Add a Heartbeat monitor named `backup-verify` (URL ping every 7 days). The weekly backup-verify workflow will POST to it on success; if it stops pinging, you get alerted.
 
 ### 1.9 GitHub repo prep
@@ -198,8 +199,7 @@ kavanow.gr {
         reverse_proxy api:3000 {
             header_up X-Real-IP {client_ip}
             header_up X-Forwarded-For {client_ip}
-            header_up X-Forwarded-Proto {scheme}
-            health_uri /api/healthz
+            health_uri /api/health
             health_interval 30s
         }
     }
@@ -266,7 +266,8 @@ Replace with:
 ```bash
 # PostgreSQL
 POSTGRES_USER=kavanow
-POSTGRES_PASSWORD=                    # openssl rand -base64 32
+# Generate with: openssl rand -base64 32
+POSTGRES_PASSWORD=
 POSTGRES_DB=kavanow
 DATABASE_URL=postgres://kavanow:REPLACE@postgres:5432/kavanow
 
@@ -276,16 +277,18 @@ API_PORT=3000
 APP_ORIGIN=https://kavanow.gr
 
 # better-auth
-COOKIE_SECRET=                        # openssl rand -hex 32
-BETTER_AUTH_SECRET=                   # openssl rand -hex 32
+# Generate each with: openssl rand -hex 32
+COOKIE_SECRET=
+BETTER_AUTH_SECRET=
 
 # Email (Resend)
-RESEND_API_KEY=                       # re_... from Resend dashboard
-RESEND_FROM=KavaNow <noreply@kavanow.gr>
+RESEND_API_KEY=
+RESEND_FROM="KavaNow <noreply@kavanow.gr>"
 
 # Superadmin (consumed only by `pnpm db:seed` on first boot)
 SUPERADMIN_EMAIL=ops@kavanow.gr
-SUPERADMIN_PASSWORD=                  # openssl rand -base64 24
+# Generate with: openssl rand -base64 24
+SUPERADMIN_PASSWORD=
 SEED_DEMO=false
 
 # Sentry
@@ -302,9 +305,9 @@ GOOGLE_CLIENT_SECRET=
 IMAGE_TAG=latest
 ```
 
-### 2.3 Update `docker-compose.yml` to pull from GHCR
+### 2.3 Update Docker images + operational jobs
 
-Switch the `api` and `caddy` services from `build:` to `image:`. Keep `build:` configs in a sibling `docker-compose.build.yml` so you can still build locally if needed.
+Switch the runtime services from `build:` to GHCR `image:` references. Keep local build configs in `docker-compose.build.yml` so you can still build the production-shaped images from your laptop when needed.
 
 ```yaml
 services:
@@ -313,27 +316,47 @@ services:
     # ... existing config, no change
 
   api:
-    image: ghcr.io/<your-gh-username>/kavanow-api:${IMAGE_TAG:-latest}
+    image: ghcr.io/pbechliv/kava-now-api:${IMAGE_TAG:-latest}
     # ... existing env/network config
 
+  api-jobs:
+    image: ghcr.io/pbechliv/kava-now-api-jobs:${IMAGE_TAG:-latest}
+    profiles: ["jobs"]
+    # runs pnpm db:migrate / pnpm db:seed against the same Postgres service
+
   caddy:
-    image: ghcr.io/<your-gh-username>/kavanow-caddy:${IMAGE_TAG:-latest}
+    image: ghcr.io/pbechliv/kava-now-caddy:${IMAGE_TAG:-latest}
     # ... existing port/volume config
 ```
 
 Bump Postgres to `17-alpine` (existing compose uses 16 — pick 17 now since this is greenfield prod, or stay on 16 and plan an upgrade later — your call, but 17 is what the existing Hetzner plan assumes).
 
-### 2.4 Finish Sentry wiring (per `plans/sentry-integration-plan.md`)
+Add an `api-jobs` Docker target in `Dockerfile` instead of trying to run `pnpm db:*` inside the slim API runtime image. The API runtime image has compiled server output and production dependencies; migrations/seeds run the current TS scripts through `tsx`, so they need source + full workspace dependencies:
 
-`config.ts` already has the `sentry` block. Still missing:
+```dockerfile
+FROM deps AS api-jobs
+COPY tsconfig.base.json ./
+COPY packages/shared/ packages/shared/
+COPY packages/api/ packages/api/
+CMD ["pnpm", "--filter", "@kava-now/api", "db:migrate"]
+```
 
-- Create `packages/api/src/sentry.ts` (init + ignore list)
-- Make it the first import in `packages/api/src/index.ts`
-- Create `packages/api/src/middleware/sentry-context.ts` and mount after `tenantMiddleware`/`authMiddleware`. Adjust tag names: use `tenant.slug` / `tenant.id` (not `kava.*`), and read `c.get("tenant")` and `c.get("membership")`.
-- Add `app.onError` handler in `packages/api/src/app.ts`
-- Wire `Sentry.init` + `<Sentry.ErrorBoundary>` in `packages/web/src/main.tsx`
-- Pass `VITE_SENTRY_*` via `define` in `packages/web/vite.config.ts`
-- Set tenant scope from URL path on web boot
+Also forward build-time env into the image builds:
+
+- `api-build`: `ARG API_PORT=3000` + `ENV API_PORT=$API_PORT` before `pnpm --filter @kava-now/api build`.
+- `web-build`: `ARG GOOGLE_CLIENT_ID`, `ARG SENTRY_DSN_WEB`, `ARG SENTRY_ENVIRONMENT`, `ARG SENTRY_RELEASE`, then matching `ENV` values before `pnpm --filter @kava-now/web build`.
+
+### 2.4 Verify Sentry wiring
+
+The repo already has the core Sentry pieces:
+
+- API init in `packages/api/src/sentry.ts`, imported first from `packages/api/src/index.ts`.
+- API `app.onError` capture in `packages/api/src/app.ts`.
+- API request tags from `packages/api/src/middleware/sentry-context.ts`.
+- Web `Sentry.init` and `<Sentry.ErrorBoundary>` in `packages/web/src/main.tsx`.
+- Web build-time `VITE_SENTRY_*` values in `packages/web/vite.config.ts`.
+
+Before launch, verify errors arrive in both Sentry projects with `SENTRY_ENVIRONMENT=production` and the deploy SHA in `SENTRY_RELEASE`. If Google OAuth or web Sentry is enabled, make sure `build-images.yml` passes the build args into the `caddy` target; runtime `.env.production` cannot change already-built static assets.
 
 ### 2.5 Add `infra/postgres/postgresql.conf`
 
@@ -341,7 +364,7 @@ Tuned for the CX22's 4 GB RAM — values from `plans/hetzner-deployment-plan.md`
 
 ### 2.6 `.gitignore`
 
-Append `.env.production` and `infra/secrets/`. The .example stays in git.
+Ensure `.env.production` and `infra/secrets/` are ignored. The `.example` stays in git.
 
 ### 2.7 Commit + push to main
 
@@ -464,14 +487,14 @@ All 9 workflows from `plans/github-actions-automation-plan.md`. Brief summary of
 | Workflow             | Trigger                            | Purpose                                          | Env gate         |
 | -------------------- | ---------------------------------- | ------------------------------------------------ | ---------------- |
 | `ci.yml`             | PR + non-main push                 | typecheck, lint, fmt:check, build                | none             |
-| `build-images.yml`   | `workflow_call`                    | Build + push `kavanow-api` + `kavanow-caddy` to GHCR with `<sha>` + `latest` tags. Sourcemap upload to Sentry inline. | none |
+| `build-images.yml`   | `workflow_call`                    | Build + push `kava-now-api`, `kava-now-api-jobs`, and `kava-now-caddy` to GHCR with `<sha>` + `latest` tags. Sourcemap upload to Sentry inline. | none |
 | `provision.yml`      | manual                             | `terraform plan` / `apply`                       | `infrastructure` |
-| `deploy.yml`         | push to `main` + manual            | calls build-images, scp compose+Caddyfile, ssh pull+up+migrate, smoke test | `production` |
-| `migrate.yml`        | manual                             | runs `pnpm db:migrate` on VM without rebuild     | `production`     |
+| `deploy.yml`         | push to `main` + manual            | calls build-images, scp compose+Caddyfile, ssh `--profile jobs pull` + `api-jobs` migrate + app up, smoke test | `production` |
+| `migrate.yml`        | manual                             | runs `pnpm db:migrate` through `api-jobs` on VM without rebuilding | `production`     |
 | `rollback.yml`       | manual (input: sha)                | deploys a prior tag; no migrations               | `production`     |
 | `backup-verify.yml`  | weekly Sun 04:00 UTC + manual      | pull latest B2 archive → decrypt → restore into a runner-side Postgres → sanity SELECTs against `tenants`, `users`, `tenant_memberships`. Pings Better Stack heartbeat on success. Opens GH issue on fail. | none |
 | `restore-backup.yml` | manual (inputs: archive, phrase)   | DR: decrypt chosen archive → scp to VM → drop+recreate `kavanow` db → restore. Two-layer gate (env approval + typed-phrase). | `infrastructure` |
-| `smoke-test.yml`     | `workflow_call`                    | curl `/api/healthz`, `/`, TLS expiry check       | none             |
+| `smoke-test.yml`     | `workflow_call`                    | curl `/api/health`, `/`, TLS expiry check       | none             |
 
 Repo secrets to populate (Settings → Secrets and variables → Actions):
 
@@ -527,11 +550,17 @@ SENTRY_PROJECT_WEB=kavanow-web
 ### Day 3 — First deploy + verify (~2-3 h)
 
 7. Write `deploy.yml`, `migrate.yml`, `rollback.yml`. Push to main → `deploy.yml` fires.
-8. Watch images build, get pushed to GHCR, VM pulls, smoke test passes.
-9. Run `migrate.yml` manually (first deploy will already have run migrations — this is just to verify the workflow works).
-10. Run the verification checklist from `plans/hetzner-deployment-plan.md` §8 — adapted for path-based + Cloudflare proxy:
-    - `curl -sI https://kavanow.gr/api/healthz` → 200
-    - `curl -sI https://kavanow.gr/api/healthz | grep -i cf-cache-status` → `BYPASS` or `DYNAMIC` (proves the cache-bypass rule is active)
+8. Watch images build, get pushed to GHCR, VM pulls, `api-jobs` runs migrations, app starts, smoke test passes.
+9. Seed the initial superadmin once, after the first successful migration and before login verification:
+   ```bash
+   docker compose --env-file .env.production --profile jobs run --rm api-jobs \
+     pnpm --filter @kava-now/api db:seed
+   ```
+   Confirm `SEED_DEMO=false` is set in `.env.production` unless you intentionally want demo data in prod.
+10. Run `migrate.yml` manually (first deploy will already have run migrations — this is just to verify the workflow works).
+11. Run the verification checklist from `plans/hetzner-deployment-plan.md` §8 — adapted for path-based + Cloudflare proxy:
+    - `curl -sI https://kavanow.gr/api/health` → 200
+    - `curl -sI https://kavanow.gr/api/health | grep -i cf-cache-status` → `BYPASS` or `DYNAMIC` (proves the cache-bypass rule is active)
     - `curl -sI https://kavanow.gr/assets/<some-hashed-js>` → 200, `cf-cache-status: HIT` (after second request), `cache-control: public, max-age=31536000, immutable`
     - `curl -sI https://kavanow.gr/` → 200, `cf-cache-status: HIT` or `MISS` (cached at edge), `cache-control: no-cache, must-revalidate` from origin
     - `curl -sI https://kavanow.gr/ | grep -i server` → `cloudflare` (proves proxy is ON)
@@ -544,22 +573,22 @@ SENTRY_PROJECT_WEB=kavanow-web
     - From local machine: `nc -zv <vm_ip> 5432` → refused
     - `ssh root@<vm_ip>` → refused
     - `curl -I https://kavanow.gr | grep -i strict-transport-security` → present
-    - **Origin reachability sanity:** `curl -sI --resolve kavanow.gr:443:<vm_ipv4> https://kavanow.gr/` should still work (proves Caddy serves the Origin CA cert correctly). Without the `--resolve`, Cloudflare answers.
+    - **Origin reachability sanity:** `curl -ksI --resolve kavanow.gr:443:<vm_ipv4> https://kavanow.gr/` should still work (proves Caddy serves the Origin CA cert correctly). `-k` is expected because Cloudflare Origin CA is trusted by Cloudflare, not by your local OS. Without the `--resolve`, Cloudflare answers.
 
 ### Day 4 — Backups + DR drill (~2-3 h)
 
-11. Write `backup-verify.yml`, `restore-backup.yml`.
-12. Trigger backup-verify manually — confirm it pulls + decrypts + restores + counts pass.
-13. **Restore drill (mandatory):** create a throwaway tenant, populate a few orders, take a manual backup via SSH (`sudo /usr/local/bin/kavanow-backup.sh`), then trigger `restore-backup.yml` with the new archive name and the correct typed phrase. Confirm rows persist and smoke test passes.
-14. Test failure mode: trigger `restore-backup.yml` with wrong phrase → must abort at step 1.
-15. Confirm Better Stack monitor is green; trigger heartbeat manually to verify alerting works.
+12. Write `backup-verify.yml`, `restore-backup.yml`.
+13. Trigger backup-verify manually — confirm it pulls + decrypts + restores + counts pass.
+14. **Restore drill (mandatory):** create a throwaway tenant, populate a few orders, take a manual backup via SSH (`sudo /usr/local/bin/kavanow-backup.sh`), then trigger `restore-backup.yml` with the new archive name and the correct typed phrase. Confirm rows persist and smoke test passes.
+15. Test failure mode: trigger `restore-backup.yml` with wrong phrase → must abort at step 1.
+16. Confirm Better Stack monitor is green; trigger heartbeat manually to verify alerting works.
 
 ### Day 5 — Polish (~1-2 h)
 
-16. Add a calendar reminder: quarterly `restore-backup.yml` drill against the prod archive into a staging postgres (or just trust `backup-verify.yml`).
-17. Add an annual reminder for `GHCR_VM_PAT` rotation.
-18. Document the runbook in `docs/operations.md` (copy from `plans/hetzner-deployment-plan.md` §"Operational runbook" — strip the magic-link references).
-19. Delete the three superseded files from `plans/` once you're confident the superplan + appendices in `docs/` cover everything, or move them to `plans/archive/`.
+17. Add a calendar reminder: quarterly `restore-backup.yml` drill against the prod archive into a staging postgres (or just trust `backup-verify.yml`).
+18. Add an annual reminder for `GHCR_VM_PAT` rotation.
+19. Document the runbook in `docs/operations.md` (copy from `plans/hetzner-deployment-plan.md` §"Operational runbook" — strip the magic-link references).
+20. Delete the three superseded files from `plans/` once you're confident the superplan + appendices in `docs/` cover everything, or move them to `plans/archive/`.
 
 ---
 
@@ -616,4 +645,4 @@ Detailed appendices, useful but not the executable runbook:
 
 - `plans/hetzner-deployment-plan.md` — full Hetzner runbook (read with the drift table in §0 in mind).
 - `plans/github-actions-automation-plan.md` — full workflow specs.
-- `plans/sentry-integration-plan.md` — full Sentry wiring (Phase 1.3 onward still needs to be applied).
+- `plans/sentry-integration-plan.md` — historical Sentry wiring notes; the repo now has the core API/web wiring, so use it only as background.
