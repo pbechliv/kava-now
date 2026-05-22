@@ -1,16 +1,16 @@
 # KavaNow Deployment Superplan
 
-**Goal:** get `https://kavanow.gr` live, with automated CI/CD, encrypted offsite backups, error reporting, and reproducible infrastructure-as-code — for ~€8/mo.
+**Goal:** get `https://kavanow.gr` live, with automated CI/CD, Hetzner-managed snapshot backups, error reporting, and reproducible infrastructure-as-code — for ~€7/mo.
 
-**Stack:** Hetzner CX22 (Falkenstein) · Docker Compose · Caddy · Postgres 17 · Resend · Backblaze B2 · **Cloudflare proxied DNS + edge cache** · Sentry · Terraform · GitHub Actions + GHCR.
+**Stack:** Hetzner CX22 (Falkenstein) · Docker Compose · Caddy · Postgres 17 · Resend · **Cloudflare proxied DNS + edge cache** · Sentry · Terraform · GitHub Actions + GHCR.
 
-**Decisions captured:** path-based tenancy, **Cloudflare proxy ON from day 1** (DDoS + edge caching for the SPA), full Terraform + 9 GH Actions workflows, Resend for email, domain `kavanow.gr` to be purchased, new superplan file.
+**Decisions captured:** path-based tenancy, **Cloudflare proxy ON from day 1** (DDoS + edge caching for the SPA), full Terraform + 7 GH Actions workflows, Resend for email, Hetzner snapshots only for day-1 backups, domain `kavanow.gr` to be purchased, new superplan file.
 
 ---
 
-## 0. Plan reconciliation (what's wrong in the existing plans)
+## 0. Plan reconciliation (what's wrong in the older drafts)
 
-The three plans in `plans/` were written before the path-based tenancy refactor. Read them as **reference** — this superplan is the executable runbook. Specific drifts to ignore:
+The older deployment drafts were written before the path-based tenancy refactor. This superplan is the executable runbook. Specific drifts to ignore:
 
 | Existing plan claim                                                       | Reality after refactor                                                      |
 | ------------------------------------------------------------------------- | --------------------------------------------------------------------------- |
@@ -71,12 +71,12 @@ Do all of these before any code or VM work. Allow ~2 hours.
 - Generate API key with **Sending access** scope. Save as `RESEND_API_KEY`.
 - Configure `RESEND_FROM="KavaNow <noreply@kavanow.gr>"`.
 
-### 1.5 Backblaze B2 (offsite backups)
+### 1.5 Hetzner snapshot backups
 
-- Sign up at [backblaze.com/b2](https://www.backblaze.com/b2/cloud-storage.html).
-- Create a **private** bucket: `kavanow-backups`.
-- Generate an Application Key **scoped to that bucket only**, with read + write. Save **Key ID** and **Application Key** (the latter is shown once — copy now).
-- Configure bucket Lifecycle Rules: `daily/` keep 7 days, `weekly/` 28 days, `monthly/` 365 days.
+- Enable Hetzner server backups when Terraform provisions the VM (`backups = true`).
+- Hetzner keeps the 7 most recent nightly whole-VM snapshots.
+- Treat snapshots as the day-1 recovery path. They cover the OS, Docker volumes, Postgres data, Caddy config, TLS files, and `.env.production`.
+- Before risky work, take an on-demand manual snapshot from the Hetzner Console and delete it after the change is proven stable.
 
 ### 1.6 Sentry
 
@@ -114,27 +114,23 @@ The repo already supports Google OAuth via better-auth — the web SPA renders t
 
 - Sign up at [betterstack.com/uptime](https://betterstack.com/uptime) (free tier: 10 monitors, 3-min interval).
 - Create one HTTP(S) monitor: `https://kavanow.gr/api/health`, expect 200, alert via email.
-- Add a Heartbeat monitor named `backup-verify` (URL ping every 7 days). The weekly backup-verify workflow will POST to it on success; if it stops pinging, you get alerted.
+- No heartbeat monitor is needed while backups are Hetzner-managed snapshots only. Use a calendar reminder for the quarterly restore drill.
 
 ### 1.9 GitHub repo prep
 
 - Push the current repo to GitHub if not already (`gh repo create kavanow --private --source=. --push`).
 - Create two **GitHub Environments** at repo Settings → Environments:
   - `production` — required reviewer: you. No deployment branch restrictions (deploy is gated by `main` branch implicitly).
-  - `infrastructure` — required reviewer: you. Used for `provision.yml` and `restore-backup.yml`.
+  - `infrastructure` — required reviewer: you. Used for `provision.yml`.
 
 ### 1.10 Local crypto material (one-time, on your laptop)
 
 ```bash
 # SSH key for VM access (separate from your personal key — easier to rotate)
 ssh-keygen -t ed25519 -f ~/.ssh/kavanow_deploy -C "kavanow-deploy" -N ""
-
-# Age key for backup encryption — PRIVATE half goes nowhere near git
-mkdir -p ~/.config/age && age-keygen -o ~/.config/age/kavanow-backup.key
-# The file contains both keys. Public key is the line starting `age1...` (also printed to stderr).
 ```
 
-Save both to 1Password. Add a printed paper copy of the age private key to a safe place — if you lose it, your backups become unreadable.
+Save the private key to 1Password.
 
 ### 1.11 Pre-generate production secrets (on your laptop, never on the VM)
 
@@ -156,12 +152,11 @@ You should now have:
 - [ ] Cloudflare **Origin CA cert** (`origin.pem` + `origin.key`) saved in 1Password
 - [ ] Hetzner API token (Read & Write on `kavanow` project)
 - [ ] Resend domain verified + API key
-- [ ] Backblaze B2 bucket `kavanow-backups` + Key ID + App Key
 - [ ] Sentry org + 2 projects + 2 DSNs + auth token
 - [ ] Google OAuth client (`GOOGLE_CLIENT_ID` + `GOOGLE_CLIENT_SECRET`) — or skip if launching password-only
-- [ ] Better Stack monitor + heartbeat URL
+- [ ] Better Stack monitor
 - [ ] GitHub repo with `production` + `infrastructure` environments
-- [ ] `~/.ssh/kavanow_deploy{,.pub}` and `~/.config/age/kavanow-backup.key`
+- [ ] `~/.ssh/kavanow_deploy{,.pub}`
 - [ ] Three pre-generated production secrets in 1Password
 
 ---
@@ -329,7 +324,7 @@ services:
     # ... existing port/volume config
 ```
 
-Bump Postgres to `17-alpine` (existing compose uses 16 — pick 17 now since this is greenfield prod, or stay on 16 and plan an upgrade later — your call, but 17 is what the existing Hetzner plan assumes).
+Bump Postgres to `17-alpine` now since this is greenfield production; staying on 16 only makes sense if you want a separate major-version upgrade plan before launch.
 
 Add an `api-jobs` Docker target in `Dockerfile` instead of trying to run `pnpm db:*` inside the slim API runtime image. The API runtime image has compiled server output and production dependencies; migrations/seeds run the current TS scripts through `tsx`, so they need source + full workspace dependencies:
 
@@ -360,7 +355,45 @@ Before launch, verify errors arrive in both Sentry projects with `SENTRY_ENVIRON
 
 ### 2.5 Add `infra/postgres/postgresql.conf`
 
-Tuned for the CX22's 4 GB RAM — values from `plans/hetzner-deployment-plan.md` §3.4.
+Create `infra/postgres/postgresql.conf` and mount it into Postgres if you want day-1 tuning for the CX22's 4 GB RAM. This is optional for launch, but it gives sane defaults and useful slow-query logging:
+
+```conf
+# Connection settings
+max_connections = 100
+listen_addresses = '*'
+
+# Memory — leave ~1.5 GB for the OS + API
+shared_buffers = 1GB
+effective_cache_size = 2GB
+work_mem = 16MB
+maintenance_work_mem = 256MB
+
+# Write performance
+wal_buffers = 16MB
+checkpoint_completion_target = 0.9
+random_page_cost = 1.1
+
+# Logging
+log_min_duration_statement = 500ms
+log_line_prefix = '%t [%p] %u@%d '
+log_statement = 'ddl'
+
+# Autovacuum
+autovacuum_vacuum_scale_factor = 0.1
+autovacuum_analyze_scale_factor = 0.05
+```
+
+Mount it in `docker-compose.yml` only if the file exists:
+
+```yaml
+postgres:
+  volumes:
+    - postgres-data:/var/lib/postgresql/data
+    - ./infra/postgres/postgresql.conf:/etc/postgresql/postgresql.conf:ro
+  command: ["postgres", "-c", "config_file=/etc/postgresql/postgresql.conf"]
+```
+
+Tune later based on actual workload and Postgres logs; do not over-optimize before real traffic.
 
 ### 2.6 `.gitignore`
 
@@ -376,7 +409,7 @@ Tag the commit `pre-deploy-baseline` so you can git-revert if anything goes side
 
 ### 3.1 State backend
 
-Use **Terraform Cloud** free tier (5 users, unlimited private workspaces, free state hosting). Alternative is B2-as-S3 backend; not worth the friction.
+Use **Terraform Cloud** free tier (5 users, unlimited private workspaces, free state hosting). It keeps Terraform state out of the repo and avoids managing a state bucket yourself.
 
 - Sign up at [app.terraform.io](https://app.terraform.io).
 - Create org `kavanow`, workspace `kavanow-prod`, execution mode **Local** (workflow runs `terraform apply` from GH runner; TFC just stores state).
@@ -392,8 +425,126 @@ infra/terraform/
   dns.tf            # cloudflare_record × 2 (A + AAAA apex, both proxied=true)
   cache.tf          # cloudflare_ruleset × 2 (cache bypass /api/*, short-TTL SPA shell)
                     # cloudflare_zone_settings_override (SSL mode = full strict, always HTTPS, min TLS 1.2)
-  cloud-init.yaml   # OS hardening + Docker + deploy user (per §1.3 of Hetzner plan)
+  cloud-init.yaml   # OS hardening + Docker + deploy user
   outputs.tf        # vm_ipv4, vm_ipv6
+```
+
+`variables.tf` minimum shape:
+
+```hcl
+variable "hcloud_token" {
+  type      = string
+  sensitive = true
+}
+
+variable "cloudflare_api_token" {
+  type      = string
+  sensitive = true
+}
+
+variable "cloudflare_zone_id" {
+  type = string
+}
+
+variable "domain" {
+  type    = string
+  default = "kavanow.gr"
+}
+
+variable "ssh_pub_key" {
+  type = string
+}
+
+variable "vm_type" {
+  type    = string
+  default = "cx22"
+}
+
+variable "location" {
+  type    = string
+  default = "fsn1"
+}
+```
+
+`versions.tf` and providers:
+
+```hcl
+terraform {
+  required_version = ">= 1.8.0"
+
+  cloud {
+    organization = "kavanow"
+    workspaces {
+      name = "kavanow-prod"
+    }
+  }
+
+  required_providers {
+    hcloud = {
+      source  = "hetznercloud/hcloud"
+      version = "~> 1.50"
+    }
+    cloudflare = {
+      source  = "cloudflare/cloudflare"
+      version = "~> 4.52"
+    }
+  }
+}
+
+provider "hcloud" {
+  token = var.hcloud_token
+}
+
+provider "cloudflare" {
+  api_token = var.cloudflare_api_token
+}
+```
+
+`main.tf` essentials:
+
+```hcl
+resource "hcloud_ssh_key" "deploy" {
+  name       = "kavanow-deploy"
+  public_key = var.ssh_pub_key
+}
+
+resource "hcloud_firewall" "public" {
+  name = "kavanow-public"
+
+  rule {
+    direction = "in"
+    protocol  = "tcp"
+    port      = "22"
+    source_ips = ["0.0.0.0/0", "::/0"]
+  }
+
+  rule {
+    direction = "in"
+    protocol  = "tcp"
+    port      = "80"
+    source_ips = ["0.0.0.0/0", "::/0"]
+  }
+
+  rule {
+    direction = "in"
+    protocol  = "tcp"
+    port      = "443"
+    source_ips = ["0.0.0.0/0", "::/0"]
+  }
+}
+
+resource "hcloud_server" "kavanow" {
+  name         = "kavanow-prod"
+  image        = "ubuntu-26.04"
+  server_type  = var.vm_type
+  location     = var.location
+  ssh_keys     = [hcloud_ssh_key.deploy.id]
+  backups      = true
+  firewall_ids = [hcloud_firewall.public.id]
+  user_data    = templatefile("${path.module}/cloud-init.yaml", {
+    deploy_pub_key = var.ssh_pub_key
+  })
+}
 ```
 
 `dns.tf` snippet:
@@ -466,23 +617,90 @@ resource "cloudflare_zone_settings_override" "kavanow" {
 
 The Origin CA cert is **not** in Terraform — it's a one-time hand-generated cert that lives in 1Password. Pasting it into Terraform's state would unnecessarily expose the private key to TFC. The cert gets onto the VM via `scripts/bootstrap-vm.sh` (manual paste step in §5).
 
-Inside `cloud-init.yaml`:
+`cloud-init.yaml` should encode the manual hardening so a replacement VM is reproducible:
 
-- Create `deploy` user with the public key from `~/.ssh/kavanow_deploy.pub`
-- Install: `docker-ce`, `docker-compose-plugin`, `ufw`, `fail2ban`, `unattended-upgrades`, `age`, `rclone`
-- UFW: allow 22, 80, 443; default deny inbound
-- Disable root SSH + password auth
-- `timedatectl set-timezone UTC`
-- `mkdir /srv/kavanow && chown deploy:deploy /srv/kavanow`
-- Configure `unattended-upgrades` with auto-reboot at 03:30 UTC
+```yaml
+#cloud-config
+users:
+  - name: deploy
+    groups: [sudo, docker]
+    shell: /bin/bash
+    sudo: ALL=(ALL) NOPASSWD:ALL
+    ssh_authorized_keys:
+      - ${deploy_pub_key}
 
-### 3.3 `outputs.tf` exports `vm_ipv4` so the workflow can write it to GitHub Secrets via `gh secret set HETZNER_HOST`.
+package_update: true
+package_upgrade: true
+packages:
+  - ufw
+  - fail2ban
+  - unattended-upgrades
+  - ca-certificates
+  - curl
+  - gnupg
+  - lsb-release
+
+runcmd:
+  - install -m 0755 -d /etc/apt/keyrings
+  - curl -fsSL https://download.docker.com/linux/ubuntu/gpg | gpg --dearmor -o /etc/apt/keyrings/docker.gpg
+  - chmod a+r /etc/apt/keyrings/docker.gpg
+  - echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable" > /etc/apt/sources.list.d/docker.list
+  - apt-get update && apt-get install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
+  - mkdir -p /etc/ssh/sshd_config.d
+  - printf 'PermitRootLogin no\nPasswordAuthentication no\nKbdInteractiveAuthentication no\nChallengeResponseAuthentication no\n' > /etc/ssh/sshd_config.d/99-kavanow-hardening.conf
+  - sshd -t && systemctl reload ssh
+  - ufw default deny incoming
+  - ufw default allow outgoing
+  - ufw allow OpenSSH
+  - ufw allow 80/tcp
+  - ufw allow 443/tcp
+  - ufw --force enable
+  - printf '[sshd]\nenabled = true\nport = ssh\nmaxretry = 5\nfindtime = 10m\nbantime = 10m\n' > /etc/fail2ban/jail.d/sshd.local
+  - systemctl enable --now fail2ban
+  - systemctl restart fail2ban
+  - systemctl enable --now unattended-upgrades
+  - printf 'Unattended-Upgrade::Automatic-Reboot "true";\nUnattended-Upgrade::Automatic-Reboot-Time "03:30";\n' >> /etc/apt/apt.conf.d/50unattended-upgrades
+  - timedatectl set-timezone UTC
+  - mkdir -p /srv/kavanow /etc/kavanow/tls
+  - chown deploy:deploy /srv/kavanow
+```
+
+After provision, verify the VM before continuing:
+
+```bash
+ssh -i ~/.ssh/kavanow_deploy deploy@<vm_ip> 'whoami && docker --version && docker compose version'
+ssh root@<vm_ip> # should fail
+ssh -i ~/.ssh/kavanow_deploy deploy@<vm_ip> 'sudo fail2ban-client status sshd'
+```
+
+SSH is open to the world on day 1 to avoid locking yourself out. Once your access pattern is stable, optionally restrict port 22 to your home/office IP in the Hetzner firewall.
+
+### 3.3 `scripts/bootstrap-vm.sh`
+
+Terraform/cloud-init gets the box to a secure Docker host. `scripts/bootstrap-vm.sh` handles the post-provision secrets and operational files that should not live in Terraform state:
+
+- Log in to GHCR as `deploy` using `GHCR_VM_PAT`.
+- Create `/srv/kavanow`, `/etc/kavanow/tls`, and `/var/log/kavanow`.
+- Prompt/manual step: paste Cloudflare Origin CA files to `/etc/kavanow/tls/origin.pem` and `/etc/kavanow/tls/origin.key`; set `chmod 644 origin.pem`, `chmod 600 origin.key`, owner `root:root`.
+- Create `/srv/kavanow/.env.production` from password-manager values. Do not echo secrets through shell history.
+
+Confirm Hetzner backups are enabled after provision: Hetzner Console → `kavanow-prod` → Backups should show backups enabled. After the first night, it should list a snapshot from the last 24 hours.
+
+### 3.4 `outputs.tf` exports `vm_ipv4` so the workflow can write it to GitHub Secrets via `gh secret set HETZNER_HOST`.
 
 ---
 
 ## 4. GitHub Actions workflows (`.github/workflows/`)
 
-All 9 workflows from `plans/github-actions-automation-plan.md`. Brief summary of each — see that plan for full specs.
+All workflows that touch production must serialize with:
+
+```yaml
+concurrency:
+  group: deploy-prod
+  cancel-in-progress: false
+```
+
+This prevents deploy, migrate, and rollback from interleaving.
 
 | Workflow             | Trigger                            | Purpose                                          | Env gate         |
 | -------------------- | ---------------------------------- | ------------------------------------------------ | ---------------- |
@@ -492,8 +710,6 @@ All 9 workflows from `plans/github-actions-automation-plan.md`. Brief summary of
 | `deploy.yml`         | push to `main` + manual            | calls build-images, scp compose+Caddyfile, ssh `--profile jobs pull` + `api-jobs` migrate + app up, smoke test | `production` |
 | `migrate.yml`        | manual                             | runs `pnpm db:migrate` through `api-jobs` on VM without rebuilding | `production`     |
 | `rollback.yml`       | manual (input: sha)                | deploys a prior tag; no migrations               | `production`     |
-| `backup-verify.yml`  | weekly Sun 04:00 UTC + manual      | pull latest B2 archive → decrypt → restore into a runner-side Postgres → sanity SELECTs against `tenants`, `users`, `tenant_memberships`. Pings Better Stack heartbeat on success. Opens GH issue on fail. | none |
-| `restore-backup.yml` | manual (inputs: archive, phrase)   | DR: decrypt chosen archive → scp to VM → drop+recreate `kavanow` db → restore. Two-layer gate (env approval + typed-phrase). | `infrastructure` |
 | `smoke-test.yml`     | `workflow_call`                    | curl `/api/health`, `/`, TLS expiry check       | none             |
 
 Repo secrets to populate (Settings → Secrets and variables → Actions):
@@ -506,15 +722,12 @@ HETZNER_HOST                  # set by provision.yml or paste from TF output
 HETZNER_SSH_KEY               # contents of ~/.ssh/kavanow_deploy (private)
 HETZNER_SSH_KNOWN_HOSTS       # ssh-keyscan <ip> output
 GHCR_VM_PAT                   # PAT with read:packages, written to VM by bootstrap-vm.sh
-B2_KEY_ID + B2_APP_KEY        # backup-verify, restore-backup
-AGE_PRIVATE_KEY               # backup-verify, restore-backup (whole file contents)
 RESEND_API_KEY                # passed into VM .env.production
 SENTRY_AUTH_TOKEN             # build-images.yml (sourcemap upload)
 SENTRY_DSN_API + SENTRY_DSN_WEB
 SUPERADMIN_EMAIL + SUPERADMIN_PASSWORD  # piped into seed
 POSTGRES_PASSWORD + COOKIE_SECRET + BETTER_AUTH_SECRET
 GOOGLE_CLIENT_ID + GOOGLE_CLIENT_SECRET  # optional; only if §1.7 was done
-BETTERSTACK_HEARTBEAT_URL     # backup-verify ping
 ```
 
 Repo variables (`vars`):
@@ -524,6 +737,96 @@ SENTRY_ORG=kavanow
 SENTRY_PROJECT_API=kavanow-api
 SENTRY_PROJECT_WEB=kavanow-web
 ```
+
+### 4.1 `ci.yml`
+
+- Trigger: `pull_request` to `main`, plus `push` to non-`main` branches.
+- Permissions: `contents: read`.
+- Steps: checkout → `pnpm/action-setup@v4` with pnpm 11 → `actions/setup-node@v4` using `.node-version` and `cache: pnpm` → `pnpm install --frozen-lockfile` → `pnpm typecheck` → `pnpm lint` → `pnpm fmt:check` → `pnpm build`.
+- No deploy and no secrets.
+
+### 4.2 `build-images.yml`
+
+- Trigger: `workflow_call` with input `sha`.
+- Permissions: `contents: read`, `packages: write`.
+- Log in to GHCR with `GITHUB_TOKEN`.
+- Build and push:
+  - `ghcr.io/pbechliv/kava-now-api:<sha>` and `:latest` from root `Dockerfile`, target `api`, build arg `API_PORT=3000`.
+  - `ghcr.io/pbechliv/kava-now-api-jobs:<sha>` and `:latest` from root `Dockerfile`, target `api-jobs`.
+  - `ghcr.io/pbechliv/kava-now-caddy:<sha>` and `:latest` from root `Dockerfile`, target `caddy`, build args `GOOGLE_CLIENT_ID`, `SENTRY_DSN_WEB`, `SENTRY_ENVIRONMENT=production`, `SENTRY_RELEASE=<sha>`.
+- Use BuildKit cache: `cache-from: type=gha`, `cache-to: type=gha,mode=max`.
+- For Sentry sourcemaps, prefer `@sentry/vite-plugin` in both Vite configs gated by `SENTRY_AUTH_TOKEN`. Pass `SENTRY_AUTH_TOKEN` via BuildKit secret, not as a normal build arg, so it does not land in image layers. Set `SENTRY_RELEASE=<sha>` for both API and web builds.
+
+### 4.3 `provision.yml`
+
+- Trigger: `workflow_dispatch` with required input `action` (`plan` or `apply`).
+- Environment: `infrastructure`.
+- Steps: checkout → `hashicorp/setup-terraform@v3` → export `HCLOUD_TOKEN`, `CLOUDFLARE_API_TOKEN`, `TF_TOKEN_app_terraform_io` → `terraform init` → `terraform plan -out=tfplan` → if `action=apply`, run `terraform apply tfplan`.
+- Outputs `vm_ipv4` and `vm_ipv6` in the job summary. Paste `vm_ipv4` into `HETZNER_HOST` if the workflow does not set it automatically.
+
+### 4.4 `deploy.yml`
+
+- Trigger: push to `main` and `workflow_dispatch` with optional `sha` input.
+- Environment: `production`.
+- Job 1: run the same checks as `ci.yml`.
+- Job 2: call `build-images.yml` with the chosen SHA.
+- Job 3:
+  1. Set up SSH using `HETZNER_SSH_KEY` and `HETZNER_SSH_KNOWN_HOSTS`.
+  2. Copy `docker-compose.yml` and `Caddyfile` to `deploy@$HETZNER_HOST:/srv/kavanow/`.
+  3. SSH and run:
+     ```bash
+     cd /srv/kavanow
+     export IMAGE_TAG=<sha>
+     docker compose --env-file .env.production --profile jobs pull
+     docker compose --env-file .env.production up -d postgres
+     docker compose --env-file .env.production --profile jobs run --rm api-jobs \
+       pnpm --filter @kava-now/api db:migrate
+     docker compose --env-file .env.production up -d api caddy
+     docker image prune -f
+     ```
+  4. Call `smoke-test.yml`.
+
+Migrations run before the API/Caddy swap. If migration fails, the currently running API/Caddy containers are left untouched.
+
+### 4.5 `migrate.yml`
+
+- Trigger: `workflow_dispatch`.
+- Environment: `production`.
+- Steps: set up SSH → run:
+  ```bash
+  cd /srv/kavanow
+  docker compose --env-file .env.production --profile jobs run --rm api-jobs \
+    pnpm --filter @kava-now/api db:migrate
+  ```
+- Capture stdout in the Actions job summary so migration history is auditable.
+
+### 4.6 `rollback.yml`
+
+- Trigger: `workflow_dispatch` with required `sha`.
+- Environment: `production`.
+- Pre-check both runtime image tags exist with `docker manifest inspect`.
+- SSH and run:
+  ```bash
+  cd /srv/kavanow
+  export IMAGE_TAG=<sha>
+  docker compose --env-file .env.production pull api caddy
+  docker compose --env-file .env.production up -d api caddy
+  ```
+- Do **not** run migrations. The job summary must say: "Database schema remains at the current production version; if the old image is schema-incompatible, restore a Hetzner snapshot instead."
+- Call `smoke-test.yml`.
+
+### 4.7 `smoke-test.yml`
+
+- Trigger: `workflow_call`.
+- Input: `host`, default `kavanow.gr`.
+- Steps:
+  ```bash
+  curl -fS --retry 10 --retry-delay 3 "https://$host/api/health"
+  curl -fS -o /dev/null "https://$host/"
+  openssl s_client -servername "$host" -connect "$host:443" < /dev/null 2>/dev/null \
+    | openssl x509 -noout -subject -dates
+  ```
+- Fail if health is not 200 or the certificate expires within 7 days.
 
 ---
 
@@ -541,11 +844,9 @@ SENTRY_PROJECT_WEB=kavanow-web
 5. Manually run `provision.yml` with `action=plan`, review, then `action=apply`. VM exists, DNS records point to it.
 6. SSH into the VM (`ssh -i ~/.ssh/kavanow_deploy deploy@<ip>`). Run `scripts/bootstrap-vm.sh`:
    - `docker login ghcr.io` with the `GHCR_VM_PAT`
-   - Write `/etc/kavanow/backup.pub` with the age public key
    - **Write `/etc/kavanow/tls/origin.pem` + `origin.key`** by pasting from 1Password (`sudo nano`, `chmod 600 origin.key`, `chmod 644 origin.pem`, `chown root:root`)
-   - Configure `rclone` for B2 (`rclone config` non-interactively from a generated `rclone.conf`)
-   - Install `/usr/local/bin/kavanow-backup.sh` + `/etc/cron.d/kavanow-backup` (daily 03:00 UTC)
    - Create `/srv/kavanow/.env.production` from secrets (manual paste — never echo secrets into a script)
+   - Confirm Hetzner backups are enabled on the server
 
 ### Day 3 — First deploy + verify (~2-3 h)
 
@@ -558,7 +859,7 @@ SENTRY_PROJECT_WEB=kavanow-web
    ```
    Confirm `SEED_DEMO=false` is set in `.env.production` unless you intentionally want demo data in prod.
 10. Run `migrate.yml` manually (first deploy will already have run migrations — this is just to verify the workflow works).
-11. Run the verification checklist from `plans/hetzner-deployment-plan.md` §8 — adapted for path-based + Cloudflare proxy:
+11. Run the verification checklist:
     - `curl -sI https://kavanow.gr/api/health` → 200
     - `curl -sI https://kavanow.gr/api/health | grep -i cf-cache-status` → `BYPASS` or `DYNAMIC` (proves the cache-bypass rule is active)
     - `curl -sI https://kavanow.gr/assets/<some-hashed-js>` → 200, `cf-cache-status: HIT` (after second request), `cache-control: public, max-age=31536000, immutable`
@@ -569,55 +870,217 @@ SENTRY_PROJECT_WEB=kavanow-web
     - Click invite link → lands on `/k/demo/welcome` → set password → log in → see admin dashboard
     - **Rate-limit + real IP check:** hammer `/api/auth/sign-in` 20× from your laptop → expect 429s. Check API logs to confirm the logged IP is your real public IP, not a Cloudflare range.
     - From a second browser, log in as a different superadmin or invite — confirm tenant isolation
-    - RLS test in psql (see existing plan §7.4 — but `set_config('app.current_tenant_id', ...)`)
+    - RLS test in psql:
+      ```sql
+      SELECT set_config('app.current_tenant_id', '<tenant-a-uuid>', false);
+      SELECT count(*) FROM products; -- should show only tenant A rows
+      SELECT set_config('app.current_tenant_id', '<tenant-b-uuid>', false);
+      SELECT count(*) FROM products; -- should show only tenant B rows
+      SELECT set_config('app.current_tenant_id', '', false);
+      SELECT count(*) FROM products; -- should show zero tenant-scoped rows
+      ```
     - From local machine: `nc -zv <vm_ip> 5432` → refused
     - `ssh root@<vm_ip>` → refused
     - `curl -I https://kavanow.gr | grep -i strict-transport-security` → present
     - **Origin reachability sanity:** `curl -ksI --resolve kavanow.gr:443:<vm_ipv4> https://kavanow.gr/` should still work (proves Caddy serves the Origin CA cert correctly). `-k` is expected because Cloudflare Origin CA is trusted by Cloudflare, not by your local OS. Without the `--resolve`, Cloudflare answers.
 
-### Day 4 — Backups + DR drill (~2-3 h)
+### Day 4 — Snapshot backup + DR drill (~1-2 h)
 
-12. Write `backup-verify.yml`, `restore-backup.yml`.
-13. Trigger backup-verify manually — confirm it pulls + decrypts + restores + counts pass.
-14. **Restore drill (mandatory):** create a throwaway tenant, populate a few orders, take a manual backup via SSH (`sudo /usr/local/bin/kavanow-backup.sh`), then trigger `restore-backup.yml` with the new archive name and the correct typed phrase. Confirm rows persist and smoke test passes.
-15. Test failure mode: trigger `restore-backup.yml` with wrong phrase → must abort at step 1.
-16. Confirm Better Stack monitor is green; trigger heartbeat manually to verify alerting works.
+12. Confirm Hetzner Backups tab shows backups enabled. After the first nightly run, confirm a recent snapshot exists.
+13. **Restore drill (mandatory):** create a throwaway tenant, populate a few rows, create an on-demand snapshot, then restore that snapshot into a temporary VM. Confirm `SELECT count(*) FROM tenants;` and smoke checks match expectations. Delete the temporary VM/image after the drill.
+14. Confirm Better Stack monitor is green and alert routing works.
 
 ### Day 5 — Polish (~1-2 h)
 
-17. Add a calendar reminder: quarterly `restore-backup.yml` drill against the prod archive into a staging postgres (or just trust `backup-verify.yml`).
-18. Add an annual reminder for `GHCR_VM_PAT` rotation.
-19. Document the runbook in `docs/operations.md` (copy from `plans/hetzner-deployment-plan.md` §"Operational runbook" — strip the magic-link references).
-20. Delete the three superseded files from `plans/` once you're confident the superplan + appendices in `docs/` cover everything, or move them to `plans/archive/`.
+15. Add a calendar reminder: quarterly Hetzner snapshot restore drill into a temporary VM.
+16. Add an annual reminder for `GHCR_VM_PAT` rotation.
+17. Copy §6 "Operations runbook" from this superplan into `docs/operations.md` once production is live.
+18. Move the superseded plans to `plans/archive/` or delete them once you are comfortable that this file is the only deployment source of truth.
 
 ---
 
-## 6. Cost (steady state)
+## 6. Operations runbook
+
+### Routine deploy
+
+Push to `main` or manually run `deploy.yml` with a SHA. Watch the Action. A successful run means images built, migrations ran, API/Caddy restarted, and the smoke test passed.
+
+### Manual migration
+
+Run `migrate.yml`. It uses the same `api-jobs` image as deploy:
+
+```bash
+cd /srv/kavanow
+docker compose --env-file .env.production --profile jobs run --rm api-jobs \
+  pnpm --filter @kava-now/api db:migrate
+```
+
+### One-shot seed
+
+Only run this on first production setup, or if you intentionally need to create the configured superadmin:
+
+```bash
+cd /srv/kavanow
+docker compose --env-file .env.production --profile jobs run --rm api-jobs \
+  pnpm --filter @kava-now/api db:seed
+```
+
+Make sure `SUPERADMIN_EMAIL`, `SUPERADMIN_PASSWORD`, and `SEED_DEMO=false` are present in `.env.production`. Without explicit superadmin vars, the seed script falls back to dev defaults.
+
+### Logs
+
+```bash
+ssh -i ~/.ssh/kavanow_deploy deploy@<vm_ip>
+cd /srv/kavanow
+docker compose --env-file .env.production logs --tail=200 -f api
+docker compose --env-file .env.production logs --tail=200 -f caddy
+docker compose --env-file .env.production logs postgres | grep -E "duration: [0-9]{4,}"
+```
+
+### Postgres inspection
+
+```bash
+cd /srv/kavanow
+docker compose --env-file .env.production exec postgres psql -U kavanow kavanow
+```
+
+Useful SQL:
+
+```sql
+\l
+\dt
+SELECT pg_size_pretty(pg_database_size('kavanow'));
+SELECT * FROM pg_stat_activity WHERE state != 'idle';
+SELECT count(*) FROM tenants;
+SELECT count(*) FROM tenant_memberships;
+```
+
+### RLS debugging
+
+```sql
+SELECT set_config('app.current_tenant_id', '<tenant-uuid>', false);
+SELECT count(*) FROM products;
+SELECT count(*) FROM orders;
+
+SELECT set_config('app.current_tenant_id', '', false);
+SELECT count(*) FROM products;
+```
+
+Tenant-scoped tables should return rows only when `app.current_tenant_id` is set to a matching tenant. Global tables like `tenants`, `users`, and `tenant_memberships` are scoped in application code, not by RLS.
+
+### Rollback
+
+Prefer `rollback.yml` for image-only regressions. It redeploys a prior SHA without running migrations.
+
+Use a Hetzner snapshot restore for schema/data breakage. A code rollback does not roll back database migrations.
+
+### Manual OS maintenance
+
+Most security patches are handled by `unattended-upgrades`, with auto-reboot at 03:30 UTC. For controlled upgrades:
+
+```bash
+ssh -i ~/.ssh/kavanow_deploy deploy@<vm_ip>
+sudo apt update && sudo apt upgrade -y
+sudo systemctl restart docker # only if Docker was updated
+sudo reboot                  # only if kernel or core services changed
+```
+
+### Postgres major upgrade
+
+Schedule a maintenance window and take an on-demand Hetzner snapshot first.
+
+```bash
+cd /srv/kavanow
+docker compose --env-file .env.production stop api caddy
+docker compose --env-file .env.production exec postgres \
+  pg_dumpall -U kavanow > /tmp/full-dump.sql
+docker compose --env-file .env.production stop postgres
+```
+
+Then update the Postgres image tag, create a fresh volume or archive the old one, start Postgres, restore the dump, and restart the app:
+
+```bash
+docker compose --env-file .env.production up -d postgres
+docker compose --env-file .env.production exec -T postgres \
+  psql -U kavanow < /tmp/full-dump.sql
+docker compose --env-file .env.production up -d
+```
+
+Test the full procedure on a scratch VM before doing it in production.
+
+### Disaster recovery
+
+If the VM itself is broken but Hetzner snapshots are intact:
+
+1. Hetzner Console → `kavanow-prod` → Backups.
+2. Pick a snapshot before the breakage.
+3. Restore in place. The VM keeps IP, firewall, and SSH keys.
+4. Verify `curl -sI https://kavanow.gr/api/health`.
+
+If the VM is gone but snapshots exist:
+
+1. Create an image from the latest backup.
+2. Create a replacement CX22 from that image.
+3. Update Cloudflare A/AAAA records to the new IPs, or update Terraform state and apply.
+4. Recreate `/etc/kavanow/tls/origin.pem` and `origin.key` if the snapshot did not include them.
+5. Verify health, login, invite email, and tenant isolation.
+
+Limitations of this day-1 backup model:
+
+- Snapshots are in the same provider account as the workload.
+- Snapshot retention is short: 7 nightly backups.
+- A Hetzner account compromise, suspension, or regional snapshot outage can still be catastrophic.
+- You restore the whole VM or inspect a cloned VM; there is no easy single-table restore.
+
+### Local resource checks
+
+Optional lightweight disk/memory monitor:
+
+```bash
+sudo tee /usr/local/bin/kavanow-monitor.sh > /dev/null <<'EOF'
+#!/bin/sh
+set -eu
+df -h /
+free -m
+docker system df
+EOF
+sudo chmod +x /usr/local/bin/kavanow-monitor.sh
+```
+
+Real alerting should live in Better Stack and Sentry rather than ad-hoc cron output.
+
+---
+
+## 7. Cost (steady state)
 
 | Item                         | Monthly         | Notes                                           |
 | ---------------------------- | --------------- | ----------------------------------------------- |
 | Hetzner CX22                 | 4.49 €          | 2 vCPU, 4 GB RAM, 40 GB NVMe                    |
 | Hetzner snapshot backups     | 0.90 €          | +20% of VM, nightly, 7-day retention            |
 | Domain `kavanow.gr`          | ~1.50 €         | Amortized; ~18 €/yr at Papaki                   |
-| Backblaze B2                 | ~0.50 €         | $0.006/GB-mo                                    |
 | Resend, Cloudflare, Sentry, Better Stack, GHCR, Terraform Cloud | 0 € | All free tier |
-| **Total**                    | **~7.40 €/mo**  | Including offsite backups + monitoring          |
+| **Total**                    | **~6.90 €/mo**  | Including Hetzner snapshots + monitoring        |
 
-Scale-up triggers and costs: see `plans/hetzner-deployment-plan.md` cost section — those numbers are unchanged.
+Scale-up triggers:
+
+- Resend free tier pressure: if transactional email exceeds the free allowance, move to Resend Pro rather than self-hosting SMTP.
+- Disk >80%: upgrade to CX32, attach a Hetzner Volume, or move Postgres data to a larger disk after a tested backup.
+- Sustained CPU >70% on CX22: upgrade vertically first. CX32/CPX21 are cheaper and simpler than a multi-node architecture.
+- Sustained DB pressure: tune indexes and queries first, then consider moving Postgres to a dedicated VM or managed provider.
+- SLA needs above roughly 99.5%: add a second app VM, externalize Postgres, and introduce a load balancer. Until then, one VM is simpler and good enough.
 
 ---
 
-## 7. Risks worth re-stating
+## 8. Risks worth re-stating
 
 These are the ones that come from the GH-Actions-driven flow specifically:
 
 | Risk                                                       | Mitigation                                                                                              |
 | ---------------------------------------------------------- | ------------------------------------------------------------------------------------------------------- |
-| `AGE_PRIVATE_KEY` in GH Secrets = repo admin can read all backups | Lock repo admin role; consider a separate restore-only age key held only by you (post-launch upgrade).  |
-| Terraform state drift if you edit the VM in Hetzner Console | Quarterly `terraform plan` reminder; treat drift as a bug; keep B2 bucket + Cloudflare records that humans manage outside TF. |
-| `restore-backup.yml` fired against wrong archive            | `infrastructure` env approval + typed `RESTORE PROD <archive_name>` phrase + last-chance dump on VM before drop. |
-| Schema-incompatible rollback                                | `rollback.yml` does **not** revert migrations and surfaces this in the job summary. Escape hatch: `restore-backup.yml` to a pre-deploy archive. |
-| Backup-verify silently flakes (cron miss, B2 outage)        | Better Stack heartbeat fires if no successful ping in 14 days.                                          |
+| Terraform state drift if you edit the VM in Hetzner Console | Quarterly `terraform plan` reminder; treat drift as a bug; keep human-only resources documented. |
+| Schema-incompatible rollback                                | `rollback.yml` does **not** revert migrations and surfaces this in the job summary. Escape hatch: restore a pre-deploy Hetzner snapshot. |
+| Hetzner-only backups share the provider/account blast radius | Accept for launch; enable Hetzner 2FA and run quarterly restore drills. Add offsite encrypted backups once customers/revenue justify it. |
+| Snapshot retention is only 7 days                           | Add calendar reminders for restore drills and take manual snapshots before risky migrations.             |
 | `.gr` domain renewal lapses                                 | Auto-renew at Papaki + calendar reminder 60 days before expiry.                                         |
 | GHCR PAT for VM-pulls expires                               | Calendar reminder annually; rotation = 2-min `docker login` over SSH.                                   |
 | Cloudflare IP ranges change → Caddy stops trusting CF       | CF announces ~yearly. Annual reminder to refresh the `trusted_proxies static` list in the Caddyfile.    |
@@ -626,9 +1089,10 @@ These are the ones that come from the GH-Actions-driven flow specifically:
 
 ---
 
-## 8. Out of scope (deferred)
+## 9. Out of scope (deferred)
 
 - Zero-downtime deploys (Kamal / blue-green). Current 5–10 s container restart is acceptable pre-launch.
+- Encrypted offsite database backups. Hetzner snapshots are enough for day 1; add a separate offsite tier when the product has real customers or compliance pressure.
 - Lock origin port 80/443 to Cloudflare IP ranges only. Day-1 setup keeps direct origin access open for `curl --resolve` debugging; tighten once traffic patterns are known.
 - Cloudflare WAF custom rules (free plan supports 5). Reasonable post-launch hardening once you see real attack traffic.
 - Cloudflare Authenticated Origin Pulls (mTLS between CF and origin). Stronger than Full (strict); defer until there's a concrete reason.
@@ -639,10 +1103,6 @@ These are the ones that come from the GH-Actions-driven flow specifically:
 
 ---
 
-## 9. References
+## 10. Superseded plan files
 
-Detailed appendices, useful but not the executable runbook:
-
-- `plans/hetzner-deployment-plan.md` — full Hetzner runbook (read with the drift table in §0 in mind).
-- `plans/github-actions-automation-plan.md` — full workflow specs.
-- `plans/sentry-integration-plan.md` — historical Sentry wiring notes; the repo now has the core API/web wiring, so use it only as background.
+This superplan is now the standalone deployment source of truth. The older Hetzner, GitHub Actions, and Sentry plan drafts have been removed after their relevant details were folded into this file.
