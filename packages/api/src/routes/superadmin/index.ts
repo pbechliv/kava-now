@@ -2,8 +2,8 @@ import { Hono } from "hono";
 import { eq, sql } from "drizzle-orm";
 import { registerSchema, paginationQuerySchema, API_ERROR_CODES } from "@kava-now/shared";
 import { db } from "../../db/connection";
-import { tenantMemberships, tenants, users } from "../../db/schema/index";
-import { auth } from "../../auth";
+import { tenants } from "../../db/schema/index";
+import { createTenantWithOwner } from "../../services/create-tenant";
 import { sendInviteSetPassword } from "../../services/invite-user";
 import { requireAuth } from "../../middleware/require-auth";
 import { requireSuperAdmin } from "../../middleware/require-superadmin";
@@ -61,6 +61,7 @@ superadmin.post("/tenants", async (c) => {
 
   const { name, slug, email, password } = parsed.data;
 
+  // Fast pre-check for a friendly 409; the unique index is the real guard.
   const [existingTenant] = await db
     .select({ id: tenants.id })
     .from(tenants)
@@ -71,55 +72,26 @@ superadmin.post("/tenants", async (c) => {
     return c.json(DUPLICATE_TENANT_SLUG_RESPONSE, 409);
   }
 
-  let tenant;
+  // Tenant + owner user + membership are created atomically — a failure can
+  // never leave an owner-less tenant.
+  let result;
   try {
-    [tenant] = await db.insert(tenants).values({ name, slug, email }).returning();
+    result = await createTenantWithOwner({ name, slug, email, password });
   } catch (err) {
     if (isUniqueViolation(err, UNIQUE_CONSTRAINTS.tenantSlug)) {
       return c.json(DUPLICATE_TENANT_SLUG_RESPONSE, 409);
     }
     throw err;
   }
-  if (!tenant) throw new Error("Tenant insert returned no row");
 
-  // Find or create the owner user.
-  const [existingUser] = await db
-    .select({ id: users.id })
-    .from(users)
-    .where(eq(users.email, email))
-    .limit(1);
-
-  let ownerUserId: string;
-  if (existingUser) {
-    ownerUserId = existingUser.id;
-  } else if (password) {
-    // Create the user via better-auth so they get a credential account.
-    await auth.api.signUpEmail({ body: { email, password, name } });
-    const [created] = await db
-      .select({ id: users.id })
-      .from(users)
-      .where(eq(users.email, email))
-      .limit(1);
-    if (!created) throw new Error("User insert returned no row");
-    ownerUserId = created.id;
-  } else {
-    // No password yet — create the user row, attach the membership, send invite.
-    const [created] = await db
-      .insert(users)
-      .values({ email, name, emailVerified: false })
-      .returning({ id: users.id });
-    if (!created) throw new Error("User insert returned no row");
-    ownerUserId = created.id;
-  }
-
-  await db.insert(tenantMemberships).values({
-    userId: ownerUserId,
-    tenantId: tenant.id,
-    role: "owner",
-  });
-
-  if (!existingUser && !password) {
-    await sendInviteSetPassword(c, email, slug);
+  // Brand-new owner without a password → send the set-password invite.
+  // Best-effort: the tenant/user/membership are already committed.
+  if (result.isNewUser && !password) {
+    try {
+      await sendInviteSetPassword(c, email, slug);
+    } catch (err) {
+      console.error("[superadmin] Failed to send owner invite email:", err);
+    }
   }
 
   return c.json({ success: true, slug, hasPassword: !!password });

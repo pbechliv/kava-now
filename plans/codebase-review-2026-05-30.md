@@ -6,9 +6,9 @@
 
 ## Summary
 
-The code is well-structured and the deployment plan is thorough. The advertised multi-tenant RLS layer was a no-op (**C1, now fixed and tested**); one concrete data-loss bug in tenant creation (**C2**) and a cart cross-tenant bleed (**C3**) remain.
+The code is well-structured and the deployment plan is thorough. The advertised multi-tenant RLS layer was a no-op (**C1, now fixed and tested**); the tenant-creation orphan bug (**C2, now fixed and tested**) is resolved; a cart cross-tenant bleed (**C3**) remains.
 
-- 🔴 **4 Critical** — **C1 fixed** (RLS now enforced, with tests); **C4 downgraded** (RLS now blocks the cross-tenant read it described); **C2, C3 open**.
+- 🔴 **4 Critical** — **C1 fixed** (RLS enforced, with tests); **C2 fixed** (atomic tenant creation, with tests); **C4 downgraded** (RLS now blocks the cross-tenant read it described); **C3 open**.
 - 🟠 **5 High** — still open.
 - 🟡 **9 Medium** — still open.
 - 🟢 **10 Low** — still open.
@@ -58,13 +58,19 @@ Also already addressed (pre-existing staged work, commit `9610619`): rate limite
 
 > Note: the superplan's own RLS verification step (§5) connects as `kavanow` and would surface this on first deploy — but no fix is planned.
 
-### C2. Creating a tenant *with a password* orphans the tenant
+### C2. Creating a tenant *with a password* orphans the tenant — ✅ FIXED
 
-**Location:** `packages/api/src/routes/superadmin/index.ts:97` (+ hook at `packages/api/src/auth/index.ts:52`).
+**Status:** Fixed on branch. Verified by `packages/api/src/services/create-tenant.test.ts` (4 tests, pass against a live DB): creating a tenant *with a password* now produces tenant + owner user + credential account + owner membership atomically (the exact case that previously threw); passwordless owners take the invite path; existing users are reused; and a duplicate slug rolls back with no second tenant and no orphan user.
 
-`POST /api/superadmin/tenants` with a `password` calls `auth.api.signUpEmail(...)`, but the invite-only `databaseHooks.user.create.before` hook unconditionally throws "Signup is disabled". The `tenants` row is already inserted (`:76`) with no surrounding transaction, so the request 500s and leaves a **tenant with no owner membership** that nobody can log into. CLAUDE.md explicitly says never call `signUpEmail`.
+**What was done:**
+- New `services/create-tenant.ts` — `createTenantWithOwner()` wraps tenant + owner user + (credential account, when a password is given) + owner membership in **one `db.transaction`**. The owner credential is inserted directly with `hashPassword` (the invite-only create hook blocks `signUpEmail`).
+- `routes/superadmin/index.ts` — the route calls the service, maps a duplicate-slug unique violation to 409, and sends the set-password invite (best-effort) only for a brand-new passwordless owner. Removed the `auth.api.signUpEmail` call and now-unused imports.
 
-**Fix:** insert the `users` + `accounts` credential rows directly with `hashPassword` (as the seed scripts do), and wrap tenant + user + membership creation in one `db.transaction`.
+---
+
+**Original finding (for reference):** `POST /api/superadmin/tenants` with a `password` called `auth.api.signUpEmail(...)`, but the invite-only `databaseHooks.user.create.before` hook unconditionally throws "Signup is disabled". The `tenants` row was already inserted with no surrounding transaction, so the request 500s and left a **tenant with no owner membership** that nobody could log into.
+
+**Fix applied:** insert the `users` + `accounts` credential rows directly with `hashPassword` (as the seed scripts do), wrapping tenant + user + membership creation in one `db.transaction`.
 
 ### C3. Cart bleeds across tenants
 
