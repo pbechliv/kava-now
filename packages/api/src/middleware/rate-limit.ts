@@ -47,8 +47,8 @@ export function rateLimit(config: {
 }) {
   return createMiddleware<AppEnv>(async (c, next) => {
     const ip =
-      c.req.header("x-forwarded-for")?.split(",")[0]?.trim() ||
       c.req.header("x-real-ip") ||
+      c.req.header("x-forwarded-for")?.split(",")[0]?.trim() ||
       "unknown";
     const now = Date.now();
 

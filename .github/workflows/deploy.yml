@@ -1,0 +1,91 @@
+name: Deploy
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      sha:
+        type: string
+        description: Optional SHA to deploy. Defaults to the workflow ref.
+
+concurrency:
+  group: deploy-prod
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  resolve:
+    runs-on: ubuntu-latest
+    outputs:
+      sha: ${{ steps.pick.outputs.sha }}
+    steps:
+      - id: pick
+        run: |
+          if [ -n "${{ inputs.sha }}" ]; then
+            echo "sha=${{ inputs.sha }}" >> "$GITHUB_OUTPUT"
+          else
+            echo "sha=${{ github.sha }}" >> "$GITHUB_OUTPUT"
+          fi
+
+  ci:
+    uses: ./.github/workflows/ci.yml
+
+  build:
+    needs: [resolve, ci]
+    uses: ./.github/workflows/build-images.yml
+    with:
+      sha: ${{ needs.resolve.outputs.sha }}
+    secrets:
+      SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
+      GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}
+      SENTRY_DSN_WEB: ${{ secrets.SENTRY_DSN_WEB }}
+
+  deploy:
+    needs: [resolve, build]
+    runs-on: ubuntu-latest
+    environment: production
+    env:
+      IMAGE_TAG: ${{ needs.resolve.outputs.sha }}
+      HETZNER_HOST: ${{ secrets.HETZNER_HOST }}
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ needs.resolve.outputs.sha }}
+
+      - name: Configure SSH
+        run: |
+          mkdir -p ~/.ssh
+          chmod 700 ~/.ssh
+          printf '%s\n' "${{ secrets.HETZNER_SSH_KEY }}" > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+          printf '%s\n' "${{ secrets.HETZNER_SSH_KNOWN_HOSTS }}" > ~/.ssh/known_hosts
+          chmod 644 ~/.ssh/known_hosts
+
+      - name: Copy compose + Caddyfile to VM
+        run: |
+          scp -i ~/.ssh/id_ed25519 \
+              docker-compose.yml Caddyfile \
+              deploy@"$HETZNER_HOST":/srv/kavanow/
+
+      - name: Pull, migrate, restart
+        run: |
+          ssh -i ~/.ssh/id_ed25519 deploy@"$HETZNER_HOST" \
+            "IMAGE_TAG='$IMAGE_TAG' bash -s" <<'EOF'
+          set -euo pipefail
+          cd /srv/kavanow
+          export IMAGE_TAG
+          docker compose --env-file .env.production --profile jobs pull
+          docker compose --env-file .env.production up -d postgres
+          docker compose --env-file .env.production --profile jobs run --rm api-jobs \
+            pnpm --filter @kava-now/api db:migrate
+          docker compose --env-file .env.production up -d api caddy
+          docker image prune -f
+          EOF
+
+  smoke:
+    needs: deploy
+    uses: ./.github/workflows/smoke-test.yml

@@ -1,0 +1,41 @@
+name: Smoke test
+
+on:
+  workflow_call:
+    inputs:
+      host:
+        type: string
+        default: kavanow.gr
+        description: Host to probe.
+
+permissions:
+  contents: read
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - name: API health
+        run: |
+          curl -fS --retry 10 --retry-delay 3 "https://${{ inputs.host }}/api/health"
+
+      - name: SPA root
+        run: |
+          curl -fS -o /dev/null "https://${{ inputs.host }}/"
+
+      - name: TLS expiry
+        run: |
+          set -euo pipefail
+          end=$(openssl s_client -servername "${{ inputs.host }}" \
+                  -connect "${{ inputs.host }}:443" </dev/null 2>/dev/null \
+                | openssl x509 -noout -enddate \
+                | cut -d= -f2)
+          echo "Certificate notAfter: $end"
+          end_epoch=$(date -u -d "$end" +%s)
+          now_epoch=$(date -u +%s)
+          days_left=$(( (end_epoch - now_epoch) / 86400 ))
+          echo "Days left: $days_left"
+          if [ "$days_left" -lt 7 ]; then
+            echo "::error::Certificate expires in less than 7 days." >&2
+            exit 1
+          fi

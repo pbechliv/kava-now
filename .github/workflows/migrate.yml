@@ -1,0 +1,41 @@
+name: Migrate database
+
+on:
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-prod
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  migrate:
+    runs-on: ubuntu-latest
+    environment: production
+    env:
+      HETZNER_HOST: ${{ secrets.HETZNER_HOST }}
+    steps:
+      - name: Configure SSH
+        run: |
+          mkdir -p ~/.ssh
+          chmod 700 ~/.ssh
+          printf '%s\n' "${{ secrets.HETZNER_SSH_KEY }}" > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+          printf '%s\n' "${{ secrets.HETZNER_SSH_KNOWN_HOSTS }}" > ~/.ssh/known_hosts
+          chmod 644 ~/.ssh/known_hosts
+
+      - name: Run migrations
+        run: |
+          {
+            echo "## Migration output"
+            echo '```'
+            ssh -i ~/.ssh/id_ed25519 deploy@"$HETZNER_HOST" <<'EOF'
+          set -euo pipefail
+          cd /srv/kavanow
+          docker compose --env-file .env.production --profile jobs run --rm api-jobs \
+            pnpm --filter @kava-now/api db:migrate
+          EOF
+            echo '```'
+          } | tee -a "$GITHUB_STEP_SUMMARY"

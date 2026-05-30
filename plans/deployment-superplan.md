@@ -422,9 +422,9 @@ infra/terraform/
   versions.tf       # hcloud + cloudflare provider pins + terraform cloud backend
   variables.tf      # vm_type=cx22, location=fsn1, domain=kavanow.gr, ssh_pub_key
   main.tf           # hcloud_ssh_key, hcloud_firewall, hcloud_server (cloud-init)
-  dns.tf            # cloudflare_record × 2 (A + AAAA apex, both proxied=true)
-  cache.tf          # cloudflare_ruleset × 2 (cache bypass /api/*, short-TTL SPA shell)
-                    # cloudflare_zone_settings_override (SSL mode = full strict, always HTTPS, min TLS 1.2)
+  dns.tf            # cloudflare_dns_record × 2 (A + AAAA apex, both proxied=true)
+  cache.tf          # cloudflare_ruleset (2 rules: cache bypass /api/*, short-TTL SPA shell)
+                    # cloudflare_zone_setting × 8 (SSL=strict, always HTTPS, min TLS 1.2, brotli, http3, early hints, …)
   cloud-init.yaml   # OS hardening + Docker + deploy user
   outputs.tf        # vm_ipv4, vm_ipv6
 ```
@@ -470,7 +470,7 @@ variable "location" {
 
 ```hcl
 terraform {
-  required_version = ">= 1.8.0"
+  required_version = ">= 1.15.0"
 
   cloud {
     organization = "kavanow"
@@ -482,11 +482,11 @@ terraform {
   required_providers {
     hcloud = {
       source  = "hetznercloud/hcloud"
-      version = "~> 1.50"
+      version = "~> 1.63"
     }
     cloudflare = {
       source  = "cloudflare/cloudflare"
-      version = "~> 4.52"
+      version = "~> 5.19"
     }
   }
 }
@@ -547,29 +547,29 @@ resource "hcloud_server" "kavanow" {
 }
 ```
 
-`dns.tf` snippet:
+`dns.tf` snippet (cloudflare provider v5 — `cloudflare_record` → `cloudflare_dns_record`, `value` → `content`):
 
 ```hcl
-resource "cloudflare_record" "apex_a" {
+resource "cloudflare_dns_record" "apex_a" {
   zone_id = var.cloudflare_zone_id
-  name    = "@"
+  name    = var.domain
   type    = "A"
-  value   = hcloud_server.kavanow.ipv4_address
+  content = hcloud_server.kavanow.ipv4_address
   proxied = true
   ttl     = 1   # required when proxied
 }
 
-resource "cloudflare_record" "apex_aaaa" {
+resource "cloudflare_dns_record" "apex_aaaa" {
   zone_id = var.cloudflare_zone_id
-  name    = "@"
+  name    = var.domain
   type    = "AAAA"
-  value   = hcloud_server.kavanow.ipv6_address
+  content = hcloud_server.kavanow.ipv6_address
   proxied = true
   ttl     = 1
 }
 ```
 
-`cache.tf` snippet (Cloudflare's new Cache Rules engine, free plan supports it):
+`cache.tf` snippet (Cloudflare provider v5 — `rules` is a list-of-objects, `cloudflare_zone_settings_override` removed in favor of one `cloudflare_zone_setting` per setting):
 
 ```hcl
 resource "cloudflare_ruleset" "cache_rules" {
@@ -578,41 +578,43 @@ resource "cloudflare_ruleset" "cache_rules" {
   kind    = "zone"
   phase   = "http_request_cache_settings"
 
-  rules {
-    description = "Bypass cache for /api/*"
-    expression  = "(starts_with(http.request.uri.path, \"/api/\"))"
-    action      = "set_cache_settings"
-    action_parameters {
-      cache = false
-    }
-  }
-
-  rules {
-    description = "Short edge TTL for SPA shell"
-    expression  = "(http.request.uri.path eq \"/\" or http.request.uri.path eq \"/index.html\")"
-    action      = "set_cache_settings"
-    action_parameters {
-      cache = true
-      edge_ttl { mode = "override_origin"; default = 60 }       # 60s
-      browser_ttl { mode = "override_origin"; default = 0 }     # respect our no-cache header
-    }
-  }
+  rules = [
+    {
+      description = "Bypass cache for /api/*"
+      expression  = "(starts_with(http.request.uri.path, \"/api/\"))"
+      action      = "set_cache_settings"
+      action_parameters = {
+        cache = false
+      }
+    },
+    {
+      description = "Short edge TTL for SPA shell"
+      expression  = "(http.request.uri.path eq \"/\" or http.request.uri.path eq \"/index.html\")"
+      action      = "set_cache_settings"
+      action_parameters = {
+        cache = true
+        edge_ttl = {
+          mode    = "override_origin"
+          default = 60   # 60s
+        }
+        browser_ttl = {
+          mode    = "override_origin"
+          default = 0    # respect our no-cache header
+        }
+      }
+    },
+  ]
 }
 
-resource "cloudflare_zone_settings_override" "kavanow" {
-  zone_id = var.cloudflare_zone_id
-  settings {
-    ssl                      = "strict"      # Full (strict)
-    always_use_https         = "on"
-    automatic_https_rewrites = "on"
-    min_tls_version          = "1.2"
-    opportunistic_encryption = "on"
-    brotli                   = "on"
-    http3                    = "on"
-    early_hints              = "on"
-    # Browser cache TTL for /assets/* is governed by our Cache-Control header.
-  }
+# One resource per setting in v5. Repeat for the eight settings we want:
+# ssl=strict, always_use_https, automatic_https_rewrites, min_tls_version=1.2,
+# opportunistic_encryption, brotli, http3, early_hints.
+resource "cloudflare_zone_setting" "ssl" {
+  zone_id    = var.cloudflare_zone_id
+  setting_id = "ssl"
+  value      = "strict"
 }
+# (Browser cache TTL for /assets/* is governed by our origin Cache-Control header.)
 ```
 
 The Origin CA cert is **not** in Terraform — it's a one-time hand-generated cert that lives in 1Password. Pasting it into Terraform's state would unnecessarily expose the private key to TFC. The cert gets onto the VM via `scripts/bootstrap-vm.sh` (manual paste step in §5).
@@ -700,7 +702,7 @@ concurrency:
   cancel-in-progress: false
 ```
 
-This prevents deploy, migrate, and rollback from interleaving.
+This prevents deploy and migrate from interleaving.
 
 | Workflow             | Trigger                            | Purpose                                          | Env gate         |
 | -------------------- | ---------------------------------- | ------------------------------------------------ | ---------------- |
@@ -709,7 +711,6 @@ This prevents deploy, migrate, and rollback from interleaving.
 | `provision.yml`      | manual                             | `terraform plan` / `apply`                       | `infrastructure` |
 | `deploy.yml`         | push to `main` + manual            | calls build-images, scp compose+Caddyfile, ssh `--profile jobs pull` + `api-jobs` migrate + app up, smoke test | `production` |
 | `migrate.yml`        | manual                             | runs `pnpm db:migrate` through `api-jobs` on VM without rebuilding | `production`     |
-| `rollback.yml`       | manual (input: sha)                | deploys a prior tag; no migrations               | `production`     |
 | `smoke-test.yml`     | `workflow_call`                    | curl `/api/health`, `/`, TLS expiry check       | none             |
 
 Repo secrets to populate (Settings → Secrets and variables → Actions):
@@ -742,7 +743,7 @@ SENTRY_PROJECT_WEB=kavanow-web
 
 - Trigger: `pull_request` to `main`, plus `push` to non-`main` branches.
 - Permissions: `contents: read`.
-- Steps: checkout → `pnpm/action-setup@v4` with pnpm 11 → `actions/setup-node@v4` using `.node-version` and `cache: pnpm` → `pnpm install --frozen-lockfile` → `pnpm typecheck` → `pnpm lint` → `pnpm fmt:check` → `pnpm build`.
+- Steps: checkout → `pnpm/action-setup@v6` with pnpm 11 → `actions/setup-node@v6` using `.node-version` and `cache: pnpm` → `pnpm install --frozen-lockfile` → `pnpm typecheck` → `pnpm lint` → `pnpm fmt:check` → `pnpm build`.
 - No deploy and no secrets.
 
 ### 4.2 `build-images.yml`
@@ -761,7 +762,7 @@ SENTRY_PROJECT_WEB=kavanow-web
 
 - Trigger: `workflow_dispatch` with required input `action` (`plan` or `apply`).
 - Environment: `infrastructure`.
-- Steps: checkout → `hashicorp/setup-terraform@v3` → export `HCLOUD_TOKEN`, `CLOUDFLARE_API_TOKEN`, `TF_TOKEN_app_terraform_io` → `terraform init` → `terraform plan -out=tfplan` → if `action=apply`, run `terraform apply tfplan`.
+- Steps: checkout → `hashicorp/setup-terraform@v4` → export `HCLOUD_TOKEN`, `CLOUDFLARE_API_TOKEN`, `TF_TOKEN_app_terraform_io` → `terraform init` → `terraform plan -out=tfplan` → if `action=apply`, run `terraform apply tfplan`.
 - Outputs `vm_ipv4` and `vm_ipv6` in the job summary. Paste `vm_ipv4` into `HETZNER_HOST` if the workflow does not set it automatically.
 
 ### 4.4 `deploy.yml`
@@ -800,22 +801,7 @@ Migrations run before the API/Caddy swap. If migration fails, the currently runn
   ```
 - Capture stdout in the Actions job summary so migration history is auditable.
 
-### 4.6 `rollback.yml`
-
-- Trigger: `workflow_dispatch` with required `sha`.
-- Environment: `production`.
-- Pre-check both runtime image tags exist with `docker manifest inspect`.
-- SSH and run:
-  ```bash
-  cd /srv/kavanow
-  export IMAGE_TAG=<sha>
-  docker compose --env-file .env.production pull api caddy
-  docker compose --env-file .env.production up -d api caddy
-  ```
-- Do **not** run migrations. The job summary must say: "Database schema remains at the current production version; if the old image is schema-incompatible, restore a Hetzner snapshot instead."
-- Call `smoke-test.yml`.
-
-### 4.7 `smoke-test.yml`
+### 4.6 `smoke-test.yml`
 
 - Trigger: `workflow_call`.
 - Input: `host`, default `kavanow.gr`.
@@ -850,7 +836,7 @@ Migrations run before the API/Caddy swap. If migration fails, the currently runn
 
 ### Day 3 — First deploy + verify (~2-3 h)
 
-7. Write `deploy.yml`, `migrate.yml`, `rollback.yml`. Push to main → `deploy.yml` fires.
+7. Write `deploy.yml` and `migrate.yml`. Push to main → `deploy.yml` fires.
 8. Watch images build, get pushed to GHCR, VM pulls, `api-jobs` runs migrations, app starts, smoke test passes.
 9. Seed the initial superadmin once, after the first successful migration and before login verification:
    ```bash
@@ -970,9 +956,9 @@ Tenant-scoped tables should return rows only when `app.current_tenant_id` is set
 
 ### Rollback
 
-Prefer `rollback.yml` for image-only regressions. It redeploys a prior SHA without running migrations.
+No dedicated rollback workflow exists yet — re-trigger `deploy.yml` with `workflow_dispatch` and a prior SHA to redeploy old `api`/`caddy` images. This still runs migrations against the live DB, so it's only safe when the prior SHA's schema is identical to (or a strict superset of) the current one.
 
-Use a Hetzner snapshot restore for schema/data breakage. A code rollback does not roll back database migrations.
+For schema or data breakage, restore a Hetzner snapshot from the Hetzner Console. A code rollback does not roll back database migrations.
 
 ### Manual OS maintenance
 
@@ -1078,7 +1064,7 @@ These are the ones that come from the GH-Actions-driven flow specifically:
 | Risk                                                       | Mitigation                                                                                              |
 | ---------------------------------------------------------- | ------------------------------------------------------------------------------------------------------- |
 | Terraform state drift if you edit the VM in Hetzner Console | Quarterly `terraform plan` reminder; treat drift as a bug; keep human-only resources documented. |
-| Schema-incompatible rollback                                | `rollback.yml` does **not** revert migrations and surfaces this in the job summary. Escape hatch: restore a pre-deploy Hetzner snapshot. |
+| Schema-incompatible rollback                                | No automated rollback yet — re-running `deploy.yml` at a prior SHA still runs migrations. Escape hatch: restore a pre-deploy Hetzner snapshot. |
 | Hetzner-only backups share the provider/account blast radius | Accept for launch; enable Hetzner 2FA and run quarterly restore drills. Add offsite encrypted backups once customers/revenue justify it. |
 | Snapshot retention is only 7 days                           | Add calendar reminders for restore drills and take manual snapshots before risky migrations.             |
 | `.gr` domain renewal lapses                                 | Auto-renew at Papaki + calendar reminder 60 days before expiry.                                         |
