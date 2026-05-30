@@ -47,7 +47,11 @@ async function main() {
       password: await hashPassword(SUPERADMIN_PASSWORD),
     });
   }
-  console.log(`Superadmin: ${SUPERADMIN_EMAIL} / ${SUPERADMIN_PASSWORD}`);
+  if (process.env.NODE_ENV !== "production") {
+    console.log(`Superadmin: ${SUPERADMIN_EMAIL} / ${SUPERADMIN_PASSWORD}`);
+  } else {
+    console.log(`Superadmin seeded: ${SUPERADMIN_EMAIL}`);
+  }
 
   if (process.env.SEED_DEMO !== "false") {
     await seedDemoTenant(db);

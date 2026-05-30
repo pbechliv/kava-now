@@ -127,6 +127,8 @@ function useInvalidateOrder(orderId: string) {
   return () => {
     void qc.invalidateQueries({ queryKey: ["admin", slug, "orders"] });
     void qc.invalidateQueries({ queryKey: ["admin", slug, "orders", orderId] });
+    // Item edits change totals/counts surfaced by the dashboard.
+    void qc.invalidateQueries({ queryKey: ["admin", slug, "dashboard"] });
   };
 }
 

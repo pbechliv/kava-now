@@ -1,5 +1,8 @@
 node_modules/
 dist/
+# Stale frontend build outputs (web builds to dist/; these are SvelteKit leftovers)
+build/
+.svelte-kit/
 .env
 .env.local
 .env.production

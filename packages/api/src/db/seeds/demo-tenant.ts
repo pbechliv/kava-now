@@ -397,7 +397,9 @@ export async function seedDemoTenant(db: PostgresJsDatabase): Promise<void> {
 
   console.log(
     `Demo tenant seeded: tenant "${DEMO_SLUG}" + ${DEMO_CUSTOMERS.length} customers + ${DEMO_ORDERS.length} orders. ` +
-      `Owner: the superadmin (use /admin to switch into /k/${DEMO_SLUG}). ` +
-      `Customer login: ${customerEmail} / ${customerPassword} at localhost:3200/k/${DEMO_SLUG}/login`,
+      `Owner: the superadmin (use /admin to switch into /k/${DEMO_SLUG}).` +
+      (process.env.NODE_ENV !== "production"
+        ? ` Customer login: ${customerEmail} / ${customerPassword} at localhost:3200/k/${DEMO_SLUG}/login`
+        : ""),
   );
 }

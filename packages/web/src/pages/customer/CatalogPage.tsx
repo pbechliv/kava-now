@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useRef, useState, useMemo } from "react";
 import { Minus, Plus } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -35,10 +35,13 @@ export function CatalogPage() {
   }
 
   const addItem = useCartStore((s) => s.addItem);
+  const searchTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
 
   useEffect(() => {
     setPage(1);
   }, [selectedCategory, debouncedSearch]);
+
+  useEffect(() => () => clearTimeout(searchTimer.current), []);
 
   const { data, isLoading } = useCatalog({
     categoryId: selectedCategory || undefined,
@@ -63,13 +66,10 @@ export function CatalogPage() {
 
   const handleSearchChange = (value: string) => {
     setSearch(value);
-    clearTimeout(
-      (window as unknown as Record<string, ReturnType<typeof setTimeout>>).__catalogSearchTimer,
-    );
-    (window as unknown as Record<string, ReturnType<typeof setTimeout>>).__catalogSearchTimer =
-      setTimeout(() => {
-        setDebouncedSearch(value);
-      }, 300);
+    clearTimeout(searchTimer.current);
+    searchTimer.current = setTimeout(() => {
+      setDebouncedSearch(value);
+    }, 300);
   };
 
   const getQty = (productId: string) => quantities[productId] ?? 1;

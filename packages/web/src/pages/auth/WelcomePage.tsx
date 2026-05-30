@@ -25,6 +25,7 @@ export function WelcomePage() {
   const [error, setError] = useState("");
 
   const loginPath = slug ? `/k/${slug}/login` : "/login";
+  const homePath = slug ? `/k/${slug}` : "/";
 
   const { data: tenantInfo } = useQuery({
     queryKey: ["tenant-info", slug],
@@ -70,11 +71,9 @@ export function WelcomePage() {
           <CheckCircle2 className="h-6 w-6 text-primary" />
         </div>
         <h2 className="text-lg font-semibold">Ο κωδικός ορίστηκε</h2>
-        <p className="mt-2 text-sm text-muted-foreground">
-          Μπορείτε τώρα να συνδεθείτε με το email και τον κωδικό σας.
-        </p>
-        <Button className="mt-6" onClick={() => void navigate(loginPath, { replace: true })}>
-          Σύνδεση
+        <p className="mt-2 text-sm text-muted-foreground">Ο λογαριασμός σας είναι έτοιμος.</p>
+        <Button className="mt-6" onClick={() => void navigate(homePath, { replace: true })}>
+          Συνέχεια
         </Button>
       </div>
     );
