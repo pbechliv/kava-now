@@ -12,7 +12,7 @@
     "test:watch": "vp test"
   },
   "dependencies": {
-    "@hookform/resolvers": "^5.2.2",
+    "@hookform/resolvers": "^5.4.0",
     "@kava-now/shared": "workspace:*",
     "@react-oauth/google": "^0.13.5",
     "@sentry/react": "^10.53.1",
