@@ -6,9 +6,9 @@
 
 ## Summary
 
-The code is well-structured and the deployment plan is thorough. The advertised multi-tenant RLS layer was a no-op (**C1, now fixed and tested**); the tenant-creation orphan bug (**C2, now fixed and tested**) is resolved; a cart cross-tenant bleed (**C3**) remains.
+The code is well-structured and the deployment plan is thorough. **All four Critical findings are now resolved:** RLS tenant isolation (**C1**), the tenant-creation orphan bug (**C2**), and the cart cross-tenant bleed (**C3**) are fixed and covered by tests; **C4** is closed by the C1 fix. Remaining work is the High/Medium/Low backlog below.
 
-- 🔴 **4 Critical** — **C1 fixed** (RLS enforced, with tests); **C2 fixed** (atomic tenant creation, with tests); **C4 downgraded** (RLS now blocks the cross-tenant read it described); **C3 open**.
+- 🔴 **4 Critical — all resolved.** C1 (RLS enforced) + C2 (atomic tenant creation) + C3 (tenant-scoped cart) fixed with tests; C4 closed by C1.
 - 🟠 **5 High** — still open.
 - 🟡 **9 Medium** — still open.
 - 🟢 **10 Low** — still open.
@@ -72,13 +72,18 @@ Also already addressed (pre-existing staged work, commit `9610619`): rate limite
 
 **Fix applied:** insert the `users` + `accounts` credential rows directly with `hashPassword` (as the seed scripts do), wrapping tenant + user + membership creation in one `db.transaction`.
 
-### C3. Cart bleeds across tenants
+### C3. Cart bleeds across tenants — ✅ FIXED
 
-**Locations:** `packages/web/src/lib/store/cart.ts`, wired in `CatalogPage.tsx` / `CartPage.tsx`, badge in `CustomerLayout.tsx`.
+**Status:** Fixed on branch. Verified by `packages/web/src/lib/store/cart.test.ts`: adding to tenant A's cart, switching to tenant B (which starts empty, not A's items), then returning to A restores A's cart intact with B's item absent; persistence uses tenant-scoped keys. The "B starts empty" assertion fails under the old code, so it's a real regression guard.
 
-The `persist` middleware hydrates synchronously at module load when the slug is empty (unscoped key `kavanow-cart`); `setCartSlug(slug)` is called later during render and **no `rehydrate()` ever fires**. A user in two tenants sees one tenant's cart items — with the wrong prices/product IDs — under another, and can submit them.
+**What was done:**
+- `lib/store/cart.ts` — `skipHydration: true` (no auto-hydrate at module load from the unscoped `kavanow-cart` key); replaced `setCartSlug` with `activateCartForSlug(slug)`, which points storage at the tenant key and either `rehydrate()`s the stored cart or resets to empty when the tenant has none.
+- `CustomerLayout.tsx` — calls `activateCartForSlug(slug)` in a single `useEffect([slug])` (one source of slug wiring for the whole customer subtree).
+- `CatalogPage.tsx` / `CartPage.tsx` — removed the in-render `setCartSlug` side effect (and now-unused `useAuth`).
 
-**Fix:** set the slug before hydration and force a rehydrate on slug change from `CustomerLayout` (e.g. `skipHydration: true` + `persist.setOptions` + `persist.rehydrate()` in a `useEffect([slug])`), or key the whole store by slug. Single source the slug wiring in the layout, not per-page in render.
+---
+
+**Original finding (for reference):** the `persist` middleware hydrated synchronously at module load when the slug was empty (unscoped key `kavanow-cart`); `setCartSlug(slug)` was called later during render and **no `rehydrate()` ever fired**. A user in two tenants saw one tenant's cart items — with the wrong prices/product IDs — under another, and could submit them.
 
 ### C4. Customer reads rely solely on RLS (no app-level `tenantId` filter) — ⬇️ DOWNGRADED (mitigated by C1 fix)
 

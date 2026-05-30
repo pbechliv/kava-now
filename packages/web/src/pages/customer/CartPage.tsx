@@ -16,22 +16,16 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { EmptyState } from "@/components/empty-state";
-import { useCartStore, setCartSlug } from "@/lib/store/cart";
+import { useCartStore } from "@/lib/store/cart";
 import { useCreateOrder } from "@/lib/hooks/use-customer-orders";
-import { useAuth } from "@/lib/hooks/use-auth";
 import { UNIT_LABELS } from "@kava-now/shared";
 
 export function CartPage() {
-  const { tenant } = useAuth();
   const navigate = useNavigate();
   const slug = useTenantSlug();
   const base = `/k/${slug}`;
   const [notes, setNotes] = useState("");
   const [confirming, setConfirming] = useState(false);
-
-  if (tenant?.slug) {
-    setCartSlug(tenant.slug);
-  }
 
   const items = useCartStore((s) => s.items);
   const updateQuantity = useCartStore((s) => s.updateQuantity);

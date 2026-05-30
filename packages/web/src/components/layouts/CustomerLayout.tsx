@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { NavLink, Outlet, Link, useParams } from "react-router";
 import { LogOut, ShoppingBag, ShoppingCart, ScrollText, UserRound } from "lucide-react";
 import { useAuth } from "@/lib/hooks/use-auth";
@@ -28,7 +29,7 @@ import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
-import { useCartStore } from "@/lib/store/cart";
+import { useCartStore, activateCartForSlug } from "@/lib/store/cart";
 import { TenantSwitcher } from "@/components/TenantSwitcher";
 
 function initials(name: string | null | undefined) {
@@ -46,6 +47,13 @@ export function CustomerLayout() {
   const logout = useLogout();
   const { slug } = useParams<{ slug: string }>();
   const base = `/k/${slug}`;
+
+  // Load this tenant's cart (and reset on tenant switch) — single source of
+  // cart-slug wiring, so carts never bleed across tenants.
+  useEffect(() => {
+    if (slug) void activateCartForSlug(slug);
+  }, [slug]);
+
   const cartCount = useCartStore((s) =>
     Object.values(s.items).reduce((sum, item) => sum + item.quantity, 0),
   );

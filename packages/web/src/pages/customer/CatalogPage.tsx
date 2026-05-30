@@ -15,24 +15,18 @@ import {
 import { cn } from "@/lib/utils";
 import { PaginationControls } from "@/components/PaginationControls";
 import { useCatalog } from "@/lib/hooks/use-catalog";
-import { useCartStore, setCartSlug } from "@/lib/store/cart";
-import { useAuth } from "@/lib/hooks/use-auth";
+import { useCartStore } from "@/lib/store/cart";
 import { UNIT_LABELS } from "@kava-now/shared";
 import type { CatalogProduct } from "@/lib/store/cart";
 
 const PAGE_SIZE = 50;
 
 export function CatalogPage() {
-  const { tenant } = useAuth();
   const [selectedCategory, setSelectedCategory] = useState<string>("");
   const [search, setSearch] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [quantities, setQuantities] = useState<Record<string, number>>({});
   const [page, setPage] = useState(1);
-
-  if (tenant?.slug) {
-    setCartSlug(tenant.slug);
-  }
 
   const addItem = useCartStore((s) => s.addItem);
   const searchTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
