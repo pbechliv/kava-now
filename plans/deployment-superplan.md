@@ -136,6 +136,7 @@ Save the private key to 1Password.
 
 ```bash
 openssl rand -base64 32   # → POSTGRES_PASSWORD
+openssl rand -base64 32   # → APP_DB_PASSWORD  (NOSUPERUSER app role; required for RLS)
 openssl rand -hex 32      # → COOKIE_SECRET
 openssl rand -hex 32      # → BETTER_AUTH_SECRET
 ```
@@ -264,7 +265,12 @@ POSTGRES_USER=kavanow
 # Generate with: openssl rand -base64 32
 POSTGRES_PASSWORD=
 POSTGRES_DB=kavanow
+# Privileged connection — migrations/seeds only.
 DATABASE_URL=postgres://kavanow:REPLACE@postgres:5432/kavanow
+# Password for the NOSUPERUSER kavanow_app role the running server connects as.
+# REQUIRED — without it RLS is not enforced. db:migrate provisions the role.
+# Generate with: openssl rand -base64 32
+APP_DB_PASSWORD=
 
 # App
 NODE_ENV=production
@@ -727,7 +733,7 @@ RESEND_API_KEY                # passed into VM .env.production
 SENTRY_AUTH_TOKEN             # build-images.yml (sourcemap upload)
 SENTRY_DSN_API + SENTRY_DSN_WEB
 SUPERADMIN_EMAIL + SUPERADMIN_PASSWORD  # piped into seed
-POSTGRES_PASSWORD + COOKIE_SECRET + BETTER_AUTH_SECRET
+POSTGRES_PASSWORD + APP_DB_PASSWORD + COOKIE_SECRET + BETTER_AUTH_SECRET
 GOOGLE_CLIENT_ID + GOOGLE_CLIENT_SECRET  # optional; only if §1.7 was done
 ```
 
@@ -856,15 +862,22 @@ Migrations run before the API/Caddy swap. If migration fails, the currently runn
     - Click invite link → lands on `/k/demo/welcome` → set password → log in → see admin dashboard
     - **Rate-limit + real IP check:** hammer `/api/auth/sign-in` 20× from your laptop → expect 429s. Check API logs to confirm the logged IP is your real public IP, not a Cloudflare range.
     - From a second browser, log in as a different superadmin or invite — confirm tenant isolation
-    - RLS test in psql:
+    - RLS test in psql — **connect as the `kavanow_app` role** (a superuser bypasses RLS),
+      and set the variable transaction-locally (as the app does):
       ```sql
-      SELECT set_config('app.current_tenant_id', '<tenant-a-uuid>', false);
-      SELECT count(*) FROM products; -- should show only tenant A rows
-      SELECT set_config('app.current_tenant_id', '<tenant-b-uuid>', false);
-      SELECT count(*) FROM products; -- should show only tenant B rows
-      SELECT set_config('app.current_tenant_id', '', false);
-      SELECT count(*) FROM products; -- should show zero tenant-scoped rows
+      -- docker compose exec postgres psql "postgres://kavanow_app:<APP_DB_PASSWORD>@localhost/kavanow"
+      begin;
+        select set_config('app.current_tenant_id', '<tenant-a-uuid>', true);
+        select count(*) from products; -- only tenant A rows
+      commit;
+      begin;
+        select set_config('app.current_tenant_id', '<tenant-b-uuid>', true);
+        select count(*) from products; -- only tenant B rows
+      commit;
+      select count(*) from products; -- 0 rows (no tenant context → fail-safe)
       ```
+      As the bootstrap `kavanow` superuser these would all return every row — that
+      RLS bypass is exactly what C1 fixed.
     - From local machine: `nc -zv <vm_ip> 5432` → refused
     - `ssh root@<vm_ip>` → refused
     - `curl -I https://kavanow.gr | grep -i strict-transport-security` → present
@@ -943,13 +956,19 @@ SELECT count(*) FROM tenant_memberships;
 
 ### RLS debugging
 
-```sql
-SELECT set_config('app.current_tenant_id', '<tenant-uuid>', false);
-SELECT count(*) FROM products;
-SELECT count(*) FROM orders;
+Connect as the `kavanow_app` role (a superuser bypasses RLS) and set the
+variable transaction-locally, the way the app does:
 
-SELECT set_config('app.current_tenant_id', '', false);
-SELECT count(*) FROM products;
+```sql
+-- docker compose exec postgres psql "postgres://kavanow_app:<APP_DB_PASSWORD>@localhost/kavanow"
+begin;
+  select set_config('app.current_tenant_id', '<tenant-uuid>', true);
+  select count(*) from products;
+  select count(*) from orders;
+commit;
+
+-- no tenant context → fail-safe (zero tenant-scoped rows, no error)
+select count(*) from products;
 ```
 
 Tenant-scoped tables should return rows only when `app.current_tenant_id` is set to a matching tenant. Global tables like `tenants`, `users`, and `tenant_memberships` are scoped in application code, not by RLS.

@@ -30,7 +30,10 @@ services:
         condition: service_healthy
     environment:
       NODE_ENV: production
-      DATABASE_URL: postgres://${POSTGRES_USER:-kavanow}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-kavanow}
+      # The running server connects as the NOSUPERUSER app role so Row-Level
+      # Security is enforced — a Postgres superuser bypasses RLS. The role is
+      # provisioned by db:migrate (api-jobs) using APP_DB_PASSWORD.
+      APP_DATABASE_URL: postgres://${APP_DB_ROLE:-kavanow_app}:${APP_DB_PASSWORD:?Set APP_DB_PASSWORD in .env.production}@postgres:5432/${POSTGRES_DB:-kavanow}
       API_PORT: 3000
     env_file:
       - ${KAVANOW_ENV_FILE:-.env.production}
@@ -54,7 +57,10 @@ services:
         condition: service_healthy
     environment:
       NODE_ENV: production
+      # Privileged connection for migrations/seeds. db:migrate also provisions
+      # the NOSUPERUSER kavanow_app role (used by the api service) with APP_DB_PASSWORD.
       DATABASE_URL: postgres://${POSTGRES_USER:-kavanow}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-kavanow}
+      APP_DB_PASSWORD: ${APP_DB_PASSWORD:?Set APP_DB_PASSWORD in .env.production}
     env_file:
       - ${KAVANOW_ENV_FILE:-.env.production}
     networks:

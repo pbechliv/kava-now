@@ -2,8 +2,17 @@ import "./load-env";
 
 const isDev = process.env.NODE_ENV !== "production";
 
+const databaseUrl =
+  process.env.DATABASE_URL || "postgresql://postgres:postgres@localhost:5432/kavanow";
+
 export const config = {
-  databaseUrl: process.env.DATABASE_URL || "postgresql://postgres:postgres@localhost:5432/kavanow",
+  // Privileged connection — used by migrations/seeds (owns the schema, can
+  // create roles). NOT used by the running server.
+  databaseUrl,
+  // Connection the running server uses. Should point at the NOSUPERUSER
+  // `kavanow_app` role so RLS is enforced. Falls back to the privileged URL in
+  // dev (RLS bypassed); production must set APP_DATABASE_URL.
+  appDatabaseUrl: process.env.APP_DATABASE_URL || databaseUrl,
   // Canonical origin of the running app — used for absolute URLs in outbound
   // email (invites, password resets, order notifications) and as better-auth's
   // baseURL / trustedOrigins. Single-host now that tenants live in URL paths.

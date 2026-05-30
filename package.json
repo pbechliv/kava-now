@@ -12,6 +12,7 @@
     "fmt": "vp fmt --write packages/",
     "fmt:check": "vp fmt --check packages/",
     "typecheck": "pnpm -r typecheck",
+    "test": "pnpm -r --if-present test",
     "db:migrate": "pnpm --filter @kava-now/api db:migrate",
     "db:seed": "pnpm --filter @kava-now/api db:seed",
     "db:generate": "pnpm --filter @kava-now/api db:generate",
