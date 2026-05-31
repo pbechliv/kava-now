@@ -16,14 +16,14 @@
     "email:dev": "email dev --dir src/emails --port 3001"
   },
   "dependencies": {
-    "@hono/node-server": "^2.0.2",
+    "@hono/node-server": "^2.0.4",
     "@kava-now/shared": "workspace:*",
     "@react-email/components": "^1.0.12",
     "@react-email/render": "^2.0.8",
     "@sentry/node": "^10.53.1",
     "better-auth": "^1.6.11",
     "drizzle-orm": "^0.45.2",
-    "hono": "^4.12.18",
+    "hono": "^4.12.23",
     "nodemailer": "^8.0.7",
     "postgres": "^3.4.9",
     "react": "^19.2.0",
@@ -33,7 +33,7 @@
   },
   "devDependencies": {
     "@hono/vite-build": "^1.11.1",
-    "@hono/vite-dev-server": "^0.25.3",
+    "@hono/vite-dev-server": "^0.26.0",
     "@types/node": "^25.8.0",
     "@types/nodemailer": "^8.0.0",
     "@types/react": "^19.2.15",
