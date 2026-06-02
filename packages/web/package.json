@@ -17,7 +17,7 @@
     "@react-oauth/google": "^0.13.5",
     "@sentry/react": "^10.56.0",
     "@tanstack/react-query": "^5.100.14",
-    "better-auth": "^1.6.11",
+    "better-auth": "^1.6.13",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "lucide-react": "^1.17.0",
