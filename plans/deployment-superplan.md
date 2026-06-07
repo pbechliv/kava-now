@@ -252,7 +252,7 @@ No Caddy plugins needed (stock `caddy:2-alpine`). No ACME on the origin — the 
 
 ### 2.1.1 Mount the Origin CA cert into Caddy
 
-Update `docker-compose.yml`'s `caddy` service to mount the cert files (which sit on the VM at `/etc/kavanow/tls/origin.{pem,key}` — created by `scripts/bootstrap-vm.sh`):
+Update `docker-compose.yml`'s `caddy` service to mount the cert files (which sit on the VM at `/etc/kavanow/tls/origin.{pem,key}` — written by the `bootstrap` job in `provision.yml`):
 
 ```yaml
 caddy:
@@ -640,7 +640,7 @@ resource "cloudflare_zone_setting" "ssl" {
 # (Browser cache TTL for /assets/* is governed by our origin Cache-Control header.)
 ```
 
-The Origin CA cert is **not** in Terraform — it's a one-time hand-generated cert that lives in 1Password. Pasting it into Terraform's state would unnecessarily expose the private key to TFC. The cert gets onto the VM via `scripts/bootstrap-vm.sh` (manual paste step in §5).
+The Origin CA cert is **not** in Terraform — it's a one-time hand-generated cert that lives in 1Password (master) and GitHub Secrets (`CF_ORIGIN_CERT`/`CF_ORIGIN_KEY`). Pasting it into Terraform's state would additionally expose the private key to TFC. The cert gets onto the VM via the `bootstrap` job in `provision.yml` (§3.3).
 
 `cloud-init.yaml` should encode the manual hardening so a replacement VM is reproducible:
 
@@ -700,14 +700,17 @@ ssh deploy@<vm_ip> 'sudo fail2ban-client status sshd'
 
 SSH is open to the world on day 1 to avoid locking yourself out. Once your access pattern is stable, optionally restrict port 22 to your home/office IP in the Hetzner firewall.
 
-### 3.3 `scripts/bootstrap-vm.sh`
+### 3.3 VM bootstrap (the `bootstrap` job in `provision.yml`)
 
-Terraform/cloud-init gets the box to a secure Docker host. `scripts/bootstrap-vm.sh` handles the post-provision secrets and operational files that should not live in Terraform state:
+Terraform/cloud-init gets the box to a secure Docker host. The `bootstrap` job in `provision.yml` handles the post-provision secrets and operational files that deliberately stay out of Terraform state. It runs automatically after `action=apply`, or standalone via `action=bootstrap` (idempotent — re-run after rotating any secret):
 
-- Log in to GHCR as `deploy` using `GHCR_VM_PAT`.
-- Create `/srv/kavanow`, `/etc/kavanow/tls`, and `/var/log/kavanow`.
-- Prompt/manual step: paste Cloudflare Origin CA files to `/etc/kavanow/tls/origin.pem` and `/etc/kavanow/tls/origin.key`; set `chmod 644 origin.pem`, `chmod 600 origin.key`, owner `root:root`.
-- Create `/srv/kavanow/.env.production` from password-manager values. Do not echo secrets through shell history.
+- Waits for SSH + `cloud-init status --wait` (so it works in the same run that created the VM).
+- Logs the VM into GHCR using `GHCR_VM_PAT`.
+- Writes `/etc/kavanow/tls/origin.{pem,key}` from `CF_ORIGIN_CERT`/`CF_ORIGIN_KEY` (`644`/`600`, `root:root`) and validates the pair match via pubkey comparison.
+- Generates `/srv/kavanow/.env.production` (`600`) from GitHub Secrets. Single source of truth: rotate in GitHub Secrets (mirrored in 1Password), re-run `action=bootstrap`, then `deploy.yml`.
+- Reads the VM IP from `terraform output` directly — no dependency on `HETZNER_HOST`, so a from-scratch DR rebuild is one `action=apply` run.
+
+Trade-off (accepted): all runtime secrets now live in GitHub Secrets as well as 1Password. Anyone with repo admin or a compromised Action could read them; in exchange, VM bootstrap is fully reproducible with zero manual steps.
 
 Confirm Hetzner backups are enabled after provision: Hetzner Console → `kavanow-prod` → Backups should show backups enabled. After the first night, it should list a snapshot from the last 24 hours.
 
@@ -731,7 +734,7 @@ This prevents deploy and migrate from interleaving.
 | ------------------ | ----------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------- | ---------------- |
 | `ci.yml`           | PR + non-main push      | typecheck, lint, fmt:check, build                                                                                                               | none             |
 | `build-images.yml` | `workflow_call`         | Build + push `kava-now-api`, `kava-now-api-jobs`, and `kava-now-caddy` to GHCR with `<sha>` + `latest` tags. Sourcemap upload to Sentry inline. | none             |
-| `provision.yml`    | manual                  | `terraform plan` / `apply`                                                                                                                      | `infrastructure` |
+| `provision.yml`    | manual                  | `terraform plan` / `apply` + VM bootstrap job (GHCR login, TLS cert, `.env.production`)                                                         | `infrastructure` |
 | `deploy.yml`       | push to `main` + manual | calls build-images, scp compose+Caddyfile, ssh `--profile jobs pull` + `api-jobs` migrate + app up, smoke test                                  | `production`     |
 | `migrate.yml`      | manual                  | runs `pnpm db:migrate` through `api-jobs` on VM without rebuilding                                                                              | `production`     |
 | `smoke-test.yml`   | `workflow_call`         | curl `/api/health`, `/`, TLS expiry check                                                                                                       | none             |
@@ -754,7 +757,20 @@ SENTRY_DSN_WEB                # build-images.yml — baked into the web build
 GOOGLE_CLIENT_ID              # build-images.yml — baked into the web build (optional, §1.7)
 ```
 
-**Not** GitHub secrets — these live only in the VM's `.env.production` (pasted during `bootstrap-vm.sh`, sourced from 1Password): `POSTGRES_PASSWORD`, `APP_DB_PASSWORD`, `BETTER_AUTH_SECRET`, `RESEND_API_KEY`, `SENTRY_DSN_API`, `SUPERADMIN_EMAIL`/`SUPERADMIN_PASSWORD`, `GOOGLE_CLIENT_SECRET`. `GHCR_VM_PAT` (PAT with `read:packages`) is typed interactively into `bootstrap-vm.sh` for the VM's `docker login` — keep it in 1Password.
+Additional secrets consumed by the `bootstrap` job in `provision.yml` (it generates the VM's `.env.production` and TLS files from these; 1Password stays the master copy):
+
+```
+CF_ORIGIN_CERT                # Cloudflare Origin CA certificate (full PEM)
+CF_ORIGIN_KEY                 # Cloudflare Origin CA private key (full PEM)
+GHCR_VM_PAT                   # PAT with read:packages — VM's docker login
+POSTGRES_PASSWORD             # hex (URL-embedded)
+APP_DB_PASSWORD               # hex (URL-embedded)
+BETTER_AUTH_SECRET
+RESEND_API_KEY
+SENTRY_DSN_API
+SUPERADMIN_EMAIL + SUPERADMIN_PASSWORD
+GOOGLE_CLIENT_SECRET          # optional; only if §1.7 was done
+```
 
 No repo variables (`vars`) are used by the workflows.
 
@@ -847,11 +863,9 @@ Migrations run before the API/Caddy swap. If migration fails, the currently runn
 3. Write all Terraform files. Run `terraform plan` locally first (export `HCLOUD_TOKEN` + `CLOUDFLARE_API_TOKEN`).
 4. Write `ci.yml`, `build-images.yml`, `provision.yml`, `smoke-test.yml`. Push to a branch, watch `ci.yml` pass.
 5. Manually run `provision.yml` with `action=plan`, review, then `action=apply`. VM exists, DNS records point to it.
-6. SSH into the VM (`ssh deploy@<ip>` — 1Password agent serves the key). Run `scripts/bootstrap-vm.sh`:
-   - `docker login ghcr.io` with the `GHCR_VM_PAT`
-   - **Write `/etc/kavanow/tls/origin.pem` + `origin.key`** by pasting from 1Password (`sudo nano`, `chmod 600 origin.key`, `chmod 644 origin.pem`, `chown root:root`)
-   - Create `/srv/kavanow/.env.production` from secrets (manual paste — never echo secrets into a script)
-   - Confirm Hetzner backups are enabled on the server
+6. The `bootstrap` job runs automatically after `action=apply` (or standalone via `action=bootstrap`): GHCR login, Origin CA cert install + validation, `.env.production` generation — all from GitHub Secrets (§4). Afterwards:
+   - Set/refresh `HETZNER_HOST` and `HETZNER_SSH_KNOWN_HOSTS` from the job summary (it prints the commands)
+   - Confirm Hetzner backups are enabled on the server (Console → server → Backups)
 
 ### Day 3 — First deploy + verify (~2-3 h)
 

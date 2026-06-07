@@ -6,10 +6,17 @@ on:
       action:
         type: choice
         required: true
-        description: Terraform action to run.
+        description: Action to run.
         options:
           - plan
-          - apply
+          - apply # terraform apply, then bootstrap the VM
+          - bootstrap # skip Terraform changes, (re)run the VM bootstrap only
+
+# Serialize with deploy/migrate — bootstrap rewrites .env.production and must
+# not interleave with a running deploy.
+concurrency:
+  group: deploy-prod
+  cancel-in-progress: false
 
 permissions:
   contents: read
@@ -21,6 +28,8 @@ jobs:
     defaults:
       run:
         working-directory: infra/terraform
+    outputs:
+      vm_ipv4: ${{ steps.tf_out.outputs.vm_ipv4 }}
     env:
       HCLOUD_TOKEN: ${{ secrets.HCLOUD_TOKEN }}
       CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
@@ -38,18 +47,159 @@ jobs:
 
       - run: terraform init
 
-      - run: terraform plan -out=tfplan
-      - run: terraform show -no-color tfplan >> "$GITHUB_STEP_SUMMARY"
+      - if: ${{ inputs.action != 'bootstrap' }}
+        run: terraform plan -out=tfplan
+      - if: ${{ inputs.action != 'bootstrap' }}
+        run: terraform show -no-color tfplan >> "$GITHUB_STEP_SUMMARY"
 
       - if: ${{ inputs.action == 'apply' }}
         run: terraform apply -auto-approve tfplan
 
-      - if: ${{ inputs.action == 'apply' }}
-        id: outputs
+      - id: tf_out
+        name: Export VM IP
+        run: |
+          vm_ipv4=$(terraform output -raw vm_ipv4 2>/dev/null || true)
+          echo "vm_ipv4=$vm_ipv4" >> "$GITHUB_OUTPUT"
+          if [ -n "$vm_ipv4" ]; then
+            {
+              echo "## Terraform outputs"
+              echo '```'
+              terraform output
+              echo '```'
+            } >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+  # Post-provision VM bootstrap — replaces the old interactive scripts/bootstrap-vm.sh.
+  # Wires the operational secrets that deliberately stay out of Terraform state:
+  # GHCR login, Cloudflare Origin CA cert, /srv/kavanow/.env.production.
+  # Idempotent: safe to re-run via action=bootstrap (e.g. after rotating a secret).
+  bootstrap:
+    if: ${{ inputs.action == 'apply' || inputs.action == 'bootstrap' }}
+    needs: terraform
+    runs-on: ubuntu-latest
+    environment: infrastructure
+    env:
+      VM_IP: ${{ needs.terraform.outputs.vm_ipv4 }}
+    steps:
+      - name: Guard — VM IP available
+        run: |
+          if [ -z "$VM_IP" ]; then
+            echo "::error::Terraform has no vm_ipv4 output — run action=apply first."
+            exit 1
+          fi
+
+      - name: Set up SSH
+        env:
+          SSH_KEY: ${{ secrets.HETZNER_SSH_KEY }}
+        run: |
+          mkdir -p ~/.ssh && chmod 700 ~/.ssh
+          printf '%s\n' "$SSH_KEY" > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+          cat > ~/.ssh/config <<EOF
+          Host vm
+            HostName $VM_IP
+            User deploy
+            IdentityFile ~/.ssh/id_ed25519
+            StrictHostKeyChecking accept-new
+            ConnectTimeout 10
+          EOF
+
+      - name: Wait for SSH + cloud-init
+        run: |
+          for i in $(seq 1 30); do
+            if ssh vm true 2>/dev/null; then break; fi
+            echo "SSH not up yet ($i/30), retrying in 10s…"
+            sleep 10
+          done
+          ssh vm 'sudo cloud-init status --wait >/dev/null && echo "cloud-init: done"'
+
+      - name: GHCR login on VM
+        env:
+          GHCR_PAT: ${{ secrets.GHCR_VM_PAT }}
+        run: |
+          printf '%s' "$GHCR_PAT" | ssh vm \
+            'docker login ghcr.io -u ${{ github.repository_owner }} --password-stdin'
+
+      - name: Install Cloudflare Origin CA cert
+        env:
+          ORIGIN_CERT: ${{ secrets.CF_ORIGIN_CERT }}
+          ORIGIN_KEY: ${{ secrets.CF_ORIGIN_KEY }}
+        run: |
+          printf '%s\n' "$ORIGIN_CERT" | ssh vm 'sudo tee /etc/kavanow/tls/origin.pem >/dev/null'
+          printf '%s\n' "$ORIGIN_KEY" | ssh vm 'sudo tee /etc/kavanow/tls/origin.key >/dev/null'
+          ssh vm '
+            sudo chown root:root /etc/kavanow/tls/origin.pem /etc/kavanow/tls/origin.key
+            sudo chmod 644 /etc/kavanow/tls/origin.pem
+            sudo chmod 600 /etc/kavanow/tls/origin.key
+            cert_pub=$(sudo openssl x509 -noout -pubkey -in /etc/kavanow/tls/origin.pem | openssl md5)
+            key_pub=$(sudo openssl pkey -in /etc/kavanow/tls/origin.key -pubout | openssl md5)
+            if [ "$cert_pub" != "$key_pub" ]; then
+              echo "ERROR: origin.pem and origin.key do not match" >&2
+              exit 1
+            fi
+            echo "TLS: cert and key match"
+          '
+
+      - name: Write .env.production
+        env:
+          POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD }}
+          APP_DB_PASSWORD: ${{ secrets.APP_DB_PASSWORD }}
+          BETTER_AUTH_SECRET: ${{ secrets.BETTER_AUTH_SECRET }}
+          RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
+          SUPERADMIN_EMAIL: ${{ secrets.SUPERADMIN_EMAIL }}
+          SUPERADMIN_PASSWORD: ${{ secrets.SUPERADMIN_PASSWORD }}
+          SENTRY_DSN_API: ${{ secrets.SENTRY_DSN_API }}
+          SENTRY_DSN_WEB: ${{ secrets.SENTRY_DSN_WEB }}
+          GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}
+          GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
+        run: |
+          umask 077
+          cat > envfile <<EOF
+          # Generated by provision.yml (bootstrap job) — do not edit by hand;
+          # rotate values in GitHub Secrets and re-run action=bootstrap instead.
+          POSTGRES_USER=kavanow
+          POSTGRES_PASSWORD=$POSTGRES_PASSWORD
+          POSTGRES_DB=kavanow
+          DATABASE_URL=postgres://kavanow:$POSTGRES_PASSWORD@postgres:5432/kavanow
+          APP_DB_PASSWORD=$APP_DB_PASSWORD
+
+          NODE_ENV=production
+          API_PORT=3000
+          APP_ORIGIN=https://kavanow.gr
+
+          BETTER_AUTH_SECRET=$BETTER_AUTH_SECRET
+
+          RESEND_API_KEY=$RESEND_API_KEY
+          RESEND_FROM="KavaNow <noreply@kavanow.gr>"
+
+          SUPERADMIN_EMAIL=$SUPERADMIN_EMAIL
+          SUPERADMIN_PASSWORD=$SUPERADMIN_PASSWORD
+          SEED_DEMO=false
+
+          SENTRY_DSN_API=$SENTRY_DSN_API
+          SENTRY_DSN_WEB=$SENTRY_DSN_WEB
+          SENTRY_ENVIRONMENT=production
+          SENTRY_RELEASE=
+
+          GOOGLE_CLIENT_ID=$GOOGLE_CLIENT_ID
+          GOOGLE_CLIENT_SECRET=$GOOGLE_CLIENT_SECRET
+
+          IMAGE_TAG=latest
+          EOF
+          scp envfile vm:/srv/kavanow/.env.production
+          ssh vm 'chmod 600 /srv/kavanow/.env.production'
+          rm -f envfile
+
+      - name: Summary
         run: |
           {
-            echo "## Terraform outputs"
-            echo '```'
-            terraform output
-            echo '```'
+            echo "## Bootstrap complete — $VM_IP"
+            echo
+            echo '- GHCR login, Origin CA cert (validated), `.env.production` written.'
+            echo '- If this is a new/rebuilt VM, refresh the deploy secrets:'
+            echo '  ```'
+            echo "  gh secret set HETZNER_HOST --body '$VM_IP'"
+            echo "  ssh-keyscan $VM_IP | gh secret set HETZNER_SSH_KNOWN_HOSTS"
+            echo '  ```'
+            echo '- Next: run deploy.yml.'
           } >> "$GITHUB_STEP_SUMMARY"
