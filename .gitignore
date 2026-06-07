@@ -12,9 +12,6 @@ build/
 postgres-data/
 infra/secrets/
 
-# Drizzle
-packages/api/drizzle/meta/
-
 # IDE
 .vscode/
 .idea/
