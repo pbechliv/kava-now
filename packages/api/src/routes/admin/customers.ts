@@ -312,12 +312,17 @@ customersRouter.put("/:id/brand-pricing", async (c) => {
     return c.json({ error: "Customer not found" }, 404);
   }
 
-  await db.delete(customerBrandPricing).where(eq(customerBrandPricing.customerId, id));
+  await db
+    .delete(customerBrandPricing)
+    .where(
+      and(eq(customerBrandPricing.customerId, id), eq(customerBrandPricing.tenantId, tenantId)),
+    );
 
   const withDiscount = parsed.data.assignments.filter((a) => a.discountPct > 0);
   if (withDiscount.length > 0) {
     await db.insert(customerBrandPricing).values(
       withDiscount.map((a) => ({
+        tenantId,
         customerId: id,
         brand: a.brand,
         discountPct: String(a.discountPct),

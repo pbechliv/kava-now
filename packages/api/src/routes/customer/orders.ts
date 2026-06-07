@@ -40,7 +40,8 @@ ordersRouter.post("/", async (c) => {
   const { items, notes } = parsed.data;
   const productIds = items.map((i) => i.productId);
 
-  // Verify all products are active
+  // Verify all products are active. Explicit tenantId filters here (and
+  // below) are defense-in-depth on top of RLS.
   const activeProducts = await db
     .select({
       id: products.id,
@@ -49,7 +50,13 @@ ordersRouter.post("/", async (c) => {
       brand: products.brand,
     })
     .from(products)
-    .where(and(eq(products.active, true), inArray(products.id, productIds)));
+    .where(
+      and(
+        eq(products.tenantId, tenant.id),
+        eq(products.active, true),
+        inArray(products.id, productIds),
+      ),
+    );
 
   const productMap = new Map(activeProducts.map((p) => [p.id, p]));
 
@@ -74,7 +81,7 @@ ordersRouter.post("/", async (c) => {
       email: customers.email,
     })
     .from(customers)
-    .where(eq(customers.id, customerId))
+    .where(and(eq(customers.id, customerId), eq(customers.tenantId, tenant.id)))
     .limit(1);
 
   if (!customer) {
@@ -87,7 +94,12 @@ ordersRouter.post("/", async (c) => {
       discountPct: customerBrandPricing.discountPct,
     })
     .from(customerBrandPricing)
-    .where(eq(customerBrandPricing.customerId, customerId));
+    .where(
+      and(
+        eq(customerBrandPricing.customerId, customerId),
+        eq(customerBrandPricing.tenantId, tenant.id),
+      ),
+    );
 
   const brandDiscountMap = new Map(brandPricing.map((bp) => [bp.brand, bp.discountPct]));
 
@@ -136,6 +148,7 @@ ordersRouter.post("/", async (c) => {
 
 // GET / — list orders for authenticated customer
 ordersRouter.get("/", async (c) => {
+  const tenantId = c.get("tenantId")!;
   const customerId = c.get("membership")!.customerId;
 
   if (!customerId) {
@@ -157,7 +170,7 @@ ordersRouter.get("/", async (c) => {
   }
   const { page, pageSize } = pagination.data;
 
-  const whereClause = eq(orders.customerId, customerId);
+  const whereClause = and(eq(orders.tenantId, tenantId), eq(orders.customerId, customerId));
 
   const [countRow] = await db
     .select({ total: sql<number>`count(*)::int` })
@@ -187,6 +200,7 @@ ordersRouter.get("/", async (c) => {
 
 // GET /:id — single order with items
 ordersRouter.get("/:id", async (c) => {
+  const tenantId = c.get("tenantId")!;
   const customerId = c.get("membership")!.customerId;
   const orderId = c.req.param("id");
 
@@ -203,7 +217,9 @@ ordersRouter.get("/:id", async (c) => {
   const [order] = await db
     .select()
     .from(orders)
-    .where(and(eq(orders.id, orderId), eq(orders.customerId, customerId)))
+    .where(
+      and(eq(orders.id, orderId), eq(orders.tenantId, tenantId), eq(orders.customerId, customerId)),
+    )
     .limit(1);
 
   if (!order) {
@@ -235,7 +251,13 @@ ordersRouter.post("/:id/reorder", async (c) => {
   const [originalOrder] = await db
     .select()
     .from(orders)
-    .where(and(eq(orders.id, orderId), eq(orders.customerId, customerId)))
+    .where(
+      and(
+        eq(orders.id, orderId),
+        eq(orders.tenantId, tenant.id),
+        eq(orders.customerId, customerId),
+      ),
+    )
     .limit(1);
 
   if (!originalOrder) {
@@ -261,7 +283,7 @@ ordersRouter.post("/:id/reorder", async (c) => {
       active: products.active,
     })
     .from(products)
-    .where(inArray(products.id, productIds));
+    .where(and(eq(products.tenantId, tenant.id), inArray(products.id, productIds)));
 
   const productMap = new Map(activeProducts.map((p) => [p.id, p]));
 
@@ -273,7 +295,7 @@ ordersRouter.post("/:id/reorder", async (c) => {
       email: customers.email,
     })
     .from(customers)
-    .where(eq(customers.id, customerId))
+    .where(and(eq(customers.id, customerId), eq(customers.tenantId, tenant.id)))
     .limit(1);
 
   if (!customer) {
@@ -286,7 +308,12 @@ ordersRouter.post("/:id/reorder", async (c) => {
       discountPct: customerBrandPricing.discountPct,
     })
     .from(customerBrandPricing)
-    .where(eq(customerBrandPricing.customerId, customerId));
+    .where(
+      and(
+        eq(customerBrandPricing.customerId, customerId),
+        eq(customerBrandPricing.tenantId, tenant.id),
+      ),
+    );
 
   const brandDiscountMap = new Map(brandPricing.map((bp) => [bp.brand, bp.discountPct]));
 

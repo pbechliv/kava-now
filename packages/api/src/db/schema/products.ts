@@ -7,6 +7,7 @@ import {
   boolean,
   timestamp,
   uniqueIndex,
+  index,
 } from "drizzle-orm/pg-core";
 import { sql } from "drizzle-orm";
 import { productUnitEnum } from "./enums";
@@ -41,5 +42,7 @@ export const products = pgTable(
     uniqueIndex("products_tenant_erp_ref_idx")
       .on(table.tenantId, table.erpRef)
       .where(sql`${table.erpRef} is not null`),
+    // Category filter in catalog/product lists.
+    index("products_category_idx").on(table.categoryId),
   ],
 );

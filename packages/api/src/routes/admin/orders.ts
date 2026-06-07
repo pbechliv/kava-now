@@ -1,5 +1,5 @@
 import { Hono } from "hono";
-import { eq, and, sql, gte, lte, desc } from "drizzle-orm";
+import { eq, ne, and, sql, gte, lte, desc } from "drizzle-orm";
 import { db } from "../../db/connection";
 import {
   orders,
@@ -39,7 +39,11 @@ const ALLOWED_TRANSITIONS: Record<OrderStatus, OrderStatus[]> = {
 
 type MutableGuard = { ok: true } | { ok: false; code: ApiErrorCode; error: string };
 
-function assertOrderMutable(order: { status: OrderStatus; erpStatus: ErpStatus }): MutableGuard {
+// Exported for tests — the guard behind the ERP/fulfillment hard lock.
+export function assertOrderMutable(order: {
+  status: OrderStatus;
+  erpStatus: ErpStatus;
+}): MutableGuard {
   if (order.status !== "pending" && order.status !== "confirmed") {
     return {
       ok: false,
@@ -198,45 +202,57 @@ ordersRouter.put("/:id/status", async (c) => {
     return c.json({ error: "Invalid status", code: API_ERROR_CODES.ORDER_INVALID_STATUS }, 400);
   }
 
-  // Get current order
-  const [order] = await db
-    .select({
-      id: orders.id,
-      status: orders.status,
-      customerId: orders.customerId,
-    })
-    .from(orders)
-    .where(and(eq(orders.id, id), eq(orders.tenantId, tenantId)))
-    .limit(1);
+  // Read + validate + update in one transaction with the row locked, so two
+  // concurrent transitions can't both pass validation against the same
+  // SELECTed status (double-apply race).
+  const result = await db.transaction(async (tx) => {
+    const [order] = await tx
+      .select({
+        id: orders.id,
+        status: orders.status,
+        customerId: orders.customerId,
+      })
+      .from(orders)
+      .where(and(eq(orders.id, id), eq(orders.tenantId, tenantId)))
+      .limit(1)
+      .for("update");
 
-  if (!order) {
+    if (!order) {
+      return { kind: "not_found" as const };
+    }
+
+    const allowed = ALLOWED_TRANSITIONS[order.status];
+    if (!allowed.includes(newStatus)) {
+      return { kind: "invalid_transition" as const, from: order.status };
+    }
+
+    const [updated] = await tx
+      .update(orders)
+      .set({ status: newStatus, updatedAt: new Date() })
+      .where(and(eq(orders.id, id), eq(orders.tenantId, tenantId)))
+      .returning();
+
+    return { kind: "ok" as const, updated, customerId: order.customerId };
+  });
+
+  if (result.kind === "not_found") {
     return c.json({ error: "Order not found" }, 404);
   }
-
-  // Validate transition
-  const allowed = ALLOWED_TRANSITIONS[order.status];
-  if (!allowed.includes(newStatus)) {
+  if (result.kind === "invalid_transition") {
     return c.json(
       {
         code: API_ERROR_CODES.ORDER_INVALID_STATUS,
-        error: `Status transition not allowed: "${order.status}" → "${newStatus}"`,
+        error: `Status transition not allowed: "${result.from}" → "${newStatus}"`,
       },
       400,
     );
   }
 
-  // Update status
-  const [updated] = await db
-    .update(orders)
-    .set({ status: newStatus })
-    .where(eq(orders.id, id))
-    .returning();
-
   // Send email to customer
   const [customer] = await db
     .select({ email: customers.email })
     .from(customers)
-    .where(eq(customers.id, order.customerId))
+    .where(and(eq(customers.id, result.customerId), eq(customers.tenantId, tenantId)))
     .limit(1);
 
   if (customer?.email) {
@@ -247,7 +263,7 @@ ordersRouter.put("/:id/status", async (c) => {
     }
   }
 
-  return c.json(updated);
+  return c.json(result.updated);
 });
 
 // PATCH /:id/erp — mark an order as transmitted to the ERP, store the AADE MARK
@@ -272,7 +288,22 @@ ordersRouter.patch("/:id/erp", async (c) => {
     return c.json({ error: "Order not found" }, 404);
   }
 
-  if (existing.erpStatus === "transmitted") {
+  // Atomic one-shot: the erp_status guard lives in the UPDATE's WHERE, so
+  // two concurrent transmissions can't both succeed (and overwrite the MARK).
+  const [updated] = await db
+    .update(orders)
+    .set({
+      erpStatus: "transmitted",
+      erpMark: parsed.data.mark,
+      erpTransmittedAt: new Date(),
+      erpTransmittedBy: user.id,
+    })
+    .where(
+      and(eq(orders.id, id), eq(orders.tenantId, tenantId), ne(orders.erpStatus, "transmitted")),
+    )
+    .returning();
+
+  if (!updated) {
     return c.json(
       {
         code: API_ERROR_CODES.ORDER_ALREADY_TRANSMITTED,
@@ -282,26 +313,25 @@ ordersRouter.patch("/:id/erp", async (c) => {
     );
   }
 
-  const [updated] = await db
-    .update(orders)
-    .set({
-      erpStatus: "transmitted",
-      erpMark: parsed.data.mark,
-      erpTransmittedAt: new Date(),
-      erpTransmittedBy: user.id,
-    })
-    .where(eq(orders.id, id))
-    .returning();
-
   return c.json(updated);
 });
 
+// Either the db proxy or an open transaction — item mutations run their reads
+// and writes on the same transaction so the mutability guard can't race a
+// concurrent ERP transmit / status change.
+type DbOrTx = Pick<typeof db, "select" | "insert" | "update" | "delete">;
+
+// A handler outcome computed inside a transaction, mapped to the HTTP
+// response after commit.
+type MutationFailure = { ok: false; status: 404 | 400 | 409; body: Record<string, unknown> };
+
 async function resolveProductPriceForOrder(
+  tx: DbOrTx,
   tenantId: string,
   customerId: string,
   productId: string,
 ) {
-  const [product] = await db
+  const [product] = await tx
     .select({
       id: products.id,
       name: products.name,
@@ -315,11 +345,12 @@ async function resolveProductPriceForOrder(
 
   if (!product || !product.active) return null;
 
-  const [pricing] = await db
+  const [pricing] = await tx
     .select({ discountPct: customerBrandPricing.discountPct })
     .from(customerBrandPricing)
     .where(
       and(
+        eq(customerBrandPricing.tenantId, tenantId),
         eq(customerBrandPricing.customerId, customerId),
         eq(customerBrandPricing.brand, product.brand),
       ),
@@ -330,8 +361,10 @@ async function resolveProductPriceForOrder(
   return { product, unitPrice };
 }
 
-async function loadOrderForMutation(tenantId: string, id: string) {
-  const [order] = await db
+// Lock the order row (FOR UPDATE) and run the mutability guard. Must be
+// called inside a transaction so the lock holds for the mutation.
+async function lockOrderForMutation(tx: DbOrTx, tenantId: string, id: string) {
+  const [order] = await tx
     .select({
       id: orders.id,
       tenantId: orders.tenantId,
@@ -341,8 +374,21 @@ async function loadOrderForMutation(tenantId: string, id: string) {
     })
     .from(orders)
     .where(and(eq(orders.id, id), eq(orders.tenantId, tenantId)))
-    .limit(1);
-  return order ?? null;
+    .limit(1)
+    .for("update");
+
+  if (!order) {
+    return { ok: false, status: 404, body: { error: "Order not found" } } satisfies MutationFailure;
+  }
+  const guard = assertOrderMutable(order);
+  if (!guard.ok) {
+    return {
+      ok: false,
+      status: 409,
+      body: { code: guard.code, error: guard.error },
+    } satisfies MutationFailure;
+  }
+  return { ok: true as const, order };
 }
 
 // POST /:id/items — add a new line item to an existing order
@@ -355,23 +401,24 @@ ordersRouter.post("/:id/items", async (c) => {
     return c.json({ error: parsed.error.flatten().fieldErrors }, 400);
   }
 
-  const order = await loadOrderForMutation(tenantId, id);
-  if (!order) return c.json({ error: "Order not found" }, 404);
-  const guard = assertOrderMutable(order);
-  if (!guard.ok) return c.json({ code: guard.code, error: guard.error }, 409);
+  const result = await db.transaction(async (tx) => {
+    const lock = await lockOrderForMutation(tx, tenantId, id);
+    if (!lock.ok) return lock;
 
-  const resolved = await resolveProductPriceForOrder(
-    tenantId,
-    order.customerId,
-    parsed.data.productId,
-  );
-  if (!resolved)
-    return c.json(
-      { code: API_ERROR_CODES.PRODUCT_NOT_AVAILABLE, error: "Product is not available" },
-      400,
+    const resolved = await resolveProductPriceForOrder(
+      tx,
+      tenantId,
+      lock.order.customerId,
+      parsed.data.productId,
     );
+    if (!resolved) {
+      return {
+        ok: false,
+        status: 400,
+        body: { code: API_ERROR_CODES.PRODUCT_NOT_AVAILABLE, error: "Product is not available" },
+      } satisfies MutationFailure;
+    }
 
-  const inserted = await db.transaction(async (tx) => {
     const [item] = await tx
       .insert(orderItems)
       .values({
@@ -383,10 +430,11 @@ ordersRouter.post("/:id/items", async (c) => {
       })
       .returning();
     await tx.update(orders).set({ updatedAt: new Date() }).where(eq(orders.id, id));
-    return item;
+    return { ok: true as const, item };
   });
 
-  return c.json(inserted, 201);
+  if (!result.ok) return c.json(result.body, result.status);
+  return c.json(result.item, 201);
 });
 
 // PATCH /:id/items/:itemId — adjust quantity on an active line item
@@ -400,35 +448,41 @@ ordersRouter.patch("/:id/items/:itemId", async (c) => {
     return c.json({ error: parsed.error.flatten().fieldErrors }, 400);
   }
 
-  const order = await loadOrderForMutation(tenantId, id);
-  if (!order) return c.json({ error: "Order not found" }, 404);
-  const guard = assertOrderMutable(order);
-  if (!guard.ok) return c.json({ code: guard.code, error: guard.error }, 409);
+  const result = await db.transaction(async (tx) => {
+    const lock = await lockOrderForMutation(tx, tenantId, id);
+    if (!lock.ok) return lock;
 
-  const [item] = await db
-    .select()
-    .from(orderItems)
-    .where(and(eq(orderItems.id, itemId), eq(orderItems.orderId, id)))
-    .limit(1);
-  if (!item) return c.json({ error: "Order item not found" }, 404);
-  if (item.status === "cancelled") {
-    return c.json(
-      { code: API_ERROR_CODES.ORDER_ITEM_CANCELLED, error: "Order item is cancelled" },
-      409,
-    );
-  }
+    const [item] = await tx
+      .select()
+      .from(orderItems)
+      .where(and(eq(orderItems.id, itemId), eq(orderItems.orderId, id)))
+      .limit(1);
+    if (!item) {
+      return {
+        ok: false,
+        status: 404,
+        body: { error: "Order item not found" },
+      } satisfies MutationFailure;
+    }
+    if (item.status === "cancelled") {
+      return {
+        ok: false,
+        status: 409,
+        body: { code: API_ERROR_CODES.ORDER_ITEM_CANCELLED, error: "Order item is cancelled" },
+      } satisfies MutationFailure;
+    }
 
-  const updated = await db.transaction(async (tx) => {
-    const [u] = await tx
+    const [updated] = await tx
       .update(orderItems)
       .set({ quantity: parsed.data.quantity })
       .where(eq(orderItems.id, itemId))
       .returning();
     await tx.update(orders).set({ updatedAt: new Date() }).where(eq(orders.id, id));
-    return u;
+    return { ok: true as const, updated };
   });
 
-  return c.json(updated);
+  if (!result.ok) return c.json(result.body, result.status);
+  return c.json(result.updated);
 });
 
 // POST /:id/items/:itemId/cancel — soft-cancel a line item
@@ -437,35 +491,44 @@ ordersRouter.post("/:id/items/:itemId/cancel", async (c) => {
   const id = c.req.param("id");
   const itemId = c.req.param("itemId");
 
-  const order = await loadOrderForMutation(tenantId, id);
-  if (!order) return c.json({ error: "Order not found" }, 404);
-  const guard = assertOrderMutable(order);
-  if (!guard.ok) return c.json({ code: guard.code, error: guard.error }, 409);
+  const result = await db.transaction(async (tx) => {
+    const lock = await lockOrderForMutation(tx, tenantId, id);
+    if (!lock.ok) return lock;
 
-  const [item] = await db
-    .select()
-    .from(orderItems)
-    .where(and(eq(orderItems.id, itemId), eq(orderItems.orderId, id)))
-    .limit(1);
-  if (!item) return c.json({ error: "Order item not found" }, 404);
-  if (item.status === "cancelled") {
-    return c.json(
-      { code: API_ERROR_CODES.ORDER_ITEM_CANCELLED, error: "Order item is already cancelled" },
-      409,
-    );
-  }
+    const [item] = await tx
+      .select()
+      .from(orderItems)
+      .where(and(eq(orderItems.id, itemId), eq(orderItems.orderId, id)))
+      .limit(1);
+    if (!item) {
+      return {
+        ok: false,
+        status: 404,
+        body: { error: "Order item not found" },
+      } satisfies MutationFailure;
+    }
+    if (item.status === "cancelled") {
+      return {
+        ok: false,
+        status: 409,
+        body: {
+          code: API_ERROR_CODES.ORDER_ITEM_CANCELLED,
+          error: "Order item is already cancelled",
+        },
+      } satisfies MutationFailure;
+    }
 
-  const cancelled = await db.transaction(async (tx) => {
-    const [u] = await tx
+    const [cancelled] = await tx
       .update(orderItems)
       .set({ status: "cancelled" })
       .where(eq(orderItems.id, itemId))
       .returning();
     await tx.update(orders).set({ updatedAt: new Date() }).where(eq(orders.id, id));
-    return u;
+    return { ok: true as const, cancelled };
   });
 
-  return c.json(cancelled);
+  if (!result.ok) return c.json(result.body, result.status);
+  return c.json(result.cancelled);
 });
 
 // POST /:id/items/:itemId/replace — swap a line item for a different product
@@ -479,39 +542,50 @@ ordersRouter.post("/:id/items/:itemId/replace", async (c) => {
     return c.json({ error: parsed.error.flatten().fieldErrors }, 400);
   }
 
-  const order = await loadOrderForMutation(tenantId, id);
-  if (!order) return c.json({ error: "Order not found" }, 404);
-  const guard = assertOrderMutable(order);
-  if (!guard.ok) return c.json({ code: guard.code, error: guard.error }, 409);
-
-  const [existing] = await db
-    .select()
-    .from(orderItems)
-    .where(and(eq(orderItems.id, itemId), eq(orderItems.orderId, id)))
-    .limit(1);
-  if (!existing) return c.json({ error: "Order item not found" }, 404);
-  if (existing.status === "cancelled") {
-    return c.json(
-      { code: API_ERROR_CODES.ORDER_ITEM_CANCELLED, error: "Order item is already cancelled" },
-      409,
-    );
-  }
-
-  const resolved = await resolveProductPriceForOrder(
-    tenantId,
-    order.customerId,
-    parsed.data.productId,
-  );
-  if (!resolved)
-    return c.json(
-      {
-        code: API_ERROR_CODES.REPLACEMENT_PRODUCT_NOT_AVAILABLE,
-        error: "Replacement product is not available",
-      },
-      400,
-    );
-
   const result = await db.transaction(async (tx) => {
+    const lock = await lockOrderForMutation(tx, tenantId, id);
+    if (!lock.ok) return lock;
+
+    const [existing] = await tx
+      .select()
+      .from(orderItems)
+      .where(and(eq(orderItems.id, itemId), eq(orderItems.orderId, id)))
+      .limit(1);
+    if (!existing) {
+      return {
+        ok: false,
+        status: 404,
+        body: { error: "Order item not found" },
+      } satisfies MutationFailure;
+    }
+    if (existing.status === "cancelled") {
+      return {
+        ok: false,
+        status: 409,
+        body: {
+          code: API_ERROR_CODES.ORDER_ITEM_CANCELLED,
+          error: "Order item is already cancelled",
+        },
+      } satisfies MutationFailure;
+    }
+
+    const resolved = await resolveProductPriceForOrder(
+      tx,
+      tenantId,
+      lock.order.customerId,
+      parsed.data.productId,
+    );
+    if (!resolved) {
+      return {
+        ok: false,
+        status: 400,
+        body: {
+          code: API_ERROR_CODES.REPLACEMENT_PRODUCT_NOT_AVAILABLE,
+          error: "Replacement product is not available",
+        },
+      } satisfies MutationFailure;
+    }
+
     const [newItem] = await tx
       .insert(orderItems)
       .values({
@@ -532,9 +606,10 @@ ordersRouter.post("/:id/items/:itemId/replace", async (c) => {
 
     await tx.update(orders).set({ updatedAt: new Date() }).where(eq(orders.id, id));
 
-    return { newItem };
+    return { ok: true as const, newItem };
   });
 
+  if (!result.ok) return c.json(result.body, result.status);
   return c.json(result.newItem, 201);
 });
 

@@ -347,7 +347,7 @@ export async function seedDemoTenant(db: PostgresJsDatabase): Promise<void> {
     DEMO_BRAND_PRICING.map((bp) => {
       const customerId = customerByName.get(bp.customerName);
       if (!customerId) throw new Error(`Demo customer missing: ${bp.customerName}`);
-      return { customerId, brand: bp.brand, discountPct: bp.discountPct };
+      return { tenantId: demoTenant.id, customerId, brand: bp.brand, discountPct: bp.discountPct };
     }),
   );
 

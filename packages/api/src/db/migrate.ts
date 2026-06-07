@@ -2,7 +2,6 @@ import "../load-env";
 import { migrate } from "drizzle-orm/postgres-js/migrator";
 import { drizzle } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
-import { readFileSync } from "node:fs";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -15,14 +14,11 @@ async function main() {
   const sql = postgres(connectionString, { max: 1 });
   const db = drizzle(sql);
 
+  // RLS policies live in the migration graph (drizzle/0002_rls_policies.sql);
+  // new tenant-scoped tables must ship their policy as a custom migration.
   console.log("Running Drizzle migrations...");
   await migrate(db, { migrationsFolder: join(__dirname, "../../drizzle") });
   console.log("Drizzle migrations complete.");
-
-  console.log("Applying RLS policies...");
-  const rlsSql = readFileSync(join(__dirname, "rls.sql"), "utf-8");
-  await sql.unsafe(rlsSql);
-  console.log("RLS policies applied.");
 
   await provisionAppRole(sql);
 

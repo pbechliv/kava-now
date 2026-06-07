@@ -10,6 +10,7 @@ const catalogRouter = new Hono<AppEnv>();
 
 // GET / — all active products with per-brand pricing for the authenticated customer
 catalogRouter.get("/", async (c) => {
+  const tenantId = c.get("tenantId")!;
   const customerId = c.get("membership")!.customerId;
 
   if (!customerId) {
@@ -22,11 +23,12 @@ catalogRouter.get("/", async (c) => {
     );
   }
 
-  // Verify customer exists
+  // Verify customer exists. Explicit tenantId filters here (and below) are
+  // defense-in-depth on top of RLS — don't rely on RLS as the only guard.
   const [customer] = await db
     .select({ id: customers.id })
     .from(customers)
-    .where(eq(customers.id, customerId))
+    .where(and(eq(customers.id, customerId), eq(customers.tenantId, tenantId)))
     .limit(1);
 
   if (!customer) {
@@ -40,7 +42,12 @@ catalogRouter.get("/", async (c) => {
       discountPct: customerBrandPricing.discountPct,
     })
     .from(customerBrandPricing)
-    .where(eq(customerBrandPricing.customerId, customerId));
+    .where(
+      and(
+        eq(customerBrandPricing.customerId, customerId),
+        eq(customerBrandPricing.tenantId, tenantId),
+      ),
+    );
 
   const brandDiscountMap = new Map(brandPricing.map((bp) => [bp.brand, bp.discountPct]));
 
@@ -56,7 +63,7 @@ catalogRouter.get("/", async (c) => {
   }
   const { page, pageSize } = pagination.data;
 
-  const conditions = [eq(products.active, true)];
+  const conditions = [eq(products.tenantId, tenantId), eq(products.active, true)];
 
   if (categoryId) {
     conditions.push(eq(products.categoryId, categoryId));

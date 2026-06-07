@@ -1,5 +1,5 @@
 import { Hono } from "hono";
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { z } from "zod";
 import { API_ERROR_CODES } from "@kava-now/shared";
 import { db } from "../../db/connection";
@@ -15,13 +15,19 @@ const CUSTOMER_PROFILE_MISSING_RESPONSE = {
 
 // GET / — return customer record for authenticated user
 profileRouter.get("/", async (c) => {
+  const tenantId = c.get("tenantId")!;
   const customerId = c.get("membership")!.customerId;
 
   if (!customerId) {
     return c.json(CUSTOMER_PROFILE_MISSING_RESPONSE, 400);
   }
 
-  const [customer] = await db.select().from(customers).where(eq(customers.id, customerId)).limit(1);
+  // Explicit tenantId filter as defense-in-depth on top of RLS.
+  const [customer] = await db
+    .select()
+    .from(customers)
+    .where(and(eq(customers.id, customerId), eq(customers.tenantId, tenantId)))
+    .limit(1);
 
   if (!customer) {
     return c.json({ error: "Customer not found" }, 404);
@@ -38,6 +44,7 @@ const updateProfileSchema = z.object({
 // PATCH / — customers may update their own phone and address. Name and email
 // remain admin-controlled (they're tied to billing / invitation).
 profileRouter.patch("/", async (c) => {
+  const tenantId = c.get("tenantId")!;
   const customerId = c.get("membership")!.customerId;
 
   if (!customerId) {
@@ -68,7 +75,7 @@ profileRouter.patch("/", async (c) => {
   const [updated] = await db
     .update(customers)
     .set(updateData)
-    .where(eq(customers.id, customerId))
+    .where(and(eq(customers.id, customerId), eq(customers.tenantId, tenantId)))
     .returning();
 
   if (!updated) {
