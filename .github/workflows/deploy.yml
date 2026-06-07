@@ -72,11 +72,17 @@ jobs:
           printf '%s' "${{ secrets.GITHUB_TOKEN }}" | ssh -i ~/.ssh/id_ed25519 deploy@"$HETZNER_HOST" \
             'docker login ghcr.io -u ${{ github.repository_owner }} --password-stdin'
 
-      - name: Copy compose + Caddyfile to VM
+      - name: Copy compose + Caddyfile + postgres config to VM
         run: |
+          ssh -i ~/.ssh/id_ed25519 deploy@"$HETZNER_HOST" 'mkdir -p /srv/kavanow/infra/postgres'
           scp -i ~/.ssh/id_ed25519 \
               docker-compose.yml Caddyfile \
               deploy@"$HETZNER_HOST":/srv/kavanow/
+          # compose bind-mounts this into postgres; a missing file would be
+          # auto-created as a directory and postgres FATALs on boot
+          scp -i ~/.ssh/id_ed25519 \
+              infra/postgres/postgresql.conf \
+              deploy@"$HETZNER_HOST":/srv/kavanow/infra/postgres/
 
       - name: Pull, migrate, restart
         run: |
