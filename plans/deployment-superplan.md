@@ -1125,7 +1125,7 @@ These are the ones that come from the GH-Actions-driven flow specifically:
 - Zero-downtime deploys (Kamal / blue-green). Current 5–10 s container restart is acceptable pre-launch.
 - Encrypted offsite database backups. Hetzner snapshots are enough for day 1; add a separate offsite tier when the product has real customers or compliance pressure.
 - Lock origin port 80/443 to Cloudflare IP ranges only. Day-1 setup keeps direct origin access open for `curl --resolve` debugging; tighten once traffic patterns are known.
-- Cloudflare WAF custom rules (free plan supports 5). Reasonable post-launch hardening once you see real attack traffic.
+- Cloudflare WAF custom rules beyond the probe-allow rule in `waf.tf` (free plan supports 5). Reasonable post-launch hardening once you see real attack traffic. The existing rule skips `bic`/`securityLevel` for `/api/health` + `/` so smoke tests and uptime monitors from datacenter IPs aren't challenged with 403s.
 - Cloudflare Authenticated Origin Pulls (mTLS between CF and origin). Stronger than Full (strict); defer until there's a concrete reason.
 - Postgres read replica or move-off-VM (Neon / dedicated Hetzner Postgres). Trigger: sustained >50% CPU or >99.5% SLA.
 - Sentry performance tracing + session replay. Errors-only for now.
