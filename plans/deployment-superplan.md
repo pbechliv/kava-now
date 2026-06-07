@@ -114,6 +114,7 @@ The repo already supports Google OAuth via better-auth — the web SPA renders t
 
 - Sign up at [betterstack.com/uptime](https://betterstack.com/uptime) (free tier: 10 monitors, 3-min interval).
 - Create one HTTP(S) monitor: `https://kavanow.gr/api/health`, expect 200, alert via email.
+- **Bot Fight Mode caveat:** Better Stack probes from datacenter IPs, which CF Bot Fight Mode 403s (same reason the smoke test probes the origin directly — BFM can't be allowlisted on the free plan). Either point the monitor at the origin (custom host → VM IP with the `Host: kavanow.gr` header, accept the untrusted Origin CA cert) or disable Bot Fight Mode if you'd rather monitor the public edge. Decide when setting this up.
 - No heartbeat monitor is needed while backups are Hetzner-managed snapshots only. Use a calendar reminder for the quarterly restore drill.
 
 ### 1.9 GitHub repo prep
@@ -737,7 +738,7 @@ This prevents deploy and migrate from interleaving.
 | `provision.yml`    | manual                  | `terraform plan` / `apply` + VM bootstrap job (TLS cert, `.env.production`)                                                                     | `infrastructure` |
 | `deploy.yml`       | push to `main` + manual | calls build-images, scp compose+Caddyfile, ssh `--profile jobs pull` + `api-jobs` migrate + app up, smoke test                                  | `production`     |
 | `migrate.yml`      | manual                  | runs `pnpm db:migrate` through `api-jobs` on VM without rebuilding                                                                              | `production`     |
-| `smoke-test.yml`   | `workflow_call`         | curl `/api/health`, `/`, TLS expiry check                                                                                                       | none             |
+| `smoke-test.yml`   | `workflow_call`         | curl `/api/health`, `/`, TLS expiry — probes the **origin directly** (`--resolve` + `-k`) via the `origin_ip` secret, since CF Bot Fight Mode 403s datacenter IPs | none             |
 
 Repo secrets to populate (Settings → Secrets and variables → Actions). This is the exact set the workflows reference:
 

@@ -105,3 +105,7 @@ jobs:
   smoke:
     needs: deploy
     uses: ./.github/workflows/smoke-test.yml
+    secrets:
+      # Probe the origin directly — CF Bot Fight Mode 403s the runner's
+      # datacenter IP and can't be allowlisted on the free plan.
+      origin_ip: ${{ secrets.HETZNER_HOST }}

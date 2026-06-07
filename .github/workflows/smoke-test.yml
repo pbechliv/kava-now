@@ -6,7 +6,15 @@ on:
       host:
         type: string
         default: kavanow.gr
-        description: Host to probe.
+        description: Host to probe (SNI + Host header).
+    secrets:
+      origin_ip:
+        required: false
+        description: >-
+          When set, probe the origin directly via curl --resolve, bypassing
+          Cloudflare. Required because Cloudflare Bot Fight Mode (free plan)
+          blocks datacenter IPs — GitHub runners included — and cannot be
+          allowlisted. Passed as a secret so the origin IP stays masked in logs.
 
 permissions:
   contents: read
@@ -14,26 +22,40 @@ permissions:
 jobs:
   smoke:
     runs-on: ubuntu-latest
+    env:
+      HOST: ${{ inputs.host }}
+      ORIGIN_IP: ${{ secrets.origin_ip }}
     steps:
-      - name: API health
+      # --resolve pins HOST:443 to the origin IP; -k because the origin serves
+      # the Cloudflare Origin CA cert, which is trusted by CF, not by the OS.
+      # SNI + Host stay HOST, so Caddy serves the right vhost and the app sees
+      # the real hostname. Edge behaviour (cache, proxy) is covered by the §5
+      # manual checklist, not gated here.
+      - name: Resolve flags
         run: |
-          curl -fS --retry 10 --retry-delay 3 "https://${{ inputs.host }}/api/health"
+          if [ -n "$ORIGIN_IP" ]; then
+            echo "CURL_RESOLVE=--resolve $HOST:443:$ORIGIN_IP -k" >> "$GITHUB_ENV"
+            echo "Probing origin directly (bypassing Cloudflare)."
+          else
+            echo "CURL_RESOLVE=" >> "$GITHUB_ENV"
+            echo "Probing through Cloudflare (no origin_ip provided)."
+          fi
+
+      - name: API health
+        run: curl -fS --retry 10 --retry-delay 3 $CURL_RESOLVE "https://$HOST/api/health"
 
       - name: SPA root
-        run: |
-          curl -fS -o /dev/null "https://${{ inputs.host }}/"
+        run: curl -fS -o /dev/null $CURL_RESOLVE "https://$HOST/"
 
       - name: TLS expiry
         run: |
           set -euo pipefail
-          end=$(openssl s_client -servername "${{ inputs.host }}" \
-                  -connect "${{ inputs.host }}:443" </dev/null 2>/dev/null \
-                | openssl x509 -noout -enddate \
-                | cut -d= -f2)
+          if [ -n "$ORIGIN_IP" ]; then connect="$ORIGIN_IP:443"; else connect="$HOST:443"; fi
+          end=$(openssl s_client -servername "$HOST" -connect "$connect" </dev/null 2>/dev/null \
+                | openssl x509 -noout -enddate | cut -d= -f2)
           echo "Certificate notAfter: $end"
           end_epoch=$(date -u -d "$end" +%s)
-          now_epoch=$(date -u +%s)
-          days_left=$(( (end_epoch - now_epoch) / 86400 ))
+          days_left=$(( (end_epoch - $(date -u +%s)) / 86400 ))
           echo "Days left: $days_left"
           if [ "$days_left" -lt 7 ]; then
             echo "::error::Certificate expires in less than 7 days." >&2
