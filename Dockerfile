@@ -8,7 +8,7 @@
 # Stage: base — shared Node + pnpm foundation
 # ---------------------------------------------------------------------------
 FROM node:24-alpine AS base
-RUN corepack enable && corepack prepare pnpm@11.1.2 --activate
+RUN corepack enable && corepack prepare pnpm@11.5.2 --activate
 WORKDIR /app
 
 # ---------------------------------------------------------------------------

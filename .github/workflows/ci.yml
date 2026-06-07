@@ -34,9 +34,9 @@ jobs:
     steps:
       - uses: actions/checkout@v6
 
+      # version comes from packageManager in package.json — pinning it here
+      # too makes the action error on any mismatch
       - uses: pnpm/action-setup@v6
-        with:
-          version: 11.1.2
 
       - uses: actions/setup-node@v6
         with:
