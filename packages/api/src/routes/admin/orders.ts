@@ -37,14 +37,9 @@ const ALLOWED_TRANSITIONS: Record<OrderStatus, OrderStatus[]> = {
   cancelled: [], // terminal
 };
 
-type MutableGuard =
-  | { ok: true }
-  | { ok: false; code: ApiErrorCode; error: string };
+type MutableGuard = { ok: true } | { ok: false; code: ApiErrorCode; error: string };
 
-function assertOrderMutable(order: {
-  status: OrderStatus;
-  erpStatus: ErpStatus;
-}): MutableGuard {
+function assertOrderMutable(order: { status: OrderStatus; erpStatus: ErpStatus }): MutableGuard {
   if (order.status !== "pending" && order.status !== "confirmed") {
     return {
       ok: false,
@@ -278,7 +273,13 @@ ordersRouter.patch("/:id/erp", async (c) => {
   }
 
   if (existing.erpStatus === "transmitted") {
-    return c.json({ code: API_ERROR_CODES.ORDER_ALREADY_TRANSMITTED, error: "Order already transmitted to ERP" }, 409);
+    return c.json(
+      {
+        code: API_ERROR_CODES.ORDER_ALREADY_TRANSMITTED,
+        error: "Order already transmitted to ERP",
+      },
+      409,
+    );
   }
 
   const [updated] = await db
@@ -364,7 +365,11 @@ ordersRouter.post("/:id/items", async (c) => {
     order.customerId,
     parsed.data.productId,
   );
-  if (!resolved) return c.json({ code: API_ERROR_CODES.PRODUCT_NOT_AVAILABLE, error: "Product is not available" }, 400);
+  if (!resolved)
+    return c.json(
+      { code: API_ERROR_CODES.PRODUCT_NOT_AVAILABLE, error: "Product is not available" },
+      400,
+    );
 
   const inserted = await db.transaction(async (tx) => {
     const [item] = await tx
@@ -407,7 +412,10 @@ ordersRouter.patch("/:id/items/:itemId", async (c) => {
     .limit(1);
   if (!item) return c.json({ error: "Order item not found" }, 404);
   if (item.status === "cancelled") {
-    return c.json({ code: API_ERROR_CODES.ORDER_ITEM_CANCELLED, error: "Order item is cancelled" }, 409);
+    return c.json(
+      { code: API_ERROR_CODES.ORDER_ITEM_CANCELLED, error: "Order item is cancelled" },
+      409,
+    );
   }
 
   const updated = await db.transaction(async (tx) => {
@@ -441,7 +449,10 @@ ordersRouter.post("/:id/items/:itemId/cancel", async (c) => {
     .limit(1);
   if (!item) return c.json({ error: "Order item not found" }, 404);
   if (item.status === "cancelled") {
-    return c.json({ code: API_ERROR_CODES.ORDER_ITEM_CANCELLED, error: "Order item is already cancelled" }, 409);
+    return c.json(
+      { code: API_ERROR_CODES.ORDER_ITEM_CANCELLED, error: "Order item is already cancelled" },
+      409,
+    );
   }
 
   const cancelled = await db.transaction(async (tx) => {
@@ -480,7 +491,10 @@ ordersRouter.post("/:id/items/:itemId/replace", async (c) => {
     .limit(1);
   if (!existing) return c.json({ error: "Order item not found" }, 404);
   if (existing.status === "cancelled") {
-    return c.json({ code: API_ERROR_CODES.ORDER_ITEM_CANCELLED, error: "Order item is already cancelled" }, 409);
+    return c.json(
+      { code: API_ERROR_CODES.ORDER_ITEM_CANCELLED, error: "Order item is already cancelled" },
+      409,
+    );
   }
 
   const resolved = await resolveProductPriceForOrder(
@@ -488,7 +502,14 @@ ordersRouter.post("/:id/items/:itemId/replace", async (c) => {
     order.customerId,
     parsed.data.productId,
   );
-  if (!resolved) return c.json({ code: API_ERROR_CODES.REPLACEMENT_PRODUCT_NOT_AVAILABLE, error: "Replacement product is not available" }, 400);
+  if (!resolved)
+    return c.json(
+      {
+        code: API_ERROR_CODES.REPLACEMENT_PRODUCT_NOT_AVAILABLE,
+        error: "Replacement product is not available",
+      },
+      400,
+    );
 
   const result = await db.transaction(async (tx) => {
     const [newItem] = await tx

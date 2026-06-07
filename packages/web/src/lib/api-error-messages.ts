@@ -8,10 +8,8 @@ import { API_ERROR_CODES, type ApiErrorCode } from "@kava-now/shared";
 const CODE_MESSAGES: Record<ApiErrorCode, string> = {
   [API_ERROR_CODES.DUPLICATE_CUSTOMER_ERP_REF]:
     "Ο κωδικός ERP χρησιμοποιείται ήδη από άλλον πελάτη",
-  [API_ERROR_CODES.DUPLICATE_PRODUCT_ERP_REF]:
-    "Ο κωδικός ERP χρησιμοποιείται ήδη από άλλο προϊόν",
-  [API_ERROR_CODES.DUPLICATE_PRODUCT_NAME_BRAND]:
-    "Υπάρχει ήδη προϊόν με αυτό το όνομα και μάρκα",
+  [API_ERROR_CODES.DUPLICATE_PRODUCT_ERP_REF]: "Ο κωδικός ERP χρησιμοποιείται ήδη από άλλο προϊόν",
+  [API_ERROR_CODES.DUPLICATE_PRODUCT_NAME_BRAND]: "Υπάρχει ήδη προϊόν με αυτό το όνομα και μάρκα",
   [API_ERROR_CODES.DUPLICATE_CATEGORY_NAME]: "Υπάρχει ήδη κατηγορία με αυτό το όνομα",
   [API_ERROR_CODES.DUPLICATE_TENANT_SLUG]: "Αυτό το slug χρησιμοποιείται ήδη",
   [API_ERROR_CODES.DUPLICATE_USER_EMAIL]: "Αυτό το email χρησιμοποιείται ήδη",
@@ -31,21 +29,18 @@ const CODE_MESSAGES: Record<ApiErrorCode, string> = {
 
   [API_ERROR_CODES.CATEGORY_HAS_PRODUCTS]:
     "Δεν μπορείτε να διαγράψετε κατηγορία που χρησιμοποιείται από προϊόντα",
-  [API_ERROR_CODES.CUSTOMER_HAS_ORDERS]:
-    "Δεν μπορείτε να διαγράψετε πελάτη με παραγγελίες",
+  [API_ERROR_CODES.CUSTOMER_HAS_ORDERS]: "Δεν μπορείτε να διαγράψετε πελάτη με παραγγελίες",
 
   [API_ERROR_CODES.USER_ALREADY_ACTIVATED]: "Ο χρήστης έχει ήδη ενεργοποιηθεί",
   [API_ERROR_CODES.CANT_DELETE_SELF]: "Δεν μπορείτε να διαγράψετε τον εαυτό σας",
   [API_ERROR_CODES.LAST_OWNER_PROTECTION]:
     "Δεν μπορείτε να διαγράψετε τον τελευταίο ιδιοκτήτη του λογαριασμού",
-  [API_ERROR_CODES.ONLY_OWNER_CAN_PROMOTE]:
-    "Μόνο ιδιοκτήτης μπορεί να προωθήσει σε ιδιοκτήτη",
+  [API_ERROR_CODES.ONLY_OWNER_CAN_PROMOTE]: "Μόνο ιδιοκτήτης μπορεί να προωθήσει σε ιδιοκτήτη",
   [API_ERROR_CODES.ONLY_OWNER_CAN_DELETE_OWNER]: "Μόνο ιδιοκτήτης μπορεί να διαγράψει ιδιοκτήτη",
   [API_ERROR_CODES.ONLY_STAFF_PROMOTABLE]:
     "Μόνο χρήστες προσωπικού μπορούν να προωθηθούν σε ιδιοκτήτη",
 
-  [API_ERROR_CODES.CUSTOMER_PROFILE_MISSING]:
-    "Ο λογαριασμός σας δεν είναι συνδεδεμένος με πελάτη",
+  [API_ERROR_CODES.CUSTOMER_PROFILE_MISSING]: "Ο λογαριασμός σας δεν είναι συνδεδεμένος με πελάτη",
   [API_ERROR_CODES.ORIGINAL_ITEMS_UNAVAILABLE]:
     "Κανένα προϊόν από την αρχική παραγγελία δεν είναι πλέον διαθέσιμο",
   [API_ERROR_CODES.ORDER_EMPTY]: "Η παραγγελία δεν περιέχει προϊόντα",

@@ -21,14 +21,14 @@ Severity legend: **Critical** = data leak / data loss / auth bypass. **High** = 
 
 ## ✅ Fixed (merged to `main`, commit `d1a112e`)
 
-| Fix | Files |
-| --- | --- |
-| Removed stale SvelteKit leftover dirs + gitignored `build/`, `.svelte-kit/` | `packages/web/{.svelte-kit,build}`, `.gitignore` |
-| Docker healthcheck on `api` service; Caddy waits on `condition: service_healthy` | `docker-compose.yml` |
-| Invalidate the admin dashboard query after order-item edits | `packages/web/src/lib/hooks/use-admin-orders.ts` |
-| Replaced `window`-global search debounce with `useRef` + unmount cleanup | `packages/web/src/pages/customer/CatalogPage.tsx` |
-| WelcomePage routes to tenant home after set-password (no login dead-end) | `packages/web/src/pages/auth/WelcomePage.tsx` |
-| Gate superadmin/demo credential logging behind non-production | `packages/api/src/db/seed.ts`, `packages/api/src/db/seeds/demo-tenant.ts` |
+| Fix                                                                              | Files                                                                     |
+| -------------------------------------------------------------------------------- | ------------------------------------------------------------------------- |
+| Removed stale SvelteKit leftover dirs + gitignored `build/`, `.svelte-kit/`      | `packages/web/{.svelte-kit,build}`, `.gitignore`                          |
+| Docker healthcheck on `api` service; Caddy waits on `condition: service_healthy` | `docker-compose.yml`                                                      |
+| Invalidate the admin dashboard query after order-item edits                      | `packages/web/src/lib/hooks/use-admin-orders.ts`                          |
+| Replaced `window`-global search debounce with `useRef` + unmount cleanup         | `packages/web/src/pages/customer/CatalogPage.tsx`                         |
+| WelcomePage routes to tenant home after set-password (no login dead-end)         | `packages/web/src/pages/auth/WelcomePage.tsx`                             |
+| Gate superadmin/demo credential logging behind non-production                    | `packages/api/src/db/seed.ts`, `packages/api/src/db/seeds/demo-tenant.ts` |
 
 Also already addressed (pre-existing staged work, commit `9610619`): rate limiter now prefers `X-Real-IP`, so it keys on the real client IP behind Cloudflare/Caddy (`packages/api/src/middleware/rate-limit.ts`).
 
@@ -41,6 +41,7 @@ Also already addressed (pre-existing staged work, commit `9610619`): rate limite
 **Status:** Fixed on branch (uncommitted at time of writing). Verified by an integration test suite (`packages/api/src/db/rls.test.ts`) that passes against a live Postgres connected as the non-superuser app role: reads scope to the active tenant, cross-tenant writes are rejected (WITH CHECK), no-context reads return zero rows (fail-safe, no error), and tenant context does not leak across concurrent requests. Wired into CI (`ci.yml` now runs a Postgres service + migrate + the suite).
 
 **What was done:**
+
 - `connection.ts` — the server connects via `config.appDatabaseUrl`; a request-scoped transaction (`runWithTenant`) sets `app.current_tenant_id` **transaction-locally** and an `AsyncLocalStorage`-backed `db` proxy routes every query onto that transaction's connection. The var auto-clears on commit/rollback → no cross-request leak. Zero changes to the ~30 query call sites.
 - `tenant.ts` — wraps the rest of the request in `runWithTenant(tenant.id, () => next())`.
 - `migrate.ts` — provisions a `NOSUPERUSER` `kavanow_app` role (idempotent) with DML-only grants + default privileges. The server connects as it; migrations/seeds keep the privileged role.
@@ -51,18 +52,19 @@ Also already addressed (pre-existing staged work, commit `9610619`): rate limite
 
 **Original finding (for reference):** Two defects together made every RLS policy in `rls.sql` dead:
 
-- **Wrong scope on a shared pool.** `tenantMiddleware` runs `set_config('app.current_tenant_id', …, false)` — *session*-scoped — on the shared `postgres()` pool, outside any transaction. Handler queries (`db`) run on a different pooled connection, so they either see no setting (RLS returns **zero rows** → flaky reads) or a **stale tenant id from a prior request → cross-tenant exposure** under concurrency. The var is also never reset, and the `if (!slug)` branch never clears a previously-set value.
-- **Superuser bypass.** Production connects as `kavanow` (`docker-compose.yml:33`), the Postgres image's bootstrap **superuser**. Superusers bypass *all* RLS; `FORCE ROW LEVEL SECURITY` does **not** apply to them. No `NOSUPERUSER` app role exists.
+- **Wrong scope on a shared pool.** `tenantMiddleware` runs `set_config('app.current_tenant_id', …, false)` — _session_-scoped — on the shared `postgres()` pool, outside any transaction. Handler queries (`db`) run on a different pooled connection, so they either see no setting (RLS returns **zero rows** → flaky reads) or a **stale tenant id from a prior request → cross-tenant exposure** under concurrency. The var is also never reset, and the `if (!slug)` branch never clears a previously-set value.
+- **Superuser bypass.** Production connects as `kavanow` (`docker-compose.yml:33`), the Postgres image's bootstrap **superuser**. Superusers bypass _all_ RLS; `FORCE ROW LEVEL SECURITY` does **not** apply to them. No `NOSUPERUSER` app role exists.
 
 **Fix:** (a) wrap each tenant request in a transaction and set the var transaction-locally (`select set_config('app.current_tenant_id', $1, true)` with `true`), routing all handler queries through `tx`; (b) create a dedicated `NOSUPERUSER` login role with DML-only grants and point `DATABASE_URL` at it (keep DDL/migrations on the privileged role); (c) add a test asserting zero cross-tenant rows leak.
 
 > Note: the superplan's own RLS verification step (§5) connects as `kavanow` and would surface this on first deploy — but no fix is planned.
 
-### C2. Creating a tenant *with a password* orphans the tenant — ✅ FIXED
+### C2. Creating a tenant _with a password_ orphans the tenant — ✅ FIXED
 
-**Status:** Fixed on branch. Verified by `packages/api/src/services/create-tenant.test.ts` (4 tests, pass against a live DB): creating a tenant *with a password* now produces tenant + owner user + credential account + owner membership atomically (the exact case that previously threw); passwordless owners take the invite path; existing users are reused; and a duplicate slug rolls back with no second tenant and no orphan user.
+**Status:** Fixed on branch. Verified by `packages/api/src/services/create-tenant.test.ts` (4 tests, pass against a live DB): creating a tenant _with a password_ now produces tenant + owner user + credential account + owner membership atomically (the exact case that previously threw); passwordless owners take the invite path; existing users are reused; and a duplicate slug rolls back with no second tenant and no orphan user.
 
 **What was done:**
+
 - New `services/create-tenant.ts` — `createTenantWithOwner()` wraps tenant + owner user + (credential account, when a password is given) + owner membership in **one `db.transaction`**. The owner credential is inserted directly with `hashPassword` (the invite-only create hook blocks `signUpEmail`).
 - `routes/superadmin/index.ts` — the route calls the service, maps a duplicate-slug unique violation to 409, and sends the set-password invite (best-effort) only for a brand-new passwordless owner. Removed the `auth.api.signUpEmail` call and now-unused imports.
 
@@ -77,6 +79,7 @@ Also already addressed (pre-existing staged work, commit `9610619`): rate limite
 **Status:** Fixed on branch. Verified by `packages/web/src/lib/store/cart.test.ts`: adding to tenant A's cart, switching to tenant B (which starts empty, not A's items), then returning to A restores A's cart intact with B's item absent; persistence uses tenant-scoped keys. The "B starts empty" assertion fails under the old code, so it's a real regression guard.
 
 **What was done:**
+
 - `lib/store/cart.ts` — `skipHydration: true` (no auto-hydrate at module load from the unscoped `kavanow-cart` key); replaced `setCartSlug` with `activateCartForSlug(slug)`, which points storage at the tenant key and either `rehydrate()`s the stored cart or resets to empty when the tenant has none.
 - `CustomerLayout.tsx` — calls `activateCartForSlug(slug)` in a single `useEffect([slug])` (one source of slug wiring for the whole customer subtree).
 - `CatalogPage.tsx` / `CartPage.tsx` — removed the in-render `setCartSlug` side effect (and now-unused `useAuth`).
@@ -217,21 +220,21 @@ Isolation rides on a `customerId` join + an RLS subquery only. Currently safe be
 
 ## 🟢 Low — open
 
-| ID | Finding | Location |
-| --- | --- | --- |
-| L1 | GH Actions pinned to mutable tags (`@v6`) — **deliberate per plan**; Dependabot covers updates | `.github/workflows/*` |
-| L2 | Layout duplication across Admin/Customer/SuperAdmin; `initials()` copy-pasted | `packages/web/src/.../*Layout.tsx` |
-| L3 | No code-splitting — `xlsx`/`papaparse` ship in the initial bundle for all users | `packages/web/src/App.tsx` |
-| L4 | `useAuth` re-runs Sentry effects every render (derived objects in deps) | `packages/web/src/lib/hooks/use-auth.ts:45` |
-| L5 | `OrderDetailPage.tsx` is 653 lines (mixes header, customer panel, ERP, item table) | `packages/web/src/pages/admin/OrderDetailPage.tsx` |
-| L6 | `.dockerignore` incomplete vs `.gitignore`; dev `mailpit:latest` unpinned; dev Postgres 16 vs prod 17 | `.dockerignore`, `docker-compose.dev.yml` |
-| L7 | `API_PORT` runtime env is a no-op (baked at build time) — misleading | `docker-compose.yml:34` |
-| L8 | `noUnusedLocals`/`noUnusedParameters` disabled for web only | `packages/web/tsconfig.json` |
-| L9 | `.env.example` (dev) missing `BETTER_AUTH_SECRET` | `.env.example` |
-| L10 | Doc drift: CLAUDE.md describes `/api/platform/*` + `routes/platform.ts` that don't exist | `CLAUDE.md` |
-| L11 | 401 interceptor does a full-page `window.location.href` redirect (drops SPA state) | `packages/web/src/lib/api.ts:27` |
-| L12 | `RequireRole` tenant-mismatch silently bounces with no explicit 403 message | `packages/web/src/components/guards/RequireRole.tsx:31` |
-| L13 | Query keys use raw filter objects → cache fragmentation across transient filter states | `use-products.ts`, `use-admin-orders.ts`, `use-catalog.ts`, … |
+| ID  | Finding                                                                                               | Location                                                      |
+| --- | ----------------------------------------------------------------------------------------------------- | ------------------------------------------------------------- |
+| L1  | GH Actions pinned to mutable tags (`@v6`) — **deliberate per plan**; Dependabot covers updates        | `.github/workflows/*`                                         |
+| L2  | Layout duplication across Admin/Customer/SuperAdmin; `initials()` copy-pasted                         | `packages/web/src/.../*Layout.tsx`                            |
+| L3  | No code-splitting — `xlsx`/`papaparse` ship in the initial bundle for all users                       | `packages/web/src/App.tsx`                                    |
+| L4  | `useAuth` re-runs Sentry effects every render (derived objects in deps)                               | `packages/web/src/lib/hooks/use-auth.ts:45`                   |
+| L5  | `OrderDetailPage.tsx` is 653 lines (mixes header, customer panel, ERP, item table)                    | `packages/web/src/pages/admin/OrderDetailPage.tsx`            |
+| L6  | `.dockerignore` incomplete vs `.gitignore`; dev `mailpit:latest` unpinned; dev Postgres 16 vs prod 17 | `.dockerignore`, `docker-compose.dev.yml`                     |
+| L7  | `API_PORT` runtime env is a no-op (baked at build time) — misleading                                  | `docker-compose.yml:34`                                       |
+| L8  | `noUnusedLocals`/`noUnusedParameters` disabled for web only                                           | `packages/web/tsconfig.json`                                  |
+| L9  | `.env.example` (dev) missing `BETTER_AUTH_SECRET`                                                     | `.env.example`                                                |
+| L10 | Doc drift: CLAUDE.md describes `/api/platform/*` + `routes/platform.ts` that don't exist              | `CLAUDE.md`                                                   |
+| L11 | 401 interceptor does a full-page `window.location.href` redirect (drops SPA state)                    | `packages/web/src/lib/api.ts:27`                              |
+| L12 | `RequireRole` tenant-mismatch silently bounces with no explicit 403 message                           | `packages/web/src/components/guards/RequireRole.tsx:31`       |
+| L13 | Query keys use raw filter objects → cache fragmentation across transient filter states                | `use-products.ts`, `use-admin-orders.ts`, `use-catalog.ts`, … |
 
 ---
 

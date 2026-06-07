@@ -1,8 +1,8 @@
 {
   "name": "kava-now",
   "private": true,
-  "type": "module",
   "license": "AGPL-3.0-or-later",
+  "type": "module",
   "scripts": {
     "dev": "pnpm --parallel --filter @kava-now/api --filter @kava-now/web dev",
     "dev:api": "pnpm --filter @kava-now/api dev",

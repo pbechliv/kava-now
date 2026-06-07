@@ -1,10 +1,6 @@
 import { Hono } from "hono";
 import { eq, and, sql, asc } from "drizzle-orm";
-import {
-  createCategorySchema,
-  updateCategorySchema,
-  API_ERROR_CODES,
-} from "@kava-now/shared";
+import { createCategorySchema, updateCategorySchema, API_ERROR_CODES } from "@kava-now/shared";
 import { db } from "../../db/connection";
 import { categories, products } from "../../db/schema/index";
 import { isUniqueViolation, UNIQUE_CONSTRAINTS } from "../../db/errors";

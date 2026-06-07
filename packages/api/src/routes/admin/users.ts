@@ -100,7 +100,10 @@ usersRouter.post("/:id/resend-invite", async (c) => {
   }
 
   if (await userHasPassword(target.id)) {
-    return c.json({ code: API_ERROR_CODES.USER_ALREADY_ACTIVATED, error: "User is already activated" }, 400);
+    return c.json(
+      { code: API_ERROR_CODES.USER_ALREADY_ACTIVATED, error: "User is already activated" },
+      400,
+    );
   }
 
   // Invalidate any outstanding reset tokens so the new email is the only
@@ -119,7 +122,10 @@ usersRouter.post("/:id/promote-to-owner", async (c) => {
   const myMembership = c.get("membership")!;
 
   if (myMembership.role !== "owner") {
-    return c.json({ code: API_ERROR_CODES.ONLY_OWNER_CAN_PROMOTE, error: "Only an owner can promote to owner" }, 403);
+    return c.json(
+      { code: API_ERROR_CODES.ONLY_OWNER_CAN_PROMOTE, error: "Only an owner can promote to owner" },
+      403,
+    );
   }
 
   const [target] = await db
@@ -136,7 +142,13 @@ usersRouter.post("/:id/promote-to-owner", async (c) => {
     return c.json({ success: true });
   }
   if (target.role !== "staff") {
-    return c.json({ code: API_ERROR_CODES.ONLY_STAFF_PROMOTABLE, error: "Only staff users can be promoted to owner" }, 400);
+    return c.json(
+      {
+        code: API_ERROR_CODES.ONLY_STAFF_PROMOTABLE,
+        error: "Only staff users can be promoted to owner",
+      },
+      400,
+    );
   }
 
   await db
@@ -155,7 +167,10 @@ usersRouter.delete("/:id", async (c) => {
   const id = c.req.param("id");
 
   if (id === me.id) {
-    return c.json({ code: API_ERROR_CODES.CANT_DELETE_SELF, error: "You cannot delete yourself" }, 400);
+    return c.json(
+      { code: API_ERROR_CODES.CANT_DELETE_SELF, error: "You cannot delete yourself" },
+      400,
+    );
   }
 
   const [target] = await db
@@ -170,7 +185,13 @@ usersRouter.delete("/:id", async (c) => {
   }
 
   if (target.role === "owner" && myMembership.role !== "owner") {
-    return c.json({ code: API_ERROR_CODES.ONLY_OWNER_CAN_DELETE_OWNER, error: "Only an owner can delete an owner" }, 403);
+    return c.json(
+      {
+        code: API_ERROR_CODES.ONLY_OWNER_CAN_DELETE_OWNER,
+        error: "Only an owner can delete an owner",
+      },
+      403,
+    );
   }
 
   // Prevent removing the final owner of the tenant.
@@ -187,7 +208,10 @@ usersRouter.delete("/:id", async (c) => {
       );
     if (!remaining || remaining.count === 0) {
       return c.json(
-        { code: API_ERROR_CODES.LAST_OWNER_PROTECTION, error: "Cannot delete the last owner of the tenant" },
+        {
+          code: API_ERROR_CODES.LAST_OWNER_PROTECTION,
+          error: "Cannot delete the last owner of the tenant",
+        },
         400,
       );
     }

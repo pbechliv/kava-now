@@ -12,17 +12,17 @@
 
 The older deployment drafts were written before the path-based tenancy refactor. This superplan is the executable runbook. Specific drifts to ignore:
 
-| Existing plan claim                                                       | Reality after refactor                                                      |
-| ------------------------------------------------------------------------- | --------------------------------------------------------------------------- |
-| Wildcard DNS `*.kavanow.gr` + DNS-01 challenge + custom Caddy build       | Single A record on `kavanow.gr`. Plain HTTP-01 with stock `caddy:2-alpine`. |
-| `BASE_DOMAIN`/`APP_DOMAIN` env var                                        | `APP_ORIGIN=https://kavanow.gr` (full URL)                                  |
-| `SESSION_SECRET`                                                          | `COOKIE_SECRET` + `BETTER_AUTH_SECRET`                                      |
-| `kava_memberships`, `users.kavaId`/`role`/`realEmail`, `decodeAuthEmail`  | `tenant_memberships`, global `users` with `isSuperAdmin`                    |
-| Magic-link auth                                                           | Email + password; invites go through password-set flow                      |
-| `header_up Host {host}` to preserve subdomain                             | Not needed — `tenantMiddleware` reads slug from URL path                    |
-| Caddy needs Cloudflare API token for DNS-01                               | Not needed for Caddy. Cloudflare token only used by Terraform.              |
-| Backup verify SQL uses `kavas` table and `users.role`                     | Use `tenants` and `tenant_memberships`                                      |
-| `pnpm db:reset` requires `postgres` superuser                             | Already fixed; works against the kava user                                  |
+| Existing plan claim                                                      | Reality after refactor                                                      |
+| ------------------------------------------------------------------------ | --------------------------------------------------------------------------- |
+| Wildcard DNS `*.kavanow.gr` + DNS-01 challenge + custom Caddy build      | Single A record on `kavanow.gr`. Plain HTTP-01 with stock `caddy:2-alpine`. |
+| `BASE_DOMAIN`/`APP_DOMAIN` env var                                       | `APP_ORIGIN=https://kavanow.gr` (full URL)                                  |
+| `SESSION_SECRET`                                                         | `COOKIE_SECRET` + `BETTER_AUTH_SECRET`                                      |
+| `kava_memberships`, `users.kavaId`/`role`/`realEmail`, `decodeAuthEmail` | `tenant_memberships`, global `users` with `isSuperAdmin`                    |
+| Magic-link auth                                                          | Email + password; invites go through password-set flow                      |
+| `header_up Host {host}` to preserve subdomain                            | Not needed — `tenantMiddleware` reads slug from URL path                    |
+| Caddy needs Cloudflare API token for DNS-01                              | Not needed for Caddy. Cloudflare token only used by Terraform.              |
+| Backup verify SQL uses `kavas` table and `users.role`                    | Use `tenants` and `tenant_memberships`                                      |
+| `pnpm db:reset` requires `postgres` superuser                            | Already fixed; works against the kava user                                  |
 
 Repo changes that **must exist before deploy**:
 
@@ -710,14 +710,14 @@ concurrency:
 
 This prevents deploy and migrate from interleaving.
 
-| Workflow             | Trigger                            | Purpose                                          | Env gate         |
-| -------------------- | ---------------------------------- | ------------------------------------------------ | ---------------- |
-| `ci.yml`             | PR + non-main push                 | typecheck, lint, fmt:check, build                | none             |
-| `build-images.yml`   | `workflow_call`                    | Build + push `kava-now-api`, `kava-now-api-jobs`, and `kava-now-caddy` to GHCR with `<sha>` + `latest` tags. Sourcemap upload to Sentry inline. | none |
-| `provision.yml`      | manual                             | `terraform plan` / `apply`                       | `infrastructure` |
-| `deploy.yml`         | push to `main` + manual            | calls build-images, scp compose+Caddyfile, ssh `--profile jobs pull` + `api-jobs` migrate + app up, smoke test | `production` |
-| `migrate.yml`        | manual                             | runs `pnpm db:migrate` through `api-jobs` on VM without rebuilding | `production`     |
-| `smoke-test.yml`     | `workflow_call`                    | curl `/api/health`, `/`, TLS expiry check       | none             |
+| Workflow           | Trigger                 | Purpose                                                                                                                                         | Env gate         |
+| ------------------ | ----------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------- | ---------------- |
+| `ci.yml`           | PR + non-main push      | typecheck, lint, fmt:check, build                                                                                                               | none             |
+| `build-images.yml` | `workflow_call`         | Build + push `kava-now-api`, `kava-now-api-jobs`, and `kava-now-caddy` to GHCR with `<sha>` + `latest` tags. Sourcemap upload to Sentry inline. | none             |
+| `provision.yml`    | manual                  | `terraform plan` / `apply`                                                                                                                      | `infrastructure` |
+| `deploy.yml`       | push to `main` + manual | calls build-images, scp compose+Caddyfile, ssh `--profile jobs pull` + `api-jobs` migrate + app up, smoke test                                  | `production`     |
+| `migrate.yml`      | manual                  | runs `pnpm db:migrate` through `api-jobs` on VM without rebuilding                                                                              | `production`     |
+| `smoke-test.yml`   | `workflow_call`         | curl `/api/health`, `/`, TLS expiry check                                                                                                       | none             |
 
 Repo secrets to populate (Settings → Secrets and variables → Actions):
 
@@ -1058,13 +1058,13 @@ Real alerting should live in Better Stack and Sentry rather than ad-hoc cron out
 
 ## 7. Cost (steady state)
 
-| Item                         | Monthly         | Notes                                           |
-| ---------------------------- | --------------- | ----------------------------------------------- |
-| Hetzner CX22                 | 4.49 €          | 2 vCPU, 4 GB RAM, 40 GB NVMe                    |
-| Hetzner snapshot backups     | 0.90 €          | +20% of VM, nightly, 7-day retention            |
-| Domain `kavanow.gr`          | ~1.50 €         | Amortized; ~18 €/yr at Papaki                   |
-| Resend, Cloudflare, Sentry, Better Stack, GHCR, Terraform Cloud | 0 € | All free tier |
-| **Total**                    | **~6.90 €/mo**  | Including Hetzner snapshots + monitoring        |
+| Item                                                            | Monthly        | Notes                                    |
+| --------------------------------------------------------------- | -------------- | ---------------------------------------- |
+| Hetzner CX22                                                    | 4.49 €         | 2 vCPU, 4 GB RAM, 40 GB NVMe             |
+| Hetzner snapshot backups                                        | 0.90 €         | +20% of VM, nightly, 7-day retention     |
+| Domain `kavanow.gr`                                             | ~1.50 €        | Amortized; ~18 €/yr at Papaki            |
+| Resend, Cloudflare, Sentry, Better Stack, GHCR, Terraform Cloud | 0 €            | All free tier                            |
+| **Total**                                                       | **~6.90 €/mo** | Including Hetzner snapshots + monitoring |
 
 Scale-up triggers:
 
@@ -1080,17 +1080,17 @@ Scale-up triggers:
 
 These are the ones that come from the GH-Actions-driven flow specifically:
 
-| Risk                                                       | Mitigation                                                                                              |
-| ---------------------------------------------------------- | ------------------------------------------------------------------------------------------------------- |
-| Terraform state drift if you edit the VM in Hetzner Console | Quarterly `terraform plan` reminder; treat drift as a bug; keep human-only resources documented. |
-| Schema-incompatible rollback                                | No automated rollback yet — re-running `deploy.yml` at a prior SHA still runs migrations. Escape hatch: restore a pre-deploy Hetzner snapshot. |
-| Hetzner-only backups share the provider/account blast radius | Accept for launch; enable Hetzner 2FA and run quarterly restore drills. Add offsite encrypted backups once customers/revenue justify it. |
-| Snapshot retention is only 7 days                           | Add calendar reminders for restore drills and take manual snapshots before risky migrations.             |
-| `.gr` domain renewal lapses                                 | Auto-renew at Papaki + calendar reminder 60 days before expiry.                                         |
-| GHCR PAT for VM-pulls expires                               | Calendar reminder annually; rotation = 2-min `docker login` over SSH.                                   |
-| Cloudflare IP ranges change → Caddy stops trusting CF       | CF announces ~yearly. Annual reminder to refresh the `trusted_proxies static` list in the Caddyfile.    |
-| Direct origin IP discovery bypasses CF (DDoS skips proxy)   | UFW + Hetzner firewall already restrict to 22/80/443. Optional hardening: restrict 80/443 to CF IP ranges only (lose direct origin access for `--resolve` debugging). Defer until traffic justifies. |
-| CF cache serves stale `/index.html` after deploy            | Edge TTL capped at 60 s + origin sets `no-cache`. Worst case: 1-min lag for new SPA to reach users. Manual override: `Caching → Configuration → Purge Everything` after critical deploys. |
+| Risk                                                         | Mitigation                                                                                                                                                                                           |
+| ------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Terraform state drift if you edit the VM in Hetzner Console  | Quarterly `terraform plan` reminder; treat drift as a bug; keep human-only resources documented.                                                                                                     |
+| Schema-incompatible rollback                                 | No automated rollback yet — re-running `deploy.yml` at a prior SHA still runs migrations. Escape hatch: restore a pre-deploy Hetzner snapshot.                                                       |
+| Hetzner-only backups share the provider/account blast radius | Accept for launch; enable Hetzner 2FA and run quarterly restore drills. Add offsite encrypted backups once customers/revenue justify it.                                                             |
+| Snapshot retention is only 7 days                            | Add calendar reminders for restore drills and take manual snapshots before risky migrations.                                                                                                         |
+| `.gr` domain renewal lapses                                  | Auto-renew at Papaki + calendar reminder 60 days before expiry.                                                                                                                                      |
+| GHCR PAT for VM-pulls expires                                | Calendar reminder annually; rotation = 2-min `docker login` over SSH.                                                                                                                                |
+| Cloudflare IP ranges change → Caddy stops trusting CF        | CF announces ~yearly. Annual reminder to refresh the `trusted_proxies static` list in the Caddyfile.                                                                                                 |
+| Direct origin IP discovery bypasses CF (DDoS skips proxy)    | UFW + Hetzner firewall already restrict to 22/80/443. Optional hardening: restrict 80/443 to CF IP ranges only (lose direct origin access for `--resolve` debugging). Defer until traffic justifies. |
+| CF cache serves stale `/index.html` after deploy             | Edge TTL capped at 60 s + origin sets `no-cache`. Worst case: 1-min lag for new SPA to reach users. Manual override: `Caching → Configuration → Purge Everything` after critical deploys.            |
 
 ---
 

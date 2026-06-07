@@ -21,7 +21,13 @@ ordersRouter.post("/", async (c) => {
   const customerId = c.get("membership")!.customerId;
 
   if (!customerId) {
-    return c.json({ code: API_ERROR_CODES.CUSTOMER_PROFILE_MISSING, error: "Customer profile not linked to this user" }, 400);
+    return c.json(
+      {
+        code: API_ERROR_CODES.CUSTOMER_PROFILE_MISSING,
+        error: "Customer profile not linked to this user",
+      },
+      400,
+    );
   }
 
   const body = await c.req.json();
@@ -133,7 +139,13 @@ ordersRouter.get("/", async (c) => {
   const customerId = c.get("membership")!.customerId;
 
   if (!customerId) {
-    return c.json({ code: API_ERROR_CODES.CUSTOMER_PROFILE_MISSING, error: "Customer profile not linked to this user" }, 400);
+    return c.json(
+      {
+        code: API_ERROR_CODES.CUSTOMER_PROFILE_MISSING,
+        error: "Customer profile not linked to this user",
+      },
+      400,
+    );
   }
 
   const pagination = paginationQuerySchema.safeParse({
@@ -179,7 +191,13 @@ ordersRouter.get("/:id", async (c) => {
   const orderId = c.req.param("id");
 
   if (!customerId) {
-    return c.json({ code: API_ERROR_CODES.CUSTOMER_PROFILE_MISSING, error: "Customer profile not linked to this user" }, 400);
+    return c.json(
+      {
+        code: API_ERROR_CODES.CUSTOMER_PROFILE_MISSING,
+        error: "Customer profile not linked to this user",
+      },
+      400,
+    );
   }
 
   const [order] = await db
@@ -204,7 +222,13 @@ ordersRouter.post("/:id/reorder", async (c) => {
   const orderId = c.req.param("id");
 
   if (!customerId) {
-    return c.json({ code: API_ERROR_CODES.CUSTOMER_PROFILE_MISSING, error: "Customer profile not linked to this user" }, 400);
+    return c.json(
+      {
+        code: API_ERROR_CODES.CUSTOMER_PROFILE_MISSING,
+        error: "Customer profile not linked to this user",
+      },
+      400,
+    );
   }
 
   // Get original order
@@ -276,7 +300,8 @@ ordersRouter.post("/:id/reorder", async (c) => {
   if (validItems.length === 0) {
     return c.json(
       {
-        code: API_ERROR_CODES.ORIGINAL_ITEMS_UNAVAILABLE, error: "None of the original order items are still available",
+        code: API_ERROR_CODES.ORIGINAL_ITEMS_UNAVAILABLE,
+        error: "None of the original order items are still available",
       },
       400,
     );
