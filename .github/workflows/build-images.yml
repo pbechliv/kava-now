@@ -15,9 +15,9 @@ on:
       SENTRY_DSN_WEB:
         required: false
 
-concurrency:
-  group: deploy-prod
-  cancel-in-progress: false
+# No concurrency block here: this workflow is only ever workflow_call'd by
+# deploy.yml, which already holds the deploy-prod group — a called workflow
+# re-taking the caller's group self-deadlocks and GitHub kills the call.
 
 permissions:
   contents: read
