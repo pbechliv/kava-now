@@ -19,6 +19,32 @@ Severity legend: **Critical** = data leak / data loss / auth bypass. **High** = 
 
 ---
 
+## ✅ Update 2026-06-07 — Highs + tenant/DB Mediums resolved
+
+Landed directly on `main` (commits `1e7ee5e`…`0132bee`):
+
+- **H1** env validated through Zod at boot; prod refuses to start on missing/dev-default `BETTER_AUTH_SECRET` / `APP_ORIGIN` / DB URL; secret wired into `betterAuth`; dead `COOKIE_SECRET` removed (also closes **L9**)
+- **H2** `shutdownTimeoutMs: 10_000` in the API build — graceful shutdown
+- **H3** CORS restricted to `config.appOrigin`
+- **H4** closed: order-mutation HTTP suite (ERP one-shot, hard locks, soft-cancel totals, replacement chain), invite-flow suite, `assertOrderMutable` unit matrix — 26 API tests total
+- **H5** `db:reset` derives the DB name from `DATABASE_URL` + refuses `NODE_ENV=production` without `--force`
+- **C4** explicit `tenantId` filters on all customer-route queries
+- **M1** hot-path indexes (orders, order_items, products) — migration `0001`
+- **M3** status update transactional with `FOR UPDATE`; ERP transmit is an atomic conditional `UPDATE`; item mutations lock the order row with the guard
+- **M5** RLS moved into the tracked migration graph (`drizzle/0002_rls_policies.sql`); `rls.sql` removed
+- **M8** `tenant_id` denormalized onto `customer_brand_pricing` (backfilled, direct RLS policy)
+
+Also fixed along the way (not in the original review):
+
+- **CI was red on every run**: `Badge/Button/Card/Input.tsx` tracked uppercase while imports are lowercase — broke typecheck on Linux runners (works on macOS). Renamed in the git index.
+- **`drizzle/meta/` was gitignored** — fresh checkouts had no migration journal, so `migrate()` could not run at all. Now tracked.
+- **postgres:18 volume mounts**: the dependabot 16→18 bump broke startup in both compose files (PG18 images require the mount at `/var/lib/postgresql`, not `.../data`). Dev volume recreated; prod had no data yet.
+- oxfmt drift from the vite-plus bump (9 files) formatted.
+
+**Still open:** M2 (set-password result swallowed), M4 (`/forget-password` alias unthrottled), M6 (`basePrice` type lie), M7 (`:latest` tag), M9 (`tsc -b` no-op) + the Lows (L2–L8, L10–L13). Note: CI does not run on pushes to `main` (`branches-ignore`), and `deploy.yml` fails at 0s on every push — needs attention before relying on it.
+
+---
+
 ## ✅ Fixed (merged to `main`, commit `d1a112e`)
 
 | Fix                                                                              | Files                                                                     |
