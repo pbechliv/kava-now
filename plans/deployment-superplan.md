@@ -56,7 +56,7 @@ Do all of these before any code or VM work. Allow ~2 hours.
 - Sign up at [cloudflare.com](https://www.cloudflare.com) (free plan).
 - Add site → `kavanow.gr` → Free plan.
 - Cloudflare assigns 2 nameservers (e.g. `xxx.ns.cloudflare.com`). **Go back to Papaki/Pointer and change the domain's nameservers** to those two. Propagation: 15 min – 24 h. You can continue with the rest while waiting.
-- Generate an API token: My Profile → API Tokens → Create token → **Custom token** with permissions: `Zone:DNS:Edit` + `Zone:Cache Rules:Edit` + `Zone:SSL and Certificates:Edit` on zone `kavanow.gr` only. Save as `CLOUDFLARE_API_TOKEN`. Terraform needs all three permissions.
+- Generate an API token: My Profile → API Tokens → Create token → **Custom token** with permissions: `Zone:DNS:Edit` + `Zone:Cache Rules:Edit` + `Zone:SSL and Certificates:Edit` + `Zone:Zone Settings:Edit` on zone `kavanow.gr` only. Save as `CLOUDFLARE_API_TOKEN`. Terraform needs all four — the `cloudflare_zone_setting` resources (ssl, brotli, http3, …) fail with `Unauthorized (9109)` without Zone Settings:Edit.
 - **SSL/TLS settings → Overview:** mode = **Full (strict)**.
 - **SSL/TLS → Edge Certificates:** enable **Always Use HTTPS** + **Automatic HTTPS Rewrites** + **Opportunistic Encryption**. Minimum TLS = 1.2.
 - **SSL/TLS → Origin Server:** click **Create Certificate**. Defaults are fine (RSA 2048, 15-year validity, hostnames: `kavanow.gr` + `*.kavanow.gr`). Save the **certificate** as `origin.pem` and the **private key** as `origin.key` to 1Password. These get pasted onto the VM later (§5 step 6).
