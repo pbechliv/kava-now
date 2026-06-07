@@ -16,7 +16,7 @@ The older deployment drafts were written before the path-based tenancy refactor.
 | ------------------------------------------------------------------------ | --------------------------------------------------------------------------- |
 | Wildcard DNS `*.kavanow.gr` + DNS-01 challenge + custom Caddy build      | Single A record on `kavanow.gr`. Plain HTTP-01 with stock `caddy:2-alpine`. |
 | `BASE_DOMAIN`/`APP_DOMAIN` env var                                       | `APP_ORIGIN=https://kavanow.gr` (full URL)                                  |
-| `SESSION_SECRET`                                                         | `COOKIE_SECRET` + `BETTER_AUTH_SECRET`                                      |
+| `SESSION_SECRET` / `COOKIE_SECRET`                                       | `BETTER_AUTH_SECRET` only (better-auth signs cookies with it)               |
 | `kava_memberships`, `users.kavaId`/`role`/`realEmail`, `decodeAuthEmail` | `tenant_memberships`, global `users` with `isSuperAdmin`                    |
 | Magic-link auth                                                          | Email + password; invites go through password-set flow                      |
 | `header_up Host {host}` to preserve subdomain                            | Not needed — `tenantMiddleware` reads slug from URL path                    |
@@ -27,7 +27,7 @@ The older deployment drafts were written before the path-based tenancy refactor.
 Repo changes that **must exist before deploy**:
 
 - `Caddyfile` — single apex host, Cloudflare Origin CA cert, `/api/health` active probe, no wildcard/DNS-01 block.
-- `.env.production.example` — current `APP_ORIGIN`, `COOKIE_SECRET`, `BETTER_AUTH_SECRET`, Resend, Sentry, Google, seed vars.
+- `.env.production.example` — current `APP_ORIGIN`, `BETTER_AUTH_SECRET`, Resend, Sentry, Google, seed vars.
 - `docker-compose.yml` — pulls GHCR images, uses `.env.production`, mounts the Origin CA cert, and includes an `api-jobs` profile for migrations/seeds.
 - `Dockerfile` — builds with pnpm 11, forwards build-time env to API/web builds, and exposes an `api-jobs` target for `pnpm db:*`.
 - Sentry — API/web error capture is wired; verify web tenant tagging and sourcemap upload during the deploy workflow work as expected.
@@ -125,19 +125,35 @@ The repo already supports Google OAuth via better-auth — the web SPA renders t
 
 ### 1.10 Local crypto material (one-time, on your laptop)
 
-```bash
-# SSH key for VM access (separate from your personal key — easier to rotate)
-ssh-keygen -t ed25519 -f ~/.ssh/kavanow_deploy -C "kavanow-deploy" -N ""
-```
+Create an **ed25519 SSH key in 1Password** (New Item → SSH Key → Generate) named `kavanow-deploy`. The private key never touches disk — the 1Password SSH agent serves it.
 
-Save the private key to 1Password.
+- Enable the agent: 1Password → Settings → Developer → "Use the SSH agent".
+- `~/.ssh/config` already routes all hosts through the agent:
+
+  ```ssh-config
+  Host *
+      IdentityAgent "~/Library/Group Containers/2BUA8C4S2C.com.1password/t/agent.sock"
+  ```
+
+- VM access is plain `ssh deploy@<vm_ip>` — no `-i` flag, no key file. 1Password prompts with Touch ID.
+- The key has three consumers:
+  1. **Laptop SSH** — via the agent (above).
+  2. **Terraform `ssh_pub_key`** — public key only: `op read "op://Private/kavanow-deploy/public key"`.
+  3. **GitHub Secret `HETZNER_SSH_KEY`** — the one place that needs the raw private key (Actions runners can't reach your agent). Export without touching disk or shell history:
+
+     ```bash
+     op read "op://Private/kavanow-deploy/private key?ssh-format=openssh" \
+       | gh secret set HETZNER_SSH_KEY
+     ```
+
+     `?ssh-format=openssh` matters — without it `op` returns PKCS#8, and CI ssh-agent setups expect OpenSSH format.
+- If 1Password holds more than ~5 keys, `Host *` offers all of them and servers may reject with `Too many authentication failures`. Fix by pinning: save the public key to `~/.ssh/kavanow_deploy.pub` and add a host block with `IdentityFile ~/.ssh/kavanow_deploy.pub` + `IdentitiesOnly yes`.
 
 ### 1.11 Pre-generate production secrets (on your laptop, never on the VM)
 
 ```bash
 openssl rand -base64 32   # → POSTGRES_PASSWORD
 openssl rand -base64 32   # → APP_DB_PASSWORD  (NOSUPERUSER app role; required for RLS)
-openssl rand -hex 32      # → COOKIE_SECRET
 openssl rand -hex 32      # → BETTER_AUTH_SECRET
 ```
 
@@ -157,7 +173,7 @@ You should now have:
 - [ ] Google OAuth client (`GOOGLE_CLIENT_ID` + `GOOGLE_CLIENT_SECRET`) — or skip if launching password-only
 - [ ] Better Stack monitor
 - [ ] GitHub repo with `production` + `infrastructure` environments
-- [ ] `~/.ssh/kavanow_deploy{,.pub}`
+- [ ] `kavanow-deploy` SSH key in 1Password + SSH agent enabled
 - [ ] Three pre-generated production secrets in 1Password
 
 ---
@@ -278,8 +294,7 @@ API_PORT=3000
 APP_ORIGIN=https://kavanow.gr
 
 # better-auth
-# Generate each with: openssl rand -hex 32
-COOKIE_SECRET=
+# Generate with: openssl rand -hex 32
 BETTER_AUTH_SECRET=
 
 # Email (Resend)
@@ -313,8 +328,10 @@ Switch the runtime services from `build:` to GHCR `image:` references. Keep loca
 ```yaml
 services:
   postgres:
-    image: postgres:17-alpine
+    image: postgres:18-alpine
     # ... existing config, no change
+    # NB: postgres:18+ stores data in a major-version subdir under
+    # /var/lib/postgresql — mount the volume there, not at .../data
 
   api:
     image: ghcr.io/pbechliv/kava-now-api:${IMAGE_TAG:-latest}
@@ -330,7 +347,7 @@ services:
     # ... existing port/volume config
 ```
 
-Bump Postgres to `17-alpine` now since this is greenfield production; staying on 16 only makes sense if you want a separate major-version upgrade plan before launch.
+Bump Postgres to `18-alpine` now since this is greenfield production; starting on an older major only makes sense if you want a separate major-version upgrade plan before launch.
 
 Add an `api-jobs` Docker target in `Dockerfile` instead of trying to run `pnpm db:*` inside the slim API runtime image. The API runtime image has compiled server output and production dependencies; migrations/seeds run the current TS scripts through `tsx`, so they need source + full workspace dependencies:
 
@@ -676,9 +693,9 @@ runcmd:
 After provision, verify the VM before continuing:
 
 ```bash
-ssh -i ~/.ssh/kavanow_deploy deploy@<vm_ip> 'whoami && docker --version && docker compose version'
+ssh deploy@<vm_ip> 'whoami && docker --version && docker compose version'
 ssh root@<vm_ip> # should fail
-ssh -i ~/.ssh/kavanow_deploy deploy@<vm_ip> 'sudo fail2ban-client status sshd'
+ssh deploy@<vm_ip> 'sudo fail2ban-client status sshd'
 ```
 
 SSH is open to the world on day 1 to avoid locking yourself out. Once your access pattern is stable, optionally restrict port 22 to your home/office IP in the Hetzner firewall.
@@ -719,31 +736,27 @@ This prevents deploy and migrate from interleaving.
 | `migrate.yml`      | manual                  | runs `pnpm db:migrate` through `api-jobs` on VM without rebuilding                                                                              | `production`     |
 | `smoke-test.yml`   | `workflow_call`         | curl `/api/health`, `/`, TLS expiry check                                                                                                       | none             |
 
-Repo secrets to populate (Settings → Secrets and variables → Actions):
+Repo secrets to populate (Settings → Secrets and variables → Actions). This is the exact set the workflows reference:
 
 ```
-HCLOUD_TOKEN                  # provision
-CLOUDFLARE_API_TOKEN          # provision
-TF_STATE_TOKEN                # provision
-HETZNER_HOST                  # set by provision.yml or paste from TF output
-HETZNER_SSH_KEY               # contents of ~/.ssh/kavanow_deploy (private)
-HETZNER_SSH_KNOWN_HOSTS       # ssh-keyscan <ip> output
-GHCR_VM_PAT                   # PAT with read:packages, written to VM by bootstrap-vm.sh
-RESEND_API_KEY                # passed into VM .env.production
-SENTRY_AUTH_TOKEN             # build-images.yml (sourcemap upload)
-SENTRY_DSN_API + SENTRY_DSN_WEB
-SUPERADMIN_EMAIL + SUPERADMIN_PASSWORD  # piped into seed
-POSTGRES_PASSWORD + APP_DB_PASSWORD + COOKIE_SECRET + BETTER_AUTH_SECRET
-GOOGLE_CLIENT_ID + GOOGLE_CLIENT_SECRET  # optional; only if §1.7 was done
+HCLOUD_TOKEN                  # provision.yml
+CLOUDFLARE_API_TOKEN          # provision.yml
+CLOUDFLARE_ZONE_ID            # provision.yml → TF_VAR_cloudflare_zone_id (Cloudflare dashboard → kavanow.gr → Overview)
+TF_STATE_TOKEN                # provision.yml → TF_TOKEN_app_terraform_io (Terraform Cloud API token, §3.1)
+HETZNER_SSH_PUB_KEY           # provision.yml → TF_VAR_ssh_pub_key:
+                              #   op read "op://Private/kavanow-deploy/public key" | gh secret set HETZNER_SSH_PUB_KEY
+HETZNER_HOST                  # deploy.yml + migrate.yml — VM IP from provision output
+HETZNER_SSH_KEY               # deploy.yml + migrate.yml:
+                              #   op read "op://Private/kavanow-deploy/private key?ssh-format=openssh" | gh secret set HETZNER_SSH_KEY
+HETZNER_SSH_KNOWN_HOSTS       # deploy.yml + migrate.yml — ssh-keyscan <vm_ip> output
+SENTRY_AUTH_TOKEN             # build-images.yml — BuildKit secret for sourcemap upload
+SENTRY_DSN_WEB                # build-images.yml — baked into the web build
+GOOGLE_CLIENT_ID              # build-images.yml — baked into the web build (optional, §1.7)
 ```
 
-Repo variables (`vars`):
+**Not** GitHub secrets — these live only in the VM's `.env.production` (pasted during `bootstrap-vm.sh`, sourced from 1Password): `POSTGRES_PASSWORD`, `APP_DB_PASSWORD`, `BETTER_AUTH_SECRET`, `RESEND_API_KEY`, `SENTRY_DSN_API`, `SUPERADMIN_EMAIL`/`SUPERADMIN_PASSWORD`, `GOOGLE_CLIENT_SECRET`. `GHCR_VM_PAT` (PAT with `read:packages`) is typed interactively into `bootstrap-vm.sh` for the VM's `docker login` — keep it in 1Password.
 
-```
-SENTRY_ORG=kavanow
-SENTRY_PROJECT_API=kavanow-api
-SENTRY_PROJECT_WEB=kavanow-web
-```
+No repo variables (`vars`) are used by the workflows.
 
 ### 4.1 `ci.yml`
 
@@ -834,7 +847,7 @@ Migrations run before the API/Caddy swap. If migration fails, the currently runn
 3. Write all Terraform files. Run `terraform plan` locally first (export `HCLOUD_TOKEN` + `CLOUDFLARE_API_TOKEN`).
 4. Write `ci.yml`, `build-images.yml`, `provision.yml`, `smoke-test.yml`. Push to a branch, watch `ci.yml` pass.
 5. Manually run `provision.yml` with `action=plan`, review, then `action=apply`. VM exists, DNS records point to it.
-6. SSH into the VM (`ssh -i ~/.ssh/kavanow_deploy deploy@<ip>`). Run `scripts/bootstrap-vm.sh`:
+6. SSH into the VM (`ssh deploy@<ip>` — 1Password agent serves the key). Run `scripts/bootstrap-vm.sh`:
    - `docker login ghcr.io` with the `GHCR_VM_PAT`
    - **Write `/etc/kavanow/tls/origin.pem` + `origin.key`** by pasting from 1Password (`sudo nano`, `chmod 600 origin.key`, `chmod 644 origin.pem`, `chown root:root`)
    - Create `/srv/kavanow/.env.production` from secrets (manual paste — never echo secrets into a script)
@@ -929,7 +942,7 @@ Make sure `SUPERADMIN_EMAIL`, `SUPERADMIN_PASSWORD`, and `SEED_DEMO=false` are p
 ### Logs
 
 ```bash
-ssh -i ~/.ssh/kavanow_deploy deploy@<vm_ip>
+ssh deploy@<vm_ip>
 cd /srv/kavanow
 docker compose --env-file .env.production logs --tail=200 -f api
 docker compose --env-file .env.production logs --tail=200 -f caddy
@@ -984,7 +997,7 @@ For schema or data breakage, restore a Hetzner snapshot from the Hetzner Console
 Most security patches are handled by `unattended-upgrades`, with auto-reboot at 03:30 UTC. For controlled upgrades:
 
 ```bash
-ssh -i ~/.ssh/kavanow_deploy deploy@<vm_ip>
+ssh deploy@<vm_ip>
 sudo apt update && sudo apt upgrade -y
 sudo systemctl restart docker # only if Docker was updated
 sudo reboot                  # only if kernel or core services changed

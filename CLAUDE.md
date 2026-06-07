@@ -194,7 +194,7 @@ The `postgres` driver (not `pg`) is used. RLS is enforced at the DB level for te
 ### Environment
 
 - Node >= 24 (`.node-version`: `24.15.0`). `.node-version` is the only Node pin — read by `vp env`, nodenv, asdf, fnm, and nvm-as-fallback.
-- pnpm 11.1.2 (declared via `packageManager` in root [package.json](package.json); corepack-managed)
+- pnpm > 11 (declared via `packageManager` in root [package.json](package.json); corepack-managed)
 - Config in [packages/api/src/config.ts](packages/api/src/config.ts); env loaded by [packages/api/src/load-env.ts](packages/api/src/load-env.ts) from the repo-root `.env`
 - [.env.example](.env.example) documents `DATABASE_URL`, `APP_ORIGIN`, `BETTER_AUTH_SECRET`, `SMTP_*`, `RESEND_*`, `API_PORT`, `SUPERADMIN_*`, `SEED_DEMO`, `DEMO_CUSTOMER_*`
 - Env is validated through Zod at boot ([config.ts](packages/api/src/config.ts)): dev falls back to local defaults; production refuses to start if `BETTER_AUTH_SECRET`, `APP_ORIGIN`, or the database URL are missing or left at dev defaults

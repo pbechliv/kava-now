@@ -13,7 +13,7 @@
 # land in shell history.
 #
 # Usage:
-#   ssh -i ~/.ssh/kavanow_deploy deploy@<vm_ip>
+#   ssh deploy@<vm_ip>   # key served by the 1Password SSH agent
 #   curl -fsSL https://raw.githubusercontent.com/pbechliv/kava-now/main/scripts/bootstrap-vm.sh -o bootstrap.sh
 #   chmod +x bootstrap.sh && ./bootstrap.sh
 # =============================================================================
