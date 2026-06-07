@@ -8,7 +8,12 @@
 # Stage: base — shared Node + pnpm foundation
 # ---------------------------------------------------------------------------
 FROM node:24-alpine AS base
-RUN corepack enable && corepack prepare pnpm@11.5.2 --activate
+# pnpm version comes from "packageManager" in package.json — corepack's shim
+# reads (and hash-verifies) it on first pnpm invocation, so there is no
+# version to keep in sync here. Every stage copies package.json before
+# running pnpm.
+ENV COREPACK_ENABLE_DOWNLOAD_PROMPT=0
+RUN corepack enable
 WORKDIR /app
 
 # ---------------------------------------------------------------------------

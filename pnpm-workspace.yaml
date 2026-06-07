@@ -12,6 +12,10 @@ overrides:
   vite: "catalog:"
   vitest: "catalog:"
   zod: ^4.4.3
+  # better-auth's kysely-adapter claims kysely ^0.29 support but imports
+  # DEFAULT_MIGRATION_{LOCK_,}TABLE, which 0.29 removed — bundling the API
+  # fails with MISSING_EXPORT. Pin to 0.28.x until upstream fixes the adapter.
+  kysely: ^0.28.17
 peerDependencyRules:
   allowAny:
     - vite
