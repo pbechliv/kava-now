@@ -14,7 +14,7 @@ async function main() {
   const sql = postgres(connectionString, { max: 1 });
   const db = drizzle(sql);
 
-  // RLS policies live in the migration graph (drizzle/0002_rls_policies.sql);
+  // RLS policies live in the migration graph (see drizzle/0000_init.sql);
   // new tenant-scoped tables must ship their policy as a custom migration.
   console.log("Running Drizzle migrations...");
   await migrate(db, { migrationsFolder: join(__dirname, "../../drizzle") });
