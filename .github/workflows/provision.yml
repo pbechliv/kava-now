@@ -112,6 +112,9 @@ jobs:
             echo "::error::HETZNER_SSH_KEY secret is not a valid private key (multi-line PEM required — set it with: pbpaste | gh secret set HETZNER_SSH_KEY)"
             exit 1
           }
+          # Print the fingerprint so a wrong-key mixup is diagnosable from the log
+          # (compare against the kavanow-deploy item in 1Password / ssh-add -l).
+          echo "Using key: $(ssh-keygen -lf ~/.ssh/id_ed25519)"
           # Wait for the TCP port (VM boot), separately from auth.
           for i in $(seq 1 30); do
             if (exec 3<>/dev/tcp/"$VM_IP"/22) 2>/dev/null; then exec 3>&-; break; fi
