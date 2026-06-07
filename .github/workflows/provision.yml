@@ -106,9 +106,16 @@ jobs:
 
       - name: Wait for SSH + cloud-init
         run: |
+          # Sanity-check the key material first — a mangled HETZNER_SSH_KEY
+          # otherwise looks identical to "VM not up yet" for 5 minutes.
+          ssh-keygen -y -f ~/.ssh/id_ed25519 >/dev/null || {
+            echo "::error::HETZNER_SSH_KEY secret is not a valid private key (multi-line PEM required — set it with: pbpaste | gh secret set HETZNER_SSH_KEY)"
+            exit 1
+          }
+          # Wait for the TCP port (VM boot), separately from auth.
           for i in $(seq 1 30); do
-            if ssh vm true 2>/dev/null; then break; fi
-            echo "SSH not up yet ($i/30), retrying in 10s…"
+            if (exec 3<>/dev/tcp/"$VM_IP"/22) 2>/dev/null; then exec 3>&-; break; fi
+            echo "port 22 not open yet ($i/30), retrying in 10s…"
             sleep 10
           done
           ssh vm 'sudo cloud-init status --wait >/dev/null && echo "cloud-init: done"'
