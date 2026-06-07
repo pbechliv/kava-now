@@ -152,8 +152,8 @@ Create an **ed25519 SSH key in 1Password** (New Item → SSH Key → Generate) n
 ### 1.11 Pre-generate production secrets (on your laptop, never on the VM)
 
 ```bash
-openssl rand -base64 32   # → POSTGRES_PASSWORD
-openssl rand -base64 32   # → APP_DB_PASSWORD  (NOSUPERUSER app role; required for RLS)
+openssl rand -hex 32      # → POSTGRES_PASSWORD  (hex — these land in postgres:// URLs;
+openssl rand -hex 32      # → APP_DB_PASSWORD     base64's / + = would break URL parsing)
 openssl rand -hex 32      # → BETTER_AUTH_SECRET
 ```
 
