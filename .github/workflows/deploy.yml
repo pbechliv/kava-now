@@ -65,6 +65,13 @@ jobs:
           printf '%s\n' "${{ secrets.HETZNER_SSH_KNOWN_HOSTS }}" > ~/.ssh/known_hosts
           chmod 644 ~/.ssh/known_hosts
 
+      # Ephemeral job token (packages:read) — no long-lived GHCR PAT on the VM.
+      # The stored credential goes stale after the job; the next deploy renews it.
+      - name: GHCR login on VM
+        run: |
+          printf '%s' "${{ secrets.GITHUB_TOKEN }}" | ssh -i ~/.ssh/id_ed25519 deploy@"$HETZNER_HOST" \
+            'docker login ghcr.io -u ${{ github.repository_owner }} --password-stdin'
+
       - name: Copy compose + Caddyfile to VM
         run: |
           scp -i ~/.ssh/id_ed25519 \

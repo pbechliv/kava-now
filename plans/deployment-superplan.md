@@ -705,7 +705,7 @@ SSH is open to the world on day 1 to avoid locking yourself out. Once your acces
 Terraform/cloud-init gets the box to a secure Docker host. The `bootstrap` job in `provision.yml` handles the post-provision secrets and operational files that deliberately stay out of Terraform state. It runs automatically after `action=apply`, or standalone via `action=bootstrap` (idempotent — re-run after rotating any secret):
 
 - Waits for SSH + `cloud-init status --wait` (so it works in the same run that created the VM).
-- Logs the VM into GHCR using `GHCR_VM_PAT`.
+- (GHCR login is **not** part of bootstrap — `deploy.yml` logs the VM in per-deploy with its ephemeral `GITHUB_TOKEN`, so no long-lived registry PAT exists anywhere.)
 - Writes `/etc/kavanow/tls/origin.{pem,key}` from `CF_ORIGIN_CERT`/`CF_ORIGIN_KEY` (`644`/`600`, `root:root`) and validates the pair match via pubkey comparison.
 - Generates `/srv/kavanow/.env.production` (`600`) from GitHub Secrets. Single source of truth: rotate in GitHub Secrets (mirrored in 1Password), re-run `action=bootstrap`, then `deploy.yml`.
 - Reads the VM IP from `terraform output` directly — no dependency on `HETZNER_HOST`, so a from-scratch DR rebuild is one `action=apply` run.
@@ -734,7 +734,7 @@ This prevents deploy and migrate from interleaving.
 | ------------------ | ----------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------- | ---------------- |
 | `ci.yml`           | PR + non-main push      | typecheck, lint, fmt:check, build                                                                                                               | none             |
 | `build-images.yml` | `workflow_call`         | Build + push `kava-now-api`, `kava-now-api-jobs`, and `kava-now-caddy` to GHCR with `<sha>` + `latest` tags. Sourcemap upload to Sentry inline. | none             |
-| `provision.yml`    | manual                  | `terraform plan` / `apply` + VM bootstrap job (GHCR login, TLS cert, `.env.production`)                                                         | `infrastructure` |
+| `provision.yml`    | manual                  | `terraform plan` / `apply` + VM bootstrap job (TLS cert, `.env.production`)                                                                     | `infrastructure` |
 | `deploy.yml`       | push to `main` + manual | calls build-images, scp compose+Caddyfile, ssh `--profile jobs pull` + `api-jobs` migrate + app up, smoke test                                  | `production`     |
 | `migrate.yml`      | manual                  | runs `pnpm db:migrate` through `api-jobs` on VM without rebuilding                                                                              | `production`     |
 | `smoke-test.yml`   | `workflow_call`         | curl `/api/health`, `/`, TLS expiry check                                                                                                       | none             |
@@ -762,7 +762,6 @@ Additional secrets consumed by the `bootstrap` job in `provision.yml` (it genera
 ```
 CF_ORIGIN_CERT                # Cloudflare Origin CA certificate (full PEM)
 CF_ORIGIN_KEY                 # Cloudflare Origin CA private key (full PEM)
-GHCR_VM_PAT                   # PAT with read:packages — VM's docker login
 POSTGRES_PASSWORD             # hex (URL-embedded)
 APP_DB_PASSWORD               # hex (URL-embedded)
 BETTER_AUTH_SECRET
@@ -863,7 +862,7 @@ Migrations run before the API/Caddy swap. If migration fails, the currently runn
 3. Write all Terraform files. Run `terraform plan` locally first (export `HCLOUD_TOKEN` + `CLOUDFLARE_API_TOKEN`).
 4. Write `ci.yml`, `build-images.yml`, `provision.yml`, `smoke-test.yml`. Push to a branch, watch `ci.yml` pass.
 5. Manually run `provision.yml` with `action=plan`, review, then `action=apply`. VM exists, DNS records point to it.
-6. The `bootstrap` job runs automatically after `action=apply` (or standalone via `action=bootstrap`): GHCR login, Origin CA cert install + validation, `.env.production` generation — all from GitHub Secrets (§4). Afterwards:
+6. The `bootstrap` job runs automatically after `action=apply` (or standalone via `action=bootstrap`): Origin CA cert install + validation, `.env.production` generation — all from GitHub Secrets (§4). GHCR login happens per-deploy via the ephemeral `GITHUB_TOKEN`. Afterwards:
    - Set/refresh `HETZNER_HOST` and `HETZNER_SSH_KNOWN_HOSTS` from the job summary (it prints the commands)
    - Confirm Hetzner backups are enabled on the server (Console → server → Backups)
 
@@ -919,7 +918,7 @@ Migrations run before the API/Caddy swap. If migration fails, the currently runn
 ### Day 5 — Polish (~1-2 h)
 
 15. Add a calendar reminder: quarterly Hetzner snapshot restore drill into a temporary VM.
-16. Add an annual reminder for `GHCR_VM_PAT` rotation.
+16. ~~Annual `GHCR_VM_PAT` rotation~~ — obsolete: GHCR auth uses the per-deploy ephemeral `GITHUB_TOKEN`; there is no long-lived registry credential.
 17. Copy §6 "Operations runbook" from this superplan into `docs/operations.md` once production is live.
 18. Move the superseded plans to `plans/archive/` or delete them once you are comfortable that this file is the only deployment source of truth.
 
@@ -1114,7 +1113,7 @@ These are the ones that come from the GH-Actions-driven flow specifically:
 | Hetzner-only backups share the provider/account blast radius | Accept for launch; enable Hetzner 2FA and run quarterly restore drills. Add offsite encrypted backups once customers/revenue justify it.                                                             |
 | Snapshot retention is only 7 days                            | Add calendar reminders for restore drills and take manual snapshots before risky migrations.                                                                                                         |
 | `.gr` domain renewal lapses                                  | Auto-renew at Papaki + calendar reminder 60 days before expiry.                                                                                                                                      |
-| GHCR PAT for VM-pulls expires                                | Calendar reminder annually; rotation = 2-min `docker login` over SSH.                                                                                                                                |
+| VM's GHCR credential goes stale between deploys              | By design — `deploy.yml` re-logs-in with the job's ephemeral `GITHUB_TOKEN` before every pull. Ad-hoc `docker pull` on the VM needs a manual login (or just re-run `deploy.yml`).                    |
 | Cloudflare IP ranges change → Caddy stops trusting CF        | CF announces ~yearly. Annual reminder to refresh the `trusted_proxies static` list in the Caddyfile.                                                                                                 |
 | Direct origin IP discovery bypasses CF (DDoS skips proxy)    | UFW + Hetzner firewall already restrict to 22/80/443. Optional hardening: restrict 80/443 to CF IP ranges only (lose direct origin access for `--resolve` debugging). Defer until traffic justifies. |
 | CF cache serves stale `/index.html` after deploy             | Edge TTL capped at 60 s + origin sets `no-cache`. Worst case: 1-min lag for new SPA to reach users. Manual override: `Caching → Configuration → Purge Everything` after critical deploys.            |

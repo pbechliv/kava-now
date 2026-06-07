@@ -9,6 +9,7 @@ concurrency:
 
 permissions:
   contents: read
+  packages: read # ephemeral GHCR login below
 
 jobs:
   migrate:
@@ -25,6 +26,12 @@ jobs:
           chmod 600 ~/.ssh/id_ed25519
           printf '%s\n' "${{ secrets.HETZNER_SSH_KNOWN_HOSTS }}" > ~/.ssh/known_hosts
           chmod 644 ~/.ssh/known_hosts
+
+      # In case `docker compose run` needs to pull the api-jobs image.
+      - name: GHCR login on VM
+        run: |
+          printf '%s' "${{ secrets.GITHUB_TOKEN }}" | ssh -i ~/.ssh/id_ed25519 deploy@"$HETZNER_HOST" \
+            'docker login ghcr.io -u ${{ github.repository_owner }} --password-stdin'
 
       - name: Run migrations
         run: |
