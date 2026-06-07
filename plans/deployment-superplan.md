@@ -435,7 +435,7 @@ Tag the commit `pre-deploy-baseline` so you can git-revert if anything goes side
 Use **Terraform Cloud** free tier (5 users, unlimited private workspaces, free state hosting). It keeps Terraform state out of the repo and avoids managing a state bucket yourself.
 
 - Sign up at [app.terraform.io](https://app.terraform.io).
-- Create org `kava-now`, workspace `kavanow-prod`, execution mode **Local** (workflow runs `terraform apply` from GH runner; TFC just stores state).
+- Create org `kava-now`, workspace `kava-now-prod`, execution mode **Local** (workflow runs `terraform apply` from GH runner; TFC just stores state).
 - Generate API token for CI (`TF_STATE_TOKEN`).
 
 ### 3.2 Files to add
@@ -496,9 +496,9 @@ terraform {
   required_version = ">= 1.15.0"
 
   cloud {
-    organization = "kavanow"
+    organization = "kava-now"
     workspaces {
-      name = "kavanow-prod"
+      name = "kava-now-prod"
     }
   }
 

@@ -4,7 +4,7 @@ terraform {
   cloud {
     organization = "kava-now"
     workspaces {
-      name = "kavanow-prod"
+      name = "kava-now-prod"
     }
   }
 
