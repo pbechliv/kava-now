@@ -2,7 +2,7 @@ terraform {
   required_version = ">= 1.15.0"
 
   cloud {
-    organization = "kavanow"
+    organization = "kava-now"
     workspaces {
       name = "kavanow-prod"
     }
