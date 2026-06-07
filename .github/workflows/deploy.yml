@@ -93,8 +93,11 @@ jobs:
           export IMAGE_TAG
           docker compose --env-file .env.production --profile jobs pull
           docker compose --env-file .env.production up -d postgres
+          # </dev/null is load-bearing: compose run attaches stdin by default and
+          # would swallow the rest of this heredoc — bash -s would then stop here
+          # (exit 0) and the commands below would silently never run.
           docker compose --env-file .env.production --profile jobs run --rm api-jobs \
-            pnpm --filter @kava-now/api db:migrate
+            pnpm --filter @kava-now/api db:migrate </dev/null
           docker compose --env-file .env.production up -d api caddy
           docker image prune -f
           EOF
