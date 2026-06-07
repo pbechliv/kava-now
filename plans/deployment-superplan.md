@@ -2,7 +2,7 @@
 
 **Goal:** get `https://kavanow.gr` live, with automated CI/CD, Hetzner-managed snapshot backups, error reporting, and reproducible infrastructure-as-code — for ~€7/mo.
 
-**Stack:** Hetzner CX22 (Falkenstein) · Docker Compose · Caddy · Postgres 17 · Resend · **Cloudflare proxied DNS + edge cache** · Sentry · Terraform · GitHub Actions + GHCR.
+**Stack:** Hetzner CX23 (Falkenstein) · Docker Compose · Caddy · Postgres 17 · Resend · **Cloudflare proxied DNS + edge cache** · Sentry · Terraform · GitHub Actions + GHCR.
 
 **Decisions captured:** path-based tenancy, **Cloudflare proxy ON from day 1** (DDoS + edge caching for the SPA), full Terraform + 7 GH Actions workflows, Resend for email, Hetzner snapshots only for day-1 backups, domain `kavanow.gr` to be purchased, new superplan file.
 
@@ -378,7 +378,7 @@ Before launch, verify errors arrive in both Sentry projects with `SENTRY_ENVIRON
 
 ### 2.5 Add `infra/postgres/postgresql.conf`
 
-Create `infra/postgres/postgresql.conf` and mount it into Postgres if you want day-1 tuning for the CX22's 4 GB RAM. This is optional for launch, but it gives sane defaults and useful slow-query logging:
+Create `infra/postgres/postgresql.conf` and mount it into Postgres if you want day-1 tuning for the CX23's 4 GB RAM. This is optional for launch, but it gives sane defaults and useful slow-query logging:
 
 ```conf
 # Connection settings
@@ -443,7 +443,7 @@ Use **Terraform Cloud** free tier (5 users, unlimited private workspaces, free s
 ```
 infra/terraform/
   versions.tf       # hcloud + cloudflare provider pins + terraform cloud backend
-  variables.tf      # vm_type=cx22, location=fsn1, domain=kavanow.gr, ssh_pub_key
+  variables.tf      # vm_type=cx23, location=fsn1, domain=kavanow.gr, ssh_pub_key
   main.tf           # hcloud_ssh_key, hcloud_firewall, hcloud_server (cloud-init)
   dns.tf            # cloudflare_dns_record × 2 (A + AAAA apex, both proxied=true)
   cache.tf          # cloudflare_ruleset (2 rules: cache bypass /api/*, short-TTL SPA shell)
@@ -480,7 +480,7 @@ variable "ssh_pub_key" {
 
 variable "vm_type" {
   type    = string
-  default = "cx22"
+  default = "cx23"
 }
 
 variable "location" {
@@ -1038,7 +1038,7 @@ If the VM itself is broken but Hetzner snapshots are intact:
 If the VM is gone but snapshots exist:
 
 1. Create an image from the latest backup.
-2. Create a replacement CX22 from that image.
+2. Create a replacement CX23 from that image.
 3. Update Cloudflare A/AAAA records to the new IPs, or update Terraform state and apply.
 4. Recreate `/etc/kavanow/tls/origin.pem` and `origin.key` if the snapshot did not include them.
 5. Verify health, login, invite email, and tenant isolation.
@@ -1073,7 +1073,7 @@ Real alerting should live in Better Stack and Sentry rather than ad-hoc cron out
 
 | Item                                                            | Monthly        | Notes                                    |
 | --------------------------------------------------------------- | -------------- | ---------------------------------------- |
-| Hetzner CX22                                                    | 4.49 €         | 2 vCPU, 4 GB RAM, 40 GB NVMe             |
+| Hetzner CX23                                                    | 3.49 €         | 2 vCPU, 4 GB RAM, 40 GB NVMe             |
 | Hetzner snapshot backups                                        | 0.90 €         | +20% of VM, nightly, 7-day retention     |
 | Domain `kavanow.gr`                                             | ~1.50 €        | Amortized; ~18 €/yr at Papaki            |
 | Resend, Cloudflare, Sentry, Better Stack, GHCR, Terraform Cloud | 0 €            | All free tier                            |
@@ -1082,8 +1082,8 @@ Real alerting should live in Better Stack and Sentry rather than ad-hoc cron out
 Scale-up triggers:
 
 - Resend free tier pressure: if transactional email exceeds the free allowance, move to Resend Pro rather than self-hosting SMTP.
-- Disk >80%: upgrade to CX32, attach a Hetzner Volume, or move Postgres data to a larger disk after a tested backup.
-- Sustained CPU >70% on CX22: upgrade vertically first. CX32/CPX21 are cheaper and simpler than a multi-node architecture.
+- Disk >80%: upgrade to CX33, attach a Hetzner Volume, or move Postgres data to a larger disk after a tested backup.
+- Sustained CPU >70% on CX23: upgrade vertically first. CX33/CPX22 are cheaper and simpler than a multi-node architecture.
 - Sustained DB pressure: tune indexes and queries first, then consider moving Postgres to a dedicated VM or managed provider.
 - SLA needs above roughly 99.5%: add a second app VM, externalize Postgres, and introduce a load balancer. Until then, one VM is simpler and good enough.
 

@@ -24,7 +24,7 @@ variable "ssh_pub_key" {
 
 variable "vm_type" {
   type    = string
-  default = "cx22"
+  default = "cx23"
 }
 
 variable "location" {
