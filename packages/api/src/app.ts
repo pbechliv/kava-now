@@ -3,6 +3,7 @@ import { cors } from "hono/cors";
 import { logger } from "hono/logger";
 import { HTTPException } from "hono/http-exception";
 import * as Sentry from "@sentry/node";
+import { config } from "./config";
 import { tenantMiddleware } from "./middleware/tenant";
 import { authMiddleware } from "./middleware/auth";
 import { sentryContextMiddleware } from "./middleware/sentry-context";
@@ -17,10 +18,13 @@ import type { AppEnv } from "./types";
 const app = new Hono<AppEnv>();
 
 app.use("*", logger());
+// Single-origin app: only the canonical origin may make credentialed
+// cross-origin requests. Same-origin requests (the normal case — the SPA and
+// API share one origin) don't send an Origin header and are unaffected.
 app.use(
   "*",
   cors({
-    origin: (origin) => origin,
+    origin: [config.appOrigin],
     credentials: true,
   }),
 );

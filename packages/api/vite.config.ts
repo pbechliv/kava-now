@@ -34,6 +34,9 @@ export default defineConfig(({ mode }) => {
         build({
           entry: "./src/index.ts",
           port: apiPort,
+          // Installs SIGTERM/SIGINT handlers in the built server so deploys
+          // drain in-flight requests instead of dropping them on SIGKILL.
+          shutdownTimeoutMs: 10_000,
         }),
       ],
     };

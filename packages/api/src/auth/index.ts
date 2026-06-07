@@ -8,6 +8,9 @@ import { sendPasswordSet } from "../services/email";
 
 export const auth = betterAuth({
   baseURL: config.appOrigin,
+  // Validated at boot in config.ts — production refuses to start without a
+  // real BETTER_AUTH_SECRET (dev falls back to a fixed dev-only value).
+  secret: config.betterAuthSecret,
   database: drizzleAdapter(db, {
     provider: "pg",
     schema: {
