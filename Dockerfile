@@ -89,9 +89,9 @@ COPY --from=api-prod-deps /app/packages/api/node_modules ./packages-api-nm
 # Merge workspace hoisted + package-level deps
 RUN cp -rn ./packages-api-nm/* ./node_modules/ 2>/dev/null || true && rm -rf ./packages-api-nm
 
-# Copy migration files needed at runtime
+# Copy migration files needed at runtime. RLS policies live inside the
+# migration graph (drizzle/0000_init.sql) — there is no separate rls.sql.
 COPY --from=api-build /app/packages/api/drizzle ./drizzle
-COPY --from=api-build /app/packages/api/src/db/rls.sql ./src/db/rls.sql
 COPY --from=api-build /app/packages/api/drizzle.config.ts ./drizzle.config.ts
 
 USER appuser
