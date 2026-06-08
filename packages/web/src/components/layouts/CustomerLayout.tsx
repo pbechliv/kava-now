@@ -31,6 +31,7 @@ import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
 import { useCartStore, activateCartForSlug } from "@/lib/store/cart";
 import { TenantSwitcher } from "@/components/TenantSwitcher";
+import { Logo } from "@/components/Logo";
 
 function initials(name: string | null | undefined) {
   if (!name) return "?";
@@ -69,11 +70,14 @@ export function CustomerLayout() {
     <SidebarProvider>
       <Sidebar variant="sidebar" collapsible="offcanvas">
         <SidebarHeader>
-          <div className="flex flex-col px-2 py-1.5">
-            <span className="text-lg font-bold leading-tight text-primary">KavaNow</span>
-            {tenant && (
-              <span className="truncate text-sm text-sidebar-foreground/70">{tenant.name}</span>
-            )}
+          <div className="flex items-center gap-2 px-2 py-1.5">
+            <Logo className="size-7" />
+            <div className="flex min-w-0 flex-col">
+              <span className="text-lg font-bold leading-tight text-primary">KavaNow</span>
+              {tenant && (
+                <span className="truncate text-sm text-sidebar-foreground/70">{tenant.name}</span>
+              )}
+            </div>
           </div>
         </SidebarHeader>
         <SidebarContent>

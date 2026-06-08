@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="KavaNow">
+  <defs>
+    <linearGradient id="kava" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#f59e0b" />
+      <stop offset="1" stop-color="#d97706" />
+    </linearGradient>
+  </defs>
+  <rect width="512" height="512" rx="112" fill="url(#kava)" />
+  <g fill="none" stroke="#ffffff" stroke-width="42" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M126 165V347" />
+    <path d="M221 165L141 256 221 347" />
+    <path d="M296 347L296 165 386 347 386 165" />
+  </g>
+</svg>

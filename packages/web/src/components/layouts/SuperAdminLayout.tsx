@@ -28,6 +28,7 @@ import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Separator } from "@/components/ui/separator";
 import { TenantSwitcher } from "@/components/TenantSwitcher";
+import { Logo } from "@/components/Logo";
 
 const navItems = [
   { to: "/admin/tenants", label: "Λογαριασμοί", icon: Building2 },
@@ -53,6 +54,7 @@ export function SuperAdminLayout() {
       <Sidebar variant="sidebar" collapsible="offcanvas">
         <SidebarHeader>
           <div className="flex items-center gap-2 px-2 py-1.5">
+            <Logo className="size-7" />
             <span className="text-lg font-bold text-primary">KavaNow</span>
             <span className="text-sm text-sidebar-foreground/70">Admin</span>
           </div>
