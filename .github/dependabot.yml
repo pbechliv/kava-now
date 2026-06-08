@@ -9,6 +9,12 @@ updates:
       timezone: Europe/Berlin
     open-pull-requests-limit: 10
     versioning-strategy: increase
+    # Wait out pnpm's minimumReleaseAge (1d default) before opening bump PRs,
+    # otherwise `pnpm install --frozen-lockfile` rejects too-fresh versions in
+    # CI. Margin above 1d so weekend releases don't fail Monday's run.
+    cooldown:
+      default-days: 7
+      semver-patch-days: 3
     labels:
       - dependencies
     commit-message:
