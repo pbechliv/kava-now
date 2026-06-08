@@ -21,6 +21,16 @@ if (dsn) {
   }
 }
 
+// Register the service worker in production only — it backs the offline
+// fallback page and is the foundation for web push. It caches nothing, so it
+// never interferes with the dev server / HMR; we still gate on PROD to avoid
+// a stray registration lingering on localhost across dev sessions.
+if ("serviceWorker" in navigator && import.meta.env.PROD) {
+  window.addEventListener("load", () => {
+    navigator.serviceWorker.register("/sw.js").catch(() => {});
+  });
+}
+
 const googleClientId = import.meta.env.VITE_GOOGLE_CLIENT_ID;
 
 const tree = (

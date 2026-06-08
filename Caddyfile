@@ -23,9 +23,10 @@ kavanow.gr {
 		}
 	}
 
-	# SPA shell: short cache so new deploys reach users quickly.
-	@html path / /index.html
-	header @html Cache-Control "no-cache, must-revalidate"
+	# SPA shell + service worker + manifest: short cache so new deploys reach
+	# users quickly and the edge can't pin a stale service worker.
+	@nocache path / /index.html /sw.js /site.webmanifest
+	header @nocache Cache-Control "no-cache, must-revalidate"
 
 	# Hashed Vite assets: cache forever — filenames change on every build.
 	header /assets/* Cache-Control "public, max-age=31536000, immutable"
