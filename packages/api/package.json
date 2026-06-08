@@ -34,7 +34,7 @@
   "devDependencies": {
     "@hono/vite-build": "^1.11.1",
     "@hono/vite-dev-server": "^0.26.0",
-    "@types/node": "^25.9.1",
+    "@types/node": "^25.9.2",
     "@types/nodemailer": "^8.0.0",
     "@types/react": "^19.2.15",
     "@types/react-dom": "^19.2.0",
