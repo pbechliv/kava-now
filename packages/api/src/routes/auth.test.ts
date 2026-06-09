@@ -65,6 +65,25 @@ suite("PATCH /api/auth/me (email change requires re-auth)", () => {
     if (queryClient) await queryClient.end({ timeout: 5 });
   });
 
+  it("public signup is disabled — the invite-only invariant holds (#68)", async () => {
+    const addr = `me-signup-${suffix}@example.com`;
+    const res = await app.request("/api/auth/sign-up/email", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ email: addr, password: "sneaky-password-123", name: "Sneaky" }),
+    });
+    // The databaseHooks.user.create.before guard must reject the attempt —
+    // a better-auth upgrade silently changing hook semantics would re-open
+    // public signup on a production SaaS.
+    expect(res.status).toBeGreaterThanOrEqual(400);
+
+    const rows = await baseDb
+      .select({ id: schema.users.id })
+      .from(schema.users)
+      .where(eq(schema.users.email, addr));
+    expect(rows).toHaveLength(0);
+  });
+
   it("name-only change needs no password", async () => {
     const res = await patchMe({ name: "Renamed Owner" });
     expect(res.status).toBe(200);

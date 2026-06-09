@@ -116,6 +116,79 @@ suite("DELETE /admin/users/:id (global-account cleanup boundary)", () => {
     if (queryClient) await queryClient.end({ timeout: 5 });
   });
 
+  it("owner-protection rules: self-delete, staff limits, last owner (#68)", async () => {
+    // CANT_DELETE_SELF — the owner cannot remove their own membership.
+    const self = await removeUser(ownerUserId);
+    expect(self.status).toBe(400);
+    expect((await self.json()).code).toBe("CANT_DELETE_SELF");
+
+    // Activated staff session.
+    const staffEmail = `usr-staffsess-${suffix}@example.com`;
+    const staffId = await invitedStaff(staffEmail);
+    await baseDb.insert(schema.accounts).values({
+      accountId: staffId,
+      providerId: "credential",
+      userId: staffId,
+      password: await hashPassword(ownerPassword),
+    });
+    const staffSignIn = await app.request("/api/auth/sign-in/email", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ email: staffEmail, password: ownerPassword }),
+    });
+    expect(staffSignIn.status).toBe(200);
+    const staffCookie = staffSignIn.headers
+      .getSetCookie()
+      .map((c) => c.split(";")[0])
+      .join("; ");
+
+    // Staff cannot promote to owner…
+    const promote = await app.request(`/api/k/${slug}/admin/users/${staffId}/promote-to-owner`, {
+      method: "POST",
+      headers: { cookie: staffCookie, "content-type": "application/json" },
+    });
+    expect(promote.status).toBe(403);
+    expect((await promote.json()).code).toBe("ONLY_OWNER_CAN_PROMOTE");
+
+    // …nor delete an owner.
+    const delOwner = await app.request(`/api/k/${slug}/admin/users/${ownerUserId}`, {
+      method: "DELETE",
+      headers: { cookie: staffCookie, "content-type": "application/json" },
+    });
+    expect(delOwner.status).toBe(403);
+    expect((await delOwner.json()).code).toBe("ONLY_OWNER_CAN_DELETE_OWNER");
+
+    // Even a superadmin (synthetic owner) cannot remove the LAST owner.
+    const superEmail = `usr-super-la-${suffix}@example.com`;
+    userEmails.push(superEmail);
+    const [superUser] = await baseDb
+      .insert(schema.users)
+      .values({ email: superEmail, name: "Super LA", isSuperAdmin: true, emailVerified: true })
+      .returning({ id: schema.users.id });
+    await baseDb.insert(schema.accounts).values({
+      accountId: superUser!.id,
+      providerId: "credential",
+      userId: superUser!.id,
+      password: await hashPassword(ownerPassword),
+    });
+    const superSignIn = await app.request("/api/auth/sign-in/email", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ email: superEmail, password: ownerPassword }),
+    });
+    expect(superSignIn.status).toBe(200);
+    const superCookie = superSignIn.headers
+      .getSetCookie()
+      .map((c) => c.split(";")[0])
+      .join("; ");
+    const delLastOwner = await app.request(`/api/k/${slug}/admin/users/${ownerUserId}`, {
+      method: "DELETE",
+      headers: { cookie: superCookie, "content-type": "application/json" },
+    });
+    expect(delLastOwner.status).toBe(400);
+    expect((await delLastOwner.json()).code).toBe("LAST_OWNER_PROTECTION");
+  });
+
   it("resend-invite invalidates stale reset tokens and issues a fresh one (#57)", async () => {
     const id = await invitedStaff(`usr-resend-${suffix}@example.com`);
 
