@@ -12,6 +12,8 @@ export function useLogin() {
   const { slug } = useParams<{ slug: string }>();
 
   return useMutation<void, Error, LoginInput>({
+    // LoginPage always renders this error inline — skip the global toast.
+    meta: { suppressErrorToast: true },
     mutationFn: async (data) => {
       const { error } = await authClient.signIn.email({
         email: data.email,
