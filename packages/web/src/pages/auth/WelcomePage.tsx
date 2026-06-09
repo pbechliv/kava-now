@@ -3,7 +3,7 @@ import { Link, useNavigate, useSearchParams, useParams } from "react-router";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useQuery } from "@tanstack/react-query";
 import { CheckCircle2, Loader2 } from "lucide-react";
-import { GoogleLogin } from "@react-oauth/google";
+import { GoogleSignInButton } from "@/components/auth/GoogleSignInButton";
 import { authClient } from "@/lib/auth-client";
 import { useGoogleSignIn } from "@/lib/hooks/use-google-sign-in";
 import { api } from "@/lib/api";
@@ -108,18 +108,10 @@ export function WelcomePage() {
 
       {googleEnabled && (
         <div className="mt-6 space-y-3">
-          <div className="flex justify-center">
-            <GoogleLogin
-              onSuccess={(cred) => googleSignIn.mutate(cred)}
-              onError={() => googleSignIn.reset()}
-              text="continue_with"
-              theme="outline"
-              shape="rectangular"
-              size="large"
-              logo_alignment="left"
-              width="384"
-            />
-          </div>
+          <GoogleSignInButton
+            onSuccess={(cred) => googleSignIn.mutate(cred)}
+            onError={() => googleSignIn.reset()}
+          />
           {googleSignIn.error && (
             <p className="text-sm text-destructive">
               {googleSignIn.error instanceof Error
