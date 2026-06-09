@@ -5,7 +5,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { loginSchema, type LoginInput } from "@kava-now/shared";
 import { Link, useNavigate, useParams } from "react-router";
 import { Loader2 } from "lucide-react";
-import { GoogleLogin } from "@react-oauth/google";
+import { GoogleSignInButton } from "@/components/auth/GoogleSignInButton";
 import { useLogin } from "@/lib/hooks/use-login";
 import { useGoogleSignIn } from "@/lib/hooks/use-google-sign-in";
 import { useAuth } from "@/lib/hooks/use-auth";
@@ -134,18 +134,10 @@ export function LoginPage() {
 
         {googleEnabled && (
           <>
-            <div className="flex justify-center">
-              <GoogleLogin
-                onSuccess={(cred) => googleSignIn.mutate(cred)}
-                onError={() => googleSignIn.reset()}
-                text="continue_with"
-                theme="outline"
-                shape="rectangular"
-                size="large"
-                logo_alignment="left"
-                width="384"
-              />
-            </div>
+            <GoogleSignInButton
+              onSuccess={(cred) => googleSignIn.mutate(cred)}
+              onError={() => googleSignIn.reset()}
+            />
             {googleSignIn.error && (
               <p className="text-sm text-destructive">
                 {googleSignIn.error instanceof Error
