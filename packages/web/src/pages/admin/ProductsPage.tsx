@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useLocation, useNavigate } from "react-router";
 import { useTenantSlug } from "@/lib/hooks/use-tenant-api";
+import { useDebouncedValue } from "@/lib/hooks/use-debounced-value";
 import { Pencil, Trash2, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -51,12 +52,10 @@ export function ProductsPage() {
     }
   }, [importResult, location.pathname, navigate]);
 
-  useEffect(() => {
-    setPage(1);
-  }, [search, categoryFilter]);
+  const debouncedSearch = useDebouncedValue(search);
 
   const { data, isLoading } = useProducts({
-    search: search || undefined,
+    search: debouncedSearch || undefined,
     categoryId: categoryFilter || undefined,
     page,
     pageSize: PAGE_SIZE,
@@ -118,12 +117,18 @@ export function ProductsPage() {
         <Input
           placeholder="Αναζήτηση με όνομα ή brand..."
           value={search}
-          onChange={(e) => setSearch(e.target.value)}
+          onChange={(e) => {
+            setSearch(e.target.value);
+            setPage(1);
+          }}
           className="flex-1"
         />
         <Select
           value={categoryFilter || "all"}
-          onValueChange={(v) => setCategoryFilter(v === "all" ? "" : v)}
+          onValueChange={(v) => {
+            setCategoryFilter(v === "all" ? "" : v);
+            setPage(1);
+          }}
         >
           <SelectTrigger className="w-full sm:w-56">
             <SelectValue placeholder="Όλες οι κατηγορίες" />

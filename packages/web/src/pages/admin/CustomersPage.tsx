@@ -1,6 +1,7 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useNavigate } from "react-router";
 import { useTenantSlug } from "@/lib/hooks/use-tenant-api";
+import { useDebouncedValue } from "@/lib/hooks/use-debounced-value";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
@@ -29,12 +30,10 @@ export function CustomersPage() {
   const [editId, setEditId] = useState<string | undefined>(undefined);
   const [page, setPage] = useState(1);
 
-  useEffect(() => {
-    setPage(1);
-  }, [search]);
+  const debouncedSearch = useDebouncedValue(search);
 
   const { data, isLoading } = useCustomers({
-    search: search || undefined,
+    search: debouncedSearch || undefined,
     page,
     pageSize: PAGE_SIZE,
   });
@@ -70,7 +69,10 @@ export function CustomersPage() {
       <Input
         placeholder="Αναζήτηση με όνομα ή υπεύθυνο..."
         value={search}
-        onChange={(e) => setSearch(e.target.value)}
+        onChange={(e) => {
+          setSearch(e.target.value);
+          setPage(1);
+        }}
       />
 
       {isLoading ? (

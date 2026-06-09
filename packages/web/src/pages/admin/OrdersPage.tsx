@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Link } from "react-router";
 import { useTenantSlug } from "@/lib/hooks/use-tenant-api";
 import { Input } from "@/components/ui/input";
@@ -50,10 +50,6 @@ export function OrdersPage() {
   const [dateTo, setDateTo] = useState("");
   const [page, setPage] = useState(1);
 
-  useEffect(() => {
-    setPage(1);
-  }, [statusFilter, customerFilter, dateFrom, dateTo]);
-
   const { data, isLoading } = useAdminOrders({
     status: statusFilter === "all" ? undefined : statusFilter,
     customerId: customerFilter || undefined,
@@ -73,7 +69,13 @@ export function OrdersPage() {
     <div className="space-y-6">
       <h1 className="text-2xl font-bold tracking-tight">Παραγγελίες</h1>
 
-      <Tabs value={statusFilter} onValueChange={(v) => setStatusFilter(v as OrderStatus | "all")}>
+      <Tabs
+        value={statusFilter}
+        onValueChange={(v) => {
+          setStatusFilter(v as OrderStatus | "all");
+          setPage(1);
+        }}
+      >
         <TabsList className="flex h-auto w-full flex-wrap justify-start gap-1 p-1">
           {STATUS_TABS.map((tab) => (
             <TabsTrigger key={tab.value} value={tab.value} className="flex-none">
@@ -88,7 +90,10 @@ export function OrdersPage() {
           <Label htmlFor="customer-filter">Πελάτης</Label>
           <Select
             value={customerFilter || "all"}
-            onValueChange={(v) => setCustomerFilter(v === "all" ? "" : v)}
+            onValueChange={(v) => {
+              setCustomerFilter(v === "all" ? "" : v);
+              setPage(1);
+            }}
           >
             <SelectTrigger id="customer-filter" className="w-full">
               <SelectValue placeholder="Όλοι" />
@@ -109,7 +114,10 @@ export function OrdersPage() {
             id="date-from"
             type="date"
             value={dateFrom}
-            onChange={(e) => setDateFrom(e.target.value)}
+            onChange={(e) => {
+              setDateFrom(e.target.value);
+              setPage(1);
+            }}
           />
         </div>
         <div className="space-y-2">
@@ -118,7 +126,10 @@ export function OrdersPage() {
             id="date-to"
             type="date"
             value={dateTo}
-            onChange={(e) => setDateTo(e.target.value)}
+            onChange={(e) => {
+              setDateTo(e.target.value);
+              setPage(1);
+            }}
           />
         </div>
       </div>
