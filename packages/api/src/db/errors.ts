@@ -17,6 +17,17 @@ function unwrapPgError(err: unknown): { code?: string; constraint_name?: string 
   return null;
 }
 
+export function isForeignKeyViolation(err: unknown, constraintName?: string): boolean {
+  const pgErr = unwrapPgError(err);
+  if (!pgErr || pgErr.code !== "23503") return false;
+  return constraintName ? pgErr.constraint_name === constraintName : true;
+}
+
+export const FK_CONSTRAINTS = {
+  orderCustomer: "orders_customer_id_customers_id_fk",
+  orderItemProduct: "order_items_product_id_products_id_fk",
+} as const;
+
 export const UNIQUE_CONSTRAINTS = {
   productErpRef: "products_tenant_erp_ref_idx",
   productNameBrand: "products_tenant_name_brand_idx",

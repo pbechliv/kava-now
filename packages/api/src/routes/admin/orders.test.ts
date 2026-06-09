@@ -253,4 +253,26 @@ suite("admin order mutations (HTTP, hard lock + soft-cancel totals)", () => {
     });
     expect(invalid.status).toBe(400);
   });
+
+  it("customer/product deletion never destroys order history (no-action FK)", async () => {
+    await createOrder();
+
+    // Route refuses: customer has orders.
+    const delCustomer = await api(`/customers/${customerId}`, { method: "DELETE" });
+    expect(delCustomer.status).toBe(400);
+    expect((await delCustomer.json()).code).toBe("CUSTOMER_HAS_ORDERS");
+
+    // Referenced product is deactivated, never hard-deleted.
+    const delProduct = await api(`/products/${p1}`, { method: "DELETE" });
+    expect(delProduct.status).toBe(200);
+    expect((await delProduct.json()).message).toBe("Product deactivated");
+
+    // DB-level backstop (the race path): a raw delete is refused by the
+    // deferred FK at commit instead of cascading the order history away.
+    await expect(
+      runWithTenant(tenantId, () =>
+        db.delete(schema.customers).where(eq(schema.customers.id, customerId)),
+      ),
+    ).rejects.toThrow();
+  });
 });

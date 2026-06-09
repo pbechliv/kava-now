@@ -11,9 +11,14 @@ export const orders = pgTable(
     tenantId: uuid("tenant_id")
       .notNull()
       .references(() => tenants.id, { onDelete: "cascade" }),
+    // "no action" (not cascade): orders are financial/audit history — deleting
+    // a customer must never destroy them. The constraint is additionally made
+    // DEFERRABLE INITIALLY DEFERRED by hand in drizzle/0001 (the schema API
+    // can't express it) so tenant-purge cascades pass; direct deletes force
+    // the check with SET CONSTRAINTS ... IMMEDIATE.
     customerId: uuid("customer_id")
       .notNull()
-      .references(() => customers.id, { onDelete: "cascade" }),
+      .references(() => customers.id, { onDelete: "no action" }),
     status: orderStatusEnum("status").notNull().default("pending"),
     notes: text("notes"),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),

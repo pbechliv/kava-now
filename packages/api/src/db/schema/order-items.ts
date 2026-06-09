@@ -18,9 +18,12 @@ export const orderItems = pgTable(
     orderId: uuid("order_id")
       .notNull()
       .references(() => orders.id, { onDelete: "cascade" }),
+    // "no action" (not cascade): line items are audit history — deleting a
+    // product must never destroy them. DEFERRABLE INITIALLY DEFERRED by hand
+    // in drizzle/0001 — see orders.customerId for the full story.
     productId: uuid("product_id")
       .notNull()
-      .references(() => products.id, { onDelete: "cascade" }),
+      .references(() => products.id, { onDelete: "no action" }),
     quantity: integer("quantity").notNull(),
     originalQuantity: integer("original_quantity"),
     unitPrice: numeric("unit_price", { precision: 10, scale: 2 }).notNull(),

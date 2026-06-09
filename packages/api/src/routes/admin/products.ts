@@ -10,7 +10,12 @@ import {
 } from "@kava-now/shared";
 import { db } from "../../db/connection";
 import { products, categories, orderItems } from "../../db/schema/index";
-import { isUniqueViolation, UNIQUE_CONSTRAINTS } from "../../db/errors";
+import {
+  isUniqueViolation,
+  isForeignKeyViolation,
+  UNIQUE_CONSTRAINTS,
+  FK_CONSTRAINTS,
+} from "../../db/errors";
 import type { AppEnv } from "../../types";
 
 const DUPLICATE_ERP_REF_RESPONSE = {
@@ -327,15 +332,8 @@ productsRouter.delete("/:id", async (c) => {
   const tenantId = c.get("tenantId")!;
   const id = c.req.param("id");
 
-  // Check if product has order items
-  const [ref] = await db
-    .select({ count: sql<number>`count(*)::int` })
-    .from(orderItems)
-    .where(eq(orderItems.productId, id))
-    .limit(1);
-
-  if (ref && ref.count > 0) {
-    // Soft-delete: set active = false
+  // Soft-delete: set active = false
+  const deactivate = async () => {
     const [product] = await db
       .update(products)
       .set({ active: false })
@@ -347,19 +345,44 @@ productsRouter.delete("/:id", async (c) => {
     }
 
     return c.json({ message: "Product deactivated", product });
+  };
+
+  // Check if product has order items (friendly path; the no-action FK is the
+  // race-safe backstop below)
+  const [ref] = await db
+    .select({ count: sql<number>`count(*)::int` })
+    .from(orderItems)
+    .where(eq(orderItems.productId, id))
+    .limit(1);
+
+  if (ref && ref.count > 0) {
+    return deactivate();
   }
 
-  // Hard delete
-  const [deleted] = await db
-    .delete(products)
-    .where(and(eq(products.id, id), eq(products.tenantId, tenantId)))
-    .returning();
+  try {
+    // Savepoint: an FK violation must not abort the request transaction. The
+    // FK is INITIALLY DEFERRED (so tenant-purge cascades pass) — force the
+    // check to fire now, where it's catchable, instead of at COMMIT.
+    const [deleted] = await db.transaction(async (tx) => {
+      await tx.execute(sql`set constraints "order_items_product_id_products_id_fk" immediate`);
+      return tx
+        .delete(products)
+        .where(and(eq(products.id, id), eq(products.tenantId, tenantId)))
+        .returning();
+    });
 
-  if (!deleted) {
-    return c.json({ error: "Product not found" }, 404);
+    if (!deleted) {
+      return c.json({ error: "Product not found" }, 404);
+    }
+
+    return c.json({ message: "Product deleted" });
+  } catch (err) {
+    if (isForeignKeyViolation(err, FK_CONSTRAINTS.orderItemProduct)) {
+      // Lost the race: an order item appeared since the check — soft-delete.
+      return deactivate();
+    }
+    throw err;
   }
-
-  return c.json({ message: "Product deleted" });
 });
 
 export { productsRouter };
