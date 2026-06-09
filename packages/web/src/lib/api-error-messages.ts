@@ -31,6 +31,9 @@ const CODE_MESSAGES: Record<ApiErrorCode, string> = {
     "Δεν μπορείτε να διαγράψετε κατηγορία που χρησιμοποιείται από προϊόντα",
   [API_ERROR_CODES.CUSTOMER_HAS_ORDERS]: "Δεν μπορείτε να διαγράψετε πελάτη με παραγγελίες",
 
+  [API_ERROR_CODES.INVALID_CATEGORY_REFERENCE]: "Η κατηγορία δεν βρέθηκε σε αυτόν τον λογαριασμό",
+  [API_ERROR_CODES.CATEGORY_PARENT_CYCLE]:
+    "Η γονική κατηγορία δεν μπορεί να είναι απόγονος αυτής της κατηγορίας",
   [API_ERROR_CODES.USER_ALREADY_ACTIVATED]: "Ο χρήστης έχει ήδη ενεργοποιηθεί",
   [API_ERROR_CODES.EMAIL_CHANGE_REQUIRES_PASSWORD]:
     "Η αλλαγή email είναι δυνατή μόνο σε λογαριασμούς με κωδικό πρόσβασης",

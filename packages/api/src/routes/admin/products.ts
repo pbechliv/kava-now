@@ -38,6 +38,22 @@ function handleProductUniqueViolation(err: unknown) {
   return null;
 }
 
+const INVALID_CATEGORY_RESPONSE = {
+  code: API_ERROR_CODES.INVALID_CATEGORY_REFERENCE,
+  error: "Category not found in this tenant",
+} as const;
+
+// The plain FK can't scope to the tenant (FK checks bypass RLS) — without
+// this, a tenant admin could attach another tenant's category.
+async function categoryInTenant(tenantId: string, categoryId: string): Promise<boolean> {
+  const [row] = await db
+    .select({ id: categories.id })
+    .from(categories)
+    .where(and(eq(categories.id, categoryId), eq(categories.tenantId, tenantId)))
+    .limit(1);
+  return !!row;
+}
+
 const productsRouter = new Hono<AppEnv>();
 
 // GET / — list products with optional filters
@@ -229,6 +245,10 @@ productsRouter.post("/", async (c) => {
     return c.json({ error: parsed.error.flatten().fieldErrors }, 400);
   }
 
+  if (parsed.data.categoryId && !(await categoryInTenant(tenantId, parsed.data.categoryId))) {
+    return c.json(INVALID_CATEGORY_RESPONSE, 400);
+  }
+
   let product;
   try {
     [product] = await db
@@ -294,6 +314,10 @@ productsRouter.put("/:id", async (c) => {
 
   if (!parsed.success) {
     return c.json({ error: parsed.error.flatten().fieldErrors }, 400);
+  }
+
+  if (parsed.data.categoryId && !(await categoryInTenant(tenantId, parsed.data.categoryId))) {
+    return c.json(INVALID_CATEGORY_RESPONSE, 400);
   }
 
   // Build the update values, converting numbers to strings for numeric columns
