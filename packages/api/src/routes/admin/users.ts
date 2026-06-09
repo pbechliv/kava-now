@@ -4,12 +4,11 @@ import { z } from "zod";
 import { alias } from "drizzle-orm/pg-core";
 import { API_ERROR_CODES } from "@kava-now/shared";
 import { db } from "../../db/connection";
-import { accounts, tenantMemberships, users, verifications } from "../../db/schema/index";
+import { accounts, tenantMemberships, users } from "../../db/schema/index";
 import {
   inviteUserToTenant,
-  sendInviteSetPassword,
+  resendSetPasswordInvite,
   InviteConflict,
-  userHasPassword,
 } from "../../services/invite-user";
 import type { AppEnv } from "../../types";
 
@@ -81,37 +80,15 @@ usersRouter.post("/invite", async (c) => {
 
 // POST /:id/resend-invite — re-issue the set-password invite for a pending user
 usersRouter.post("/:id/resend-invite", async (c) => {
-  const tenantId = c.get("tenantId")!;
-  const id = c.req.param("id");
-
-  const [target] = await db
-    .select({
-      id: users.id,
-      email: users.email,
-      role: tenantMemberships.role,
-    })
-    .from(tenantMemberships)
-    .innerJoin(users, eq(users.id, tenantMemberships.userId))
-    .where(and(eq(tenantMemberships.userId, id), eq(tenantMemberships.tenantId, tenantId)))
-    .limit(1);
-
-  if (!target) {
-    return c.json({ error: "User not found" }, 404);
+  const result = await resendSetPasswordInvite({
+    c,
+    tenantId: c.get("tenantId")!,
+    tenantSlug: c.get("tenant")!.slug,
+    userId: c.req.param("id"),
+  });
+  if (!result.ok) {
+    return c.json({ code: result.code, error: result.error }, result.status);
   }
-
-  if (await userHasPassword(target.id)) {
-    return c.json(
-      { code: API_ERROR_CODES.USER_ALREADY_ACTIVATED, error: "User is already activated" },
-      400,
-    );
-  }
-
-  // Invalidate any outstanding reset tokens so the new email is the only
-  // working link. better-auth stores hashed tokens under the same identifier.
-  await db.delete(verifications).where(eq(verifications.identifier, target.email));
-
-  await sendInviteSetPassword(c, target.email, c.get("tenant")!.slug);
-
   return c.json({ success: true });
 });
 

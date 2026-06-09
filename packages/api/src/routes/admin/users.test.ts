@@ -116,6 +116,36 @@ suite("DELETE /admin/users/:id (global-account cleanup boundary)", () => {
     if (queryClient) await queryClient.end({ timeout: 5 });
   });
 
+  it("resend-invite invalidates stale reset tokens and issues a fresh one (#57)", async () => {
+    const id = await invitedStaff(`usr-resend-${suffix}@example.com`);
+
+    // Plant a stale token in better-auth's storage shape (identifier carries
+    // the token, value carries the user id).
+    await baseDb.insert(schema.verifications).values({
+      identifier: "reset-password:stale-token-xyz",
+      value: id,
+      expiresAt: new Date(Date.now() + 3600_000),
+    });
+
+    const res = await app.request(`/api/k/${slug}/admin/users/${id}/resend-invite`, {
+      method: "POST",
+      headers: { cookie, "content-type": "application/json" },
+    });
+    expect(res.status).toBe(200);
+
+    // Only the freshly issued token survives — the stale one (and the
+    // original invite's token) are invalidated.
+    const tokens = await baseDb
+      .select({ identifier: schema.verifications.identifier })
+      .from(schema.verifications)
+      .where(eq(schema.verifications.value, id));
+    expect(tokens).toHaveLength(1);
+    expect(tokens[0]!.identifier).not.toBe("reset-password:stale-token-xyz");
+    expect(tokens[0]!.identifier.startsWith("reset-password:")).toBe(true);
+
+    await baseDb.delete(schema.verifications).where(eq(schema.verifications.value, id));
+  });
+
   it("never-activated invitee → membership and orphaned global user are removed", async () => {
     const id = await invitedStaff(`usr-orphan-${suffix}@example.com`);
 

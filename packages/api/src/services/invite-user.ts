@@ -1,6 +1,6 @@
-import { eq } from "drizzle-orm";
+import { eq, and, like } from "drizzle-orm";
 import { afterTenantCommit, db } from "../db/connection";
-import { accounts, tenantMemberships, tenants, users } from "../db/schema/index";
+import { accounts, tenantMemberships, tenants, users, verifications } from "../db/schema/index";
 import { isUniqueViolation, UNIQUE_CONSTRAINTS } from "../db/errors";
 import { auth } from "../auth";
 import { config } from "../config";
@@ -166,6 +166,63 @@ export async function sendInviteSetPassword(
     body: { email, redirectTo },
     headers: c.req.raw.headers,
   });
+}
+
+export type ResendInviteResult =
+  | { ok: true }
+  | { ok: false; status: 400 | 404; code?: ApiErrorCode; error: string };
+
+/**
+ * Re-issue the set-password invite for a not-yet-activated member of this
+ * tenant. Shared by the staff and customer-user resend endpoints; returns a
+ * result object the routes map onto their HTTP responses.
+ */
+export async function resendSetPasswordInvite(opts: {
+  c: Context<AppEnv>;
+  tenantId: string;
+  tenantSlug: string;
+  userId: string;
+  customerId?: string;
+}): Promise<ResendInviteResult> {
+  const conditions = [
+    eq(tenantMemberships.userId, opts.userId),
+    eq(tenantMemberships.tenantId, opts.tenantId),
+  ];
+  if (opts.customerId) {
+    conditions.push(eq(tenantMemberships.customerId, opts.customerId));
+  }
+
+  const [target] = await db
+    .select({ id: users.id, email: users.email })
+    .from(tenantMemberships)
+    .innerJoin(users, eq(users.id, tenantMemberships.userId))
+    .where(and(...conditions))
+    .limit(1);
+
+  if (!target) {
+    return { ok: false, status: 404, error: "User not found" };
+  }
+  if (await userHasPassword(target.id)) {
+    return {
+      ok: false,
+      status: 400,
+      code: API_ERROR_CODES.USER_ALREADY_ACTIVATED,
+      error: "User is already activated",
+    };
+  }
+
+  // Invalidate outstanding reset tokens so the fresh link is the only valid
+  // one. better-auth stores them as identifier "reset-password:<token>" with
+  // the user id in `value` — the old delete matched identifier = email,
+  // i.e. zero rows, leaving stale invite links live until expiry (#57).
+  await db
+    .delete(verifications)
+    .where(
+      and(like(verifications.identifier, "reset-password:%"), eq(verifications.value, target.id)),
+    );
+
+  await sendInviteSetPassword(opts.c, target.email, opts.tenantSlug);
+  return { ok: true };
 }
 
 /**

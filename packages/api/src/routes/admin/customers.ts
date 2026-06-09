@@ -17,13 +17,11 @@ import {
   orders,
   tenantMemberships,
   users,
-  verifications,
 } from "../../db/schema/index";
 import {
   inviteUserToTenant,
-  sendInviteSetPassword,
+  resendSetPasswordInvite,
   InviteConflict,
-  userHasPassword,
 } from "../../services/invite-user";
 import {
   isUniqueViolation,
@@ -398,41 +396,16 @@ customersRouter.get("/:id/users", async (c) => {
 
 // POST /:customerId/users/:userId/resend-invite — re-issue the set-password invite
 customersRouter.post("/:customerId/users/:userId/resend-invite", async (c) => {
-  const tenantId = c.get("tenantId")!;
-  const customerId = c.req.param("customerId");
-  const userId = c.req.param("userId");
-
-  const [target] = await db
-    .select({ id: users.id, email: users.email })
-    .from(tenantMemberships)
-    .innerJoin(users, eq(users.id, tenantMemberships.userId))
-    .where(
-      and(
-        eq(tenantMemberships.userId, userId),
-        eq(tenantMemberships.tenantId, tenantId),
-        eq(tenantMemberships.customerId, customerId),
-      ),
-    )
-    .limit(1);
-
-  if (!target) {
-    return c.json({ error: "User not found" }, 404);
+  const result = await resendSetPasswordInvite({
+    c,
+    tenantId: c.get("tenantId")!,
+    tenantSlug: c.get("tenant")!.slug,
+    userId: c.req.param("userId"),
+    customerId: c.req.param("customerId"),
+  });
+  if (!result.ok) {
+    return c.json({ code: result.code, error: result.error }, result.status);
   }
-
-  if (await userHasPassword(target.id)) {
-    return c.json(
-      {
-        code: API_ERROR_CODES.USER_ALREADY_ACTIVATED,
-        error: "User is already activated",
-      },
-      400,
-    );
-  }
-
-  await db.delete(verifications).where(eq(verifications.identifier, target.email));
-
-  await sendInviteSetPassword(c, target.email, c.get("tenant")!.slug);
-
   return c.json({ success: true });
 });
 
