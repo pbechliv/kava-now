@@ -261,6 +261,20 @@ suite("admin order mutations (HTTP, hard lock + soft-cancel totals)", () => {
     expect(invalid.status).toBe(400);
   });
 
+  it("garbage ids and dates are rejected at the boundary, not as 500s (#55)", async () => {
+    // Non-UUID path param → Postgres 22P02 mapped to 400, not a 500 + Sentry.
+    const detail = await api(`/orders/not-a-uuid`);
+    expect(detail.status).toBe(400);
+
+    // Garbage date filter → 400, no postgres-js "Invalid time value".
+    const list = await api(`/orders?dateFrom=garbage`);
+    expect(list.status).toBe(400);
+
+    // Garbage customerId filter → 400.
+    const filtered = await api(`/orders?customerId=abc`);
+    expect(filtered.status).toBe(400);
+  });
+
   it("customer/product deletion never destroys order history (no-action FK)", async () => {
     await createOrder();
 

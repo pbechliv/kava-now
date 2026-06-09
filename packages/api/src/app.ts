@@ -82,12 +82,30 @@ app.get("/api/health", (c) => {
   return c.json({ status: "ok" });
 });
 
+// Postgres "the input itself is malformed" SQLSTATEs: a garbage :id reaching
+// a uuid-typed comparison (22P02) or a garbage date (22007/22008). Client
+// input problems — 400, not a 500 + Sentry event. Zod validation at the
+// boundary remains the first line; this is the safety net.
+const PG_INVALID_INPUT_CODES = new Set(["22P02", "22007", "22008"]);
+
+function isPgInvalidInput(err: unknown): boolean {
+  let cur = err as { code?: string; cause?: unknown } | null;
+  for (let depth = 0; cur && typeof cur === "object" && depth < 5; depth++) {
+    if (cur.code && PG_INVALID_INPUT_CODES.has(cur.code)) return true;
+    cur = (cur.cause ?? null) as { code?: string; cause?: unknown } | null;
+  }
+  return false;
+}
+
 app.onError((err, c) => {
   if (err instanceof HTTPException) {
     if (err.status >= 500) {
       Sentry.captureException(err);
     }
     return err.getResponse();
+  }
+  if (isPgInvalidInput(err)) {
+    return c.json({ error: "Invalid parameter format" }, 400);
   }
   Sentry.captureException(err);
   return c.json({ error: "Internal server error" }, 500);

@@ -1,6 +1,6 @@
 import { Hono } from "hono";
 import { eq, and, ilike, or, sql } from "drizzle-orm";
-import { paginationQuerySchema, API_ERROR_CODES } from "@kava-now/shared";
+import { paginationQuerySchema, listFiltersQuerySchema, API_ERROR_CODES } from "@kava-now/shared";
 import { db } from "../../db/connection";
 import { products, categories, customers, customerBrandPricing } from "../../db/schema/index";
 import { resolvePrice } from "../../services/pricing";
@@ -51,7 +51,11 @@ catalogRouter.get("/", async (c) => {
 
   const brandDiscountMap = new Map(brandPricing.map((bp) => [bp.brand, bp.discountPct]));
 
-  const categoryId = c.req.query("categoryId");
+  const filters = listFiltersQuerySchema.safeParse({ categoryId: c.req.query("categoryId") });
+  if (!filters.success) {
+    return c.json({ error: filters.error.flatten().fieldErrors }, 400);
+  }
+  const { categoryId } = filters.data;
   const search = c.req.query("search");
 
   const pagination = paginationQuerySchema.safeParse({

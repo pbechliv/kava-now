@@ -5,6 +5,7 @@ import {
   updateProductSchema,
   importProductsBatchSchema,
   paginationQuerySchema,
+  listFiltersQuerySchema,
   type ImportProductsResult,
   API_ERROR_CODES,
 } from "@kava-now/shared";
@@ -59,7 +60,11 @@ const productsRouter = new Hono<AppEnv>();
 // GET / — list products with optional filters
 productsRouter.get("/", async (c) => {
   const tenantId = c.get("tenantId")!;
-  const categoryId = c.req.query("categoryId");
+  const filters = listFiltersQuerySchema.safeParse({ categoryId: c.req.query("categoryId") });
+  if (!filters.success) {
+    return c.json({ error: filters.error.flatten().fieldErrors }, 400);
+  }
+  const { categoryId } = filters.data;
   const search = c.req.query("search");
   const active = c.req.query("active");
 

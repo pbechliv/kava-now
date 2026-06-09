@@ -14,6 +14,7 @@ import { resolvePrice } from "../../services/pricing";
 import type { AppEnv } from "../../types";
 import {
   paginationQuerySchema,
+  listFiltersQuerySchema,
   markOrderTransmittedSchema,
   addOrderItemSchema,
   updateOrderItemSchema,
@@ -65,9 +66,16 @@ export function assertOrderMutable(order: {
 ordersRouter.get("/", async (c) => {
   const tenantId = c.get("tenantId")!;
   const status = c.req.query("status") as OrderStatus | undefined;
-  const customerId = c.req.query("customerId");
-  const dateFrom = c.req.query("dateFrom");
-  const dateTo = c.req.query("dateTo");
+
+  const filters = listFiltersQuerySchema.safeParse({
+    customerId: c.req.query("customerId"),
+    dateFrom: c.req.query("dateFrom"),
+    dateTo: c.req.query("dateTo"),
+  });
+  if (!filters.success) {
+    return c.json({ error: filters.error.flatten().fieldErrors }, 400);
+  }
+  const { customerId, dateFrom, dateTo } = filters.data;
 
   const pagination = paginationQuerySchema.safeParse({
     page: c.req.query("page"),
