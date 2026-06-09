@@ -146,48 +146,87 @@ productsRouter.post("/import", async (c) => {
 
   const { rows } = parsed.data;
 
-  const result = await db.transaction(async (tx) => {
-    // Reconcile categories by name (case-insensitive match against existing).
-    const existingCategories = await tx
-      .select({ id: categories.id, name: categories.name })
-      .from(categories)
-      .where(eq(categories.tenantId, tenantId));
+  // Later duplicates of the same (name, brand) win — same outcome as the old
+  // sequential per-row upserts, but mandatory now that rows go in multi-row
+  // statements (ON CONFLICT cannot touch the same row twice per statement).
+  const byKey = new Map<string, (typeof rows)[number]>();
+  for (const row of rows) byKey.set(`${row.name}\u0000${row.brand}`, row);
+  const dedupedRows = [...byKey.values()];
 
-    const categoryMap = new Map<string, string>(
-      existingCategories.map((cat) => [cat.name.toLowerCase(), cat.id]),
-    );
+  // EXCLUDED.* so one multi-row statement updates each conflicting row with
+  // its own incoming values.
+  const UPSERT_SET = {
+    categoryId: sql`excluded.category_id`,
+    description: sql`excluded.description`,
+    sku: sql`excluded.sku`,
+    erpRef: sql`excluded.erp_ref`,
+    basePrice: sql`excluded.base_price`,
+    unit: sql`excluded.unit`,
+    volumeMl: sql`excluded.volume_ml`,
+    alcoholPct: sql`excluded.alcohol_pct`,
+    imageUrl: sql`excluded.image_url`,
+    active: sql`excluded.active`,
+  };
 
-    const uniqueCategoryNames = [
-      ...new Set(
-        rows.map((r) => r.categoryName?.trim()).filter((n): n is string => !!n && n.length > 0),
-      ),
-    ];
+  let conflict: { rowIndex: number; erpRef: string | null } | null = null;
 
-    let categoriesCreated = 0;
-    for (const catName of uniqueCategoryNames) {
-      if (!categoryMap.has(catName.toLowerCase())) {
-        const [newCat] = await tx
+  let result: ImportProductsResult;
+  try {
+    result = await db.transaction(async (tx) => {
+      // Reconcile categories by name (case-insensitive match against existing).
+      const existingCategories = await tx
+        .select({ id: categories.id, name: categories.name })
+        .from(categories)
+        .where(eq(categories.tenantId, tenantId));
+
+      const categoryMap = new Map<string, string>(
+        existingCategories.map((cat) => [cat.name.toLowerCase(), cat.id]),
+      );
+
+      const uniqueCategoryNames = [
+        ...new Set(
+          dedupedRows
+            .map((r) => r.categoryName?.trim())
+            .filter((n): n is string => !!n && n.length > 0),
+        ),
+      ];
+
+      let categoriesCreated = 0;
+      for (const catName of uniqueCategoryNames) {
+        if (categoryMap.has(catName.toLowerCase())) continue;
+        // Race-safe get-or-create: a concurrent import/admin may create the
+        // same name — let the unique index arbitrate, then read the winner.
+        const [created] = await tx
           .insert(categories)
           .values({ name: catName, tenantId })
+          .onConflictDoNothing()
           .returning({ id: categories.id });
-        categoryMap.set(catName.toLowerCase(), newCat!.id);
-        categoriesCreated++;
+        if (created) {
+          categoryMap.set(catName.toLowerCase(), created.id);
+          categoriesCreated++;
+          continue;
+        }
+        const [winner] = await tx
+          .select({ id: categories.id })
+          .from(categories)
+          .where(
+            and(
+              eq(categories.tenantId, tenantId),
+              sql`lower(${categories.name}) = lower(${catName})`,
+            ),
+          )
+          .limit(1);
+        if (!winner) throw new Error(`Category get-or-create failed for "${catName}"`);
+        categoryMap.set(catName.toLowerCase(), winner.id);
       }
-    }
 
-    let inserted = 0;
-    let updated = 0;
-
-    for (const row of rows) {
-      const categoryId = row.categoryName
-        ? (categoryMap.get(row.categoryName.toLowerCase()) ?? null)
-        : null;
-
-      const values = {
+      const values = dedupedRows.map((row) => ({
         tenantId,
         name: row.name,
         brand: row.brand,
-        categoryId,
+        categoryId: row.categoryName
+          ? (categoryMap.get(row.categoryName.trim().toLowerCase()) ?? null)
+          : null,
         description: row.description ?? null,
         sku: row.sku ?? null,
         erpRef: row.erpRef ?? null,
@@ -197,45 +236,80 @@ productsRouter.post("/import", async (c) => {
         alcoholPct: row.alcoholPct != null ? String(row.alcoholPct) : null,
         imageUrl: row.imageUrl ?? null,
         active: row.active ?? true,
-      };
+      }));
 
-      const [res] = await tx
-        .insert(products)
-        .values(values)
-        .onConflictDoUpdate({
-          target: [products.tenantId, products.name, products.brand],
-          set: {
-            categoryId: values.categoryId,
-            description: values.description,
-            sku: values.sku,
-            erpRef: values.erpRef,
-            basePrice: values.basePrice,
-            unit: values.unit,
-            volumeMl: values.volumeMl,
-            alcoholPct: values.alcoholPct,
-            imageUrl: values.imageUrl,
-            active: values.active,
-          },
-        })
-        .returning({
-          id: products.id,
-          wasInserted: sql<boolean>`(xmax = 0)`,
-        });
+      let inserted = 0;
+      let updated = 0;
 
-      if (res?.wasInserted) {
-        inserted++;
-      } else {
-        updated++;
+      // Multi-row chunks: ~13 params/row, 500 rows stays far under the 65535
+      // bind-parameter limit and turns 5000 round-trips into 10.
+      const CHUNK = 500;
+      for (let offset = 0; offset < values.length; offset += CHUNK) {
+        const chunk = values.slice(offset, offset + CHUNK);
+        try {
+          // Savepoint so the row-locating fallback below still has a live
+          // transaction to work with after a failed chunk.
+          const res = await tx.transaction((sp) =>
+            sp
+              .insert(products)
+              .values(chunk)
+              .onConflictDoUpdate({
+                target: [products.tenantId, products.name, products.brand],
+                set: UPSERT_SET,
+              })
+              .returning({ wasInserted: sql<boolean>`(xmax = 0)` }),
+          );
+          for (const r of res) {
+            if (r.wasInserted) inserted++;
+            else updated++;
+          }
+        } catch (err) {
+          if (!isUniqueViolation(err, UNIQUE_CONSTRAINTS.productErpRef)) throw err;
+          // Replay the failed chunk row-by-row in savepoints to locate the
+          // offending row for a useful 409 instead of an opaque 500.
+          for (let i = 0; i < chunk.length; i++) {
+            try {
+              await tx.transaction(async (sp) => {
+                await sp
+                  .insert(products)
+                  .values(chunk[i]!)
+                  .onConflictDoUpdate({
+                    target: [products.tenantId, products.name, products.brand],
+                    set: UPSERT_SET,
+                  });
+              });
+            } catch (rowErr) {
+              if (isUniqueViolation(rowErr, UNIQUE_CONSTRAINTS.productErpRef)) {
+                conflict = { rowIndex: offset + i, erpRef: chunk[i]!.erpRef };
+              }
+              throw rowErr; // abort the whole import — it is all-or-nothing
+            }
+          }
+          throw err;
+        }
       }
-    }
 
-    return {
-      inserted,
-      updated,
-      categoriesCreated,
-      total: rows.length,
-    } satisfies ImportProductsResult;
-  });
+      return {
+        inserted,
+        updated,
+        categoriesCreated,
+        total: rows.length,
+      } satisfies ImportProductsResult;
+    });
+  } catch (err) {
+    if (conflict !== null && isUniqueViolation(err, UNIQUE_CONSTRAINTS.productErpRef)) {
+      const located = conflict as { rowIndex: number; erpRef: string | null };
+      return c.json(
+        {
+          code: API_ERROR_CODES.DUPLICATE_PRODUCT_ERP_REF,
+          error: `Duplicate ERP reference "${located.erpRef ?? ""}" (row ${located.rowIndex + 1}) — nothing was imported`,
+          rowIndex: located.rowIndex,
+        },
+        409,
+      );
+    }
+    throw err;
+  }
 
   return c.json(result);
 });
