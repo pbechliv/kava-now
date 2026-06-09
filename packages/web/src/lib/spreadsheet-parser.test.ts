@@ -31,6 +31,15 @@ describe("parsePrice", () => {
     expect(parsePrice(null)).toBeNull();
     expect(parsePrice(undefined)).toBeNull();
   });
+  it("treats pure 3-digit grouping as thousands, not decimals (#69)", () => {
+    expect(parsePrice("1.234")).toBe(1234); // Greek thousands
+    expect(parsePrice("1,234")).toBe(1234); // English thousands
+    expect(parsePrice("12.345.678")).toBe(12345678);
+    // …but real decimals and mixed forms stay intact.
+    expect(parsePrice("1.23")).toBe(1.23);
+    expect(parsePrice("1.2345")).toBe(1.2345);
+    expect(parsePrice("1.234,56")).toBe(1234.56);
+  });
 });
 
 describe("parseInteger", () => {

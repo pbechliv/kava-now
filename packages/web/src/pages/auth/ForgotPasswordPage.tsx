@@ -21,6 +21,7 @@ export function ForgotPasswordPage() {
 
   const form = useForm<ForgotPasswordInput>({
     resolver: zodResolver(forgotPasswordSchema),
+    defaultValues: { email: "" },
   });
 
   const resetPath = slug ? `/k/${slug}/auth/reset-password` : "/auth/reset-password";

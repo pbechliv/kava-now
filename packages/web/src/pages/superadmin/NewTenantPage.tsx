@@ -23,6 +23,9 @@ export function NewTenantPage() {
 
   const form = useForm<RegisterInput>({
     resolver: zodResolver(registerSchema),
+    // password stays undefined: it's optional in the schema and "" would
+    // trip the min-8 check on submit.
+    defaultValues: { name: "", slug: "", email: "" },
   });
 
   const slug = form.watch("slug", "");

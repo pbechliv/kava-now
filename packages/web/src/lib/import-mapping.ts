@@ -47,8 +47,9 @@ const HEADER_HINTS: Record<TargetField, RegExp[]> = {
   description: [/^περιγραφή$/i, /^description$/i, /^σχόλια$/i],
   sku: [/^sku$/i, /^κωδικός$/i, /^code$/i, /^κωδ/i, /^barcode$/i],
   unit: [/^μονάδα/i, /^unit$/i, /^uom$/i],
-  volumeMl: [/^όγκος/i, /^volume$/i, /ml$/i, /^περιεκτικότητα/i],
-  alcoholPct: [/^αλκοόλ/i, /^alcohol/i, /^abv$/i, /%$/],
+  volumeMl: [/^όγκος/i, /^volume$/i, /(^|\s)ml\.?$/i, /^περιεκτικότητα/i],
+  // No bare /%$/: it claimed any "...%" column (e.g. "Έκπτωση %").
+  alcoholPct: [/^αλκοόλ/i, /^alcohol/i, /^abv\b/i, /^vol\.?\s*%$/i],
   imageUrl: [/^εικόνα/i, /^image/i, /^url$/i, /^φωτογραφία/i],
   active: [/^ενεργό/i, /^active$/i, /^enabled$/i],
 };
@@ -190,7 +191,9 @@ export function applyMapping(rows: Record<string, string>[], mapping: Mapping): 
   });
 }
 
-const STORAGE_PREFIX = "tenant-now:product-import-mapping:";
+const STORAGE_PREFIX = "kavanow:product-import-mapping:";
+// Pre-rename key (the app was briefly called tenant-now) — read-only fallback.
+const LEGACY_STORAGE_PREFIX = "tenant-now:product-import-mapping:";
 
 export function persistMapping(tenantSlug: string, mapping: Mapping): void {
   try {
@@ -202,7 +205,9 @@ export function persistMapping(tenantSlug: string, mapping: Mapping): void {
 
 export function loadMapping(tenantSlug: string): Mapping | null {
   try {
-    const raw = localStorage.getItem(STORAGE_PREFIX + tenantSlug);
+    const raw =
+      localStorage.getItem(STORAGE_PREFIX + tenantSlug) ??
+      localStorage.getItem(LEGACY_STORAGE_PREFIX + tenantSlug);
     if (!raw) return null;
     return JSON.parse(raw) as Mapping;
   } catch {

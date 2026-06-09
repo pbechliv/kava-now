@@ -461,7 +461,12 @@ export function OrderDetailPage() {
                                   "OK"
                                 )}
                               </Button>
-                              <Button size="sm" variant="ghost" onClick={cancelEditQty}>
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                aria-label="Ακύρωση επεξεργασίας"
+                                onClick={cancelEditQty}
+                              >
                                 ✕
                               </Button>
                             </div>

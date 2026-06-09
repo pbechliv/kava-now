@@ -1,4 +1,5 @@
 import { NavLink, Outlet, useParams } from "react-router";
+import { initials } from "@/lib/utils";
 import {
   LayoutDashboard,
   Package,
@@ -38,16 +39,6 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Separator } from "@/components/ui/separator";
 import { TenantSwitcher } from "@/components/TenantSwitcher";
 import { Logo } from "@/components/Logo";
-
-function initials(name: string | null | undefined) {
-  if (!name) return "?";
-  return name
-    .split(" ")
-    .filter(Boolean)
-    .slice(0, 2)
-    .map((s) => s[0]?.toUpperCase() ?? "")
-    .join("");
-}
 
 export function AdminLayout() {
   const { user, tenant } = useAuth();

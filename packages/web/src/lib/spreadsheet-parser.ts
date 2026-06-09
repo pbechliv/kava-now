@@ -29,6 +29,9 @@ async function readAsText(file: File, encoding: Encoding): Promise<string> {
   return new TextDecoder(encoding, { fatal: false }).decode(buf);
 }
 
+// Known limitation: skipping is line-based, so a quoted CSV field containing
+// newlines inside the skipped region shifts the cut. Acceptable — skipFirstRows
+// targets human title/preamble lines, which aren't quoted multi-line fields.
 function applySkipRows(text: string, skip: number): string {
   if (!skip || skip <= 0) return text;
   const lines = text.split(/\r?\n/);
@@ -142,6 +145,13 @@ export function parsePrice(input: string | number | undefined | null): number | 
   // Strip currency symbols and letters (€, $, EUR, etc.) but keep digits, separators, sign.
   s = s.replace(/[^\d,.-]/g, "");
   if (s.length === 0) return null;
+
+  // Pure thousands-grouping ("1.234", "12.345.678", "1,234"): a separator
+  // always followed by exactly three digits is a grouping character in
+  // Greek/English exports, not a 3-decimal price.
+  if (/^\d{1,3}([.,]\d{3})+$/.test(s)) {
+    return Number(s.replace(/[.,]/g, ""));
+  }
 
   const lastComma = s.lastIndexOf(",");
   const lastDot = s.lastIndexOf(".");

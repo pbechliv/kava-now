@@ -191,6 +191,10 @@ export function ProductsPage() {
                           type="button"
                           onClick={() => handleToggleActive(product.id, product.active)}
                           className="inline-flex"
+                          aria-pressed={product.active}
+                          title={
+                            product.active ? "Απενεργοποίηση προϊόντος" : "Ενεργοποίηση προϊόντος"
+                          }
                         >
                           <Badge variant={product.active ? "success" : "muted"}>
                             {product.active ? "Ναι" : "Όχι"}

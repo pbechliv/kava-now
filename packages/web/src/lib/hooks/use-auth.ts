@@ -42,17 +42,24 @@ export function useAuth() {
       }
     : null;
 
+  // Primitives only — `tenant` is a fresh object every render, so an object
+  // dep array re-ran this on each render of every consumer.
+  const userId = user?.id ?? null;
+  const userIsSuperAdmin = user?.isSuperAdmin ?? false;
+  const tenantId = tenant?.id ?? null;
+  const tenantSlug = tenant?.slug ?? null;
+  const membershipRole = currentMembership?.role ?? null;
   useEffect(() => {
-    if (user) {
-      Sentry.setUser({ id: user.id });
-      Sentry.setTag("user.is_superadmin", user.isSuperAdmin);
+    if (userId) {
+      Sentry.setUser({ id: userId });
+      Sentry.setTag("user.is_superadmin", userIsSuperAdmin);
     } else {
       Sentry.setUser(null);
     }
-    Sentry.setTag("tenant.id", tenant?.id ?? null);
-    Sentry.setTag("tenant.slug", tenant?.slug ?? null);
-    Sentry.setTag("membership.role", currentMembership?.role ?? null);
-  }, [user, tenant, currentMembership]);
+    Sentry.setTag("tenant.id", tenantId);
+    Sentry.setTag("tenant.slug", tenantSlug);
+    Sentry.setTag("membership.role", membershipRole);
+  }, [userId, userIsSuperAdmin, tenantId, tenantSlug, membershipRole]);
 
   return {
     user,

@@ -1,4 +1,5 @@
 import { NavLink, Outlet } from "react-router";
+import { initials } from "@/lib/utils";
 import { Building2, Settings, LogOut } from "lucide-react";
 import { useAuth } from "@/lib/hooks/use-auth";
 import { useLogout } from "@/lib/hooks/use-logout";
@@ -34,16 +35,6 @@ const navItems = [
   { to: "/admin/tenants", label: "Λογαριασμοί", icon: Building2 },
   { to: "/admin/settings", label: "Ρυθμίσεις", icon: Settings },
 ];
-
-function initials(name: string | null | undefined) {
-  if (!name) return "?";
-  return name
-    .split(" ")
-    .filter(Boolean)
-    .slice(0, 2)
-    .map((s) => s[0]?.toUpperCase() ?? "")
-    .join("");
-}
 
 export function SuperAdminLayout() {
   const { user } = useAuth();

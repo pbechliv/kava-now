@@ -1,4 +1,5 @@
 import { useEffect } from "react";
+import { initials } from "@/lib/utils";
 import { NavLink, Outlet, Link, useParams } from "react-router";
 import { LogOut, ShoppingBag, ShoppingCart, ScrollText, UserRound } from "lucide-react";
 import { useAuth } from "@/lib/hooks/use-auth";
@@ -32,16 +33,6 @@ import { Badge } from "@/components/ui/badge";
 import { useCartStore, activateCartForSlug } from "@/lib/store/cart";
 import { TenantSwitcher } from "@/components/TenantSwitcher";
 import { Logo } from "@/components/Logo";
-
-function initials(name: string | null | undefined) {
-  if (!name) return "?";
-  return name
-    .split(" ")
-    .filter(Boolean)
-    .slice(0, 2)
-    .map((s) => s[0]?.toUpperCase() ?? "")
-    .join("");
-}
 
 export function CustomerLayout() {
   const { user, tenant } = useAuth();
