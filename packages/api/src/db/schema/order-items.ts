@@ -38,5 +38,7 @@ export const orderItems = pgTable(
     index("order_items_order_idx").on(table.orderId),
     // Product usage lookups (e.g. "is this product referenced by orders").
     index("order_items_product_idx").on(table.productId),
+    // SET NULL in the replacement chain scans this FK.
+    index("order_items_replaced_by_idx").on(table.replacedByItemId),
   ],
 );

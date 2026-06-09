@@ -226,8 +226,8 @@ function priceForCategory(categoryName: string): string {
   return (BASE_PRICE_BY_CATEGORY[categoryName] ?? 5.0).toFixed(2);
 }
 
-export async function seedDemoTenant(db: PostgresJsDatabase): Promise<void> {
-  const [existing] = await db
+export async function seedDemoTenant(outerDb: PostgresJsDatabase): Promise<void> {
+  const [existing] = await outerDb
     .select({ id: tenants.id })
     .from(tenants)
     .where(eq(tenants.slug, DEMO_SLUG))
@@ -240,168 +240,178 @@ export async function seedDemoTenant(db: PostgresJsDatabase): Promise<void> {
 
   console.log("Seeding demo tenant...");
 
-  const [demoTenant] = await db
-    .insert(tenants)
-    .values({
-      name: "Demo Λογαριασμός Αθηνών",
-      slug: DEMO_SLUG,
-      email: "demo@kavanow.gr",
-      phone: "+30 210 1234567",
-      address: "Πανεπιστημίου 42, Αθήνα",
-    })
-    .returning();
+  // One transaction for the whole seed: a mid-way failure (e.g. the demo
+  // customer email colliding with an existing user) used to leave a
+  // half-seeded tenant that the slug guard above then blocked from repair.
+  await outerDb.transaction(async (db) => {
+    const [demoTenant] = await db
+      .insert(tenants)
+      .values({
+        name: "Demo Λογαριασμός Αθηνών",
+        slug: DEMO_SLUG,
+        email: "demo@kavanow.gr",
+        phone: "+30 210 1234567",
+        address: "Πανεπιστημίου 42, Αθήνα",
+      })
+      .returning();
 
-  if (!demoTenant) throw new Error("Failed to create demo tenant");
+    if (!demoTenant) throw new Error("Failed to create demo tenant");
 
-  // The superadmin is the owner of the demo tenant — gives dev a single user to
-  // log in as and use the in-app tenant switcher to enter the tenant context.
-  const [superadminUser] = await db
-    .select({ id: users.id })
-    .from(users)
-    .where(eq(users.isSuperAdmin, true))
-    .limit(1);
-  if (!superadminUser) throw new Error("Superadmin must be seeded before the demo tenant");
+    // The superadmin is the owner of the demo tenant — gives dev a single user to
+    // log in as and use the in-app tenant switcher to enter the tenant context.
+    const [superadminUser] = await db
+      .select({ id: users.id })
+      .from(users)
+      .where(eq(users.isSuperAdmin, true))
+      .limit(1);
+    if (!superadminUser) throw new Error("Superadmin must be seeded before the demo tenant");
 
-  await db
-    .insert(tenantMemberships)
-    .values({ userId: superadminUser.id, tenantId: demoTenant.id, role: "owner" });
+    await db
+      .insert(tenantMemberships)
+      .values({ userId: superadminUser.id, tenantId: demoTenant.id, role: "owner" });
 
-  const insertedCategories = await db
-    .insert(categories)
-    .values(
-      DEMO_CATEGORIES.map((name, index) => ({
-        tenantId: demoTenant.id,
-        name,
-        sortOrder: index,
-      })),
-    )
-    .returning({ id: categories.id, name: categories.name });
+    const insertedCategories = await db
+      .insert(categories)
+      .values(
+        DEMO_CATEGORIES.map((name, index) => ({
+          tenantId: demoTenant.id,
+          name,
+          sortOrder: index,
+        })),
+      )
+      .returning({ id: categories.id, name: categories.name });
 
-  const categoryByName = new Map(insertedCategories.map((c) => [c.name, c.id]));
+    const categoryByName = new Map(insertedCategories.map((c) => [c.name, c.id]));
 
-  const insertedProducts = await db
-    .insert(products)
-    .values(
-      DEMO_PRODUCTS.map((sp, index) => ({
-        tenantId: demoTenant.id,
-        name: sp.name,
-        brand: sp.brand ?? sp.name,
-        categoryId: categoryByName.get(sp.categoryName) ?? null,
-        description: sp.description ?? null,
-        imageUrl: sp.imageUrl ?? null,
-        basePrice: priceForCategory(sp.categoryName),
-        unit: sp.unit,
-        volumeMl: sp.volumeMl ?? null,
-        alcoholPct: sp.alcoholPct ?? null,
-        erpRef: String(100001 + index),
-        active: true,
-      })),
-    )
-    .returning({
-      id: products.id,
-      name: products.name,
-      brand: products.brand,
-      basePrice: products.basePrice,
+    const insertedProducts = await db
+      .insert(products)
+      .values(
+        DEMO_PRODUCTS.map((sp, index) => ({
+          tenantId: demoTenant.id,
+          name: sp.name,
+          brand: sp.brand ?? sp.name,
+          categoryId: categoryByName.get(sp.categoryName) ?? null,
+          description: sp.description ?? null,
+          imageUrl: sp.imageUrl ?? null,
+          basePrice: priceForCategory(sp.categoryName),
+          unit: sp.unit,
+          volumeMl: sp.volumeMl ?? null,
+          alcoholPct: sp.alcoholPct ?? null,
+          erpRef: String(100001 + index),
+          active: true,
+        })),
+      )
+      .returning({
+        id: products.id,
+        name: products.name,
+        brand: products.brand,
+        basePrice: products.basePrice,
+      });
+
+    const productByNameBrand = new Map(insertedProducts.map((p) => [`${p.name}|${p.brand}`, p]));
+
+    const insertedCustomers = await db
+      .insert(customers)
+      .values(DEMO_CUSTOMERS.map((c) => ({ tenantId: demoTenant.id, ...c })))
+      .returning({ id: customers.id, name: customers.name });
+
+    const customerByName = new Map(insertedCustomers.map((c) => [c.name, c.id]));
+
+    // Customer user + membership linked to "Ταβέρνα Ο Νίκος"
+    const customerEmail = (
+      process.env.DEMO_CUSTOMER_EMAIL ?? "customer@demo.kavanow.gr"
+    ).toLowerCase();
+    const customerPassword = process.env.DEMO_CUSTOMER_PASSWORD ?? "demopass";
+    const linkedCustomerId = customerByName.get("Ταβέρνα Ο Νίκος");
+    if (!linkedCustomerId) throw new Error("Demo customer org missing: Ταβέρνα Ο Νίκος");
+
+    const [customerUser] = await db
+      .insert(users)
+      .values({
+        email: customerEmail,
+        name: "Demo Customer",
+        emailVerified: true,
+      })
+      .returning({ id: users.id });
+    if (!customerUser) throw new Error("Failed to create demo customer user");
+
+    await db.insert(accounts).values({
+      accountId: customerUser.id,
+      providerId: "credential",
+      userId: customerUser.id,
+      password: await hashPassword(customerPassword),
     });
 
-  const productByNameBrand = new Map(insertedProducts.map((p) => [`${p.name}|${p.brand}`, p]));
+    await db.insert(tenantMemberships).values({
+      userId: customerUser.id,
+      tenantId: demoTenant.id,
+      role: "customer",
+      customerId: linkedCustomerId,
+    });
 
-  const insertedCustomers = await db
-    .insert(customers)
-    .values(DEMO_CUSTOMERS.map((c) => ({ tenantId: demoTenant.id, ...c })))
-    .returning({ id: customers.id, name: customers.name });
-
-  const customerByName = new Map(insertedCustomers.map((c) => [c.name, c.id]));
-
-  // Customer user + membership linked to "Ταβέρνα Ο Νίκος"
-  const customerEmail = (
-    process.env.DEMO_CUSTOMER_EMAIL ?? "customer@demo.kavanow.gr"
-  ).toLowerCase();
-  const customerPassword = process.env.DEMO_CUSTOMER_PASSWORD ?? "demopass";
-  const linkedCustomerId = customerByName.get("Ταβέρνα Ο Νίκος");
-  if (!linkedCustomerId) throw new Error("Demo customer org missing: Ταβέρνα Ο Νίκος");
-
-  const [customerUser] = await db
-    .insert(users)
-    .values({
-      email: customerEmail,
-      name: "Demo Customer",
-      emailVerified: true,
-    })
-    .returning({ id: users.id });
-  if (!customerUser) throw new Error("Failed to create demo customer user");
-
-  await db.insert(accounts).values({
-    accountId: customerUser.id,
-    providerId: "credential",
-    userId: customerUser.id,
-    password: await hashPassword(customerPassword),
-  });
-
-  await db.insert(tenantMemberships).values({
-    userId: customerUser.id,
-    tenantId: demoTenant.id,
-    role: "customer",
-    customerId: linkedCustomerId,
-  });
-
-  await db.insert(customerBrandPricing).values(
-    DEMO_BRAND_PRICING.map((bp) => {
-      const customerId = customerByName.get(bp.customerName);
-      if (!customerId) throw new Error(`Demo customer missing: ${bp.customerName}`);
-      return { tenantId: demoTenant.id, customerId, brand: bp.brand, discountPct: bp.discountPct };
-    }),
-  );
-
-  let transmittedSeq = 0;
-  for (const order of DEMO_ORDERS) {
-    const customerId = customerByName.get(order.customerName);
-    if (!customerId) throw new Error(`Demo customer missing: ${order.customerName}`);
-
-    // Demo: pre-mark delivered orders as already transmitted to the ERP so the
-    // "transmitted" state is visible in the UI without manual setup.
-    const isTransmitted = order.status === "delivered";
-    if (isTransmitted) transmittedSeq++;
-
-    const [createdOrder] = await db
-      .insert(orders)
-      .values({
-        tenantId: demoTenant.id,
-        customerId,
-        status: order.status,
-        notes: order.notes,
-        erpStatus: isTransmitted ? "transmitted" : "pending",
-        erpMark: isTransmitted ? `4000${String(transmittedSeq).padStart(4, "0")}` : null,
-        erpTransmittedAt: isTransmitted ? new Date() : null,
-        erpTransmittedBy: isTransmitted ? superadminUser.id : null,
-      })
-      .returning({ id: orders.id });
-
-    if (!createdOrder) throw new Error("Failed to create demo order");
-
-    await db.insert(orderItems).values(
-      order.items.map((item) => {
-        const product = productByNameBrand.get(`${item.productName}|${item.brand}`);
-        if (!product) {
-          throw new Error(`Demo product missing: ${item.productName} / ${item.brand}`);
-        }
+    await db.insert(customerBrandPricing).values(
+      DEMO_BRAND_PRICING.map((bp) => {
+        const customerId = customerByName.get(bp.customerName);
+        if (!customerId) throw new Error(`Demo customer missing: ${bp.customerName}`);
         return {
-          orderId: createdOrder.id,
-          productId: product.id,
-          quantity: item.quantity,
-          originalQuantity: item.quantity,
-          unitPrice: product.basePrice,
-          productName: item.productName,
+          tenantId: demoTenant.id,
+          customerId,
+          brand: bp.brand,
+          discountPct: bp.discountPct,
         };
       }),
     );
-  }
 
-  console.log(
-    `Demo tenant seeded: tenant "${DEMO_SLUG}" + ${DEMO_CUSTOMERS.length} customers + ${DEMO_ORDERS.length} orders. ` +
-      `Owner: the superadmin (use /admin to switch into /k/${DEMO_SLUG}).` +
-      (process.env.NODE_ENV !== "production"
-        ? ` Customer login: ${customerEmail} / ${customerPassword} at localhost:3200/k/${DEMO_SLUG}/login`
-        : ""),
-  );
+    let transmittedSeq = 0;
+    for (const order of DEMO_ORDERS) {
+      const customerId = customerByName.get(order.customerName);
+      if (!customerId) throw new Error(`Demo customer missing: ${order.customerName}`);
+
+      // Demo: pre-mark delivered orders as already transmitted to the ERP so the
+      // "transmitted" state is visible in the UI without manual setup.
+      const isTransmitted = order.status === "delivered";
+      if (isTransmitted) transmittedSeq++;
+
+      const [createdOrder] = await db
+        .insert(orders)
+        .values({
+          tenantId: demoTenant.id,
+          customerId,
+          status: order.status,
+          notes: order.notes,
+          erpStatus: isTransmitted ? "transmitted" : "pending",
+          erpMark: isTransmitted ? `4000${String(transmittedSeq).padStart(4, "0")}` : null,
+          erpTransmittedAt: isTransmitted ? new Date() : null,
+          erpTransmittedBy: isTransmitted ? superadminUser.id : null,
+        })
+        .returning({ id: orders.id });
+
+      if (!createdOrder) throw new Error("Failed to create demo order");
+
+      await db.insert(orderItems).values(
+        order.items.map((item) => {
+          const product = productByNameBrand.get(`${item.productName}|${item.brand}`);
+          if (!product) {
+            throw new Error(`Demo product missing: ${item.productName} / ${item.brand}`);
+          }
+          return {
+            orderId: createdOrder.id,
+            productId: product.id,
+            quantity: item.quantity,
+            originalQuantity: item.quantity,
+            unitPrice: product.basePrice,
+            productName: item.productName,
+          };
+        }),
+      );
+    }
+
+    console.log(
+      `Demo tenant seeded: tenant "${DEMO_SLUG}" + ${DEMO_CUSTOMERS.length} customers + ${DEMO_ORDERS.length} orders. ` +
+        `Owner: the superadmin (use /admin to switch into /k/${DEMO_SLUG}).` +
+        (process.env.NODE_ENV !== "production"
+          ? ` Customer login: ${customerEmail} / ${customerPassword} at localhost:3200/k/${DEMO_SLUG}/login`
+          : ""),
+    );
+  });
 }

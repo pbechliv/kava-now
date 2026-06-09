@@ -5,6 +5,10 @@ const isDev = process.env.NODE_ENV !== "production";
 
 const DEV_DEFAULTS = {
   databaseUrl: "postgresql://postgres:postgres@localhost:5432/kavanow",
+  // db:migrate provisions the NOSUPERUSER role with password = role name in
+  // dev, so local runs exercise RLS exactly like production (#69). Requires
+  // `pnpm db:migrate` once before `pnpm dev`.
+  appDatabaseUrl: "postgresql://kavanow_app:kavanow_app@localhost:5432/kavanow",
   appOrigin: "http://localhost:3200",
   // better-auth signs session cookies with this. Fine for local dev; production
   // must provide its own BETTER_AUTH_SECRET (enforced below).
@@ -89,7 +93,7 @@ export const config = {
   // Connection the running server uses. Should point at the NOSUPERUSER
   // `kavanow_app` role so RLS is enforced. Falls back to the privileged URL in
   // dev (RLS bypassed); production must set APP_DATABASE_URL.
-  appDatabaseUrl: env.APP_DATABASE_URL || databaseUrl,
+  appDatabaseUrl: env.APP_DATABASE_URL || (isDev ? DEV_DEFAULTS.appDatabaseUrl : databaseUrl),
   // Canonical origin of the running app — used for absolute URLs in outbound
   // email (invites, password resets, order notifications) and as better-auth's
   // baseURL / trustedOrigins. Single-host now that tenants live in URL paths.

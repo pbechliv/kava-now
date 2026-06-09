@@ -1,0 +1,2 @@
+CREATE INDEX "orders_erp_transmitted_by_idx" ON "orders" USING btree ("erp_transmitted_by");--> statement-breakpoint
+CREATE INDEX "order_items_replaced_by_idx" ON "order_items" USING btree ("replaced_by_item_id");

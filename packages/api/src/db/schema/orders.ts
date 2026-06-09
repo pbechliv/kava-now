@@ -18,7 +18,10 @@ export const orders = pgTable(
     status: orderStatusEnum("status").notNull().default("pending"),
     notes: text("notes"),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow()
+      .$onUpdate(() => new Date()),
     erpStatus: erpStatusEnum("erp_status").notNull().default("pending"),
     erpMark: text("erp_mark"),
     erpTransmittedAt: timestamp("erp_transmitted_at", { withTimezone: true }),
@@ -31,6 +34,8 @@ export const orders = pgTable(
     index("orders_tenant_created_idx").on(table.tenantId, table.createdAt),
     // Customer order history.
     index("orders_customer_idx").on(table.customerId),
+    // SET NULL on user deletion scans this FK.
+    index("orders_erp_transmitted_by_idx").on(table.erpTransmittedBy),
     // Composite: the customer must belong to the same tenant as the order.
     // NO ACTION, and made DEFERRABLE INITIALLY DEFERRED by hand in the
     // migration (the schema API can't express it): tenant deletion cascades

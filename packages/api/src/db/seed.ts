@@ -53,10 +53,15 @@ async function main() {
     console.log(`Superadmin seeded: ${SUPERADMIN_EMAIL}`);
   }
 
-  if (process.env.SEED_DEMO !== "false") {
+  // Demo data (with well-known demo credentials) is opt-OUT in dev but
+  // opt-IN in production.
+  const seedDemo = process.env.SEED_DEMO
+    ? process.env.SEED_DEMO === "true"
+    : process.env.NODE_ENV !== "production";
+  if (seedDemo) {
     await seedDemoTenant(db);
   } else {
-    console.log("SEED_DEMO=false — skipping demo tenant.");
+    console.log("Skipping demo tenant (SEED_DEMO).");
   }
 
   await sql.end();

@@ -245,7 +245,7 @@ ordersRouter.put("/:id/status", async (c) => {
 
     const [updated] = await tx
       .update(orders)
-      .set({ status: newStatus, updatedAt: new Date() })
+      .set({ status: newStatus })
       .where(and(eq(orders.id, id), eq(orders.tenantId, tenantId)))
       .returning();
 
