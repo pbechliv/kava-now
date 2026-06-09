@@ -68,6 +68,8 @@ export function useAuth() {
 export interface UpdateMeInput {
   name?: string;
   email?: string;
+  /** Required by the API when changing email — proof of account ownership. */
+  currentPassword?: string;
 }
 
 export function useUpdateMe() {

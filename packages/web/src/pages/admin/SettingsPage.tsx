@@ -214,6 +214,7 @@ function ProfileTab() {
   const updateMe = useUpdateMe();
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
+  const [currentPassword, setCurrentPassword] = useState("");
   const [error, setError] = useState("");
 
   useEffect(() => {
@@ -223,18 +224,24 @@ function ProfileTab() {
     }
   }, [user]);
 
+  const emailChanged = !!user && email !== user.email;
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
     if (!user) return;
 
-    const payload: { name?: string; email?: string } = {};
+    const payload: { name?: string; email?: string; currentPassword?: string } = {};
     if (name !== user.name) payload.name = name;
-    if (email !== user.email) payload.email = email;
+    if (emailChanged) {
+      payload.email = email;
+      payload.currentPassword = currentPassword;
+    }
 
     if (Object.keys(payload).length === 0) return;
 
     updateMe.mutate(payload, {
+      onSuccess: () => setCurrentPassword(""),
       onError: (err) => {
         setError(err instanceof Error ? err.message : "Κάτι πήγε στραβά");
       },
@@ -260,6 +267,19 @@ function ProfileTab() {
               required
             />
           </FieldRow>
+          {emailChanged && (
+            <FieldRow id="me-current-password" label="Τρέχων κωδικός πρόσβασης" required>
+              <Input
+                id="me-current-password"
+                type="password"
+                autoComplete="current-password"
+                value={currentPassword}
+                onChange={(e) => setCurrentPassword(e.target.value)}
+                placeholder="Απαιτείται για αλλαγή email"
+                required
+              />
+            </FieldRow>
+          )}
           {currentMembership?.invitedBy && (
             <div className="text-sm text-muted-foreground">
               Προσκληθήκατε από{" "}

@@ -38,19 +38,26 @@ function ProfileTab() {
   const updateMe = useUpdateMe();
   const [name, setName] = useState(user?.name ?? "");
   const [email, setEmail] = useState(user?.email ?? "");
+  const [currentPassword, setCurrentPassword] = useState("");
   const [error, setError] = useState("");
+
+  const emailChanged = !!user && email !== user.email;
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
     if (!user) return;
 
-    const payload: { name?: string; email?: string } = {};
+    const payload: { name?: string; email?: string; currentPassword?: string } = {};
     if (name !== user.name) payload.name = name;
-    if (email !== user.email) payload.email = email;
+    if (emailChanged) {
+      payload.email = email;
+      payload.currentPassword = currentPassword;
+    }
     if (Object.keys(payload).length === 0) return;
 
     updateMe.mutate(payload, {
+      onSuccess: () => setCurrentPassword(""),
       onError: (err) => setError(err instanceof Error ? err.message : "Κάτι πήγε στραβά"),
     });
   };
@@ -81,6 +88,20 @@ function ProfileTab() {
               required
             />
           </div>
+          {emailChanged && (
+            <div className="space-y-2">
+              <Label htmlFor="sa-me-current-password">Τρέχων κωδικός πρόσβασης</Label>
+              <Input
+                id="sa-me-current-password"
+                type="password"
+                autoComplete="current-password"
+                value={currentPassword}
+                onChange={(e) => setCurrentPassword(e.target.value)}
+                placeholder="Απαιτείται για αλλαγή email"
+                required
+              />
+            </div>
+          )}
           {error && <p className="text-sm text-destructive">{error}</p>}
           {updateMe.isSuccess && <p className="text-sm text-green-600">Το προφίλ ενημερώθηκε</p>}
         </CardContent>

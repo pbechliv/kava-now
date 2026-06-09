@@ -32,6 +32,10 @@ const CODE_MESSAGES: Record<ApiErrorCode, string> = {
   [API_ERROR_CODES.CUSTOMER_HAS_ORDERS]: "Δεν μπορείτε να διαγράψετε πελάτη με παραγγελίες",
 
   [API_ERROR_CODES.USER_ALREADY_ACTIVATED]: "Ο χρήστης έχει ήδη ενεργοποιηθεί",
+  [API_ERROR_CODES.EMAIL_CHANGE_REQUIRES_PASSWORD]:
+    "Η αλλαγή email είναι δυνατή μόνο σε λογαριασμούς με κωδικό πρόσβασης",
+  [API_ERROR_CODES.INVALID_CURRENT_PASSWORD]:
+    "Ο τρέχων κωδικός πρόσβασης λείπει ή είναι λανθασμένος",
   [API_ERROR_CODES.CANT_DELETE_SELF]: "Δεν μπορείτε να διαγράψετε τον εαυτό σας",
   [API_ERROR_CODES.LAST_OWNER_PROTECTION]:
     "Δεν μπορείτε να διαγράψετε τον τελευταίο ιδιοκτήτη του λογαριασμού",

@@ -5,6 +5,7 @@ import { z } from "zod";
 import { API_ERROR_CODES } from "@kava-now/shared";
 import { db } from "../db/connection";
 import { accounts, tenantMemberships, tenants, users } from "../db/schema/index";
+import { verifyPassword } from "better-auth/crypto";
 import { auth as betterAuth } from "../auth";
 import { requireAuth } from "../middleware/require-auth";
 import { isUniqueViolation, UNIQUE_CONSTRAINTS } from "../db/errors";
@@ -88,6 +89,7 @@ auth.get("/me", requireAuth, async (c) => {
 const updateMeSchema = z.object({
   name: z.string().min(2, "Το όνομα πρέπει να έχει τουλάχιστον 2 χαρακτήρες").optional(),
   email: z.email("Μη έγκυρο email").optional(),
+  currentPassword: z.string().optional(),
 });
 
 // PATCH /me — edit the current user's name and/or email.
@@ -106,13 +108,46 @@ auth.patch("/me", requireAuth, async (c) => {
     );
   }
 
-  const updateData: { name?: string; email?: string } = {};
+  const updateData: { name?: string; email?: string; emailVerified?: boolean } = {};
 
   if (parsed.data.name) {
     updateData.name = parsed.data.name;
   }
 
   if (parsed.data.email && parsed.data.email !== authUser.email) {
+    // Rebinding the account email redirects all future password resets — a
+    // hijacked session must not be enough to take the account over (#48).
+    // Proof of ownership = the current password.
+    const [credential] = await db
+      .select({ hash: accounts.password })
+      .from(accounts)
+      .where(and(eq(accounts.userId, authUser.id), eq(accounts.providerId, "credential")))
+      .limit(1);
+
+    if (!credential?.hash) {
+      // OAuth-only account: email is bound to the provider identity; changing
+      // it here would break the sign-in match and can't be password-verified.
+      return c.json(
+        {
+          code: API_ERROR_CODES.EMAIL_CHANGE_REQUIRES_PASSWORD,
+          error: "Email can only be changed on accounts with a password",
+        },
+        400,
+      );
+    }
+    if (
+      !parsed.data.currentPassword ||
+      !(await verifyPassword({ hash: credential.hash, password: parsed.data.currentPassword }))
+    ) {
+      return c.json(
+        {
+          code: API_ERROR_CODES.INVALID_CURRENT_PASSWORD,
+          error: "Current password is missing or incorrect",
+        },
+        403,
+      );
+    }
+
     const newEmail = parsed.data.email;
     const [collision] = await db
       .select({ id: users.id })
@@ -123,6 +158,7 @@ auth.patch("/me", requireAuth, async (c) => {
       return c.json(DUPLICATE_USER_EMAIL_RESPONSE, 409);
     }
     updateData.email = newEmail;
+    updateData.emailVerified = false;
   }
 
   if (Object.keys(updateData).length === 0) {
