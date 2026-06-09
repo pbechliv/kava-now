@@ -13,20 +13,27 @@ concurrency:
   group: deploy-prod
   cancel-in-progress: false
 
+# Per-job permissions (#70): the deploy job pipes its GITHUB_TOKEN to the VM
+# for `docker login` — that token must only be able to PULL. Only the build
+# job may write packages.
 permissions:
   contents: read
-  packages: write
 
 jobs:
   resolve:
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     outputs:
       sha: ${{ steps.pick.outputs.sha }}
     steps:
       - id: pick
+        env:
+          # Via env, not inline interpolation — dispatch inputs are
+          # writer-controlled, but script injection hygiene is free (#70).
+          SHA_INPUT: ${{ inputs.sha }}
         run: |
-          if [ -n "${{ inputs.sha }}" ]; then
-            echo "sha=${{ inputs.sha }}" >> "$GITHUB_OUTPUT"
+          if [ -n "$SHA_INPUT" ]; then
+            echo "sha=$SHA_INPUT" >> "$GITHUB_OUTPUT"
           else
             echo "sha=${{ github.sha }}" >> "$GITHUB_OUTPUT"
           fi
@@ -39,6 +46,9 @@ jobs:
 
   build:
     needs: [resolve, ci]
+    permissions:
+      contents: read
+      packages: write
     uses: ./.github/workflows/build-images.yml
     with:
       sha: ${{ needs.resolve.outputs.sha }}
@@ -50,6 +60,12 @@ jobs:
   deploy:
     needs: [resolve, build]
     runs-on: ubuntu-latest
+    # A hung SSH must not hold the deploy-prod concurrency group for the
+    # 6-hour default — that blocks every deploy/migration behind it (#70).
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      packages: read
     environment: production
     env:
       IMAGE_TAG: ${{ needs.resolve.outputs.sha }}
@@ -109,6 +125,9 @@ jobs:
           docker compose --env-file .env.production --profile jobs run --rm api-jobs \
             pnpm --filter @kava-now/api db:migrate </dev/null
           docker compose --env-file .env.production up -d api caddy
+          # Persist the deployed tag so migrate.yml and manual compose
+          # commands on the VM act on the RUNNING version, not :latest (#70).
+          sed -i "s/^IMAGE_TAG=.*/IMAGE_TAG=$IMAGE_TAG/" .env.production
           docker image prune -f
           EOF
 

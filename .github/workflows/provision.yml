@@ -24,6 +24,7 @@ permissions:
 jobs:
   terraform:
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     environment: infrastructure
     defaults:
       run:
@@ -77,6 +78,7 @@ jobs:
     if: ${{ inputs.action == 'apply' || inputs.action == 'bootstrap' }}
     needs: terraform
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     environment: infrastructure
     env:
       VM_IP: ${{ needs.terraform.outputs.vm_ipv4 }}

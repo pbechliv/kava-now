@@ -1,10 +1,11 @@
 name: CI
 
+# Branch pushes get CI through their PR; pushes to main get it through
+# deploy.yml's workflow_call. A separate push trigger double-ran CI on every
+# PR-branch push (#70).
 on:
   pull_request:
     branches: [main]
-  push:
-    branches-ignore: [main]
   # Called as a sub-workflow by deploy.yml — without this, every deploy run
   # fails at startup ("workflow is not reusable").
   workflow_call:
@@ -23,6 +24,7 @@ permissions:
 jobs:
   check:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
 
     services:
       postgres:
