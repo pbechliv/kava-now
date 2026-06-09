@@ -207,6 +207,44 @@ suite("inviteUserToTenant (invite-only user creation)", () => {
     expect(memberships.map((m) => m.tenantId).sort()).toEqual([tenantA, tenantB].sort());
   });
 
+  it("a conflicting invite inside a tenant transaction doesn't poison it (#46)", async () => {
+    const addr = `inv-txsafe-${suffix}@example.com`;
+    userEmails.push(addr);
+
+    await inviteUserToTenant({
+      c: fakeContext,
+      tenantId: tenantA,
+      email: addr,
+      name: "TX Safe",
+      role: "staff",
+    });
+
+    // Inside ONE tenant transaction: write a row, then hit the membership
+    // unique violation. The violation must roll back only its savepoint —
+    // the sibling write has to survive the outer COMMIT.
+    const { runWithTenant } = await import("../db/connection");
+    await runWithTenant(tenantA, async () => {
+      await db.insert(schema.customers).values({ tenantId: tenantA, name: "TX Survivor" });
+      await expect(
+        inviteUserToTenant({
+          c: fakeContext,
+          tenantId: tenantA,
+          email: addr,
+          name: "TX Safe",
+          role: "staff",
+        }),
+      ).rejects.toThrow(InviteConflict);
+    });
+
+    const survivors = await runWithTenant(tenantA, () =>
+      db
+        .select({ id: schema.customers.id })
+        .from(schema.customers)
+        .where(eq(schema.customers.name, "TX Survivor")),
+    );
+    expect(survivors).toHaveLength(1);
+  });
+
   it("memberships can carry a customer link (customer role)", async () => {
     const addr = `inv-cust-${suffix}@example.com`;
     userEmails.push(addr);

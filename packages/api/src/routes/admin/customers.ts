@@ -149,10 +149,14 @@ customersRouter.post("/", async (c) => {
         inviterId: inviter.id,
       });
     } catch (err) {
+      // Safe to swallow: the invite's writes run in their own savepoint, so a
+      // failure here can no longer abort the request transaction and turn the
+      // final COMMIT into a silent ROLLBACK of the customer row (#46).
       if (err instanceof InviteConflict) {
         userInviteError = err.message;
       } else {
-        console.error("[customers] Failed to send invitation email:", err);
+        console.error("[customers] Customer-user invite failed:", err);
+        userInviteError = "User invite failed — resend the invite from the customer page";
       }
     }
   }

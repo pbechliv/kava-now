@@ -1,6 +1,7 @@
-import { eq, and } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import { db } from "../db/connection";
 import { accounts, tenantMemberships, tenants, users } from "../db/schema/index";
+import { isUniqueViolation, UNIQUE_CONSTRAINTS } from "../db/errors";
 import { auth } from "../auth";
 import { config } from "../config";
 import { sendMembershipAdded } from "./email";
@@ -53,35 +54,27 @@ export async function inviteUserToTenant({
     .limit(1);
   if (!tenant) throw new Error("Tenant not found");
 
-  const [existingUser] = await db
-    .select({ id: users.id })
-    .from(users)
-    .where(eq(users.email, email))
-    .limit(1);
+  const membershipValues = { tenantId, role, customerId, invitedById: inviterId };
 
-  if (existingUser) {
-    const [existingMembership] = await db
-      .select({ id: tenantMemberships.id })
-      .from(tenantMemberships)
-      .where(
-        and(
-          eq(tenantMemberships.userId, existingUser.id),
-          eq(tenantMemberships.tenantId, tenantId),
-        ),
-      )
-      .limit(1);
-    if (existingMembership) {
-      throw new InviteConflict("User is already a member of this tenant");
+  // The duplicate-membership check is the unique constraint itself (no SELECT
+  // pre-check — that was racy under concurrent invites). Every insert runs in
+  // a nested transaction (savepoint): a unique violation inside the
+  // per-request tenant transaction would otherwise abort it, silently turning
+  // the final COMMIT into a ROLLBACK while the handler keeps going (#46).
+  const insertMembershipOrConflict = async (userId: string) => {
+    try {
+      await db.transaction(async (tx) => {
+        await tx.insert(tenantMemberships).values({ userId, ...membershipValues });
+      });
+    } catch (err) {
+      if (isUniqueViolation(err, UNIQUE_CONSTRAINTS.tenantMembership)) {
+        throw new InviteConflict("User is already a member of this tenant");
+      }
+      throw err;
     }
+  };
 
-    await db.insert(tenantMemberships).values({
-      userId: existingUser.id,
-      tenantId,
-      role,
-      customerId,
-      invitedById: inviterId,
-    });
-
+  const notifyMembershipAdded = async () => {
     // Best-effort notification — the membership is already persisted.
     try {
       const loginUrl = `${config.appOrigin}/k/${tenant.slug}/login`;
@@ -89,22 +82,49 @@ export async function inviteUserToTenant({
     } catch (err) {
       console.error("[invite] Failed to send membership-added notification:", err);
     }
+  };
+
+  const [existingUser] = await db
+    .select({ id: users.id })
+    .from(users)
+    .where(eq(users.email, email))
+    .limit(1);
+
+  if (existingUser) {
+    await insertMembershipOrConflict(existingUser.id);
+    await notifyMembershipAdded();
     return;
   }
 
-  const [createdUser] = await db
-    .insert(users)
-    .values({ email, name, emailVerified: false })
-    .returning({ id: users.id });
-  if (!createdUser) throw new Error("User insert returned no row");
-
-  await db.insert(tenantMemberships).values({
-    userId: createdUser.id,
-    tenantId,
-    role,
-    customerId,
-    invitedById: inviterId,
-  });
+  // New email → create user + membership atomically (savepoint).
+  try {
+    await db.transaction(async (tx) => {
+      const [createdUser] = await tx
+        .insert(users)
+        .values({ email, name, emailVerified: false })
+        .returning({ id: users.id });
+      if (!createdUser) throw new Error("User insert returned no row");
+      await tx.insert(tenantMemberships).values({ userId: createdUser.id, ...membershipValues });
+    });
+  } catch (err) {
+    if (isUniqueViolation(err, UNIQUE_CONSTRAINTS.userEmail)) {
+      // Lost a cross-request race: the user appeared since our lookup. The
+      // savepoint rolled back cleanly — fall back to the existing-user path.
+      const [racedUser] = await db
+        .select({ id: users.id })
+        .from(users)
+        .where(eq(users.email, email))
+        .limit(1);
+      if (!racedUser) throw err;
+      await insertMembershipOrConflict(racedUser.id);
+      await notifyMembershipAdded();
+      return;
+    }
+    if (isUniqueViolation(err, UNIQUE_CONSTRAINTS.tenantMembership)) {
+      throw new InviteConflict("User is already a member of this tenant");
+    }
+    throw err;
+  }
 
   await sendInviteSetPassword(c, email, tenant.slug);
 }
