@@ -43,7 +43,8 @@ dashboardRouter.get("/stats", async (c) => {
           // Cancelled/replaced lines stay in the table for audit — totals and
           // counts must only see active ones (same clause as the orders list).
           itemCount: sql<number>`(count(${orderItems.id}) filter (where ${orderItems.status} = 'active'))::int`,
-          total: sql<number>`coalesce(sum(${orderItems.quantity} * ${orderItems.unitPrice}::numeric) filter (where ${orderItems.status} = 'active'), 0)::numeric`,
+          // Totals contract: JSON number, 2 decimals (see orders list query).
+          total: sql<number>`coalesce(round(sum(${orderItems.quantity} * ${orderItems.unitPrice}::numeric) filter (where ${orderItems.status} = 'active'), 2), 0)::float8`,
         })
         .from(orders)
         .leftJoin(customers, eq(orders.customerId, customers.id))

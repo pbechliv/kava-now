@@ -185,7 +185,9 @@ ordersRouter.get("/", async (c) => {
       notes: orders.notes,
       createdAt: orders.createdAt,
       itemCount: sql<number>`(count(${orderItems.id}) filter (where ${orderItems.status} = 'active'))::int`,
-      totalAmount: sql<number>`coalesce(sum(${orderItems.unitPrice}::numeric * ${orderItems.quantity}) filter (where ${orderItems.status} = 'active'), 0)::float`,
+      // Totals contract: JSON number, 2 decimals — sum in numeric (exact),
+      // round, then one float8 cast.
+      totalAmount: sql<number>`coalesce(round(sum(${orderItems.unitPrice}::numeric * ${orderItems.quantity}) filter (where ${orderItems.status} = 'active'), 2), 0)::float8`,
     })
     .from(orders)
     .leftJoin(orderItems, eq(orders.id, orderItems.orderId))

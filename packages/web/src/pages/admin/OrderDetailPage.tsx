@@ -128,10 +128,11 @@ export function OrderDetailPage() {
   const isMutableStatus = order.status === "pending" || order.status === "confirmed";
   const canEditItems = isMutableStatus && !isTransmitted && !showOriginal;
   const originalItems = order.items.filter((i) => i.originalQuantity != null);
-  const originalTotal = originalItems.reduce(
-    (sum, i) => sum + Number(i.unitPrice) * (i.originalQuantity ?? 0),
-    0,
-  );
+  const originalTotal =
+    originalItems.reduce(
+      (sum, i) => sum + Math.round(Number(i.unitPrice) * 100) * (i.originalQuantity ?? 0),
+      0,
+    ) / 100;
   const hasModifications = order.items.some(
     (i) =>
       i.status === "cancelled" ||

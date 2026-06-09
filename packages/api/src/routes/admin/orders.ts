@@ -114,7 +114,10 @@ ordersRouter.get("/", async (c) => {
       customerName: customers.name,
       erpStatus: orders.erpStatus,
       itemCount: sql<number>`(count(${orderItems.id}) filter (where ${orderItems.status} = 'active'))::int`,
-      total: sql<number>`coalesce(sum(${orderItems.quantity} * ${orderItems.unitPrice}::numeric) filter (where ${orderItems.status} = 'active'), 0)::numeric`,
+      // Totals contract: JSON number, 2 decimals. Sum exactly in numeric,
+      // round, then one float8 cast — `::numeric` alone serializes as a
+      // string through postgres-js, making the sql<number> type a lie.
+      total: sql<number>`coalesce(round(sum(${orderItems.quantity} * ${orderItems.unitPrice}::numeric) filter (where ${orderItems.status} = 'active'), 2), 0)::float8`,
     })
     .from(orders)
     .leftJoin(customers, eq(orders.customerId, customers.id))
@@ -183,10 +186,16 @@ ordersRouter.get("/:id", async (c) => {
     .leftJoin(products, eq(orderItems.productId, products.id))
     .where(eq(orderItems.orderId, id));
 
-  const total = items.reduce(
-    (sum, item) => (item.status === "active" ? sum + Number(item.unitPrice) * item.quantity : sum),
+  // Same totals contract as the list query: accumulate in integer cents so
+  // float error can't creep in across many lines.
+  const totalCents = items.reduce(
+    (sum, item) =>
+      item.status === "active"
+        ? sum + Math.round(Number(item.unitPrice) * 100) * item.quantity
+        : sum,
     0,
   );
+  const total = totalCents / 100;
 
   return c.json({ ...order, items, total });
 });

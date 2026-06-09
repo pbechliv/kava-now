@@ -101,7 +101,10 @@ export function OrderNotificationEmail({
   items,
   adminOrderUrl,
 }: OrderNotificationEmailProps) {
-  const total = items.reduce((sum, item) => sum + Number(item.unitPrice) * item.quantity, 0);
+  // Accumulate in integer cents — float drift across many lines otherwise.
+  const total =
+    items.reduce((sum, item) => sum + Math.round(Number(item.unitPrice) * 100) * item.quantity, 0) /
+    100;
   const createdAt = order.createdAt instanceof Date ? order.createdAt : new Date(order.createdAt);
 
   return (

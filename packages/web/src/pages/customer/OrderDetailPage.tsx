@@ -42,7 +42,12 @@ export function OrderDetailPage() {
     );
   }
 
-  const total = order.items.reduce((sum, item) => sum + Number(item.unitPrice) * item.quantity, 0);
+  // Accumulate in integer cents — float drift across many lines otherwise.
+  const total =
+    order.items.reduce(
+      (sum, item) => sum + Math.round(Number(item.unitPrice) * 100) * item.quantity,
+      0,
+    ) / 100;
 
   return (
     <div className="space-y-6">
