@@ -2,10 +2,24 @@
 # KavaNow — Production Docker Compose
 # =============================================================================
 
+# Bounded container logs (#65): Caddy logs every request as JSON and the API
+# logs every request line — the default json-file driver grows unbounded and
+# would eventually fill the VM disk, taking Postgres down with it.
+x-logging: &bounded-logging
+  driver: json-file
+  options:
+    max-size: "50m"
+    max-file: "3"
+
 services:
   postgres:
     image: postgres:18-alpine
     restart: unless-stopped
+    logging: *bounded-logging
+    # Keep postgresql.conf's memory budget honest (#65): shared_buffers=1GB +
+    # work_mem headroom; the kernel OOM killer must never pick postgres
+    # because another container leaked.
+    mem_limit: 2g
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-kavanow}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env.production}
@@ -27,11 +41,16 @@ services:
   api:
     image: ghcr.io/pbechliv/kava-now-api:${IMAGE_TAG:-latest}
     restart: unless-stopped
+    logging: *bounded-logging
+    mem_limit: 768m
     depends_on:
       postgres:
         condition: service_healthy
     environment:
       NODE_ENV: production
+      # Heap ceiling below the container limit so Node aborts with a clear
+      # OOM instead of getting SIGKILLed by the cgroup.
+      NODE_OPTIONS: --max-old-space-size=512
       # The running server connects as the NOSUPERUSER app role so Row-Level
       # Security is enforced — a Postgres superuser bypasses RLS. The role is
       # provisioned by db:migrate (api-jobs) using APP_DB_PASSWORD.
@@ -58,6 +77,8 @@ services:
 
   api-jobs:
     image: ghcr.io/pbechliv/kava-now-api-jobs:${IMAGE_TAG:-latest}
+    logging: *bounded-logging
+    mem_limit: 768m
     profiles:
       - jobs
     depends_on:
@@ -77,6 +98,8 @@ services:
   caddy:
     image: ghcr.io/pbechliv/kava-now-caddy:${IMAGE_TAG:-latest}
     restart: unless-stopped
+    logging: *bounded-logging
+    mem_limit: 256m
     depends_on:
       api:
         condition: service_healthy

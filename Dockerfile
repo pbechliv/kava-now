@@ -71,6 +71,13 @@ FROM deps AS api-jobs
 COPY tsconfig.base.json ./
 COPY packages/shared/ packages/shared/
 COPY packages/api/ packages/api/
+# Same privilege drop as the api target (#67): this container holds the
+# privileged DATABASE_URL — it must not also run as root. /app stays
+# root-owned read-only (a chown -R of dev node_modules would double the
+# layer); pnpm/tsx only need a writable HOME.
+RUN addgroup -S appgroup && adduser -S appuser -G appgroup
+ENV HOME=/tmp
+USER appuser
 CMD ["pnpm", "--filter", "@kava-now/api", "db:migrate"]
 
 # ---------------------------------------------------------------------------
