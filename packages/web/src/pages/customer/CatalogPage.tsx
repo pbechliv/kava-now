@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, useMemo } from "react";
+import { useState } from "react";
 import { Minus, Plus } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -13,8 +13,9 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { cn } from "@/lib/utils";
+import { useDebouncedValue } from "@/lib/hooks/use-debounced-value";
 import { PaginationControls } from "@/components/PaginationControls";
-import { useCatalog } from "@/lib/hooks/use-catalog";
+import { useCatalog, useCatalogCategories } from "@/lib/hooks/use-catalog";
 import { useCartStore } from "@/lib/store/cart";
 import { UNIT_LABELS } from "@kava-now/shared";
 import type { CatalogProduct } from "@/lib/store/cart";
@@ -22,20 +23,18 @@ import type { CatalogProduct } from "@/lib/store/cart";
 const PAGE_SIZE = 50;
 
 export function CatalogPage() {
-  const [selectedCategory, setSelectedCategory] = useState<string>("");
+  const [selectedCategory, setSelectedCategoryState] = useState<string>("");
   const [search, setSearch] = useState("");
-  const [debouncedSearch, setDebouncedSearch] = useState("");
   const [quantities, setQuantities] = useState<Record<string, number>>({});
   const [page, setPage] = useState(1);
 
   const addItem = useCartStore((s) => s.addItem);
-  const searchTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  const debouncedSearch = useDebouncedValue(search);
 
-  useEffect(() => {
+  const setSelectedCategory = (id: string) => {
+    setSelectedCategoryState(id);
     setPage(1);
-  }, [selectedCategory, debouncedSearch]);
-
-  useEffect(() => () => clearTimeout(searchTimer.current), []);
+  };
 
   const { data, isLoading } = useCatalog({
     categoryId: selectedCategory || undefined,
@@ -46,24 +45,13 @@ export function CatalogPage() {
   const products = data?.data ?? [];
   const total = data?.total ?? 0;
 
-  const categories = useMemo(() => {
-    const map = new Map<string, string>();
-    for (const p of products) {
-      if (p.categoryId && p.categoryName) {
-        map.set(p.categoryId, p.categoryName);
-      }
-    }
-    return Array.from(map, ([id, name]) => ({ id, name })).sort((a, b) =>
-      a.name.localeCompare(b.name, "el"),
-    );
-  }, [products]);
+  // Chips come from a dedicated endpoint — deriving them from the current
+  // page of results made chips vanish under filters/search (#58).
+  const { data: categories = [] } = useCatalogCategories();
 
   const handleSearchChange = (value: string) => {
     setSearch(value);
-    clearTimeout(searchTimer.current);
-    searchTimer.current = setTimeout(() => {
-      setDebouncedSearch(value);
-    }, 300);
+    setPage(1);
   };
 
   const getQty = (productId: string) => quantities[productId] ?? 1;

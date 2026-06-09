@@ -1,5 +1,5 @@
 import { Hono } from "hono";
-import { eq, and, ilike, or, sql } from "drizzle-orm";
+import { eq, and, ilike, or, sql, asc } from "drizzle-orm";
 import { paginationQuerySchema, listFiltersQuerySchema, API_ERROR_CODES } from "@kava-now/shared";
 import { db } from "../../db/connection";
 import { products, categories, customers, customerBrandPricing } from "../../db/schema/index";
@@ -7,6 +7,26 @@ import { resolvePrice } from "../../services/pricing";
 import type { AppEnv } from "../../types";
 
 const catalogRouter = new Hono<AppEnv>();
+
+// GET /categories — chips for the catalog filter: every category with at
+// least one active product, independent of the product list's pagination,
+// search, or selected-category filter (#58).
+catalogRouter.get("/categories", async (c) => {
+  const tenantId = c.get("tenantId")!;
+
+  const rows = await db
+    .selectDistinct({
+      id: categories.id,
+      name: categories.name,
+      sortOrder: categories.sortOrder,
+    })
+    .from(categories)
+    .innerJoin(products, eq(products.categoryId, categories.id))
+    .where(and(eq(categories.tenantId, tenantId), eq(products.active, true)))
+    .orderBy(asc(categories.sortOrder), asc(categories.name));
+
+  return c.json(rows);
+});
 
 // GET / — all active products with per-brand pricing for the authenticated customer
 catalogRouter.get("/", async (c) => {

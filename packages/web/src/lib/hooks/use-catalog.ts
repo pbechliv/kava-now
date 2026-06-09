@@ -10,6 +10,22 @@ interface CatalogFilters {
   pageSize?: number;
 }
 
+export interface CatalogCategory {
+  id: string;
+  name: string;
+  sortOrder: number;
+}
+
+/** Category chips — independent of the paginated/filtered product list. */
+export function useCatalogCategories() {
+  const slug = useTenantSlug();
+  const tApi = useTenantApi();
+  return useQuery({
+    queryKey: ["customer", slug, "catalog-categories"],
+    queryFn: () => tApi.get<CatalogCategory[]>("/customer/catalog/categories"),
+  });
+}
+
 export function useCatalog(filters?: CatalogFilters) {
   const slug = useTenantSlug();
   const tApi = useTenantApi();
