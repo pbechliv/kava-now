@@ -32,7 +32,10 @@ jobs:
           fi
 
   ci:
+    needs: resolve
     uses: ./.github/workflows/ci.yml
+    with:
+      sha: ${{ needs.resolve.outputs.sha }}
 
   build:
     needs: [resolve, ci]

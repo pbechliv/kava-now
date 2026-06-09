@@ -8,6 +8,14 @@ on:
   # Called as a sub-workflow by deploy.yml — without this, every deploy run
   # fails at startup ("workflow is not reusable").
   workflow_call:
+    inputs:
+      sha:
+        type: string
+        required: false
+        description: >-
+          Commit to check out and validate. deploy.yml passes its resolved
+          SHA so dispatch/rollback deploys are gated on the code actually
+          being shipped, not on main HEAD (#66). Empty → caller's ref.
 
 permissions:
   contents: read
@@ -33,6 +41,8 @@ jobs:
 
     steps:
       - uses: actions/checkout@v6
+        with:
+          ref: ${{ inputs.sha }}
 
       # version comes from packageManager in package.json — pinning it here
       # too makes the action error on any mismatch
