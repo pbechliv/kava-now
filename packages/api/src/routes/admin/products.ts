@@ -131,6 +131,17 @@ productsRouter.get("/", async (c) => {
   return c.json({ data: rows, total, page, pageSize });
 });
 
+// GET /keys — every (name, brand) pair in this tenant. Feeds the import
+// preview's new-vs-update badges, which a paginated list cannot (#61).
+productsRouter.get("/keys", async (c) => {
+  const tenantId = c.get("tenantId")!;
+  const rows = await db
+    .select({ name: products.name, brand: products.brand })
+    .from(products)
+    .where(eq(products.tenantId, tenantId));
+  return c.json(rows);
+});
+
 // POST /import — bulk upsert products from a normalized JSON batch.
 // Client (ProductsImportPage) parses CSV/XLSX, maps columns, validates rows
 // with importProductRowSchema, and posts the result here. On conflict

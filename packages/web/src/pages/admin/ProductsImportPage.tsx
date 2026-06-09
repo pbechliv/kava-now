@@ -25,7 +25,7 @@ import {
 import { Spinner } from "@/components/spinner";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/lib/hooks/use-auth";
-import { useProducts, useImportProducts } from "@/lib/hooks/use-products";
+import { useImportProducts, useProductKeys } from "@/lib/hooks/use-products";
 import { parseFile, type Encoding, type ParseResult } from "@/lib/spreadsheet-parser";
 import {
   applyMapping,
@@ -75,13 +75,13 @@ export function ProductsImportPage() {
   const [showAllRows, setShowAllRows] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
 
-  const { data: existingProducts } = useProducts({ pageSize: 100 });
+  const { data: existingProductKeys } = useProductKeys();
   const existingKeys = useMemo(() => {
-    if (!existingProducts) return new Set<string>();
+    if (!existingProductKeys) return new Set<string>();
     return new Set(
-      existingProducts.data.map((p) => `${p.name.toLowerCase()}|${p.brand.toLowerCase()}`),
+      existingProductKeys.map((p) => `${p.name.toLowerCase()}|${p.brand.toLowerCase()}`),
     );
-  }, [existingProducts]);
+  }, [existingProductKeys]);
 
   const applied: AppliedRow[] = useMemo(
     () => (parsed ? applyMapping(parsed.rows, mapping) : []),

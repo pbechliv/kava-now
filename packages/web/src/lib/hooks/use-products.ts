@@ -21,6 +21,21 @@ interface ProductFilters {
   pageSize?: number;
 }
 
+export interface ProductKey {
+  name: string;
+  brand: string;
+}
+
+/** All (name, brand) pairs — unpaginated, for the import preview (#61). */
+export function useProductKeys() {
+  const slug = useTenantSlug();
+  const tApi = useTenantApi();
+  return useQuery({
+    queryKey: ["admin", slug, "products", "keys"],
+    queryFn: () => tApi.get<ProductKey[]>("/admin/products/keys"),
+  });
+}
+
 export function useProducts(filters?: ProductFilters) {
   const slug = useTenantSlug();
   const tApi = useTenantApi();

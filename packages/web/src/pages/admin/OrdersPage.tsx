@@ -5,13 +5,6 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card } from "@/components/ui/card";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import {
   Table,
   TableBody,
   TableCell,
@@ -26,11 +19,10 @@ import { EmptyState } from "@/components/empty-state";
 import { OrderStatusBadge } from "@/components/order-status-badge";
 import { PaginationControls } from "@/components/PaginationControls";
 import { useAdminOrders } from "@/lib/hooks/use-admin-orders";
-import { useCustomers } from "@/lib/hooks/use-customers";
+import { CustomerPickerCombobox, type CustomerPickerValue } from "./CustomerPickerCombobox";
 import { ERP_STATUS_LABELS, type OrderStatus } from "@kava-now/shared";
 
 const PAGE_SIZE = 50;
-const CUSTOMER_FILTER_LIMIT = 100;
 
 const STATUS_TABS: { label: string; value: OrderStatus | "all" }[] = [
   { label: "Όλες", value: "all" },
@@ -45,14 +37,14 @@ export function OrdersPage() {
   const slug = useTenantSlug();
   const adminBase = `/k/${slug}/admin`;
   const [statusFilter, setStatusFilter] = useState<OrderStatus | "all">("all");
-  const [customerFilter, setCustomerFilter] = useState<string>("");
+  const [customerFilter, setCustomerFilter] = useState<CustomerPickerValue | null>(null);
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
   const [page, setPage] = useState(1);
 
   const { data, isLoading } = useAdminOrders({
     status: statusFilter === "all" ? undefined : statusFilter,
-    customerId: customerFilter || undefined,
+    customerId: customerFilter?.id,
     dateFrom: dateFrom || undefined,
     dateTo: dateTo || undefined,
     page,
@@ -61,9 +53,6 @@ export function OrdersPage() {
 
   const orders = data?.data ?? [];
   const total = data?.total ?? 0;
-
-  const { data: customersData } = useCustomers({ pageSize: CUSTOMER_FILTER_LIMIT });
-  const customers = customersData?.data ?? [];
 
   return (
     <div className="space-y-6">
@@ -88,25 +77,13 @@ export function OrdersPage() {
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
         <div className="space-y-2">
           <Label htmlFor="customer-filter">Πελάτης</Label>
-          <Select
-            value={customerFilter || "all"}
-            onValueChange={(v) => {
-              setCustomerFilter(v === "all" ? "" : v);
+          <CustomerPickerCombobox
+            selected={customerFilter}
+            onSelect={(c) => {
+              setCustomerFilter(c);
               setPage(1);
             }}
-          >
-            <SelectTrigger id="customer-filter" className="w-full">
-              <SelectValue placeholder="Όλοι" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Όλοι</SelectItem>
-              {customers.map((c) => (
-                <SelectItem key={c.id} value={c.id}>
-                  {c.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          />
         </div>
         <div className="space-y-2">
           <Label htmlFor="date-from">Από</Label>
