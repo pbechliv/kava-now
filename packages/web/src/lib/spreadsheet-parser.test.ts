@@ -85,3 +85,57 @@ describe("parseFile (CSV)", () => {
     expect(result.rows[0]).toEqual({ Name: "Foo", Brand: "Bar", Price: "10" });
   });
 });
+
+describe("parseFile (XLSX)", () => {
+  async function xlsxFile(aoa: unknown[][]): Promise<File> {
+    const XLSX = await import("xlsx");
+    const ws = XLSX.utils.aoa_to_sheet(aoa);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Sheet1");
+    const buf = XLSX.write(wb, { type: "array", bookType: "xlsx" }) as ArrayBuffer;
+    return new File([buf], "products.xlsx");
+  }
+
+  it("parses a plain sheet", async () => {
+    const file = await xlsxFile([
+      ["Name", "Brand", "Price"],
+      ["Whisky 12y", "Glenfiddich", "45,90"],
+    ]);
+    const result = await parseFile(file);
+    expect(result.columns).toEqual(["Name", "Brand", "Price"]);
+    expect(result.rows).toEqual([{ Name: "Whisky 12y", Brand: "Glenfiddich", Price: "45,90" }]);
+  });
+
+  it("an empty interior header cell must not shift later columns' values", async () => {
+    const file = await xlsxFile([
+      ["Name", "", "Price"],
+      ["Fix", "junk-unnamed", "12,50"],
+    ]);
+    const result = await parseFile(file);
+    expect(result.columns).toEqual(["Name", "Price"]);
+    // Regression (#43): Price used to receive the unnamed column's value.
+    expect(result.rows).toEqual([{ Name: "Fix", Price: "12,50" }]);
+  });
+
+  it("duplicate header names: rightmost column wins, no positional shift", async () => {
+    const file = await xlsxFile([
+      ["Name", "Name", "Price"],
+      ["first", "second", "5"],
+    ]);
+    const result = await parseFile(file);
+    expect(result.columns).toEqual(["Name", "Name", "Price"]);
+    expect(result.rows).toEqual([{ Name: "second", Price: "5" }]);
+  });
+
+  it("honours skipFirstRows and drops empty rows", async () => {
+    const file = await xlsxFile([
+      ["Export title", "", ""],
+      ["Name", "Brand", "Price"],
+      ["Foo", "Bar", "10"],
+      ["", "", ""],
+    ]);
+    const result = await parseFile(file, { skipFirstRows: 1 });
+    expect(result.columns).toEqual(["Name", "Brand", "Price"]);
+    expect(result.rows).toEqual([{ Name: "Foo", Brand: "Bar", Price: "10" }]);
+  });
+});

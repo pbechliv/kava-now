@@ -96,23 +96,27 @@ export async function parseXlsx(file: File, opts: ParseOptions = {}): Promise<Pa
   }
 
   const headerRow = trimmed[0] ?? [];
-  const columns = headerRow
-    .map((h) => stripBom(cellToString(h)).trim())
-    .filter((c) => c.length > 0);
+  // Data cells are read positionally, so every named column must keep its
+  // ORIGINAL index — filtering empty header cells out of a flat list would
+  // shift all later columns' values one field to the left.
+  const namedColumns = headerRow
+    .map((h, index) => ({ name: stripBom(cellToString(h)).trim(), index }))
+    .filter((c) => c.name.length > 0);
 
   const rows: Record<string, string>[] = [];
   for (const raw of trimmed.slice(1)) {
     const row: Record<string, string> = {};
     let any = false;
-    for (let i = 0; i < columns.length; i++) {
-      const val = cellToString(raw[i]).trim();
-      row[columns[i]!] = val;
+    // Duplicate header names: the rightmost column wins (papaparse parity).
+    for (const { name, index } of namedColumns) {
+      const val = cellToString(raw[index]).trim();
+      row[name] = val;
       if (val.length > 0) any = true;
     }
     if (any) rows.push(row);
   }
 
-  return { columns, rows };
+  return { columns: namedColumns.map((c) => c.name), rows };
 }
 
 export async function parseFile(file: File, opts: ParseOptions = {}): Promise<ParseResult> {
