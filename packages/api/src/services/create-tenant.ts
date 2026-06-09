@@ -1,5 +1,6 @@
 import { eq } from "drizzle-orm";
 import { hashPassword } from "better-auth/crypto";
+import { normalizeEmail } from "@kava-now/shared";
 import { db } from "../db/connection";
 import { accounts, tenantMemberships, tenants, users } from "../db/schema/index";
 
@@ -32,9 +33,12 @@ export interface CreateTenantResult {
 export async function createTenantWithOwner({
   name,
   slug,
-  email,
+  email: rawEmail,
   password,
 }: CreateTenantInput): Promise<CreateTenantResult> {
+  // The owner user identity must dedupe case-insensitively (#53). The
+  // tenant's own contact email keeps the caller's casing.
+  const email = normalizeEmail(rawEmail);
   return db.transaction(async (tx) => {
     const [tenant] = await tx
       .insert(tenants)

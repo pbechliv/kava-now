@@ -207,6 +207,51 @@ suite("inviteUserToTenant (invite-only user creation)", () => {
     expect(memberships.map((m) => m.tenantId).sort()).toEqual([tenantA, tenantB].sort());
   });
 
+  it("mixed-case invites dedupe to one user — and conflict within one tenant (#53)", async () => {
+    const lower = `inv-case-${suffix}@example.com`;
+    userEmails.push(lower);
+
+    await inviteUserToTenant({
+      c: fakeContext,
+      tenantId: tenantA,
+      email: `Inv-Case-${suffix}@Example.com`,
+      name: "Mixed Case",
+      role: "staff",
+    });
+
+    // Stored normalized.
+    const stored = await db
+      .select({ email: schema.users.email })
+      .from(schema.users)
+      .where(eq(schema.users.email, lower));
+    expect(stored).toHaveLength(1);
+
+    // Re-inviting a different casing to the same tenant is the same human.
+    await expect(
+      inviteUserToTenant({
+        c: fakeContext,
+        tenantId: tenantA,
+        email: `INV-CASE-${suffix}@EXAMPLE.COM`,
+        name: "Mixed Case",
+        role: "staff",
+      }),
+    ).rejects.toThrow(InviteConflict);
+
+    // ...but joins a second tenant as the same user, no duplicate row.
+    await inviteUserToTenant({
+      c: fakeContext,
+      tenantId: tenantB,
+      email: `inv-CASE-${suffix}@example.com`,
+      name: "Mixed Case",
+      role: "staff",
+    });
+    const all = await db
+      .select({ id: schema.users.id })
+      .from(schema.users)
+      .where(eq(schema.users.email, lower));
+    expect(all).toHaveLength(1);
+  });
+
   it("a conflicting invite inside a tenant transaction doesn't poison it (#46)", async () => {
     const addr = `inv-txsafe-${suffix}@example.com`;
     userEmails.push(addr);

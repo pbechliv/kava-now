@@ -314,7 +314,9 @@ export async function seedDemoTenant(db: PostgresJsDatabase): Promise<void> {
   const customerByName = new Map(insertedCustomers.map((c) => [c.name, c.id]));
 
   // Customer user + membership linked to "Ταβέρνα Ο Νίκος"
-  const customerEmail = process.env.DEMO_CUSTOMER_EMAIL ?? "customer@demo.kavanow.gr";
+  const customerEmail = (
+    process.env.DEMO_CUSTOMER_EMAIL ?? "customer@demo.kavanow.gr"
+  ).toLowerCase();
   const customerPassword = process.env.DEMO_CUSTOMER_PASSWORD ?? "demopass";
   const linkedCustomerId = customerByName.get("Ταβέρνα Ο Νίκος");
   if (!linkedCustomerId) throw new Error("Demo customer org missing: Ταβέρνα Ο Νίκος");

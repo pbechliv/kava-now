@@ -2,7 +2,7 @@
 // dev fallbacks (or the production guard below) kick in. provision.yml writes
 // SUPERADMIN_PASSWORD=$SECRET verbatim, so an unset GitHub secret arrives
 // here as "" — without this, `"" ?? fallback` would seed an empty password.
-const envEmail = process.env.SUPERADMIN_EMAIL?.trim() || undefined;
+const envEmail = process.env.SUPERADMIN_EMAIL?.trim().toLowerCase() || undefined;
 const envPassword = process.env.SUPERADMIN_PASSWORD || undefined;
 
 // Mirror config.ts's boot validation: production must never seed the

@@ -34,6 +34,6 @@ export const UNIQUE_CONSTRAINTS = {
   customerErpRef: "customers_tenant_erp_ref_idx",
   categoryName: "categories_tenant_name_lower_idx",
   tenantSlug: "tenants_slug_unique",
-  userEmail: "users_email_unique",
+  userEmail: "users_email_lower_idx",
   tenantMembership: "tenant_memberships_user_tenant_idx",
 } as const;

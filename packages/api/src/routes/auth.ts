@@ -2,7 +2,7 @@ import { Hono } from "hono";
 import { eq, ne, and } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
 import { z } from "zod";
-import { API_ERROR_CODES } from "@kava-now/shared";
+import { API_ERROR_CODES, normalizeEmail } from "@kava-now/shared";
 import { db } from "../db/connection";
 import { accounts, tenantMemberships, tenants, users } from "../db/schema/index";
 import { verifyPassword } from "better-auth/crypto";
@@ -114,7 +114,8 @@ auth.patch("/me", requireAuth, async (c) => {
     updateData.name = parsed.data.name;
   }
 
-  if (parsed.data.email && parsed.data.email !== authUser.email) {
+  const normalizedNewEmail = parsed.data.email ? normalizeEmail(parsed.data.email) : undefined;
+  if (normalizedNewEmail && normalizedNewEmail !== authUser.email) {
     // Rebinding the account email redirects all future password resets — a
     // hijacked session must not be enough to take the account over (#48).
     // Proof of ownership = the current password.
@@ -148,7 +149,7 @@ auth.patch("/me", requireAuth, async (c) => {
       );
     }
 
-    const newEmail = parsed.data.email;
+    const newEmail = normalizedNewEmail;
     const [collision] = await db
       .select({ id: users.id })
       .from(users)

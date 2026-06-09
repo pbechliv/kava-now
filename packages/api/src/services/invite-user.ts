@@ -7,7 +7,12 @@ import { config } from "../config";
 import { sendMembershipAdded } from "./email";
 import type { Context } from "hono";
 import type { AppEnv } from "../types";
-import { API_ERROR_CODES, type ApiErrorCode, type MembershipRole } from "@kava-now/shared";
+import {
+  API_ERROR_CODES,
+  normalizeEmail,
+  type ApiErrorCode,
+  type MembershipRole,
+} from "@kava-now/shared";
 
 interface InviteOptions {
   c: Context<AppEnv>;
@@ -41,12 +46,14 @@ export class InviteConflict extends Error {
 export async function inviteUserToTenant({
   c,
   tenantId,
-  email,
+  email: rawEmail,
   name,
   role,
   customerId = null,
   inviterId = null,
 }: InviteOptions): Promise<void> {
+  // One users row per human — mixed-case invites must dedupe to it (#53).
+  const email = normalizeEmail(rawEmail);
   const [tenant] = await db
     .select({ slug: tenants.slug, name: tenants.name })
     .from(tenants)
