@@ -1,6 +1,6 @@
 import { Hono } from "hono";
 import { eq, ne, and, sql, gte, lte, desc } from "drizzle-orm";
-import { db } from "../../db/connection";
+import { afterTenantCommit, db } from "../../db/connection";
 import {
   orders,
   orderItems,
@@ -248,7 +248,10 @@ ordersRouter.put("/:id/status", async (c) => {
     );
   }
 
-  // Send email to customer
+  // Notify the customer after the request transaction commits (#47): the
+  // FOR UPDATE lock above survives the inner savepoint and is only released
+  // at the outer COMMIT — awaiting SMTP here would hold the order row locked
+  // (and pin a pool connection) for the whole mail round-trip.
   const [customer] = await db
     .select({ email: customers.email })
     .from(customers)
@@ -256,11 +259,14 @@ ordersRouter.put("/:id/status", async (c) => {
     .limit(1);
 
   if (customer?.email) {
-    try {
-      await sendOrderStatusChange(customer.email, { id }, newStatus);
-    } catch (err) {
-      console.error("[orders] Failed to send status change email:", err);
-    }
+    const customerEmail = customer.email;
+    await afterTenantCommit(async () => {
+      try {
+        await sendOrderStatusChange(customerEmail, { id }, newStatus);
+      } catch (err) {
+        console.error("[orders] Failed to send status change email:", err);
+      }
+    });
   }
 
   return c.json(result.updated);

@@ -1,5 +1,5 @@
 import { eq } from "drizzle-orm";
-import { db } from "../db/connection";
+import { afterTenantCommit, db } from "../db/connection";
 import { accounts, tenantMemberships, tenants, users } from "../db/schema/index";
 import { isUniqueViolation, UNIQUE_CONSTRAINTS } from "../db/errors";
 import { auth } from "../auth";
@@ -74,15 +74,19 @@ export async function inviteUserToTenant({
     }
   };
 
-  const notifyMembershipAdded = async () => {
-    // Best-effort notification — the membership is already persisted.
-    try {
-      const loginUrl = `${config.appOrigin}/k/${tenant.slug}/login`;
-      await sendMembershipAdded(email, loginUrl, tenant.name);
-    } catch (err) {
-      console.error("[invite] Failed to send membership-added notification:", err);
-    }
-  };
+  // Emails dispatch after the request transaction commits (#47): sending
+  // inside it would hold the pooled connection across SMTP latency, and the
+  // invitee would get a mail even if the surrounding request rolled back.
+  const notifyMembershipAdded = () =>
+    afterTenantCommit(async () => {
+      // Best-effort notification — the membership is already persisted.
+      try {
+        const loginUrl = `${config.appOrigin}/k/${tenant.slug}/login`;
+        await sendMembershipAdded(email, loginUrl, tenant.name);
+      } catch (err) {
+        console.error("[invite] Failed to send membership-added notification:", err);
+      }
+    });
 
   const [existingUser] = await db
     .select({ id: users.id })
@@ -126,7 +130,16 @@ export async function inviteUserToTenant({
     throw err;
   }
 
-  await sendInviteSetPassword(c, email, tenant.slug);
+  // Post-commit too: requestPasswordReset both *reads* the user row and
+  // *writes* the verification token — those must hit the base pool after the
+  // user insert is committed, not the request transaction.
+  await afterTenantCommit(async () => {
+    try {
+      await sendInviteSetPassword(c, email, tenant.slug);
+    } catch (err) {
+      console.error("[invite] Failed to send set-password invite:", err);
+    }
+  });
 }
 
 /**

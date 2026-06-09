@@ -34,6 +34,30 @@ function activeDb(): PostgresJsDatabase<typeof schema> | TenantTx {
   return tenantTxStore.getStore() ?? baseDb;
 }
 
+// Work queued by afterTenantCommit during a tenant request — dispatched only
+// after the request transaction has COMMITTED.
+const deferredStore = new AsyncLocalStorage<Array<() => Promise<unknown>>>();
+
+/**
+ * Defer `fn` until the surrounding runWithTenant transaction has committed.
+ * Use for external I/O tied to a mutation (email dispatch): inside the
+ * transaction it would hold the pooled connection — and any FOR UPDATE row
+ * locks — across SMTP latency, and it would fire even if the transaction
+ * later rolls back. Deferred callbacks run detached (fire-and-forget, errors
+ * logged) on the base pool, after the response.
+ *
+ * Outside a tenant transaction (scripts, tests, global routes) `fn` runs and
+ * is awaited immediately — same behavior as calling it directly.
+ */
+export function afterTenantCommit(fn: () => Promise<unknown>): Promise<void> {
+  const queue = deferredStore.getStore();
+  if (queue) {
+    queue.push(fn);
+    return Promise.resolve();
+  }
+  return fn().then(() => {});
+}
+
 /**
  * Run `fn` inside a transaction whose connection has the tenant RLS variable
  * set transaction-locally. Every query made through the exported `db` during
@@ -43,10 +67,24 @@ function activeDb(): PostgresJsDatabase<typeof schema> | TenantTx {
  * another request that later reuses the pooled connection.
  */
 export function runWithTenant<T>(tenantId: string, fn: () => Promise<T>): Promise<T> {
-  return baseDb.transaction(async (tx) => {
-    await tx.execute(sql`select set_config('app.current_tenant_id', ${tenantId}, true)`);
-    return tenantTxStore.run(tx, fn);
-  });
+  const deferred: Array<() => Promise<unknown>> = [];
+  return deferredStore
+    .run(deferred, () =>
+      baseDb.transaction(async (tx) => {
+        await tx.execute(sql`select set_config('app.current_tenant_id', ${tenantId}, true)`);
+        return tenantTxStore.run(tx, fn);
+      }),
+    )
+    .then((result) => {
+      // Reached only on COMMIT (a rollback rejects above). This .then was
+      // registered outside both ALS contexts, so callbacks see no tenant
+      // transaction — their queries go to the base pool, where the committed
+      // rows are visible.
+      for (const f of deferred) {
+        void f().catch((err) => console.error("[db] post-commit callback failed:", err));
+      }
+      return result;
+    });
 }
 
 // `db` transparently targets the active tenant transaction when one is in scope
