@@ -46,10 +46,10 @@ export function rateLimit(config: {
   perExtra?: { extract: (body: unknown) => string | null; limits: Limit[] };
 }) {
   return createMiddleware<AppEnv>(async (c, next) => {
-    const ip =
-      c.req.header("x-real-ip") ||
-      c.req.header("x-forwarded-for")?.split(",")[0]?.trim() ||
-      "unknown";
+    // Caddy validates the client via trusted_proxies and SETS X-Real-IP
+    // itself, so it's the only trustworthy source. The old X-Forwarded-For
+    // first-hop fallback was client-suppliable (bucket-splitting bypass).
+    const ip = c.req.header("x-real-ip") || "unknown";
     const now = Date.now();
 
     for (const limit of config.perIp ?? []) {
@@ -95,9 +95,13 @@ export const forgotPasswordRateLimit = rateLimit({
   key: "forget-password",
   perIp: [{ max: 3, windowMs: MIN }],
   perExtra: {
+    // Lowercased — User@x.com and user@x.com must share one bucket.
     extract: (body) =>
-      typeof body === "object" && body && "email" in body
-        ? ((body as { email: unknown }).email as string) || null
+      typeof body === "object" &&
+      body &&
+      "email" in body &&
+      typeof (body as { email: unknown }).email === "string"
+        ? (body as { email: string }).email.toLowerCase().trim() || null
         : null,
     limits: [{ max: 10, windowMs: HOUR }],
   },

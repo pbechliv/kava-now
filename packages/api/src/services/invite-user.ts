@@ -229,10 +229,12 @@ export async function resendSetPasswordInvite(opts: {
  * Whether the given user has set a password (has a credential account row).
  */
 export async function userHasPassword(userId: string): Promise<boolean> {
+  // Credential rows only — a Google-linked account row is not a password
+  // (keeps this consistent with /me's hasPassword).
   const [row] = await db
     .select({ id: accounts.id })
     .from(accounts)
-    .where(eq(accounts.userId, userId))
+    .where(and(eq(accounts.userId, userId), eq(accounts.providerId, "credential")))
     .limit(1);
   return !!row;
 }

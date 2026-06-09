@@ -16,20 +16,23 @@ export const createProductSchema = z.object({
   imageUrl: z.string().url().optional().nullable(),
 });
 
-export const updateProductSchema = z.object({
-  name: z.string().min(1, "Το όνομα είναι υποχρεωτικό").optional(),
-  brand: z.string().min(1, "Η μάρκα είναι υποχρεωτική").optional(),
-  categoryId: z.string().uuid().optional().nullable(),
-  description: z.string().optional().nullable(),
-  basePrice: z.number().positive("Η τιμή πρέπει να είναι θετικός αριθμός").optional(),
-  unit: z.enum(["bottle", "case", "keg"]).optional(),
-  volumeMl: z.number().int().positive().optional().nullable(),
-  alcoholPct: z.number().min(0).max(100).optional().nullable(),
-  sku: z.string().optional().nullable(),
-  erpRef: z.string().optional().nullable(),
-  imageUrl: z.string().url().optional().nullable(),
-  active: z.boolean().optional(),
-});
+export const updateProductSchema = z
+  .object({
+    name: z.string().min(1, "Το όνομα είναι υποχρεωτικό").optional(),
+    brand: z.string().min(1, "Η μάρκα είναι υποχρεωτική").optional(),
+    categoryId: z.string().uuid().optional().nullable(),
+    description: z.string().optional().nullable(),
+    basePrice: z.number().positive("Η τιμή πρέπει να είναι θετικός αριθμός").optional(),
+    unit: z.enum(["bottle", "case", "keg"]).optional(),
+    volumeMl: z.number().int().positive().optional().nullable(),
+    alcoholPct: z.number().min(0).max(100).optional().nullable(),
+    sku: z.string().optional().nullable(),
+    erpRef: z.string().optional().nullable(),
+    imageUrl: z.string().url().optional().nullable(),
+    active: z.boolean().optional(),
+    // Empty updates used to reach Drizzle's set({}) → "No values to set" 500.
+  })
+  .refine((d) => Object.keys(d).length > 0, "Δεν δόθηκαν πεδία για ενημέρωση");
 
 export const importProductRowSchema = z.object({
   name: z.string().trim().min(1, "Το όνομα είναι υποχρεωτικό"),

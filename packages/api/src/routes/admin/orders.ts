@@ -302,13 +302,25 @@ ordersRouter.patch("/:id/erp", async (c) => {
   }
 
   const [existing] = await db
-    .select({ erpStatus: orders.erpStatus })
+    .select({ erpStatus: orders.erpStatus, status: orders.status })
     .from(orders)
     .where(and(eq(orders.id, id), eq(orders.tenantId, tenantId)))
     .limit(1);
 
   if (!existing) {
     return c.json({ error: "Order not found" }, 404);
+  }
+
+  // ERP status is orthogonal to fulfillment EXCEPT for cancelled orders —
+  // transmitting a cancelled order to AADE makes no sense.
+  if (existing.status === "cancelled") {
+    return c.json(
+      {
+        code: API_ERROR_CODES.ORDER_LOCKED_BY_STATUS,
+        error: "A cancelled order cannot be marked as transmitted",
+      },
+      409,
+    );
   }
 
   // Atomic one-shot: the erp_status guard lives in the UPDATE's WHERE, so
@@ -448,6 +460,7 @@ ordersRouter.post("/:id/items", async (c) => {
         orderId: id,
         productId: resolved.product.id,
         quantity: parsed.data.quantity,
+        originalQuantity: parsed.data.quantity,
         unitPrice: String(resolved.unitPrice),
         productName: resolved.product.name,
       })
@@ -615,6 +628,7 @@ ordersRouter.post("/:id/items/:itemId/replace", async (c) => {
         orderId: id,
         productId: resolved.product.id,
         quantity: parsed.data.quantity,
+        originalQuantity: parsed.data.quantity,
         unitPrice: String(resolved.unitPrice),
         productName: resolved.product.name,
       })

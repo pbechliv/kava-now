@@ -1,8 +1,8 @@
 import { Hono } from "hono";
-import { eq, sql } from "drizzle-orm";
+import { and, eq, inArray, notExists, sql } from "drizzle-orm";
 import { registerSchema, paginationQuerySchema, API_ERROR_CODES } from "@kava-now/shared";
 import { db } from "../../db/connection";
-import { tenants } from "../../db/schema/index";
+import { accounts, tenantMemberships, tenants, users } from "../../db/schema/index";
 import { createTenantWithOwner } from "../../services/create-tenant";
 import { sendInviteSetPassword } from "../../services/invite-user";
 import { requireAuth } from "../../middleware/require-auth";
@@ -110,7 +110,40 @@ superadmin.delete("/tenants/:id", async (c) => {
     return c.json({ error: "Tenant not found" }, 404);
   }
 
+  // Capture member user ids before the cascade wipes the memberships.
+  const memberIds = (
+    await db
+      .select({ userId: tenantMemberships.userId })
+      .from(tenantMemberships)
+      .where(eq(tenantMemberships.tenantId, id))
+  ).map((r) => r.userId);
+
   await db.delete(tenants).where(eq(tenants.id, id));
+
+  // Same cleanup philosophy as DELETE /admin/users/:id: remove only users
+  // orphaned by this deletion who never activated (no credential or OAuth
+  // account) and hold no other membership — real accounts and superadmins
+  // stay untouched.
+  if (memberIds.length > 0) {
+    await db.delete(users).where(
+      and(
+        inArray(users.id, memberIds),
+        eq(users.isSuperAdmin, false),
+        notExists(
+          db
+            .select({ one: sql`1` })
+            .from(tenantMemberships)
+            .where(eq(tenantMemberships.userId, users.id)),
+        ),
+        notExists(
+          db
+            .select({ one: sql`1` })
+            .from(accounts)
+            .where(eq(accounts.userId, users.id)),
+        ),
+      ),
+    );
+  }
 
   return c.json({ success: true });
 });

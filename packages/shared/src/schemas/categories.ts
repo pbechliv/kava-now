@@ -1,10 +1,12 @@
 import { z } from "zod";
 
-export const createCategorySchema = z.object({
-  name: z.string().min(1, "Το όνομα είναι υποχρεωτικό"),
-  parentId: z.string().uuid().optional().nullable(),
-  sortOrder: z.number().int().optional(),
-});
+export const createCategorySchema = z
+  .object({
+    name: z.string().min(1, "Το όνομα είναι υποχρεωτικό"),
+    parentId: z.string().uuid().optional().nullable(),
+    sortOrder: z.number().int().optional(),
+  })
+  .refine((d) => Object.keys(d).length > 0, "Δεν δόθηκαν πεδία για ενημέρωση");
 
 export const updateCategorySchema = z.object({
   name: z.string().min(1, "Το όνομα είναι υποχρεωτικό").optional(),

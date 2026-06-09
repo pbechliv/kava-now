@@ -216,8 +216,16 @@ ordersRouter.get("/:id", async (c) => {
     );
   }
 
+  // Explicit columns: the full row carries ERP internals (erpMark, the
+  // transmitting staff member's UUID) and tenantId — none of the customer's
+  // business.
   const [order] = await db
-    .select()
+    .select({
+      id: orders.id,
+      status: orders.status,
+      notes: orders.notes,
+      createdAt: orders.createdAt,
+    })
     .from(orders)
     .where(
       and(eq(orders.id, orderId), eq(orders.tenantId, tenantId), eq(orders.customerId, customerId)),
@@ -228,7 +236,19 @@ ordersRouter.get("/:id", async (c) => {
     return c.json({ error: "Order not found" }, 404);
   }
 
-  const items = await db.select().from(orderItems).where(eq(orderItems.orderId, orderId));
+  const items = await db
+    .select({
+      id: orderItems.id,
+      productId: orderItems.productId,
+      productName: orderItems.productName,
+      quantity: orderItems.quantity,
+      originalQuantity: orderItems.originalQuantity,
+      unitPrice: orderItems.unitPrice,
+      status: orderItems.status,
+      replacedByItemId: orderItems.replacedByItemId,
+    })
+    .from(orderItems)
+    .where(eq(orderItems.orderId, orderId));
 
   return c.json({ ...order, items });
 });

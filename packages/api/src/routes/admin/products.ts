@@ -10,6 +10,7 @@ import {
   API_ERROR_CODES,
 } from "@kava-now/shared";
 import { db } from "../../db/connection";
+import { escapeLike } from "../../db/escape-like";
 import { products, categories, orderItems } from "../../db/schema/index";
 import {
   isUniqueViolation,
@@ -84,7 +85,7 @@ productsRouter.get("/", async (c) => {
   }
 
   if (search) {
-    const pattern = `%${search}%`;
+    const pattern = `%${escapeLike(search)}%`;
     conditions.push(or(ilike(products.name, pattern), ilike(products.brand, pattern))!);
   }
 

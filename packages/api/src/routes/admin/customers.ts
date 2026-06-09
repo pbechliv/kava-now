@@ -10,6 +10,7 @@ import {
   API_ERROR_CODES,
 } from "@kava-now/shared";
 import { db } from "../../db/connection";
+import { escapeLike } from "../../db/escape-like";
 import {
   customers,
   products,
@@ -68,7 +69,7 @@ customersRouter.get("/", async (c) => {
   const conditions = [eq(customers.tenantId, tenantId)];
 
   if (search) {
-    const pattern = `%${search}%`;
+    const pattern = `%${escapeLike(search)}%`;
     conditions.push(or(ilike(customers.name, pattern), ilike(customers.contactPerson, pattern))!);
   }
 

@@ -50,7 +50,6 @@ app.route("/api/auth", authRoutes);
 
 // Rate limits on auth endpoints exposed to unauthenticated traffic.
 app.use("/api/auth/sign-in/*", signInRateLimit);
-app.use("/api/auth/sign-in", signInRateLimit);
 app.use("/api/auth/request-password-reset", forgotPasswordRateLimit);
 
 // better-auth handler — owns /api/auth/{sign-in, sign-out, sign-up,
@@ -106,6 +105,11 @@ app.onError((err, c) => {
   }
   if (isPgInvalidInput(err)) {
     return c.json({ error: "Invalid parameter format" }, 400);
+  }
+  // c.req.json() throws SyntaxError on malformed/empty bodies — client input,
+  // not a server fault.
+  if (err instanceof SyntaxError) {
+    return c.json({ error: "Invalid JSON body" }, 400);
   }
   Sentry.captureException(err);
   return c.json({ error: "Internal server error" }, 500);

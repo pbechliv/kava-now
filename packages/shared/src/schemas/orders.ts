@@ -5,11 +5,12 @@ export const createOrderSchema = z.object({
     .array(
       z.object({
         productId: z.string().uuid(),
-        quantity: z.number().int().positive(),
+        quantity: z.number().int().positive().max(9999, "Μέγιστη ποσότητα 9999"),
       }),
     )
-    .min(1, "Η παραγγελία πρέπει να περιέχει τουλάχιστον ένα προϊόν"),
-  notes: z.string().optional(),
+    .min(1, "Η παραγγελία πρέπει να περιέχει τουλάχιστον ένα προϊόν")
+    .max(200, "Έως 200 γραμμές ανά παραγγελία"),
+  notes: z.string().max(2000).optional(),
 });
 
 export type CreateOrderInput = z.infer<typeof createOrderSchema>;
