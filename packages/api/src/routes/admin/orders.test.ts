@@ -162,6 +162,13 @@ suite("admin order mutations (HTTP, hard lock + soft-cancel totals)", () => {
     expect(row.itemCount).toBe(1);
     expect(Number(row.total)).toBe(20);
 
+    // Dashboard recentOrders must apply the same filter (regression: #45 —
+    // cancelled lines were counted and replaced lines double-counted).
+    const stats = await (await api(`/dashboard/stats`)).json();
+    const recent = stats.recentOrders.find((r: { id: string }) => r.id === orderId);
+    expect(recent.itemCount).toBe(1);
+    expect(Number(recent.total)).toBe(20);
+
     // Cancelling the same line again → 409.
     const again = await api(`/orders/${orderId}/items/${itemIds[1]}/cancel`, { method: "POST" });
     expect(again.status).toBe(409);
