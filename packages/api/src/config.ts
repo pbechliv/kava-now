@@ -61,6 +61,18 @@ if (!isDev) {
   } else if (serverDbUrl === DEV_DEFAULTS.databaseUrl) {
     problems.push("the database URL is set to the dev default");
   }
+  // Email transport: without it the SMTP fallback points at localhost:1025
+  // (Mailpit — dev only), and since sends are best-effort, every invite and
+  // password reset would fail silently. Invites are the only path to new
+  // users, so a quiet email outage is an onboarding outage (#64).
+  const smtpHost = env.SMTP_HOST?.toLowerCase();
+  const smtpIsLocal = !smtpHost || smtpHost === "localhost" || smtpHost === "127.0.0.1";
+  if (!env.RESEND_API_KEY && smtpIsLocal) {
+    problems.push(
+      "no email transport: set RESEND_API_KEY or a non-localhost SMTP_HOST " +
+        "(invite + password-reset emails would silently go nowhere)",
+    );
+  }
   if (problems.length > 0) {
     throw new Error(
       `Refusing to start in production with invalid environment:\n- ${problems.join("\n- ")}`,
