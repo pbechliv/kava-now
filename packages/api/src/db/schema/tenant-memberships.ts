@@ -1,5 +1,14 @@
 import { type AnyPgColumn } from "drizzle-orm/pg-core";
-import { pgTable, uuid, timestamp, uniqueIndex, index } from "drizzle-orm/pg-core";
+import {
+  pgTable,
+  uuid,
+  timestamp,
+  uniqueIndex,
+  index,
+  foreignKey,
+  check,
+} from "drizzle-orm/pg-core";
+import { sql } from "drizzle-orm";
 import { membershipRoleEnum } from "./enums";
 import { tenants } from "./tenants";
 import { customers } from "./customers";
@@ -21,9 +30,7 @@ export const tenantMemberships = pgTable(
       .notNull()
       .references(() => tenants.id, { onDelete: "cascade" }),
     role: membershipRoleEnum("role").notNull(),
-    customerId: uuid("customer_id").references(() => customers.id, {
-      onDelete: "cascade",
-    }),
+    customerId: uuid("customer_id"),
     invitedById: uuid("invited_by_id").references((): AnyPgColumn => users.id, {
       onDelete: "set null",
     }),
@@ -33,5 +40,17 @@ export const tenantMemberships = pgTable(
     uniqueIndex("tenant_memberships_user_tenant_idx").on(table.userId, table.tenantId),
     index("tenant_memberships_tenant_idx").on(table.tenantId),
     index("tenant_memberships_customer_idx").on(table.customerId),
+    // Composite FK: the linked customer must belong to the SAME tenant as the
+    // membership — RLS scopes by the denormalized tenant_id, so a cross-tenant
+    // link would be an isolation defect, not just dirt.
+    foreignKey({
+      name: "tenant_memberships_customer_tenant_fk",
+      columns: [table.customerId, table.tenantId],
+      foreignColumns: [customers.id, customers.tenantId],
+    }).onDelete("cascade"),
+    check(
+      "tenant_memberships_customer_role_check",
+      sql`(${table.role} = 'customer') = (${table.customerId} is not null)`,
+    ),
   ],
 );

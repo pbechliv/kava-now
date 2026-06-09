@@ -26,5 +26,9 @@ export const customers = pgTable(
     uniqueIndex("customers_tenant_erp_ref_idx")
       .on(table.tenantId, table.erpRef)
       .where(sql`${table.erpRef} is not null`),
+    // FK target for the composite (customer_id, tenant_id) references on
+    // orders / memberships / brand pricing — those make a cross-tenant
+    // customer link unrepresentable at the DB level.
+    uniqueIndex("customers_id_tenant_idx").on(table.id, table.tenantId),
   ],
 );

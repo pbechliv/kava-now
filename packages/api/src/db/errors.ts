@@ -24,7 +24,7 @@ export function isForeignKeyViolation(err: unknown, constraintName?: string): bo
 }
 
 export const FK_CONSTRAINTS = {
-  orderCustomer: "orders_customer_id_customers_id_fk",
+  orderCustomer: "orders_customer_tenant_fk",
   orderItemProduct: "order_items_product_id_products_id_fk",
 } as const;
 

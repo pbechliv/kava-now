@@ -1,4 +1,4 @@
-import { pgTable, uuid, text, timestamp, index } from "drizzle-orm/pg-core";
+import { pgTable, uuid, text, timestamp, index, foreignKey } from "drizzle-orm/pg-core";
 import { erpStatusEnum, orderStatusEnum } from "./enums";
 import { tenants } from "./tenants";
 import { customers } from "./customers";
@@ -11,14 +11,10 @@ export const orders = pgTable(
     tenantId: uuid("tenant_id")
       .notNull()
       .references(() => tenants.id, { onDelete: "cascade" }),
-    // "no action" (not cascade): orders are financial/audit history — deleting
-    // a customer must never destroy them. The constraint is additionally made
-    // DEFERRABLE INITIALLY DEFERRED by hand in drizzle/0001 (the schema API
-    // can't express it) so tenant-purge cascades pass; direct deletes force
-    // the check with SET CONSTRAINTS ... IMMEDIATE.
-    customerId: uuid("customer_id")
-      .notNull()
-      .references(() => customers.id, { onDelete: "no action" }),
+    // FK is composite (see table config below): "no action" (not cascade)
+    // because orders are financial/audit history — deleting a customer must
+    // never destroy them.
+    customerId: uuid("customer_id").notNull(),
     status: orderStatusEnum("status").notNull().default("pending"),
     notes: text("notes"),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
@@ -35,5 +31,15 @@ export const orders = pgTable(
     index("orders_tenant_created_idx").on(table.tenantId, table.createdAt),
     // Customer order history.
     index("orders_customer_idx").on(table.customerId),
+    // Composite: the customer must belong to the same tenant as the order.
+    // NO ACTION, and made DEFERRABLE INITIALLY DEFERRED by hand in the
+    // migration (the schema API can't express it): tenant deletion cascades
+    // customers/orders in one statement and only a commit-time check
+    // tolerates that; direct deletes force it with SET CONSTRAINTS IMMEDIATE.
+    foreignKey({
+      name: "orders_customer_tenant_fk",
+      columns: [table.customerId, table.tenantId],
+      foreignColumns: [customers.id, customers.tenantId],
+    }).onDelete("no action"),
   ],
 );

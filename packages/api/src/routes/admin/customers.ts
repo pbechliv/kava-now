@@ -256,7 +256,7 @@ customersRouter.delete("/:id", async (c) => {
     // FK is INITIALLY DEFERRED (so tenant-purge cascades pass) — force the
     // check to fire now, where it's catchable, instead of at COMMIT.
     const [deleted] = await db.transaction(async (tx) => {
-      await tx.execute(sql`set constraints "orders_customer_id_customers_id_fk" immediate`);
+      await tx.execute(sql`set constraints "orders_customer_tenant_fk" immediate`);
       return tx
         .delete(customers)
         .where(and(eq(customers.id, id), eq(customers.tenantId, tenantId)))
