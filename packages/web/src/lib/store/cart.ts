@@ -147,3 +147,22 @@ export function activateCartForSlug(slug: string): void | Promise<void> {
   }
   useCartStore.setState({ items: {} });
 }
+
+/**
+ * Forget all carts on sign-out. Cart items carry customer-specific resolved
+ * prices, so neither the in-memory cart nor any persisted tenant cart may
+ * survive a user switch on a shared machine. Dropping the slug binding also
+ * defeats activateCartForSlug's same-slug early return, forcing the next
+ * login to hydrate explicitly (from a now-empty store).
+ */
+export function deactivateCart(): void {
+  for (let i = localStorage.length - 1; i >= 0; i--) {
+    const key = localStorage.key(i);
+    if (key === CART_KEY || key?.startsWith(`${CART_KEY}-`)) {
+      localStorage.removeItem(key);
+    }
+  }
+  _currentSlug = "";
+  _activeSlug = null;
+  useCartStore.setState({ items: {} });
+}

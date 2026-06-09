@@ -12,6 +12,7 @@ import { useAuth } from "@/lib/hooks/use-auth";
 import { membershipHome } from "@/lib/auth-home";
 import { api } from "@/lib/api";
 import { authClient } from "@/lib/auth-client";
+import { deactivateCart } from "@/lib/store/cart";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
@@ -39,6 +40,7 @@ export function LoginPage() {
       await authClient.signOut();
     },
     onSuccess: async () => {
+      deactivateCart();
       await queryClient.invalidateQueries({ queryKey: ["auth"] });
     },
   });

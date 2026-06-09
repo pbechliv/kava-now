@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it } from "vitest";
-import { activateCartForSlug, useCartStore, type CatalogProduct } from "./cart";
+import { activateCartForSlug, deactivateCart, useCartStore, type CatalogProduct } from "./cart";
 
 function product(id: string, price: number): CatalogProduct {
   return {
@@ -44,5 +44,27 @@ describe("cart store tenant scoping (C3)", () => {
     // Persisted under tenant-scoped keys, never the shared `kavanow-cart` key.
     expect(localStorage.getItem("kavanow-cart-alpha")).toBeTruthy();
     expect(localStorage.getItem("kavanow-cart-beta")).toBeTruthy();
+  });
+
+  it("logout forgets every cart — the next user never inherits items or prices", async () => {
+    // User A leaves carts in two tenants on this machine.
+    await activateCartForSlug("alpha");
+    useCartStore.getState().addItem(product("p1", 5), 2);
+    await activateCartForSlug("beta");
+    useCartStore.getState().addItem(product("p2", 3), 1);
+    expect(localStorage.getItem("kavanow-cart-alpha")).toBeTruthy();
+    expect(localStorage.getItem("kavanow-cart-beta")).toBeTruthy();
+
+    deactivateCart();
+
+    // In-memory and persisted carts (all tenants) are gone.
+    expect(useCartStore.getState().totalItems()).toBe(0);
+    expect(localStorage.getItem("kavanow-cart-alpha")).toBeNull();
+    expect(localStorage.getItem("kavanow-cart-beta")).toBeNull();
+
+    // User B logging into the same tenant starts empty — the same-slug early
+    // return must not resurrect A's in-memory items.
+    await activateCartForSlug("beta");
+    expect(useCartStore.getState().totalItems()).toBe(0);
   });
 });
