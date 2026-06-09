@@ -174,7 +174,13 @@ usersRouter.delete("/:id", async (c) => {
   }
 
   const [target] = await db
-    .select({ id: users.id, email: users.email, role: tenantMemberships.role })
+    .select({
+      id: users.id,
+      email: users.email,
+      role: tenantMemberships.role,
+      isSuperAdmin: users.isSuperAdmin,
+      invitedById: tenantMemberships.invitedById,
+    })
     .from(tenantMemberships)
     .innerJoin(users, eq(users.id, tenantMemberships.userId))
     .where(and(eq(tenantMemberships.userId, id), eq(tenantMemberships.tenantId, tenantId)))
@@ -221,16 +227,24 @@ usersRouter.delete("/:id", async (c) => {
     .delete(tenantMemberships)
     .where(and(eq(tenantMemberships.userId, id), eq(tenantMemberships.tenantId, tenantId)));
 
-  // If this was the user's last membership, also delete the credential row
-  // and user — keeps the global account list tidy for orphans created by
-  // earlier invites.
-  const [remainingForUser] = await db
-    .select({ count: sql<number>`count(*)::int` })
-    .from(tenantMemberships)
-    .where(eq(tenantMemberships.userId, id));
-  if (remainingForUser && remainingForUser.count === 0) {
-    await db.delete(accounts).where(eq(accounts.userId, id));
-    await db.delete(users).where(eq(users.id, id));
+  // Clean up the global account only for orphaned invitees: invited into this
+  // tenant, never activated (no credential or OAuth account row), and with no
+  // memberships left anywhere. A user who has signed in — or a superadmin —
+  // owns their account; a tenant admin has no authority to destroy it.
+  if (target.invitedById !== null && !target.isSuperAdmin) {
+    const [remainingForUser] = await db
+      .select({ count: sql<number>`count(*)::int` })
+      .from(tenantMemberships)
+      .where(eq(tenantMemberships.userId, id));
+    const [accountRow] = await db
+      .select({ id: accounts.id })
+      .from(accounts)
+      .where(eq(accounts.userId, id))
+      .limit(1);
+    if (remainingForUser && remainingForUser.count === 0 && !accountRow) {
+      // accounts/sessions cascade via FK; nothing to sign in with existed anyway
+      await db.delete(users).where(eq(users.id, id));
+    }
   }
 
   return c.json({ success: true });
