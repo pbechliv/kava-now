@@ -1,14 +1,15 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { useNavigate, useParams } from "react-router";
+import { useLocation, useNavigate, useParams } from "react-router";
 import { api } from "../api";
 import { authClient } from "../auth-client";
-import { getUserHomePath } from "../auth-home";
+import { getUserHomePath, returnPathFromState } from "../auth-home";
 import type { LoginInput } from "@kava-now/shared";
 import type { AuthMeResponse } from "./use-auth";
 
 export function useLogin() {
   const queryClient = useQueryClient();
   const navigate = useNavigate();
+  const location = useLocation();
   const { slug } = useParams<{ slug: string }>();
 
   return useMutation<void, Error, LoginInput>({
@@ -28,7 +29,11 @@ export function useLogin() {
         queryFn: () => api.get<AuthMeResponse>("/api/auth/me"),
       });
       if (me.user) {
-        void navigate(getUserHomePath(me.user, me.memberships, slug ?? null), { replace: true });
+        // Honor the deep link RequireAuth stashed before bouncing here (#62).
+        const returnTo = returnPathFromState(location.state);
+        void navigate(returnTo ?? getUserHomePath(me.user, me.memberships, slug ?? null), {
+          replace: true,
+        });
       }
     },
   });

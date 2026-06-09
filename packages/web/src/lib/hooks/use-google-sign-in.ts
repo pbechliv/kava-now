@@ -1,14 +1,15 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { useNavigate, useParams } from "react-router";
+import { useLocation, useNavigate, useParams } from "react-router";
 import type { CredentialResponse } from "@react-oauth/google";
 import { api } from "../api";
 import { authClient } from "../auth-client";
-import { getUserHomePath } from "../auth-home";
+import { getUserHomePath, returnPathFromState } from "../auth-home";
 import type { AuthMeResponse } from "./use-auth";
 
 export function useGoogleSignIn() {
   const queryClient = useQueryClient();
   const navigate = useNavigate();
+  const location = useLocation();
   const { slug } = useParams<{ slug: string }>();
 
   return useMutation<void, Error, CredentialResponse>({
@@ -34,7 +35,10 @@ export function useGoogleSignIn() {
         queryFn: () => api.get<AuthMeResponse>("/api/auth/me"),
       });
       if (me.user) {
-        void navigate(getUserHomePath(me.user, me.memberships, slug ?? null), { replace: true });
+        const returnTo = returnPathFromState(location.state);
+        void navigate(returnTo ?? getUserHomePath(me.user, me.memberships, slug ?? null), {
+          replace: true,
+        });
       }
     },
   });

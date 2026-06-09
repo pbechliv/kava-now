@@ -32,3 +32,15 @@ export function membershipHome(m: TenantMembership): string {
     ? `/k/${m.tenantSlug}/catalog`
     : `/k/${m.tenantSlug}/admin/dashboard`;
 }
+
+/**
+ * The in-app path RequireAuth stashed in location.state before bouncing to
+ * login. Validated so a crafted state can't open-redirect: same-origin
+ * pathnames only ("/x", never "//host" or absolute URLs).
+ */
+export function returnPathFromState(state: unknown): string | null {
+  const from = (state as { from?: { pathname?: string; search?: string } } | null)?.from;
+  const pathname = from?.pathname;
+  if (!pathname || !pathname.startsWith("/") || pathname.startsWith("//")) return null;
+  return pathname + (from?.search ?? "");
+}

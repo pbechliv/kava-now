@@ -3,13 +3,13 @@ import { useForm } from "react-hook-form";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { loginSchema, type LoginInput } from "@kava-now/shared";
-import { Link, useNavigate, useParams } from "react-router";
+import { Link, useLocation, useNavigate, useParams } from "react-router";
 import { Loader2 } from "lucide-react";
 import { GoogleSignInButton } from "@/components/auth/GoogleSignInButton";
 import { useLogin } from "@/lib/hooks/use-login";
 import { useGoogleSignIn } from "@/lib/hooks/use-google-sign-in";
 import { useAuth } from "@/lib/hooks/use-auth";
-import { membershipHome } from "@/lib/auth-home";
+import { membershipHome, returnPathFromState } from "@/lib/auth-home";
 import { api } from "@/lib/api";
 import { authClient } from "@/lib/auth-client";
 import { deactivateCart } from "@/lib/store/cart";
@@ -32,6 +32,7 @@ export function LoginPage() {
   const googleSignIn = useGoogleSignIn();
   const { slug } = useParams<{ slug: string }>();
   const navigate = useNavigate();
+  const location = useLocation();
   const queryClient = useQueryClient();
   const { isAuthenticated, user, memberships } = useAuth();
 
@@ -39,9 +40,11 @@ export function LoginPage() {
     mutationFn: async () => {
       await authClient.signOut();
     },
-    onSuccess: async () => {
+    onSuccess: () => {
       deactivateCart();
-      await queryClient.invalidateQueries({ queryKey: ["auth"] });
+      // Full wipe, same as useLogout — invalidating only ["auth"] left the
+      // previous user's tenant data cached for whoever signs in next (#62).
+      queryClient.clear();
     },
   });
 
@@ -60,6 +63,11 @@ export function LoginPage() {
 
   useEffect(() => {
     if (!isAuthenticated || !user) return;
+    const returnTo = returnPathFromState(location.state);
+    if (returnTo) {
+      void navigate(returnTo, { replace: true });
+      return;
+    }
     if (user.isSuperAdmin) {
       void navigate("/admin/tenants", { replace: true });
       return;
@@ -75,7 +83,7 @@ export function LoginPage() {
       void navigate(membershipHome(memberships[0]!), { replace: true });
     }
     // 0 or multiple memberships and we're on /login → fall through to render below.
-  }, [isAuthenticated, user, memberships, slug, navigate]);
+  }, [isAuthenticated, user, memberships, slug, navigate, location.state]);
 
   if (isAuthenticated && user && !user.isSuperAdmin) {
     if (memberships.length > 1) {
