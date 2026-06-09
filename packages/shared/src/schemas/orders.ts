@@ -1,5 +1,18 @@
 import { z } from "zod";
 
+export const ORDER_STATUSES = [
+  "pending",
+  "confirmed",
+  "shipped",
+  "delivered",
+  "cancelled",
+] as const;
+
+/** Body of PUT /admin/orders/:id/status — the transition rules live server-side. */
+export const updateOrderStatusSchema = z.object({
+  status: z.enum(ORDER_STATUSES),
+});
+
 export const createOrderSchema = z.object({
   items: z
     .array(

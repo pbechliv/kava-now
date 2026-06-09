@@ -18,7 +18,7 @@ The repo uses **[Vite+](https://viteplus.dev)** (`vp` CLI, installed under `~/.v
 
 The repo-root `vite.config.ts` is **only** for `vp fmt`/`vp lint` configuration. Per-package builds live in `packages/api/vite.config.ts` and `packages/web/vite.config.ts` (both `import { defineConfig } from "vite-plus"`). Do **not** run `vp build` from the repo root — it has no entry. Use `pnpm build` or run inside a workspace.
 
-Oxlint **rules** (`rules`) and **ignore patterns** (`ignorePatterns`) live in the root [vite.config.ts](vite.config.ts) `lint` block. Oxfmt **ignore patterns** live in the same file's `fmt.ignorePatterns` block (excluding `**/dist/**`, `**/drizzle/meta/**`, lock/min files). No separate `.oxlintrc.json` or `.oxfmtignore` — Vite+ reads everything from `vite.config.ts`.
+Oxlint configuration (`ignorePatterns`, `options` — no custom `rules` currently) lives in the root [vite.config.ts](vite.config.ts) `lint` block. Oxfmt **ignore patterns** live in the same file's `fmt.ignorePatterns` block (excluding `**/dist/**`, `**/drizzle/meta/**`, lock/min files). No separate `.oxlintrc.json` or `.oxfmtignore` — Vite+ reads everything from `vite.config.ts`.
 
 ## Commands
 
@@ -51,6 +51,10 @@ pnpm db:generate     # Generate migrations from schema changes
 ```
 
 Scripts run via `tsx`: `packages/api/src/db/{migrate,seed,reset}.ts`. Drizzle config at `packages/api/drizzle.config.ts`; schema entry at `packages/api/src/db/schema/index.ts`.
+
+**Never run `drizzle-kit push`.** RLS policies and the deferrable FKs are hand-written in the migration SQL and absent from Drizzle's snapshot — `push` would reconcile against a schema that declares them gone. Use `db:generate` + `db:migrate` only.
+
+**Run `pnpm db:migrate` once before `pnpm dev`.** Dev connects as the NOSUPERUSER `kavanow_app` role by default (password = role name, provisioned by migrate), so RLS is enforced locally exactly like production.
 
 ### Quality Checks
 
@@ -85,7 +89,7 @@ API mirrors this:
 - `/api/auth/*` — better-auth (global; no tenant context needed)
 - `/api/auth/me`, `/api/auth/set-password` — custom auth endpoints (return memberships)
 - `/api/superadmin/*` — requires `requireSuperAdmin`
-- `/api/platform/*` — public utilities (e.g. `tenant-exists`)
+- `/api/k/:slug/tenant` — public tenant lookup (name/slug; used by login pages)
 - `/api/k/:slug/*` — tenant-scoped, mounted under a sub-router that runs `tenantMiddleware`
 
 `tenantMiddleware` ([packages/api/src/middleware/tenant.ts](packages/api/src/middleware/tenant.ts)) reads `:slug` from the URL, resolves the tenant, sets `c.set("tenant", ...)` / `c.set("tenantId", ...)`, and sets the Postgres session variable `app.current_tenant_id` used by RLS policies. No tenant context outside `/api/k/:slug/*`.
@@ -120,7 +124,7 @@ Auth instance in [packages/api/src/auth/index.ts](packages/api/src/auth/index.ts
 3. Custom `/api/auth` routes (`/me`, `PATCH /me`, `/set-password`) — registered **before** the better-auth catch-all so they match first
 4. Rate limits on `/api/auth/sign-in/*`, `/api/auth/sign-in`, `/api/auth/request-password-reset`
 5. better-auth catch-all: `app.on(["POST","GET"], "/api/auth/*", c => auth.handler(c.req.raw))`
-6. `/api/platform`, `/api/superadmin`
+6. `/api/superadmin`
 7. Tenant subrouter mounted at `/api/k/:slug` — runs `tenantMiddleware`, then routes `/admin`, `/customer`, `/tenant`
 
 `/api/auth/me` returns `{ user: { id, email, name, isSuperAdmin, hasPassword }, memberships: [{ tenantId, tenantSlug, tenantName, role, customerId, invitedBy }] }`. `hasPassword` is derived from the presence of a credential row in `accounts`. `PATCH /api/auth/me` updates `name` and/or `email` with a uniqueness check.
@@ -145,7 +149,6 @@ Auth instance in [packages/api/src/auth/index.ts](packages/api/src/auth/index.ts
 ```
 packages/api/src/routes/
 ├── auth.ts                 # /api/auth/{me, set-password}
-├── platform.ts             # /api/platform/* (public, no auth)
 ├── admin/                  # owner + staff (requireAuth + requireRole("owner","staff"))
 │   ├── products, categories, customers, users, orders, dashboard, settings
 ├── customer/               # requireRole("customer")
@@ -173,7 +176,7 @@ The `postgres` driver (not `pg`) is used. RLS is enforced at the DB level for te
 
 [packages/web/src/App.tsx](packages/web/src/App.tsx) is a single React Router tree:
 
-- `/` → `TenantSelectPage` (renders a tenant-slug input for anonymous users; renders the list of memberships for logged-in users)
+- `/` → `LoginPage` (anonymous users see the login form; logged-in users get redirected to their home, or an inline membership picker when they belong to several tenants)
 - `/login`, `/auth/forgot-password`, `/auth/reset-password` → superadmin auth (also serves as canonical fallback)
 - `/admin/*` → `SuperAdminLayout` (RequireAuth + RequireRole `superadmin`) — `tenants`, `tenants/new`, `settings`
 - `/k/:slug/login`, `/k/:slug/auth/*`, `/k/:slug/welcome` → tenant auth

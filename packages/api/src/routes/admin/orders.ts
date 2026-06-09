@@ -16,6 +16,8 @@ import {
   paginationQuerySchema,
   listFiltersQuerySchema,
   markOrderTransmittedSchema,
+  updateOrderStatusSchema,
+  ORDER_STATUSES,
   addOrderItemSchema,
   updateOrderItemSchema,
   replaceOrderItemSchema,
@@ -27,7 +29,7 @@ import {
 
 const ordersRouter = new Hono<AppEnv>();
 
-const VALID_STATUSES: OrderStatus[] = ["pending", "confirmed", "shipped", "delivered", "cancelled"];
+const VALID_STATUSES: readonly OrderStatus[] = ORDER_STATUSES;
 
 // Status transition rules: key = current, value = allowed next statuses
 const ALLOWED_TRANSITIONS: Record<OrderStatus, OrderStatus[]> = {
@@ -213,11 +215,11 @@ ordersRouter.put("/:id/status", async (c) => {
   const tenantId = c.get("tenantId")!;
   const id = c.req.param("id");
   const body = await c.req.json();
-  const newStatus = body.status as OrderStatus;
-
-  if (!newStatus || !VALID_STATUSES.includes(newStatus)) {
+  const parsedStatus = updateOrderStatusSchema.safeParse(body);
+  if (!parsedStatus.success) {
     return c.json({ error: "Invalid status", code: API_ERROR_CODES.ORDER_INVALID_STATUS }, 400);
   }
+  const newStatus: OrderStatus = parsedStatus.data.status;
 
   // Read + validate + update in one transaction with the row locked, so two
   // concurrent transitions can't both pass validation against the same

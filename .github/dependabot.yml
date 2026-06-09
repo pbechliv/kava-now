@@ -57,6 +57,19 @@ updates:
           - "@types/react"
           - "@types/react-dom"
 
+  - package-ecosystem: docker
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+      time: "06:00"
+      timezone: Europe/Berlin
+    labels:
+      - dependencies
+    commit-message:
+      prefix: chore
+      include: scope
+
   - package-ecosystem: docker-compose
     directories:
       - /

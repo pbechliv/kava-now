@@ -88,7 +88,7 @@ importers:
         specifier: ^19.2.16
         version: 19.2.16
       '@types/react-dom':
-        specifier: ^19.2.0
+        specifier: ^19.2.3
         version: 19.2.3(@types/react@19.2.16)
       drizzle-kit:
         specifier: ^0.31.10
@@ -99,6 +99,9 @@ importers:
       tsx:
         specifier: ^4.22.4
         version: 4.22.4
+      typescript:
+        specifier: ^6.0.3
+        version: 6.0.3
       vite:
         specifier: npm:@voidzero-dev/vite-plus-core@^0.1.21
         version: '@voidzero-dev/vite-plus-core@0.1.21(@types/node@25.9.1)(esbuild@0.28.0)(jiti@2.7.0)(tsx@4.22.4)(typescript@6.0.3)'
@@ -114,6 +117,10 @@ importers:
       zod:
         specifier: ^4.4.3
         version: 4.4.3
+    devDependencies:
+      typescript:
+        specifier: ^6.0.3
+        version: 6.0.3
 
   packages/web:
     dependencies:

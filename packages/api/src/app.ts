@@ -1,9 +1,11 @@
 import { Hono } from "hono";
+import { sql as dsql } from "drizzle-orm";
 import { cors } from "hono/cors";
 import { logger } from "hono/logger";
 import { HTTPException } from "hono/http-exception";
 import * as Sentry from "@sentry/node";
 import { config } from "./config";
+import { db } from "./db/connection";
 import { tenantMiddleware } from "./middleware/tenant";
 import { authMiddleware } from "./middleware/auth";
 import { sentryContextMiddleware } from "./middleware/sentry-context";
@@ -77,8 +79,18 @@ tenantApp.route("/customer", customerRoutes);
 
 app.route("/api/k/:slug", tenantApp);
 
-app.get("/api/health", (c) => {
-  return c.json({ status: "ok" });
+app.get("/api/health", async (c) => {
+  // A static body kept Caddy/compose routing traffic to an API whose DB
+  // connection was dead. Cheap select 1 with a short timeout instead.
+  try {
+    await Promise.race([
+      db.execute(dsql`select 1`),
+      new Promise((_, reject) => setTimeout(() => reject(new Error("db health timeout")), 2000)),
+    ]);
+    return c.json({ status: "ok" });
+  } catch {
+    return c.json({ status: "degraded", db: "unreachable" }, 503);
+  }
 });
 
 // Postgres "the input itself is malformed" SQLSTATEs: a garbage :id reaching

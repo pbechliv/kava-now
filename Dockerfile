@@ -7,7 +7,7 @@
 # ---------------------------------------------------------------------------
 # Stage: base — shared Node + pnpm foundation
 # ---------------------------------------------------------------------------
-FROM node:24-alpine AS base
+FROM node:24.15-alpine AS base
 # pnpm version comes from "packageManager" in package.json — corepack's shim
 # reads (and hash-verifies) it on first pnpm invocation, so there is no
 # version to keep in sync here. Every stage copies package.json before
@@ -35,7 +35,7 @@ COPY packages/shared/ packages/shared/
 COPY packages/api/ packages/api/
 ARG API_PORT=3000
 ENV API_PORT=$API_PORT
-RUN pnpm --filter @kava-now/shared --if-present build; \
+RUN pnpm --filter @kava-now/shared --if-present build && \
     pnpm --filter @kava-now/api build
 
 # ---------------------------------------------------------------------------
@@ -83,7 +83,7 @@ CMD ["pnpm", "--filter", "@kava-now/api", "db:migrate"]
 # ---------------------------------------------------------------------------
 # Target: api — slim Node runtime for the Hono server
 # ---------------------------------------------------------------------------
-FROM node:24-alpine AS api
+FROM node:24.15-alpine AS api
 WORKDIR /app
 
 RUN addgroup -S appgroup && adduser -S appuser -G appgroup

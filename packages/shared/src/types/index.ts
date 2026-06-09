@@ -6,28 +6,6 @@ export type ProductUnit = "bottle" | "case" | "keg";
 export type ErpStatus = "pending" | "transmitted";
 export type OrderItemStatus = "active" | "cancelled";
 
-export interface Tenant {
-  id: string;
-  name: string;
-  slug: string;
-  logoUrl: string | null;
-  address: string | null;
-  phone: string | null;
-  email: string;
-  notificationEmails: string[];
-  settings: Record<string, unknown>;
-  createdAt: string;
-}
-
-export interface User {
-  id: string;
-  email: string;
-  name: string;
-  isSuperAdmin: boolean;
-  hasPassword: boolean;
-  createdAt: string;
-}
-
 /**
  * A user's membership in a single tenant. One row per (userId, tenantId).
  */
@@ -82,12 +60,6 @@ export interface Customer {
   billingAddress: string | null;
   erpRef: string | null;
   createdAt: string;
-}
-
-export interface CustomerBrandPricing {
-  customerId: string;
-  brand: string;
-  discountPct: number;
 }
 
 export interface Order {

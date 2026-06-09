@@ -1,4 +1,4 @@
-import type { OrderStatus, MembershipRole, ProductUnit, ErpStatus, OrderItemStatus } from "./types";
+import type { OrderStatus, MembershipRole, ProductUnit, ErpStatus } from "./types";
 
 export const ORDER_STATUS_LABELS: Record<OrderStatus, string> = {
   pending: "Σε αναμονή",
@@ -6,11 +6,6 @@ export const ORDER_STATUS_LABELS: Record<OrderStatus, string> = {
   shipped: "Απεσταλμένη",
   delivered: "Παραδοθείσα",
   cancelled: "Ακυρωμένη",
-};
-
-export const ORDER_ITEM_STATUS_LABELS: Record<OrderItemStatus, string> = {
-  active: "Ενεργό",
-  cancelled: "Ακυρωμένο",
 };
 
 export const ROLE_LABELS: Record<MembershipRole, string> = {
