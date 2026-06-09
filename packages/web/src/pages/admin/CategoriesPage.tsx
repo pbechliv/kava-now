@@ -51,12 +51,15 @@ export function CategoriesPage() {
     }
     setNewNameError("");
 
-    await createMutation.mutateAsync({
-      name: trimmed,
-      parentId: newParentId || null,
-    });
-    setNewName("");
-    setNewParentId("");
+    createMutation.mutate(
+      { name: trimmed, parentId: newParentId || null },
+      {
+        onSuccess: () => {
+          setNewName("");
+          setNewParentId("");
+        },
+      },
+    );
   };
 
   const startEdit = (cat: {
@@ -73,15 +76,17 @@ export function CategoriesPage() {
 
   const handleUpdate = async () => {
     if (!editingId || !editName.trim()) return;
-    await updateMutation.mutateAsync({
-      id: editingId,
-      data: {
-        name: editName.trim(),
-        parentId: editParentId || null,
-        sortOrder: editSortOrder,
+    updateMutation.mutate(
+      {
+        id: editingId,
+        data: {
+          name: editName.trim(),
+          parentId: editParentId || null,
+          sortOrder: editSortOrder,
+        },
       },
-    });
-    setEditingId(null);
+      { onSuccess: () => setEditingId(null) },
+    );
   };
 
   const handleDelete = (id: string, name: string) => {

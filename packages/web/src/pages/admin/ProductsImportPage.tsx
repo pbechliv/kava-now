@@ -165,10 +165,11 @@ export function ProductsImportPage() {
     setStep("preview");
   };
 
-  const handleImport = async () => {
+  const handleImport = () => {
     if (validRows.length === 0) return;
-    const result = await importMutation.mutateAsync(validRows);
-    void navigate(productsPath, { state: { importResult: result } });
+    importMutation.mutate(validRows, {
+      onSuccess: (result) => void navigate(productsPath, { state: { importResult: result } }),
+    });
   };
 
   const onDrop = (e: React.DragEvent<HTMLDivElement>) => {

@@ -67,13 +67,13 @@ export function ProductFormPage() {
     }
   }, [product, isEdit, form]);
 
-  const onSubmit = async (data: FormData) => {
+  const onSubmit = (data: FormData) => {
+    const onSuccess = () => void navigate(productsPath);
     if (isEdit) {
-      await updateMutation.mutateAsync({ id, data: data as UpdateProductInput });
+      updateMutation.mutate({ id, data: data as UpdateProductInput }, { onSuccess });
     } else {
-      await createMutation.mutateAsync(data as CreateProductInput);
+      createMutation.mutate(data as CreateProductInput, { onSuccess });
     }
-    void navigate(productsPath);
   };
 
   if (isEdit && productLoading) {

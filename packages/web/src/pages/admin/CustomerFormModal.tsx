@@ -101,14 +101,13 @@ export function CustomerFormModal({ open, customerId, onClose }: Props) {
     };
 
     if (isEdit) {
-      await updateMutation.mutateAsync({
-        id: customerId!,
-        data: cleaned as UpdateCustomerInput,
-      });
+      updateMutation.mutate(
+        { id: customerId!, data: cleaned as UpdateCustomerInput },
+        { onSuccess: onClose },
+      );
     } else {
-      await createMutation.mutateAsync(cleaned);
+      createMutation.mutate(cleaned, { onSuccess: onClose });
     }
-    onClose();
   };
 
   const isPending = createMutation.isPending || updateMutation.isPending;

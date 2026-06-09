@@ -51,8 +51,8 @@ export function CustomerBrandPricingPage() {
     );
   };
 
-  const handleSave = async () => {
-    await updateMutation.mutateAsync({
+  const handleSave = () => {
+    updateMutation.mutate({
       assignments: assignments.map((a) => ({
         brand: a.brand,
         discountPct: a.discountPct ? Number(a.discountPct) : 0,
