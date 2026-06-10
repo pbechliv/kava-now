@@ -37,7 +37,7 @@
     "@hono/vite-dev-server": "^0.26.0",
     "@types/node": "^25.9.1",
     "@types/nodemailer": "^8.0.0",
-    "@types/react": "^19.2.16",
+    "@types/react": "^19.2.17",
     "@types/react-dom": "^19.2.3",
     "@types/web-push": "^3.6.4",
     "drizzle-kit": "^0.31.10",
