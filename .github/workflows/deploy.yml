@@ -132,8 +132,10 @@ jobs:
           EOF
 
   smoke:
-    needs: deploy
+    needs: [resolve, deploy]
     uses: ./.github/workflows/smoke-test.yml
+    with:
+      expected_version: ${{ needs.resolve.outputs.sha }}
     secrets:
       # Probe the origin directly — CF Bot Fight Mode 403s the runner's
       # datacenter IP and can't be allowlisted on the free plan.

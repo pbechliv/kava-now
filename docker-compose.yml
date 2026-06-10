@@ -56,6 +56,10 @@ services:
       # provisioned by db:migrate (api-jobs) using APP_DB_PASSWORD.
       APP_DATABASE_URL: postgres://${APP_DB_ROLE:-kavanow_app}:${APP_DB_PASSWORD:?Set APP_DB_PASSWORD in .env.production}@postgres:5432/${POSTGRES_DB:-kavanow}
       API_PORT: 3000
+      # Deployed git SHA — surfaced by /api/health so the smoke test can prove
+      # the new code is actually serving (a silently-skipped restart otherwise
+      # passes every probe).
+      APP_VERSION: ${IMAGE_TAG:-latest}
     env_file:
       - ${KAVANOW_ENV_FILE:-.env.production}
     expose:

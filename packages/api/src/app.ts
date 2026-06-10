@@ -87,7 +87,7 @@ app.get("/api/health", async (c) => {
       db.execute(dsql`select 1`),
       new Promise((_, reject) => setTimeout(() => reject(new Error("db health timeout")), 2000)),
     ]);
-    return c.json({ status: "ok" });
+    return c.json({ status: "ok", version: process.env.APP_VERSION ?? "dev" });
   } catch {
     return c.json({ status: "degraded", db: "unreachable" }, 503);
   }

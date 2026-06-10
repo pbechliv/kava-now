@@ -18,7 +18,7 @@ compose() { docker compose --env-file .env.production "$@"; }
 # Wait for postgres: deploys call this right after `up -d postgres`, and the
 # cron may fire while the VM is still booting.
 for i in $(seq 1 30); do
-  if compose exec -T postgres sh -c 'pg_isready -q -U "$POSTGRES_USER"' 2>/dev/null; then
+  if compose exec -T postgres sh -c 'pg_isready -q -U "$POSTGRES_USER"' </dev/null 2>/dev/null; then
     break
   fi
   if [ "$i" = 30 ]; then
@@ -34,7 +34,10 @@ out="$BACKUP_DIR/kavanow-$label-$stamp.dump"
 
 # -Fc: compressed custom format, restorable with pg_restore. Write to a
 # .partial first so a failed dump never looks like a usable backup.
-compose exec -T postgres sh -c 'pg_dump -Fc -U "$POSTGRES_USER" "$POSTGRES_DB"' > "$out.partial"
+# </dev/null is load-bearing: this script runs inside deploy.yml's
+# `bash -s` heredoc, and an exec with attached stdin would swallow the rest
+# of the deploy script (the post-backup migrate/restart steps).
+compose exec -T postgres sh -c 'pg_dump -Fc -U "$POSTGRES_USER" "$POSTGRES_DB"' </dev/null > "$out.partial"
 mv "$out.partial" "$out"
 
 # Prune old dumps and stale partials. The daily Hetzner VM snapshot picks up
