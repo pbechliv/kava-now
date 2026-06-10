@@ -46,8 +46,7 @@ jobs:
           # (backup.sh is shipped to the VM by deploy.yml; see infra/backup/README.md)
           /srv/kavanow/backup.sh pre-migrate-manual
           # </dev/null: compose run attaches stdin and would eat the heredoc tail
-          docker compose --env-file .env.production --profile jobs run --rm api-jobs \
-            pnpm --filter @kava-now/api db:migrate </dev/null
+          docker compose --env-file .env.production --profile jobs run --rm api-jobs </dev/null
           EOF
             echo '```'
           } | tee -a "$GITHUB_STEP_SUMMARY"

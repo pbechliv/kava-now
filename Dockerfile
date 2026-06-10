@@ -78,15 +78,19 @@ COPY packages/api/ packages/api/
 # Same privilege drop as the api target (#67): this container holds the
 # privileged DATABASE_URL — it must not also run as root. /app stays
 # root-owned read-only (a chown -R of dev node_modules would double the
-# layer); pnpm/tsx only need a writable HOME. verify-deps-before-run must be
-# off: the registry round-trip resets mtimes, so pnpm 11's pre-run dep check
-# tries to re-`pnpm install` into the read-only /app and EACCESes — the
-# node_modules baked at build time ARE the deps.
-RUN addgroup -S appgroup && adduser -S appuser -G appgroup
-ENV HOME=/tmp \
-    npm_config_verify_deps_before_run=false
+# layer); tsx only needs a writable HOME.
+#
+# Jobs run tsx DIRECTLY — never `pnpm run` at container runtime: pnpm 11's
+# verify-deps-before-run compares mtimes the registry round-trip resets,
+# then tries to re-`pnpm install` into the read-only /app (EACCES). The
+# .npmrc covers any ad-hoc pnpm invocation on the VM; the env form of the
+# setting is NOT honored by pnpm 11.5.
+RUN addgroup -S appgroup && adduser -S appuser -G appgroup \
+  && echo "verify-deps-before-run=false" >> /app/.npmrc
+ENV HOME=/tmp
 USER appuser
-CMD ["pnpm", "--filter", "@kava-now/api", "db:migrate"]
+WORKDIR /app/packages/api
+CMD ["./node_modules/.bin/tsx", "src/db/migrate.ts"]
 
 # ---------------------------------------------------------------------------
 # Target: api — slim Node runtime for the Hono server
