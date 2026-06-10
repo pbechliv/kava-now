@@ -4,11 +4,19 @@
       <stop offset="0" stop-color="#f59e0b" />
       <stop offset="1" stop-color="#d97706" />
     </linearGradient>
+    <mask id="band">
+      <rect width="512" height="512" fill="#fff" />
+      <rect x="194" y="302" width="124" height="11" rx="5.5" fill="#000" />
+    </mask>
   </defs>
   <rect width="512" height="512" rx="112" fill="url(#kava)" />
-  <g fill="none" stroke="#ffffff" stroke-width="42" stroke-linecap="round" stroke-linejoin="round">
-    <path d="M126 165V347" />
-    <path d="M221 165L141 256 221 347" />
-    <path d="M296 347L296 165 386 347 386 165" />
+  <g mask="url(#band)" transform="translate(256 256) scale(1.08) translate(-256 -256)">
+    <rect x="210" y="92" width="92" height="27" rx="13" fill="#fff" />
+    <path fill="#fff" d="M226 119 L286 119 C286 158 288 176 294 192 C336 208 352 226 352 254 C352 304 318 348 284 364 L284 382 L228 382 L228 364 C194 348 160 304 160 254 C160 226 176 208 218 192 C224 176 226 158 226 119 Z" />
+    <path fill="#fff" d="M230 390 L282 390 C282 400 290 405 302 408 C310 410 314 414 314 419 L198 419 C198 414 202 410 210 408 C222 405 230 400 230 390 Z" />
+    <g fill="none" stroke="#fff" stroke-width="23" stroke-linecap="round">
+      <path d="M286 148 C316 150 332 166 332 190 C332 216 320 232 300 242" />
+      <path d="M226 148 C196 150 180 166 180 190 C180 216 192 232 212 242" />
+    </g>
   </g>
 </svg>
