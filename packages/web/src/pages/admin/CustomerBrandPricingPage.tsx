@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router";
 import { Loader2 } from "lucide-react";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
@@ -52,12 +53,15 @@ export function CustomerBrandPricingPage() {
   };
 
   const handleSave = () => {
-    updateMutation.mutate({
-      assignments: assignments.map((a) => ({
-        brand: a.brand,
-        discountPct: a.discountPct ? Number(a.discountPct) : 0,
-      })),
-    });
+    updateMutation.mutate(
+      {
+        assignments: assignments.map((a) => ({
+          brand: a.brand,
+          discountPct: a.discountPct ? Number(a.discountPct) : 0,
+        })),
+      },
+      { onSuccess: () => toast.success("Η τιμολόγηση αποθηκεύτηκε") },
+    );
   };
 
   return (

@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Loader2 } from "lucide-react";
+import { toast } from "sonner";
 import { ROLE_LABELS, inviteStaffUserSchema } from "@kava-now/shared";
 import {
   useUsers,
@@ -41,6 +42,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Spinner } from "@/components/spinner";
+import { ConfirmDialog } from "@/components/confirm-dialog";
 
 export function UsersPage() {
   const { user: me, currentMembership } = useAuth();
@@ -50,7 +52,7 @@ export function UsersPage() {
   const resend = useResendInvite();
   const promote = usePromoteToOwner();
   const [inviteOpen, setInviteOpen] = useState(false);
-  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<{ id: string; name: string } | null>(null);
   const [resendFeedback, setResendFeedback] = useState<{
     id: string;
     kind: "success" | "error";
@@ -67,6 +69,17 @@ export function UsersPage() {
       onSuccess: () => {
         form.reset();
         setInviteOpen(false);
+        toast.success("Η πρόσκληση στάλθηκε");
+      },
+    });
+  };
+
+  const confirmDelete = () => {
+    if (!deleteTarget) return;
+    remove.mutate(deleteTarget.id, {
+      onSuccess: () => {
+        setDeleteTarget(null);
+        toast.success("Ο χρήστης αφαιρέθηκε");
       },
     });
   };
@@ -144,80 +157,62 @@ export function UsersPage() {
                     )}
                   </TableCell>
                   <TableCell className="text-right">
-                    {u.id !== me?.id &&
-                      (confirmDeleteId === u.id ? (
-                        <div className="flex items-center justify-end gap-2">
-                          <span className="text-xs text-destructive">Σίγουρα;</span>
+                    {u.id !== me?.id && (
+                      <div className="flex flex-wrap items-center justify-end gap-2">
+                        {resendFeedback?.id === u.id && (
+                          <span
+                            className={`text-xs ${
+                              resendFeedback.kind === "success"
+                                ? "text-green-600"
+                                : "text-destructive"
+                            }`}
+                          >
+                            {resendFeedback.message}
+                          </span>
+                        )}
+                        {!u.emailVerified && (
                           <Button
-                            variant="destructive"
+                            variant="ghost"
                             size="sm"
-                            disabled={remove.isPending}
+                            disabled={resend.isPending && resend.variables === u.id}
+                            onClick={() => handleResend(u.id)}
+                          >
+                            {resend.isPending && resend.variables === u.id && (
+                              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                            )}
+                            Επανάληψη πρόσκλησης
+                          </Button>
+                        )}
+                        {canPromote && u.role === "staff" && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            disabled={promote.isPending && promote.variables === u.id}
                             onClick={() =>
-                              remove.mutate(u.id, {
-                                onSuccess: () => setConfirmDeleteId(null),
+                              promote.mutate(u.id, {
+                                onSuccess: () => toast.success("Ο χρήστης έγινε ιδιοκτήτης"),
                               })
                             }
                           >
-                            {remove.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                            Ναι
+                            {promote.isPending && promote.variables === u.id && (
+                              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                            )}
+                            Μετατροπή σε ιδιοκτήτη
                           </Button>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => setConfirmDeleteId(null)}
-                          >
-                            Όχι
-                          </Button>
-                        </div>
-                      ) : (
-                        <div className="flex flex-wrap items-center justify-end gap-2">
-                          {resendFeedback?.id === u.id && (
-                            <span
-                              className={`text-xs ${
-                                resendFeedback.kind === "success"
-                                  ? "text-green-600"
-                                  : "text-destructive"
-                              }`}
-                            >
-                              {resendFeedback.message}
-                            </span>
-                          )}
-                          {!u.emailVerified && (
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              disabled={resend.isPending && resend.variables === u.id}
-                              onClick={() => handleResend(u.id)}
-                            >
-                              {resend.isPending && resend.variables === u.id && (
-                                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                              )}
-                              Επανάληψη πρόσκλησης
-                            </Button>
-                          )}
-                          {canPromote && u.role === "staff" && (
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              disabled={promote.isPending && promote.variables === u.id}
-                              onClick={() => promote.mutate(u.id)}
-                            >
-                              {promote.isPending && promote.variables === u.id && (
-                                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                              )}
-                              Μετατροπή σε ιδιοκτήτη
-                            </Button>
-                          )}
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="text-destructive hover:bg-destructive/10 hover:text-destructive"
-                            onClick={() => setConfirmDeleteId(u.id)}
-                          >
-                            Διαγραφή
-                          </Button>
-                        </div>
-                      ))}
+                        )}
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="text-destructive hover:bg-destructive/10 hover:text-destructive"
+                          onClick={() => {
+                            remove.reset();
+                            setDeleteTarget({ id: u.id, name: u.name });
+                          }}
+                        >
+                          Διαγραφή
+                        </Button>
+                      </div>
+                    )}
                   </TableCell>
                 </TableRow>
               ))}
@@ -301,6 +296,23 @@ export function UsersPage() {
           </Form>
         </DialogContent>
       </Dialog>
+
+      <ConfirmDialog
+        open={!!deleteTarget}
+        title="Αφαίρεση χρήστη"
+        description={
+          <>
+            Είστε σίγουροι ότι θέλετε να αφαιρέσετε τον χρήστη{" "}
+            <span className="font-medium text-foreground">{deleteTarget?.name}</span> από τον
+            λογαριασμό;
+          </>
+        }
+        confirmLabel="Αφαίρεση"
+        pending={remove.isPending}
+        error={remove.error?.message}
+        onConfirm={confirmDelete}
+        onClose={() => setDeleteTarget(null)}
+      />
     </div>
   );
 }

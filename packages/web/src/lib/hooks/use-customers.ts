@@ -47,7 +47,10 @@ export function useCreateCustomer() {
   const qc = useQueryClient();
 
   return useMutation({
-    mutationFn: (data: CreateCustomerInput) => tApi.post<Customer>("/admin/customers", data),
+    // userInviteError is set when the customer row was created but the linked
+    // customer-user invite failed (e.g. email already used in this tenant).
+    mutationFn: (data: CreateCustomerInput) =>
+      tApi.post<Customer & { userInviteError: string | null }>("/admin/customers", data),
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: ["admin", slug, "customers"] });
     },

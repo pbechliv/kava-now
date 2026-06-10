@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router";
+import { toast } from "sonner";
 import { useTenantSlug } from "@/lib/hooks/use-tenant-api";
 import { useDebouncedValue } from "@/lib/hooks/use-debounced-value";
 import { Button } from "@/components/ui/button";
@@ -15,6 +16,7 @@ import {
 } from "@/components/ui/table";
 import { Spinner } from "@/components/spinner";
 import { EmptyState } from "@/components/empty-state";
+import { ConfirmDialog } from "@/components/confirm-dialog";
 import { PaginationControls } from "@/components/PaginationControls";
 import { useCustomers, useDeleteCustomer } from "@/lib/hooks/use-customers";
 import { CustomerFormModal } from "@/components/admin/CustomerFormModal";
@@ -29,6 +31,7 @@ export function CustomersPage() {
   const [modalOpen, setModalOpen] = useState(false);
   const [editId, setEditId] = useState<string | undefined>(undefined);
   const [page, setPage] = useState(1);
+  const [deleteTarget, setDeleteTarget] = useState<{ id: string; name: string } | null>(null);
 
   const debouncedSearch = useDebouncedValue(search);
 
@@ -42,9 +45,18 @@ export function CustomersPage() {
   const deleteMutation = useDeleteCustomer();
 
   const handleDelete = (id: string, name: string) => {
-    if (confirm(`Είστε σίγουροι ότι θέλετε να διαγράψετε τον "${name}";`)) {
-      deleteMutation.mutate(id);
-    }
+    deleteMutation.reset();
+    setDeleteTarget({ id, name });
+  };
+
+  const confirmDelete = () => {
+    if (!deleteTarget) return;
+    deleteMutation.mutate(deleteTarget.id, {
+      onSuccess: () => {
+        setDeleteTarget(null);
+        toast.success("Ο πελάτης διαγράφηκε");
+      },
+    });
   };
 
   const handleEdit = (id: string) => {
@@ -165,6 +177,23 @@ export function CustomersPage() {
           setModalOpen(false);
           setEditId(undefined);
         }}
+      />
+
+      <ConfirmDialog
+        open={!!deleteTarget}
+        title="Διαγραφή πελάτη"
+        description={
+          <>
+            Είστε σίγουροι ότι θέλετε να διαγράψετε τον{" "}
+            <span className="font-medium text-foreground">{deleteTarget?.name}</span>; Οι
+            συνδεδεμένοι χρήστες του θα χάσουν την πρόσβασή τους.
+          </>
+        }
+        confirmLabel="Διαγραφή"
+        pending={deleteMutation.isPending}
+        error={deleteMutation.error?.message}
+        onConfirm={confirmDelete}
+        onClose={() => setDeleteTarget(null)}
       />
     </div>
   );

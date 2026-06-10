@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Link } from "react-router";
+import { Link, useNavigate } from "react-router";
 import { useTenantSlug } from "@/lib/hooks/use-tenant-api";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -37,6 +37,7 @@ const STATUS_TABS: { label: string; value: OrderStatus | "all" }[] = [
 ];
 
 export function OrdersPage() {
+  const navigate = useNavigate();
   const slug = useTenantSlug();
   const adminBase = `/k/${slug}/admin`;
   const [statusFilter, setStatusFilter] = useState<OrderStatus | "all">("all");
@@ -139,7 +140,11 @@ export function OrdersPage() {
                 </TableHeader>
                 <TableBody>
                   {orders.map((order) => (
-                    <TableRow key={order.id}>
+                    <TableRow
+                      key={order.id}
+                      className="cursor-pointer"
+                      onClick={() => navigate(`${adminBase}/orders/${order.id}`)}
+                    >
                       <TableCell className="font-mono text-xs text-muted-foreground">
                         {order.id.slice(0, 8)}
                       </TableCell>

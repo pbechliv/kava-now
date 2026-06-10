@@ -1,4 +1,4 @@
-import { useParams, useNavigate } from "react-router";
+import { Link, useParams, useNavigate } from "react-router";
 import { ArrowLeft, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -60,13 +60,12 @@ export function OrderDetailPage() {
 
   return (
     <div className="space-y-6">
-      <button
-        type="button"
-        onClick={() => navigate(`${base}/orders`)}
+      <Link
+        to={`${base}/orders`}
         className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
       >
         <ArrowLeft className="h-4 w-4" /> Πίσω στο ιστορικό
-      </button>
+      </Link>
 
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>

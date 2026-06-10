@@ -3,6 +3,7 @@ import { useNavigate, useParams } from "react-router";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Loader2 } from "lucide-react";
+import { toast } from "sonner";
 import {
   createProductSchema,
   UNIT_LABELS,
@@ -68,7 +69,10 @@ export function ProductFormPage() {
   }, [product, isEdit, form]);
 
   const onSubmit = (data: FormData) => {
-    const onSuccess = () => void navigate(productsPath);
+    const onSuccess = () => {
+      toast.success(isEdit ? "Το προϊόν ενημερώθηκε" : "Το προϊόν δημιουργήθηκε");
+      void navigate(productsPath);
+    };
     if (isEdit) {
       updateMutation.mutate({ id, data: data as UpdateProductInput }, { onSuccess });
     } else {

@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Loader2 } from "lucide-react";
+import { toast } from "sonner";
 import { createCategorySchema } from "@kava-now/shared";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -22,7 +23,7 @@ import {
 } from "@/components/ui/table";
 import { Spinner } from "@/components/spinner";
 import { EmptyState } from "@/components/empty-state";
-import { ErrorBanner } from "@/components/error-banner";
+import { ConfirmDialog } from "@/components/confirm-dialog";
 import {
   useCategories,
   useCreateCategory,
@@ -43,6 +44,7 @@ export function CategoriesPage() {
   const [editName, setEditName] = useState("");
   const [editParentId, setEditParentId] = useState("");
   const [editSortOrder, setEditSortOrder] = useState(0);
+  const [deleteTarget, setDeleteTarget] = useState<{ id: string; name: string } | null>(null);
 
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -61,6 +63,7 @@ export function CategoriesPage() {
       onSuccess: () => {
         setNewName("");
         setNewParentId("");
+        toast.success("Η κατηγορία δημιουργήθηκε");
       },
     });
   };
@@ -88,14 +91,28 @@ export function CategoriesPage() {
           sortOrder: editSortOrder,
         },
       },
-      { onSuccess: () => setEditingId(null) },
+      {
+        onSuccess: () => {
+          setEditingId(null);
+          toast.success("Η κατηγορία ενημερώθηκε");
+        },
+      },
     );
   };
 
   const handleDelete = (id: string, name: string) => {
-    if (confirm(`Είστε σίγουροι ότι θέλετε να διαγράψετε την κατηγορία "${name}";`)) {
-      deleteMutation.mutate(id);
-    }
+    deleteMutation.reset();
+    setDeleteTarget({ id, name });
+  };
+
+  const confirmDelete = () => {
+    if (!deleteTarget) return;
+    deleteMutation.mutate(deleteTarget.id, {
+      onSuccess: () => {
+        setDeleteTarget(null);
+        toast.success("Η κατηγορία διαγράφηκε");
+      },
+    });
   };
 
   return (
@@ -143,8 +160,6 @@ export function CategoriesPage() {
           </Button>
         </form>
       </Card>
-
-      {deleteMutation.error && <ErrorBanner message={deleteMutation.error.message} />}
 
       {isLoading ? (
         <div className="flex justify-center py-12">
@@ -251,6 +266,23 @@ export function CategoriesPage() {
           </div>
         </Card>
       )}
+
+      <ConfirmDialog
+        open={!!deleteTarget}
+        title="Διαγραφή κατηγορίας"
+        description={
+          <>
+            Είστε σίγουροι ότι θέλετε να διαγράψετε την κατηγορία{" "}
+            <span className="font-medium text-foreground">{deleteTarget?.name}</span>; Οι
+            υποκατηγορίες της θα μεταφερθούν στο αρχικό επίπεδο.
+          </>
+        }
+        confirmLabel="Διαγραφή"
+        pending={deleteMutation.isPending}
+        error={deleteMutation.error?.message}
+        onConfirm={confirmDelete}
+        onClose={() => setDeleteTarget(null)}
+      />
     </div>
   );
 }

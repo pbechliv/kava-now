@@ -99,7 +99,10 @@ export function useDeleteProduct() {
   const qc = useQueryClient();
 
   return useMutation({
-    mutationFn: (id: string) => tApi.delete(`/admin/products/${id}`),
+    // `product` is present when the API soft-deleted (deactivated) instead —
+    // the product is referenced by order history.
+    mutationFn: (id: string) =>
+      tApi.delete<{ success: boolean; product?: Product }>(`/admin/products/${id}`),
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: ["admin", slug, "products"] });
     },

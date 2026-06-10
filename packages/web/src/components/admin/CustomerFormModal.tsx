@@ -2,6 +2,7 @@ import { useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Loader2 } from "lucide-react";
+import { toast } from "sonner";
 import {
   createCustomerSchema,
   type CreateCustomerInput,
@@ -103,10 +104,26 @@ export function CustomerFormModal({ open, customerId, onClose }: Props) {
     if (isEdit) {
       updateMutation.mutate(
         { id: customerId!, data: cleaned as UpdateCustomerInput },
-        { onSuccess: onClose },
+        {
+          onSuccess: () => {
+            toast.success("Ο πελάτης ενημερώθηκε");
+            onClose();
+          },
+        },
       );
     } else {
-      createMutation.mutate(cleaned, { onSuccess: onClose });
+      createMutation.mutate(cleaned, {
+        onSuccess: (created) => {
+          if (created.userInviteError) {
+            toast.warning(
+              "Ο πελάτης δημιουργήθηκε, αλλά η πρόσκληση χρήστη απέτυχε — στείλτε την ξανά από τη σελίδα χρηστών",
+            );
+          } else {
+            toast.success("Ο πελάτης δημιουργήθηκε");
+          }
+          onClose();
+        },
+      });
     }
   };
 

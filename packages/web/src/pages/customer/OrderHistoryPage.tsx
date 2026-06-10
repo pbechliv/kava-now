@@ -1,8 +1,9 @@
 import { useState } from "react";
-import { useNavigate } from "react-router";
+import { Link, useNavigate } from "react-router";
 import { useTenantSlug } from "@/lib/hooks/use-tenant-api";
-import { Button } from "@/components/ui/button";
+import { buttonVariants } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { cn } from "@/lib/utils";
 import { EmptyState } from "@/components/empty-state";
 import { ErrorBanner } from "@/components/error-banner";
 import { Spinner } from "@/components/spinner";
@@ -62,14 +63,15 @@ export function OrderHistoryPage() {
                       <span className="font-medium">{order.totalAmount.toFixed(2)}&nbsp;€</span>
                     </div>
                   </div>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => navigate(`${base}/orders/${order.id}`)}
-                    className="self-start sm:self-auto"
+                  <Link
+                    to={`${base}/orders/${order.id}`}
+                    className={cn(
+                      buttonVariants({ variant: "outline", size: "sm" }),
+                      "self-start sm:self-auto",
+                    )}
                   >
                     Λεπτομέρειες
-                  </Button>
+                  </Link>
                 </CardContent>
               </Card>
             ))}

@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router";
+import { toast } from "sonner";
 import { useTenantSlug } from "@/lib/hooks/use-tenant-api";
 import { Loader2, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -52,6 +53,7 @@ export function CartPage() {
       },
       {
         onSuccess: () => {
+          toast.success("Η παραγγελία καταχωρήθηκε");
           void navigate(`${base}/orders`);
         },
       },

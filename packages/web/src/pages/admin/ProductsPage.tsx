@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { useLocation, useNavigate } from "react-router";
+import { toast } from "sonner";
 import { useTenantSlug } from "@/lib/hooks/use-tenant-api";
 import { useDebouncedValue } from "@/lib/hooks/use-debounced-value";
 import { Pencil, Trash2, X } from "lucide-react";
@@ -24,6 +25,7 @@ import {
 } from "@/components/ui/table";
 import { Spinner } from "@/components/spinner";
 import { EmptyState } from "@/components/empty-state";
+import { ConfirmDialog } from "@/components/confirm-dialog";
 import { PaginationControls } from "@/components/PaginationControls";
 import { useProducts, useUpdateProduct, useDeleteProduct } from "@/lib/hooks/use-products";
 import { useCategories } from "@/lib/hooks/use-categories";
@@ -45,6 +47,7 @@ export function ProductsPage() {
   const [categoryFilter, setCategoryFilter] = useState("");
   const [bannerResult, setBannerResult] = useState<ImportProductsResult | null>(importResult);
   const [page, setPage] = useState(1);
+  const [deleteTarget, setDeleteTarget] = useState<{ id: string; name: string } | null>(null);
 
   useEffect(() => {
     if (importResult) {
@@ -71,9 +74,22 @@ export function ProductsPage() {
   };
 
   const handleDelete = (id: string, name: string) => {
-    if (confirm(`Είστε σίγουροι ότι θέλετε να διαγράψετε το "${name}";`)) {
-      deleteMutation.mutate(id);
-    }
+    deleteMutation.reset();
+    setDeleteTarget({ id, name });
+  };
+
+  const confirmDelete = () => {
+    if (!deleteTarget) return;
+    deleteMutation.mutate(deleteTarget.id, {
+      onSuccess: (res) => {
+        setDeleteTarget(null);
+        toast.success(
+          res.product
+            ? "Το προϊόν απενεργοποιήθηκε — υπάρχει σε παραγγελίες και δεν διαγράφεται"
+            : "Το προϊόν διαγράφηκε",
+        );
+      },
+    });
   };
 
   return (
@@ -236,6 +252,23 @@ export function ProductsPage() {
           />
         </>
       )}
+
+      <ConfirmDialog
+        open={!!deleteTarget}
+        title="Διαγραφή προϊόντος"
+        description={
+          <>
+            Είστε σίγουροι ότι θέλετε να διαγράψετε το{" "}
+            <span className="font-medium text-foreground">{deleteTarget?.name}</span>; Αν
+            χρησιμοποιείται σε παραγγελίες θα απενεργοποιηθεί αντί να διαγραφεί.
+          </>
+        }
+        confirmLabel="Διαγραφή"
+        pending={deleteMutation.isPending}
+        error={deleteMutation.error?.message}
+        onConfirm={confirmDelete}
+        onClose={() => setDeleteTarget(null)}
+      />
     </div>
   );
 }

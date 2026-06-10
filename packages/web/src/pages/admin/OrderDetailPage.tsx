@@ -27,15 +27,8 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
 import { Spinner } from "@/components/spinner";
+import { ConfirmDialog } from "@/components/confirm-dialog";
 import { OrderStatusBadge } from "@/components/order-status-badge";
 import { CopyField } from "@/components/copy-field";
 import {
@@ -563,30 +556,22 @@ export function OrderDetailPage() {
           onClose={() => setReplaceTarget(null)}
         />
       )}
-      <Dialog open={!!cancelTarget} onOpenChange={(o) => !o && setCancelTarget(null)}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Ακύρωση γραμμής</DialogTitle>
-            <DialogDescription>
-              Είστε σίγουρος ότι θέλετε να ακυρώσετε{" "}
-              <span className="font-medium text-foreground">{cancelTarget?.productName}</span>; Η
-              γραμμή θα παραμείνει στο ιστορικό σημαδεμένη ως ακυρωμένη.
-            </DialogDescription>
-          </DialogHeader>
-          {cancelItem.error && (
-            <p className="text-sm text-destructive">{cancelItem.error.message}</p>
-          )}
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setCancelTarget(null)}>
-              Άκυρο
-            </Button>
-            <Button variant="destructive" onClick={confirmCancel} disabled={cancelItem.isPending}>
-              {cancelItem.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              Ακύρωση γραμμής
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <ConfirmDialog
+        open={!!cancelTarget}
+        title="Ακύρωση γραμμής"
+        description={
+          <>
+            Είστε σίγουρος ότι θέλετε να ακυρώσετε{" "}
+            <span className="font-medium text-foreground">{cancelTarget?.productName}</span>; Η
+            γραμμή θα παραμείνει στο ιστορικό σημαδεμένη ως ακυρωμένη.
+          </>
+        }
+        confirmLabel="Ακύρωση γραμμής"
+        pending={cancelItem.isPending}
+        error={cancelItem.error?.message}
+        onConfirm={confirmCancel}
+        onClose={() => setCancelTarget(null)}
+      />
 
       <Card>
         <CardHeader>
