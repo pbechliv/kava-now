@@ -53,7 +53,11 @@ ENV GOOGLE_CLIENT_ID=$GOOGLE_CLIENT_ID \
     SENTRY_DSN_WEB=$SENTRY_DSN_WEB \
     SENTRY_ENVIRONMENT=$SENTRY_ENVIRONMENT \
     SENTRY_RELEASE=$SENTRY_RELEASE
-RUN pnpm --filter @kava-now/web build
+# The BuildKit secret (build-images.yml `secrets:`) reaches the build env only
+# inside this RUN — never an image layer. Empty/absent → plugin disabled.
+RUN --mount=type=secret,id=sentry_auth_token \
+  SENTRY_AUTH_TOKEN=$(cat /run/secrets/sentry_auth_token 2>/dev/null || true) \
+  pnpm --filter @kava-now/web build
 
 # ---------------------------------------------------------------------------
 # Stage: api-prod-deps — production-only node_modules for API

@@ -1,8 +1,10 @@
 packages:
   - "packages/*"
 allowBuilds:
+  '@sentry/cli': set this to true or false
   esbuild: true
 onlyBuiltDependencies:
+  - "@sentry/cli"
   - esbuild
 catalog:
   vite: npm:@voidzero-dev/vite-plus-core@^0.1.21
