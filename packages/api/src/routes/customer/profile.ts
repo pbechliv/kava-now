@@ -13,6 +13,17 @@ const CUSTOMER_PROFILE_MISSING_RESPONSE = {
   error: "Customer profile not linked to this user",
 } as const;
 
+// Explicit columns: the full row carries internal admin notes, billing/ERP
+// fields, and tenantId — none of the customer's business.
+const PROFILE_COLUMNS = {
+  id: customers.id,
+  name: customers.name,
+  email: customers.email,
+  address: customers.address,
+  phone: customers.phone,
+  contactPerson: customers.contactPerson,
+};
+
 // GET / — return customer record for authenticated user
 profileRouter.get("/", async (c) => {
   const tenantId = c.get("tenantId")!;
@@ -24,7 +35,7 @@ profileRouter.get("/", async (c) => {
 
   // Explicit tenantId filter as defense-in-depth on top of RLS.
   const [customer] = await db
-    .select()
+    .select(PROFILE_COLUMNS)
     .from(customers)
     .where(and(eq(customers.id, customerId), eq(customers.tenantId, tenantId)))
     .limit(1);
@@ -76,7 +87,7 @@ profileRouter.patch("/", async (c) => {
     .update(customers)
     .set(updateData)
     .where(and(eq(customers.id, customerId), eq(customers.tenantId, tenantId)))
-    .returning();
+    .returning(PROFILE_COLUMNS);
 
   if (!updated) {
     return c.json({ error: "Customer not found" }, 404);

@@ -1,19 +1,31 @@
 import { useQuery, useMutation, useQueryClient, keepPreviousData } from "@tanstack/react-query";
 import { useTenantApi, useTenantSlug } from "./use-tenant-api";
-import type { Order, OrderItem, CreateOrderInput, PaginatedResponse } from "@kava-now/shared";
+import type {
+  Order,
+  OrderItem,
+  OrderStatus,
+  CreateOrderInput,
+  PaginatedResponse,
+} from "@kava-now/shared";
 import { useCartStore } from "../store/cart";
 
 interface OrderSummary {
   id: string;
-  status: string;
+  status: OrderStatus;
   notes: string | null;
   createdAt: string;
   itemCount: number;
   totalAmount: number;
 }
 
-interface OrderDetail extends Order {
-  items: OrderItem[];
+// The customer detail endpoint deliberately omits ERP internals and tenantId,
+// and item rows omit orderId (implied by the URL).
+interface OrderDetail {
+  id: string;
+  status: OrderStatus;
+  notes: string | null;
+  createdAt: string;
+  items: Omit<OrderItem, "orderId">[];
 }
 
 interface CreateOrderResponse {

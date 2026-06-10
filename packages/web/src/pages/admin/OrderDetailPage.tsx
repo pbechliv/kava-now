@@ -49,8 +49,7 @@ import {
 } from "@/lib/hooks/use-admin-orders";
 import { copyToClipboard } from "@/lib/copy";
 import { ERP_STATUS_LABELS, ORDER_STATUS_LABELS, type OrderStatus } from "@kava-now/shared";
-import { AddItemModal } from "./AddItemModal";
-import { ReplaceItemModal } from "./ReplaceItemModal";
+import { OrderItemDialog } from "@/components/admin/OrderItemDialog";
 
 const ALLOWED_TRANSITIONS: Record<OrderStatus, OrderStatus[]> = {
   pending: ["confirmed", "cancelled"],
@@ -549,9 +548,12 @@ export function OrderDetailPage() {
         </Card>
       </div>
 
-      {id && <AddItemModal open={showAdd} orderId={id} onClose={() => setShowAdd(false)} />}
+      {id && (
+        <OrderItemDialog mode="add" open={showAdd} orderId={id} onClose={() => setShowAdd(false)} />
+      )}
       {id && replaceTarget && (
-        <ReplaceItemModal
+        <OrderItemDialog
+          mode="replace"
           open={!!replaceTarget}
           orderId={id}
           itemId={replaceTarget.id}

@@ -17,7 +17,7 @@ import { Spinner } from "@/components/spinner";
 import { EmptyState } from "@/components/empty-state";
 import { PaginationControls } from "@/components/PaginationControls";
 import { useCustomers, useDeleteCustomer } from "@/lib/hooks/use-customers";
-import { CustomerFormModal } from "./CustomerFormModal";
+import { CustomerFormModal } from "@/components/admin/CustomerFormModal";
 
 const PAGE_SIZE = 50;
 

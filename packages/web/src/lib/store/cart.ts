@@ -10,7 +10,8 @@ export interface CatalogProduct {
   imageUrl: string | null;
   unit: ProductUnit;
   volumeMl: number | null;
-  alcoholPct: number | null;
+  // numeric column — serialized as a string by the API
+  alcoholPct: string | null;
   categoryId: string | null;
   categoryName: string | null;
   resolvedPrice: number;

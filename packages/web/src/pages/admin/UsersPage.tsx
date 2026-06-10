@@ -1,7 +1,8 @@
 import { useState } from "react";
 import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
 import { Loader2 } from "lucide-react";
-import { ROLE_LABELS } from "@kava-now/shared";
+import { ROLE_LABELS, inviteStaffUserSchema } from "@kava-now/shared";
 import {
   useUsers,
   useInviteUser,
@@ -56,7 +57,10 @@ export function UsersPage() {
     message: string;
   } | null>(null);
 
-  const form = useForm<InviteUserInput>({ defaultValues: { role: "staff", name: "", email: "" } });
+  const form = useForm<InviteUserInput>({
+    resolver: zodResolver(inviteStaffUserSchema),
+    defaultValues: { role: "staff", name: "", email: "" },
+  });
 
   const onInvite = (input: InviteUserInput) => {
     invite.mutate(input, {
@@ -242,7 +246,6 @@ export function UsersPage() {
               <FormField
                 control={form.control}
                 name="name"
-                rules={{ required: "Υποχρεωτικό" }}
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Όνομα</FormLabel>
@@ -256,7 +259,6 @@ export function UsersPage() {
               <FormField
                 control={form.control}
                 name="email"
-                rules={{ required: "Υποχρεωτικό" }}
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Email</FormLabel>

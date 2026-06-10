@@ -283,10 +283,13 @@ suite("admin order mutations (HTTP, hard lock + soft-cancel totals)", () => {
     expect(delCustomer.status).toBe(400);
     expect((await delCustomer.json()).code).toBe("CUSTOMER_HAS_ORDERS");
 
-    // Referenced product is deactivated, never hard-deleted.
+    // Referenced product is deactivated, never hard-deleted — the response
+    // carries the (now inactive) product alongside the success flag.
     const delProduct = await api(`/products/${p1}`, { method: "DELETE" });
     expect(delProduct.status).toBe(200);
-    expect((await delProduct.json()).message).toBe("Product deactivated");
+    const delBody = await delProduct.json();
+    expect(delBody.success).toBe(true);
+    expect(delBody.product.active).toBe(false);
 
     // DB-level backstop (the race path): a raw delete is refused by the
     // deferred FK at commit instead of cascading the order history away.

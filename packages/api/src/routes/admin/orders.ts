@@ -219,7 +219,7 @@ ordersRouter.put("/:id/status", async (c) => {
   const body = await c.req.json();
   const parsedStatus = updateOrderStatusSchema.safeParse(body);
   if (!parsedStatus.success) {
-    return c.json({ error: "Invalid status", code: API_ERROR_CODES.ORDER_INVALID_STATUS }, 400);
+    return c.json({ error: parsedStatus.error.flatten().fieldErrors }, 400);
   }
   const newStatus: OrderStatus = parsedStatus.data.status;
 

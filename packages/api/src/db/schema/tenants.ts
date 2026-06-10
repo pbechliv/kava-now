@@ -11,4 +11,8 @@ export const tenants = pgTable("tenants", {
   notificationEmails: text("notification_emails").array().notNull().default([]),
   settings: jsonb("settings").notNull().default({}),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true })
+    .notNull()
+    .defaultNow()
+    .$onUpdate(() => new Date()),
 });

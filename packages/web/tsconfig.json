@@ -4,8 +4,6 @@
     "jsx": "react-jsx",
     "outDir": "./dist",
     "rootDir": "./src",
-    "noUnusedLocals": false,
-    "noUnusedParameters": false,
     "declaration": false,
     "declarationMap": false,
     "paths": {

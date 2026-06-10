@@ -5,16 +5,16 @@ daily Hetzner VM snapshots (`backups = true` in Terraform).
 
 ## What runs
 
-| When | What | How it got there |
-| --- | --- | --- |
-| Nightly 02:17 UTC | `/srv/kavanow/backup.sh nightly` | cron in the `deploy` user's crontab, installed idempotently by every deploy |
-| Before every migration | `backup.sh pre-migrate-<sha7>` | step in `deploy.yml` — a failed backup **blocks** the migration |
+| When                   | What                             | How it got there                                                            |
+| ---------------------- | -------------------------------- | --------------------------------------------------------------------------- |
+| Nightly 02:17 UTC      | `/srv/kavanow/backup.sh nightly` | cron in the `deploy` user's crontab, installed idempotently by every deploy |
+| Before every migration | `backup.sh pre-migrate-<sha7>`   | step in `deploy.yml` — a failed backup **blocks** the migration             |
 
 - Dumps: `/srv/kavanow/backups/kavanow-<label>-<utc-stamp>.dump` (`pg_dump -Fc`)
 - Retention: 14 days, pruned by the script itself
 - Log: `/srv/kavanow/backups/backup.log`
 - The daily Hetzner VM snapshot (7 retained) includes the backups directory,
-  so every snapshot carries a *consistent logical dump* at most 24 h old —
+  so every snapshot carries a _consistent logical dump_ at most 24 h old —
   restoring no longer depends on WAL crash recovery of a live data volume.
   True offsite storage (Storage Box / S3) is a follow-up; see issue #44.
 

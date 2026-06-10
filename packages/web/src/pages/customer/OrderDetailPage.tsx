@@ -11,15 +11,16 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { ErrorBanner } from "@/components/error-banner";
+import { Spinner } from "@/components/spinner";
 import { OrderStatusBadge } from "@/components/order-status-badge";
 import { useCustomerOrder, useReorder } from "@/lib/hooks/use-customer-orders";
-import type { OrderStatus } from "@kava-now/shared";
 
 export function OrderDetailPage() {
   const { id, slug } = useParams<{ id: string; slug: string }>();
   const navigate = useNavigate();
   const base = `/k/${slug}`;
-  const { data: order, isLoading } = useCustomerOrder(id);
+  const { data: order, isLoading, error } = useCustomerOrder(id);
   const reorder = useReorder(id || "");
 
   const handleReorder = () => {
@@ -31,7 +32,15 @@ export function OrderDetailPage() {
   };
 
   if (isLoading) {
-    return <div className="py-8 text-center text-sm text-muted-foreground">Φόρτωση...</div>;
+    return (
+      <div className="flex justify-center py-12">
+        <Spinner />
+      </div>
+    );
+  }
+
+  if (error) {
+    return <ErrorBanner message={error.message} />;
   }
 
   if (!order) {
@@ -73,7 +82,7 @@ export function OrderDetailPage() {
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-3">
-          <OrderStatusBadge status={order.status as OrderStatus} />
+          <OrderStatusBadge status={order.status} />
           <Button onClick={handleReorder} disabled={reorder.isPending}>
             {reorder.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
             {reorder.isPending ? "Δημιουργία..." : "Επαναπαραγγελία"}

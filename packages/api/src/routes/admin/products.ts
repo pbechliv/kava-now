@@ -120,6 +120,7 @@ productsRouter.get("/", async (c) => {
       alcoholPct: products.alcoholPct,
       active: products.active,
       createdAt: products.createdAt,
+      updatedAt: products.updatedAt,
       categoryName: categories.name,
     })
     .from(products)
@@ -382,6 +383,7 @@ productsRouter.get("/:id", async (c) => {
       alcoholPct: products.alcoholPct,
       active: products.active,
       createdAt: products.createdAt,
+      updatedAt: products.updatedAt,
       categoryName: categories.name,
     })
     .from(products)
@@ -459,7 +461,7 @@ productsRouter.delete("/:id", async (c) => {
       return c.json({ error: "Product not found" }, 404);
     }
 
-    return c.json({ message: "Product deactivated", product });
+    return c.json({ success: true, product });
   };
 
   // Check if product has order items (friendly path; the no-action FK is the
@@ -490,7 +492,7 @@ productsRouter.delete("/:id", async (c) => {
       return c.json({ error: "Product not found" }, 404);
     }
 
-    return c.json({ message: "Product deleted" });
+    return c.json({ success: true });
   } catch (err) {
     if (isForeignKeyViolation(err, FK_CONSTRAINTS.orderItemProduct)) {
       // Lost the race: an order item appeared since the check — soft-delete.

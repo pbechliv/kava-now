@@ -7,10 +7,12 @@ import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { ChangePasswordCard } from "@/components/auth/ChangePasswordCard";
 import { PushNotificationsCard } from "@/components/PushNotificationsCard";
+import { ErrorBanner } from "@/components/error-banner";
+import { Spinner } from "@/components/spinner";
 import { useProfile, useUpdateProfile } from "@/lib/hooks/use-profile";
 
 export function ProfilePage() {
-  const { data: customer, isLoading } = useProfile();
+  const { data: customer, isLoading, error } = useProfile();
   const updateProfile = useUpdateProfile();
 
   const [phone, setPhone] = useState("");
@@ -44,7 +46,15 @@ export function ProfilePage() {
   };
 
   if (isLoading) {
-    return <div className="py-8 text-center text-sm text-muted-foreground">Φόρτωση...</div>;
+    return (
+      <div className="flex justify-center py-12">
+        <Spinner />
+      </div>
+    );
+  }
+
+  if (error) {
+    return <ErrorBanner message={error.message} />;
   }
 
   if (!customer) {

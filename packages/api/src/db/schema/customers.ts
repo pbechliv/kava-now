@@ -21,6 +21,10 @@ export const customers = pgTable(
     billingAddress: text("billing_address"),
     erpRef: text("erp_ref"),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow()
+      .$onUpdate(() => new Date()),
   },
   (table) => [
     uniqueIndex("customers_tenant_erp_ref_idx")

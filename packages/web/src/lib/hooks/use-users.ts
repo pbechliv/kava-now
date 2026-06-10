@@ -1,5 +1,8 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useTenantApi, useTenantSlug } from "./use-tenant-api";
+import type { InviteStaffUserInput } from "@kava-now/shared";
+
+export type InviteUserInput = InviteStaffUserInput;
 
 export interface TenantUser {
   id: string;
@@ -15,12 +18,6 @@ export interface TenantUser {
 
 interface UsersResponse {
   users: TenantUser[];
-}
-
-export interface InviteUserInput {
-  email: string;
-  name: string;
-  role: "staff";
 }
 
 export function useUsers() {

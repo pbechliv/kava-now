@@ -1,4 +1,6 @@
-// TypeScript interfaces matching DB schema (camelCase)
+// TypeScript interfaces matching DB schema (camelCase).
+// Postgres `numeric` columns (prices, percentages) serialize as strings
+// through postgres-js — model them as `string` and convert at the edge.
 
 export type MembershipRole = "owner" | "staff" | "customer";
 export type OrderStatus = "pending" | "confirmed" | "shipped" | "delivered" | "cancelled";
@@ -25,6 +27,7 @@ export interface Category {
   parentId: string | null;
   sortOrder: number;
   createdAt: string;
+  updatedAt: string;
 }
 
 export interface Product {
@@ -37,12 +40,13 @@ export interface Product {
   imageUrl: string | null;
   sku: string | null;
   erpRef: string | null;
-  basePrice: number;
+  basePrice: string;
   unit: ProductUnit;
   volumeMl: number | null;
-  alcoholPct: number | null;
+  alcoholPct: string | null;
   active: boolean;
   createdAt: string;
+  updatedAt: string;
 }
 
 export interface Customer {
@@ -60,6 +64,7 @@ export interface Customer {
   billingAddress: string | null;
   erpRef: string | null;
   createdAt: string;
+  updatedAt: string;
 }
 
 export interface Order {
@@ -81,7 +86,7 @@ export interface OrderItem {
   productId: string;
   quantity: number;
   originalQuantity: number | null;
-  unitPrice: number;
+  unitPrice: string;
   productName: string;
   status: OrderItemStatus;
   replacedByItemId: string | null;

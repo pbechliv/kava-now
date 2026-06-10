@@ -30,7 +30,7 @@ export function PushNotificationsCard() {
 
   useEffect(() => {
     let cancelled = false;
-    (async () => {
+    void (async () => {
       if (!pushSupported()) {
         if (!cancelled) setState("unsupported");
         return;

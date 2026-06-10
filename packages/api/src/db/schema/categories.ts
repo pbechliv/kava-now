@@ -26,6 +26,10 @@ export const categories = pgTable(
     }),
     sortOrder: integer("sort_order").notNull().default(0),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow()
+      .$onUpdate(() => new Date()),
   },
   (table) => [
     uniqueIndex("categories_tenant_name_lower_idx").on(table.tenantId, sql`lower(${table.name})`),

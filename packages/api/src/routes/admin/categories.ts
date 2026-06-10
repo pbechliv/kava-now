@@ -62,6 +62,7 @@ categoriesRouter.get("/", async (c) => {
       parentId: categories.parentId,
       sortOrder: categories.sortOrder,
       createdAt: categories.createdAt,
+      updatedAt: categories.updatedAt,
       parentName: parentCategory.name,
     })
     .from(categories)
@@ -193,7 +194,7 @@ categoriesRouter.delete("/:id", async (c) => {
     return c.json({ error: "Category not found" }, 404);
   }
 
-  return c.json({ message: "Category deleted" });
+  return c.json({ success: true });
 });
 
 export { categoriesRouter };

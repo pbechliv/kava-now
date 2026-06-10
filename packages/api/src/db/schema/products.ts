@@ -36,6 +36,10 @@ export const products = pgTable(
     alcoholPct: numeric("alcohol_pct", { precision: 4, scale: 1 }),
     active: boolean("active").notNull().default(true),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow()
+      .$onUpdate(() => new Date()),
   },
   (table) => [
     uniqueIndex("products_tenant_name_brand_idx").on(table.tenantId, table.name, table.brand),

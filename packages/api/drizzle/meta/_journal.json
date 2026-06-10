@@ -50,6 +50,13 @@
       "when": 1781070815402,
       "tag": "0006_hot_the_spike",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1781123229342,
+      "tag": "0007_chemical_thor",
+      "breakpoints": true
     }
   ]
 }

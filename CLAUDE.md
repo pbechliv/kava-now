@@ -164,6 +164,10 @@ Drizzle tables ([packages/api/src/db/schema/](packages/api/src/db/schema/)): `te
 
 The `postgres` driver (not `pg`) is used. RLS is enforced at the DB level for tenant-scoped tables (categories, products, customers, customer_brand_pricing, orders, order_items) via the `app.current_tenant_id` session variable set by `tenantMiddleware`. `users` and `tenant_memberships` are global — tenant scoping for those is enforced in application code via `requireRole`.
 
+**`order_items` has no `tenant_id` column** — its RLS policy scopes indirectly through the parent order (`order_id IN (SELECT id FROM orders WHERE tenant_id = ...)`). Application queries against `order_items` must always join/filter through `orders`; there is no column to filter on directly.
+
+Postgres `numeric` columns (`basePrice`, `unitPrice`, `alcoholPct`, `discountPct`) serialize as **strings** through postgres-js — the shared types model them as `string` and the web converts with `Number(...)` at display/calculation sites.
+
 ### Orders + ERP transmission
 
 `erp_status` (`pending | transmitted`) on `orders` is **orthogonal** to fulfillment `status` — an order can be `delivered` and `transmitted` independently. Transmission is recorded via `PATCH /api/k/:slug/admin/orders/:id/erp` with the AADE MARK; the endpoint is one-shot (409 on retry). `products.erpRef` is the ERP-side code; the name is **intentionally abstract** (not `galaxyCode`) so a future ERP swap doesn't require renaming.

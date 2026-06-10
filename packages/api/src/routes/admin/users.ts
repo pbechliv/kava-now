@@ -1,8 +1,7 @@
 import { Hono } from "hono";
 import { eq, and, ne, sql } from "drizzle-orm";
-import { z } from "zod";
 import { alias } from "drizzle-orm/pg-core";
-import { API_ERROR_CODES } from "@kava-now/shared";
+import { API_ERROR_CODES, inviteStaffUserSchema } from "@kava-now/shared";
 import { db } from "../../db/connection";
 import { accounts, tenantMemberships, users } from "../../db/schema/index";
 import {
@@ -13,14 +12,6 @@ import {
 import type { AppEnv } from "../../types";
 
 const usersRouter = new Hono<AppEnv>();
-
-// Customers are managed via /admin/customers (which provisions the linked
-// customer-user). This endpoint only invites staff.
-const inviteSchema = z.object({
-  email: z.email("Μη έγκυρο email"),
-  name: z.string().min(2, "Το όνομα πρέπει να έχει τουλάχιστον 2 χαρακτήρες"),
-  role: z.enum(["staff"], { error: "Επιλέξτε ρόλο" }),
-});
 
 // GET / — list users with a non-customer membership in this tenant (owners + staff)
 usersRouter.get("/", async (c) => {
@@ -53,7 +44,7 @@ usersRouter.post("/invite", async (c) => {
   const tenantId = c.get("tenantId")!;
   const inviter = c.get("user")!;
   const body = await c.req.json();
-  const parsed = inviteSchema.safeParse(body);
+  const parsed = inviteStaffUserSchema.safeParse(body);
 
   if (!parsed.success) {
     return c.json({ error: parsed.error.flatten().fieldErrors }, 400);

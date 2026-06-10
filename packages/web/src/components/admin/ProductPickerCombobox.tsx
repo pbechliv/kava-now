@@ -7,7 +7,8 @@ export interface ProductPickerValue {
   id: string;
   name: string;
   brand: string;
-  basePrice: number;
+  // numeric column — serialized as a string by the API
+  basePrice: string;
 }
 
 interface Props {

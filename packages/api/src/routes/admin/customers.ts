@@ -1,11 +1,11 @@
 import { Hono } from "hono";
 import { eq, and, ilike, or, sql } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
-import { z } from "zod";
 import {
   createCustomerSchema,
   updateCustomerSchema,
   updateCustomerBrandPricingSchema,
+  inviteCustomerUserSchema,
   paginationQuerySchema,
   API_ERROR_CODES,
 } from "@kava-now/shared";
@@ -97,6 +97,7 @@ customersRouter.get("/", async (c) => {
       billingAddress: customers.billingAddress,
       erpRef: customers.erpRef,
       createdAt: customers.createdAt,
+      updatedAt: customers.updatedAt,
     })
     .from(customers)
     .where(whereClause)
@@ -184,6 +185,7 @@ customersRouter.get("/:id", async (c) => {
       billingAddress: customers.billingAddress,
       erpRef: customers.erpRef,
       createdAt: customers.createdAt,
+      updatedAt: customers.updatedAt,
     })
     .from(customers)
     .where(and(eq(customers.id, id), eq(customers.tenantId, tenantId)))
@@ -266,7 +268,7 @@ customersRouter.delete("/:id", async (c) => {
       return c.json({ error: "Customer not found" }, 404);
     }
 
-    return c.json({ message: "Customer deleted" });
+    return c.json({ success: true });
   } catch (err) {
     if (isForeignKeyViolation(err, FK_CONSTRAINTS.orderCustomer)) {
       return c.json(
@@ -357,7 +359,7 @@ customersRouter.put("/:id/brand-pricing", async (c) => {
     );
   }
 
-  return c.json({ message: "Pricing updated" });
+  return c.json({ success: true });
 });
 
 // GET /:id/users — list users linked to a customer in this tenant
@@ -408,11 +410,6 @@ customersRouter.post("/:customerId/users/:userId/resend-invite", async (c) => {
     return c.json({ code: result.code, error: result.error }, result.status);
   }
   return c.json({ success: true });
-});
-
-const inviteCustomerUserSchema = z.object({
-  email: z.email("Μη έγκυρο email"),
-  name: z.string().min(2, "Το όνομα πρέπει να έχει τουλάχιστον 2 χαρακτήρες"),
 });
 
 // POST /:id/users/invite — add another user account to an existing customer

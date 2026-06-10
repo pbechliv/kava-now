@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient, keepPreviousData } from "@tanstack/react-query";
 import { useTenantApi, useTenantSlug } from "./use-tenant-api";
-import type { ErpStatus, OrderItemStatus, OrderStatus, PaginatedResponse } from "@kava-now/shared";
+import type { ErpStatus, OrderItem, OrderStatus, PaginatedResponse } from "@kava-now/shared";
 
 interface OrderFilters {
   status?: OrderStatus;
@@ -48,18 +48,12 @@ export interface AdminOrderDetail {
   total: number;
 }
 
-export interface AdminOrderItem {
-  id: string;
-  productId: string;
-  productName: string;
-  quantity: number;
-  originalQuantity: number | null;
-  unitPrice: string;
-  status: OrderItemStatus;
-  replacedByItemId: string | null;
+// The admin detail endpoint omits orderId (implied by the URL) and joins in
+// the product's sku/erpRef.
+export type AdminOrderItem = Omit<OrderItem, "orderId"> & {
   sku: string | null;
   erpRef: string | null;
-}
+};
 
 export function useAdminOrders(filters?: OrderFilters) {
   const slug = useTenantSlug();

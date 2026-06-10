@@ -40,6 +40,7 @@ const envSchema = z.object({
   VAPID_PUBLIC_KEY: z.string().optional(),
   VAPID_PRIVATE_KEY: z.string().optional(),
   VAPID_SUBJECT: z.string().optional(),
+  APP_VERSION: z.string().optional(),
 });
 
 const parsed = envSchema.safeParse(emptyToUndefined);
@@ -134,5 +135,8 @@ export const config = {
     clientSecret: env.GOOGLE_CLIENT_SECRET || "",
     enabled: !!env.GOOGLE_CLIENT_ID && !!env.GOOGLE_CLIENT_SECRET,
   },
+  // Deployed git SHA (set by the image build); surfaced by /api/health so the
+  // deploy script can verify which revision is actually serving traffic.
+  appVersion: env.APP_VERSION || "dev",
   isDev,
 } as const;

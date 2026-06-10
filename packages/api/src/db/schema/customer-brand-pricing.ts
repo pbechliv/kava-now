@@ -1,4 +1,13 @@
-import { pgTable, uuid, text, numeric, primaryKey, index, foreignKey } from "drizzle-orm/pg-core";
+import {
+  pgTable,
+  uuid,
+  text,
+  numeric,
+  timestamp,
+  primaryKey,
+  index,
+  foreignKey,
+} from "drizzle-orm/pg-core";
 import { tenants } from "./tenants";
 import { customers } from "./customers";
 
@@ -14,6 +23,11 @@ export const customerBrandPricing = pgTable(
     customerId: uuid("customer_id").notNull(),
     brand: text("brand").notNull(),
     discountPct: numeric("discount_pct", { precision: 5, scale: 2 }).notNull().default("0"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow()
+      .$onUpdate(() => new Date()),
   },
   (table) => [
     primaryKey({ columns: [table.customerId, table.brand] }),

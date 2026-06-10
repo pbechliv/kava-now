@@ -14,6 +14,8 @@ import {
 } from "@/components/ui/table";
 import { cn } from "@/lib/utils";
 import { useDebouncedValue } from "@/lib/hooks/use-debounced-value";
+import { ErrorBanner } from "@/components/error-banner";
+import { Spinner } from "@/components/spinner";
 import { PaginationControls } from "@/components/PaginationControls";
 import { useCatalog, useCatalogCategories } from "@/lib/hooks/use-catalog";
 import { useCartStore } from "@/lib/store/cart";
@@ -36,7 +38,7 @@ export function CatalogPage() {
     setPage(1);
   };
 
-  const { data, isLoading } = useCatalog({
+  const { data, isLoading, error } = useCatalog({
     categoryId: selectedCategory || undefined,
     search: debouncedSearch || undefined,
     page,
@@ -47,7 +49,7 @@ export function CatalogPage() {
 
   // Chips come from a dedicated endpoint — deriving them from the current
   // page of results made chips vanish under filters/search (#58).
-  const { data: categories = [] } = useCatalogCategories();
+  const { data: categories = [], error: categoriesError } = useCatalogCategories();
 
   const handleSearchChange = (value: string) => {
     setSearch(value);
@@ -93,9 +95,14 @@ export function CatalogPage() {
           />
         ))}
       </div>
+      {categoriesError && <p className="text-sm text-destructive">Σφάλμα φόρτωσης κατηγοριών</p>}
 
       {isLoading ? (
-        <div className="text-center text-sm text-muted-foreground">Φόρτωση...</div>
+        <div className="flex justify-center py-12">
+          <Spinner />
+        </div>
+      ) : error ? (
+        <ErrorBanner message={error.message} />
       ) : products.length === 0 ? (
         <div className="text-center text-sm text-muted-foreground">Δεν βρέθηκαν προϊόντα.</div>
       ) : (

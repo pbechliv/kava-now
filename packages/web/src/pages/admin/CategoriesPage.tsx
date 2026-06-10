@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Loader2 } from "lucide-react";
+import { createCategorySchema } from "@kava-now/shared";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -21,6 +22,7 @@ import {
 } from "@/components/ui/table";
 import { Spinner } from "@/components/spinner";
 import { EmptyState } from "@/components/empty-state";
+import { ErrorBanner } from "@/components/error-banner";
 import {
   useCategories,
   useCreateCategory,
@@ -44,22 +46,23 @@ export function CategoriesPage() {
 
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
-    const trimmed = newName.trim();
-    if (!trimmed) {
-      setNewNameError("Συμπληρώστε το όνομα της κατηγορίας");
+    // Same shared schema the API validates with — one source of rules.
+    const parsed = createCategorySchema.safeParse({
+      name: newName.trim(),
+      parentId: newParentId || null,
+    });
+    if (!parsed.success) {
+      setNewNameError(parsed.error.issues[0]?.message ?? "Μη έγκυρα στοιχεία");
       return;
     }
     setNewNameError("");
 
-    createMutation.mutate(
-      { name: trimmed, parentId: newParentId || null },
-      {
-        onSuccess: () => {
-          setNewName("");
-          setNewParentId("");
-        },
+    createMutation.mutate(parsed.data, {
+      onSuccess: () => {
+        setNewName("");
+        setNewParentId("");
       },
-    );
+    });
   };
 
   const startEdit = (cat: {
@@ -141,11 +144,7 @@ export function CategoriesPage() {
         </form>
       </Card>
 
-      {deleteMutation.error && (
-        <div className="rounded-lg border border-destructive/50 bg-destructive/10 px-4 py-3 text-sm text-destructive">
-          {deleteMutation.error.message}
-        </div>
-      )}
+      {deleteMutation.error && <ErrorBanner message={deleteMutation.error.message} />}
 
       {isLoading ? (
         <div className="flex justify-center py-12">

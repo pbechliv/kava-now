@@ -114,7 +114,7 @@ The repo already supports Google OAuth via better-auth — the web SPA renders t
 
 - Sign up at [betterstack.com/uptime](https://betterstack.com/uptime) (free tier: 10 monitors, 3-min interval).
 - Create one HTTP(S) monitor: `https://kavanow.gr/api/health`, expect 200, alert via email.
-- Works against the public URL even with Cloudflare Bot Fight Mode on: BFM exempts **verified bots** by default, and Better Stack's monitor is on Cloudflare's verified-bots list. No workaround needed. (Contrast the CI smoke test, which probes the origin directly — a GitHub runner running bare `curl` is *unverified* automated traffic, so BFM 403s it. Verification is by reverse-DNS/IP ownership, not a User-Agent header.)
+- Works against the public URL even with Cloudflare Bot Fight Mode on: BFM exempts **verified bots** by default, and Better Stack's monitor is on Cloudflare's verified-bots list. No workaround needed. (Contrast the CI smoke test, which probes the origin directly — a GitHub runner running bare `curl` is _unverified_ automated traffic, so BFM 403s it. Verification is by reverse-DNS/IP ownership, not a User-Agent header.)
 - No heartbeat monitor is needed while backups are Hetzner-managed snapshots only. Use a calendar reminder for the quarterly restore drill.
 
 ### 1.9 GitHub repo prep
@@ -148,6 +148,7 @@ Create an **ed25519 SSH key in 1Password** (New Item → SSH Key → Generate) n
      ```
 
      `?ssh-format=openssh` matters — without it `op` returns PKCS#8, and CI ssh-agent setups expect OpenSSH format.
+
 - If 1Password holds more than ~5 keys, `Host *` offers all of them and servers may reject with `Too many authentication failures`. Fix by pinning: save the public key to `~/.ssh/kavanow_deploy.pub` and add a host block with `IdentityFile ~/.ssh/kavanow_deploy.pub` + `IdentitiesOnly yes`.
 
 ### 1.11 Pre-generate production secrets (on your laptop, never on the VM)
@@ -731,13 +732,13 @@ concurrency:
 
 This prevents deploy and migrate from interleaving.
 
-| Workflow           | Trigger                 | Purpose                                                                                                                                         | Env gate         |
-| ------------------ | ----------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------- | ---------------- |
-| `ci.yml`           | PR + non-main push      | typecheck, lint, fmt:check, build                                                                                                               | none             |
-| `build-images.yml` | `workflow_call`         | Build + push `kava-now-api`, `kava-now-api-jobs`, and `kava-now-caddy` to GHCR with `<sha>` + `latest` tags. Sourcemap upload to Sentry inline. | none             |
-| `provision.yml`    | manual                  | `terraform plan` / `apply` + VM bootstrap job (TLS cert, `.env.production`)                                                                     | `infrastructure` |
-| `deploy.yml`       | push to `main` + manual | calls build-images, scp compose+Caddyfile, ssh `--profile jobs pull` + `api-jobs` migrate + app up, smoke test                                  | `production`     |
-| `migrate.yml`      | manual                  | runs `pnpm db:migrate` through `api-jobs` on VM without rebuilding                                                                              | `production`     |
+| Workflow           | Trigger                 | Purpose                                                                                                                                                                                                                                                 | Env gate         |
+| ------------------ | ----------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------- |
+| `ci.yml`           | PR + non-main push      | typecheck, lint, fmt:check, build                                                                                                                                                                                                                       | none             |
+| `build-images.yml` | `workflow_call`         | Build + push `kava-now-api`, `kava-now-api-jobs`, and `kava-now-caddy` to GHCR with `<sha>` + `latest` tags. Sourcemap upload to Sentry inline.                                                                                                         | none             |
+| `provision.yml`    | manual                  | `terraform plan` / `apply` + VM bootstrap job (TLS cert, `.env.production`)                                                                                                                                                                             | `infrastructure` |
+| `deploy.yml`       | push to `main` + manual | calls build-images, scp compose+Caddyfile, ssh `--profile jobs pull` + `api-jobs` migrate + app up, smoke test                                                                                                                                          | `production`     |
+| `migrate.yml`      | manual                  | runs `pnpm db:migrate` through `api-jobs` on VM without rebuilding                                                                                                                                                                                      | `production`     |
 | `smoke-test.yml`   | `workflow_call`         | curl `/api/health`, `/`, TLS expiry — probes the **origin directly** (`--resolve` + `-k`) via the `origin_ip` secret, since CF Bot Fight Mode 403s unverified automated traffic (a GH runner's bare `curl`; verified bots like Better Stack are exempt) | none             |
 
 Repo secrets to populate (Settings → Secrets and variables → Actions). This is the exact set the workflows reference:

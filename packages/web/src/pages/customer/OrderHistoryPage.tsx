@@ -4,10 +4,11 @@ import { useTenantSlug } from "@/lib/hooks/use-tenant-api";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { EmptyState } from "@/components/empty-state";
+import { ErrorBanner } from "@/components/error-banner";
+import { Spinner } from "@/components/spinner";
 import { OrderStatusBadge } from "@/components/order-status-badge";
 import { PaginationControls } from "@/components/PaginationControls";
 import { useCustomerOrders } from "@/lib/hooks/use-customer-orders";
-import type { OrderStatus } from "@kava-now/shared";
 
 const PAGE_SIZE = 50;
 
@@ -16,7 +17,7 @@ export function OrderHistoryPage() {
   const slug = useTenantSlug();
   const base = `/k/${slug}`;
   const [page, setPage] = useState(1);
-  const { data, isLoading } = useCustomerOrders({ page, pageSize: PAGE_SIZE });
+  const { data, isLoading, error } = useCustomerOrders({ page, pageSize: PAGE_SIZE });
   const orders = data?.data ?? [];
   const total = data?.total ?? 0;
 
@@ -25,7 +26,11 @@ export function OrderHistoryPage() {
       <h1 className="text-2xl font-bold tracking-tight">Ιστορικό Παραγγελιών</h1>
 
       {isLoading ? (
-        <div className="text-center text-sm text-muted-foreground">Φόρτωση...</div>
+        <div className="flex justify-center py-12">
+          <Spinner />
+        </div>
+      ) : error ? (
+        <ErrorBanner message={error.message} />
       ) : orders.length === 0 ? (
         <EmptyState
           message="Δεν υπάρχουν παραγγελίες"
@@ -41,7 +46,7 @@ export function OrderHistoryPage() {
                   <div className="space-y-1">
                     <div className="flex flex-wrap items-center gap-2">
                       <span className="text-sm font-medium">#{order.id.slice(0, 8)}</span>
-                      <OrderStatusBadge status={order.status as OrderStatus} />
+                      <OrderStatusBadge status={order.status} />
                     </div>
                     <div className="text-sm text-muted-foreground">
                       {new Date(order.createdAt).toLocaleDateString("el-GR", {

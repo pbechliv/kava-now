@@ -1,7 +1,9 @@
 import { useState } from "react";
 import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
 import { Link, useParams } from "react-router";
 import { ArrowLeft, Loader2 } from "lucide-react";
+import { inviteCustomerUserSchema } from "@kava-now/shared";
 import {
   useCustomerUsers,
   useInviteCustomerUser,
@@ -55,7 +57,10 @@ export function CustomerUsersPage() {
     message: string;
   } | null>(null);
 
-  const form = useForm<InviteCustomerUserInput>({ defaultValues: { name: "", email: "" } });
+  const form = useForm<InviteCustomerUserInput>({
+    resolver: zodResolver(inviteCustomerUserSchema),
+    defaultValues: { name: "", email: "" },
+  });
 
   const handleResend = (userId: string) => {
     resend.mutate(userId, {
@@ -230,7 +235,6 @@ export function CustomerUsersPage() {
               <FormField
                 control={form.control}
                 name="name"
-                rules={{ required: "Υποχρεωτικό" }}
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Όνομα</FormLabel>
@@ -244,7 +248,6 @@ export function CustomerUsersPage() {
               <FormField
                 control={form.control}
                 name="email"
-                rules={{ required: "Υποχρεωτικό" }}
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Email</FormLabel>

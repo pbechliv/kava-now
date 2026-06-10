@@ -9,6 +9,7 @@ export * from "./schemas/customer-brand-pricing";
 export * from "./schemas/tenant-settings";
 export * from "./schemas/orders";
 export * from "./schemas/pagination";
+export * from "./schemas/users";
 export * from "./types";
 export * from "./constants";
 export * from "./errors";

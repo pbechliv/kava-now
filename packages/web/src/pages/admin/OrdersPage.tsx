@@ -19,7 +19,10 @@ import { EmptyState } from "@/components/empty-state";
 import { OrderStatusBadge } from "@/components/order-status-badge";
 import { PaginationControls } from "@/components/PaginationControls";
 import { useAdminOrders } from "@/lib/hooks/use-admin-orders";
-import { CustomerPickerCombobox, type CustomerPickerValue } from "./CustomerPickerCombobox";
+import {
+  CustomerPickerCombobox,
+  type CustomerPickerValue,
+} from "@/components/admin/CustomerPickerCombobox";
 import { ERP_STATUS_LABELS, type OrderStatus } from "@kava-now/shared";
 
 const PAGE_SIZE = 50;

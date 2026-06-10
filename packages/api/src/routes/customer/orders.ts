@@ -16,6 +16,36 @@ import type { AppEnv } from "../../types";
 
 const ordersRouter = new Hono<AppEnv>();
 
+// Post-commit notifications shared by create + reorder (a reorder IS a new
+// order): email to the tenant's notification inbox, push to owner/staff
+// devices (#28). Deferred so a rolled-back order never notifies anyone.
+function queueOrderPlacedNotifications(
+  tenant: { id: string; slug: string; name: string; notificationEmails: string[] },
+  customer: { id: string; name: string; email: string | null },
+  result: {
+    order: { id: string; createdAt: Date; notes: string | null };
+    items: { id: string; productName: string; quantity: number; unitPrice: string }[];
+  },
+): Promise<void> {
+  return afterTenantCommit(async () => {
+    try {
+      await sendOrderNotification(tenant, customer, result.order, result.items);
+    } catch (err) {
+      console.error("[email] Failed to send order notification:", err);
+    }
+    try {
+      const staff = await tenantStaffUserIds(tenant.id);
+      await sendPushToUsers(staff, {
+        title: "Νέα παραγγελία",
+        body: `${customer.name} — ${result.items.length} είδη`,
+        url: `/k/${tenant.slug}/admin/orders/${result.order.id}`,
+      });
+    } catch (err) {
+      console.error("[push] order-placed push failed:", err);
+    }
+  });
+}
+
 // POST / — create order
 ordersRouter.post("/", async (c) => {
   const tenant = c.get("tenant")!;
@@ -139,25 +169,7 @@ ordersRouter.post("/", async (c) => {
     return { order, items: createdItems };
   });
 
-  // Send notification email (fire and forget)
-  sendOrderNotification(tenant, customer, result.order, result.items).catch((err) =>
-    console.error("[email] Failed to send order notification:", err),
-  );
-
-  // Push to owner/staff devices alongside the email (#28) — post-commit so a
-  // rolled-back order never notifies anyone.
-  await afterTenantCommit(async () => {
-    try {
-      const staff = await tenantStaffUserIds(tenant.id);
-      await sendPushToUsers(staff, {
-        title: "Νέα παραγγελία",
-        body: `${customer.name} — ${result.items.length} είδη`,
-        url: `/k/${tenant.slug}/admin/orders/${result.order.id}`,
-      });
-    } catch (err) {
-      console.error("[push] order-placed push failed:", err);
-    }
-  });
+  await queueOrderPlacedNotifications(tenant, customer, result);
 
   return c.json(result, 201);
 });
@@ -406,10 +418,7 @@ ordersRouter.post("/:id/reorder", async (c) => {
     return { order: newOrder, items: createdItems };
   });
 
-  // Send notification email (fire and forget)
-  sendOrderNotification(tenant, customer, result.order, result.items).catch((err) =>
-    console.error("[email] Failed to send order notification:", err),
-  );
+  await queueOrderPlacedNotifications(tenant, customer, result);
 
   return c.json(result, 201);
 });

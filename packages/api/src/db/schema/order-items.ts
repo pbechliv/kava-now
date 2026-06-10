@@ -11,6 +11,10 @@ import { orders } from "./orders";
 import { products } from "./products";
 import { orderItemStatusEnum } from "./enums";
 
+// NOTE: order_items has no tenant_id column — unlike every other tenant-scoped
+// table, its RLS policy scopes indirectly via the parent order
+// (order_id IN (SELECT id FROM orders WHERE tenant_id = current_tenant_id())).
+// Queries against order_items must always join/filter through orders.
 export const orderItems = pgTable(
   "order_items",
   {
