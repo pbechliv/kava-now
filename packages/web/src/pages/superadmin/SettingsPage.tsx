@@ -6,6 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ChangePasswordCard } from "@/components/auth/ChangePasswordCard";
+import { PushNotificationsCard } from "@/components/PushNotificationsCard";
 import { useAuth, useUpdateMe } from "@/lib/hooks/use-auth";
 
 type Tab = "profile" | "password";
@@ -23,7 +24,10 @@ export function SuperAdminSettingsPage() {
           <TabsTrigger value="password">Κωδικός</TabsTrigger>
         </TabsList>
         <TabsContent value="profile" className="mt-6">
-          <ProfileTab />
+          <div className="max-w-2xl space-y-6">
+            <ProfileTab />
+            <PushNotificationsCard />
+          </div>
         </TabsContent>
         <TabsContent value="password" className="mt-6">
           <ChangePasswordCard />

@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Spinner } from "@/components/spinner";
 import { ChangePasswordCard } from "@/components/auth/ChangePasswordCard";
+import { PushNotificationsCard } from "@/components/PushNotificationsCard";
 import { useSettings, useUpdateSettings } from "@/lib/hooks/use-settings";
 import { useAuth, useUpdateMe } from "@/lib/hooks/use-auth";
 
@@ -30,7 +31,10 @@ export function SettingsPage() {
           <TenantSettingsTab />
         </TabsContent>
         <TabsContent value="profile" className="mt-6">
-          <ProfileTab />
+          <div className="max-w-2xl space-y-6">
+            <ProfileTab />
+            <PushNotificationsCard />
+          </div>
         </TabsContent>
         <TabsContent value="password" className="mt-6">
           <ChangePasswordCard />

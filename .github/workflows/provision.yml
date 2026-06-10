@@ -160,6 +160,8 @@ jobs:
           SENTRY_DSN_WEB: ${{ secrets.SENTRY_DSN_WEB }}
           GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}
           GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
+          VAPID_PUBLIC_KEY: ${{ secrets.VAPID_PUBLIC_KEY }}
+          VAPID_PRIVATE_KEY: ${{ secrets.VAPID_PRIVATE_KEY }}
         run: |
           umask 077
           cat > envfile <<EOF
@@ -191,6 +193,10 @@ jobs:
 
           GOOGLE_CLIENT_ID=$GOOGLE_CLIENT_ID
           GOOGLE_CLIENT_SECRET=$GOOGLE_CLIENT_SECRET
+
+          VAPID_PUBLIC_KEY=$VAPID_PUBLIC_KEY
+          VAPID_PRIVATE_KEY=$VAPID_PRIVATE_KEY
+          VAPID_SUBJECT=mailto:ops@kavanow.gr
 
           IMAGE_TAG=latest
           EOF

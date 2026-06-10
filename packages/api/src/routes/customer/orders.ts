@@ -1,7 +1,7 @@
 import { Hono } from "hono";
 import { eq, and, desc, sql, inArray } from "drizzle-orm";
 import { createOrderSchema, paginationQuerySchema, API_ERROR_CODES } from "@kava-now/shared";
-import { db } from "../../db/connection";
+import { afterTenantCommit, db } from "../../db/connection";
 import {
   orders,
   orderItems,
@@ -11,6 +11,7 @@ import {
 } from "../../db/schema/index";
 import { resolvePrice } from "../../services/pricing";
 import { sendOrderNotification } from "../../services/email";
+import { sendPushToUsers, tenantStaffUserIds } from "../../services/push";
 import type { AppEnv } from "../../types";
 
 const ordersRouter = new Hono<AppEnv>();
@@ -142,6 +143,21 @@ ordersRouter.post("/", async (c) => {
   sendOrderNotification(tenant, customer, result.order, result.items).catch((err) =>
     console.error("[email] Failed to send order notification:", err),
   );
+
+  // Push to owner/staff devices alongside the email (#28) — post-commit so a
+  // rolled-back order never notifies anyone.
+  await afterTenantCommit(async () => {
+    try {
+      const staff = await tenantStaffUserIds(tenant.id);
+      await sendPushToUsers(staff, {
+        title: "Νέα παραγγελία",
+        body: `${customer.name} — ${result.items.length} είδη`,
+        url: `/k/${tenant.slug}/admin/orders/${result.order.id}`,
+      });
+    } catch (err) {
+      console.error("[push] order-placed push failed:", err);
+    }
+  });
 
   return c.json(result, 201);
 });

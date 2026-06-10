@@ -10,6 +10,7 @@ import {
   customerBrandPricing,
 } from "../../db/schema/index";
 import { sendOrderStatusChange } from "../../services/email";
+import { customerUserIds, sendPushToUsers } from "../../services/push";
 import { resolvePrice } from "../../services/pricing";
 import type { AppEnv } from "../../types";
 import {
@@ -18,6 +19,7 @@ import {
   markOrderTransmittedSchema,
   updateOrderStatusSchema,
   ORDER_STATUSES,
+  ORDER_STATUS_LABELS,
   addOrderItemSchema,
   updateOrderItemSchema,
   replaceOrderItemSchema,
@@ -287,6 +289,21 @@ ordersRouter.put("/:id/status", async (c) => {
       }
     });
   }
+
+  // Push to the customer's signed-up users alongside the email (#28).
+  const tenantSlug = c.get("tenant")!.slug;
+  await afterTenantCommit(async () => {
+    try {
+      const recipients = await customerUserIds(tenantId, result.customerId);
+      await sendPushToUsers(recipients, {
+        title: "Ενημέρωση παραγγελίας",
+        body: `Νέα κατάσταση: ${ORDER_STATUS_LABELS[newStatus]}`,
+        url: `/k/${tenantSlug}/orders/${id}`,
+      });
+    } catch (err) {
+      console.error("[push] status-change push failed:", err);
+    }
+  });
 
   return c.json(result.updated);
 });

@@ -4,7 +4,8 @@ import { alias } from "drizzle-orm/pg-core";
 import { z } from "zod";
 import { API_ERROR_CODES, normalizeEmail } from "@kava-now/shared";
 import { db } from "../db/connection";
-import { accounts, tenantMemberships, tenants, users } from "../db/schema/index";
+import { config } from "../config";
+import { accounts, pushSubscriptions, tenantMemberships, tenants, users } from "../db/schema/index";
 import { verifyPassword } from "better-auth/crypto";
 import { auth as betterAuth } from "../auth";
 import { requireAuth } from "../middleware/require-auth";
@@ -175,6 +176,69 @@ auth.patch("/me", requireAuth, async (c) => {
     throw err;
   }
 
+  return c.json({ success: true });
+});
+
+// --- Web Push (#28) ---
+
+const pushSubscribeSchema = z.object({
+  endpoint: z.url(),
+  keys: z.object({ p256dh: z.string().min(1), auth: z.string().min(1) }),
+});
+
+// Public by design: the VAPID public key is not a secret. null → feature off,
+// and the web toggle hides itself.
+auth.get("/push/public-key", (c) =>
+  c.json({ publicKey: config.push.enabled ? config.push.publicKey : null }),
+);
+
+auth.post("/push/subscribe", requireAuth, async (c) => {
+  if (!config.push.enabled) {
+    return c.json({ error: "Push notifications are not configured" }, 503);
+  }
+  const parsed = pushSubscribeSchema.safeParse(await c.req.json());
+  if (!parsed.success) {
+    return c.json({ error: parsed.error.flatten().fieldErrors }, 400);
+  }
+  const user = c.get("user")!;
+
+  // The endpoint is the natural key — a browser re-subscribing (possibly as a
+  // different account on a shared machine) re-binds the row to the new user.
+  await db
+    .insert(pushSubscriptions)
+    .values({
+      userId: user.id,
+      endpoint: parsed.data.endpoint,
+      p256dh: parsed.data.keys.p256dh,
+      auth: parsed.data.keys.auth,
+      userAgent: c.req.header("user-agent") ?? null,
+    })
+    .onConflictDoUpdate({
+      target: pushSubscriptions.endpoint,
+      set: {
+        userId: user.id,
+        p256dh: parsed.data.keys.p256dh,
+        auth: parsed.data.keys.auth,
+      },
+    });
+
+  return c.json({ success: true });
+});
+
+auth.post("/push/unsubscribe", requireAuth, async (c) => {
+  const parsed = z.object({ endpoint: z.url() }).safeParse(await c.req.json());
+  if (!parsed.success) {
+    return c.json({ error: parsed.error.flatten().fieldErrors }, 400);
+  }
+  const user = c.get("user")!;
+  await db
+    .delete(pushSubscriptions)
+    .where(
+      and(
+        eq(pushSubscriptions.endpoint, parsed.data.endpoint),
+        eq(pushSubscriptions.userId, user.id),
+      ),
+    );
   return c.json({ success: true });
 });
 

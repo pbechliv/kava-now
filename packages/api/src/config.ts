@@ -37,6 +37,9 @@ const envSchema = z.object({
   SENTRY_RELEASE: z.string().optional(),
   GOOGLE_CLIENT_ID: z.string().optional(),
   GOOGLE_CLIENT_SECRET: z.string().optional(),
+  VAPID_PUBLIC_KEY: z.string().optional(),
+  VAPID_PRIVATE_KEY: z.string().optional(),
+  VAPID_SUBJECT: z.string().optional(),
 });
 
 const parsed = envSchema.safeParse(emptyToUndefined);
@@ -116,6 +119,15 @@ export const config = {
     environment: env.SENTRY_ENVIRONMENT || (isDev ? "development" : "production"),
     release: env.SENTRY_RELEASE,
     enabled: !!env.SENTRY_DSN_API,
+  },
+  // Web Push (#28). Optional: without keys the feature is disabled end to
+  // end (subscribe endpoint 503s, the web toggle hides itself). Generate a
+  // pair with: pnpm --filter @kava-now/api exec web-push generate-vapid-keys
+  push: {
+    publicKey: env.VAPID_PUBLIC_KEY || "",
+    privateKey: env.VAPID_PRIVATE_KEY || "",
+    subject: env.VAPID_SUBJECT || "mailto:ops@kavanow.gr",
+    enabled: !!env.VAPID_PUBLIC_KEY && !!env.VAPID_PRIVATE_KEY,
   },
   google: {
     clientId: env.GOOGLE_CLIENT_ID || "",

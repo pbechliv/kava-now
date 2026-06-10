@@ -5,6 +5,7 @@ import { isUniqueViolation, UNIQUE_CONSTRAINTS } from "../db/errors";
 import { auth } from "../auth";
 import { config } from "../config";
 import { sendMembershipAdded } from "./email";
+import { sendPushToUsers } from "./push";
 import type { Context } from "hono";
 import type { AppEnv } from "../types";
 import {
@@ -84,14 +85,23 @@ export async function inviteUserToTenant({
   // Emails dispatch after the request transaction commits (#47): sending
   // inside it would hold the pooled connection across SMTP latency, and the
   // invitee would get a mail even if the surrounding request rolled back.
-  const notifyMembershipAdded = () =>
+  const notifyMembershipAdded = (userId: string) =>
     afterTenantCommit(async () => {
-      // Best-effort notification — the membership is already persisted.
+      // Best-effort notifications — the membership is already persisted.
       try {
         const loginUrl = `${config.appOrigin}/k/${tenant.slug}/login`;
         await sendMembershipAdded(email, loginUrl, tenant.name);
       } catch (err) {
         console.error("[invite] Failed to send membership-added notification:", err);
+      }
+      try {
+        await sendPushToUsers([userId], {
+          title: "Νέα πρόσβαση",
+          body: `Αποκτήσατε πρόσβαση στο ${tenant.name}`,
+          url: `/k/${tenant.slug}`,
+        });
+      } catch (err) {
+        console.error("[push] membership-added push failed:", err);
       }
     });
 
@@ -103,7 +113,7 @@ export async function inviteUserToTenant({
 
   if (existingUser) {
     await insertMembershipOrConflict(existingUser.id);
-    await notifyMembershipAdded();
+    await notifyMembershipAdded(existingUser.id);
     return;
   }
 
@@ -128,7 +138,7 @@ export async function inviteUserToTenant({
         .limit(1);
       if (!racedUser) throw err;
       await insertMembershipOrConflict(racedUser.id);
-      await notifyMembershipAdded();
+      await notifyMembershipAdded(racedUser.id);
       return;
     }
     if (isUniqueViolation(err, UNIQUE_CONSTRAINTS.tenantMembership)) {
