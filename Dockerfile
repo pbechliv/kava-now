@@ -78,9 +78,13 @@ COPY packages/api/ packages/api/
 # Same privilege drop as the api target (#67): this container holds the
 # privileged DATABASE_URL — it must not also run as root. /app stays
 # root-owned read-only (a chown -R of dev node_modules would double the
-# layer); pnpm/tsx only need a writable HOME.
+# layer); pnpm/tsx only need a writable HOME. verify-deps-before-run must be
+# off: the registry round-trip resets mtimes, so pnpm 11's pre-run dep check
+# tries to re-`pnpm install` into the read-only /app and EACCESes — the
+# node_modules baked at build time ARE the deps.
 RUN addgroup -S appgroup && adduser -S appuser -G appgroup
-ENV HOME=/tmp
+ENV HOME=/tmp \
+    npm_config_verify_deps_before_run=false
 USER appuser
 CMD ["pnpm", "--filter", "@kava-now/api", "db:migrate"]
 
