@@ -1,11 +1,10 @@
 packages:
   - "packages/*"
+# Build-script approval (pnpm 11 'allowBuilds'): only these packages may run
+# install scripts. @sentry/cli fetches its platform binary; esbuild compiles.
 allowBuilds:
-  '@sentry/cli': set this to true or false
+  "@sentry/cli": true
   esbuild: true
-onlyBuiltDependencies:
-  - "@sentry/cli"
-  - esbuild
 catalog:
   vite: npm:@voidzero-dev/vite-plus-core@^0.1.21
   vitest: npm:@voidzero-dev/vite-plus-test@^0.1.21
