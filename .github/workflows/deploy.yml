@@ -123,6 +123,10 @@ jobs:
           # would swallow the rest of this heredoc — bash -s would then stop here
           # (exit 0) and the commands below would silently never run.
           docker compose --env-file .env.production --profile jobs run --rm api-jobs </dev/null
+          # Seed after migrating (override the image's migrate-only CMD). The
+          # seed is idempotent: existing superadmin / demo tenant are skipped.
+          docker compose --env-file .env.production --profile jobs run --rm api-jobs \
+            ./node_modules/.bin/tsx src/db/seed.ts </dev/null
           docker compose --env-file .env.production up -d api caddy
           # Persist the deployed tag so migrate.yml and manual compose
           # commands on the VM act on the RUNNING version, not :latest (#70).
