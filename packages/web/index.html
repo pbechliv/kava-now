@@ -6,13 +6,9 @@
     <link rel="icon" href="/favicon.ico" sizes="48x48" />
     <link rel="icon" href="/favicon.svg" sizes="any" type="image/svg+xml" />
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
-    <script>
-      // iOS has no native dark-mode icon support for web apps, but it reads
-      // the live DOM when the user taps "Add to Home Screen" — swap the icon
-      // up front so dark-mode users install the dark variant.
-      if (matchMedia("(prefers-color-scheme: dark)").matches)
-        document.querySelector('link[rel="apple-touch-icon"]').href = "/apple-touch-icon-dark.png";
-    </script>
+    <!-- Swaps the touch icon for dark mode; must be an external script — the
+         production CSP has no 'unsafe-inline' for script-src. -->
+    <script src="/icon-scheme.js"></script>
     <link rel="manifest" href="/site.webmanifest" />
     <meta name="theme-color" content="#d97706" />
     <title>KavaNow</title>
