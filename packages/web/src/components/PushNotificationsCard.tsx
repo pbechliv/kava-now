@@ -80,8 +80,10 @@ export function PushNotificationsCard() {
     }
   };
 
-  // Feature off server-side → don't render a dead control at all.
-  if (state === "unconfigured") return null;
+  // Feature off server-side → don't render a dead control at all. Also stay
+  // hidden while probing: flashing the card and then yanking it (when the
+  // probe lands on "unconfigured") reads as a glitch — a late pop-in doesn't.
+  if (state === "loading" || state === "unconfigured") return null;
 
   return (
     <Card>
@@ -104,11 +106,11 @@ export function PushNotificationsCard() {
           <Button
             type="button"
             variant={state === "on" ? "outline" : "default"}
-            disabled={busy || state === "loading"}
+            disabled={busy}
             aria-pressed={state === "on"}
             onClick={() => void toggle()}
           >
-            {(busy || state === "loading") && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+            {busy && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
             {state === "on" ? "Απενεργοποίηση σε αυτή τη συσκευή" : "Ενεργοποίηση ειδοποιήσεων"}
           </Button>
         )}
