@@ -184,9 +184,6 @@ jobs:
 
           SUPERADMIN_EMAIL=$SUPERADMIN_EMAIL
           SUPERADMIN_PASSWORD=$SUPERADMIN_PASSWORD
-          # Demo tenant goes live (kavanow.gr/k/demo) — owned by the superadmin.
-          # The demo customer LOGIN is dev-only; the seed skips it in production.
-          SEED_DEMO=true
 
           SENTRY_DSN_API=$SENTRY_DSN_API
           SENTRY_DSN_WEB=$SENTRY_DSN_WEB
