@@ -6,6 +6,7 @@ import { loginSchema, type LoginInput } from "@kava-now/shared";
 import { Link, useLocation, useNavigate, useParams } from "react-router";
 import { Loader2 } from "lucide-react";
 import { Spinner } from "@/components/spinner";
+import { AuthUnavailable } from "@/components/auth-unavailable";
 import { GoogleSignInButton } from "@/components/auth/GoogleSignInButton";
 import { useLogin } from "@/lib/hooks/use-login";
 import { useGoogleSignIn } from "@/lib/hooks/use-google-sign-in";
@@ -35,7 +36,8 @@ export function LoginPage() {
   const navigate = useNavigate();
   const location = useLocation();
   const queryClient = useQueryClient();
-  const { isAuthenticated, user, memberships, isLoading } = useAuth();
+  const { isAuthenticated, user, memberships, isLoading, isAuthUnknown, refetch, isRefetching } =
+    useAuth();
 
   const signOut = useMutation({
     mutationFn: async () => {
@@ -94,6 +96,12 @@ export function LoginPage() {
         <Spinner />
       </div>
     );
+  }
+
+  // Server unreachable — auth state unknown. Don't show the login form to a
+  // possibly-logged-in user; offer a retry instead.
+  if (isAuthUnknown) {
+    return <AuthUnavailable onRetry={() => void refetch()} retrying={isRefetching} />;
   }
 
   if (isAuthenticated && user && !user.isSuperAdmin) {

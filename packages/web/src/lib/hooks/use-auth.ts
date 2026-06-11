@@ -24,7 +24,7 @@ export interface AuthMeResponse {
  * param, if any) is also exposed for convenience.
  */
 export function useAuth() {
-  const { data, isLoading, error } = useQuery({
+  const { data, isLoading, error, refetch, isRefetching } = useQuery({
     queryKey: ["auth"],
     queryFn: () => api.get<AuthMeResponse>("/api/auth/me"),
     // 401 means "not logged in" — fail fast. Anything else (network blip,
@@ -34,6 +34,11 @@ export function useAuth() {
       !(err instanceof ApiError && err.status === 401) && failureCount < 2,
   });
   const { slug } = useParams<{ slug: string }>();
+
+  // A non-401 failure (network, 5xx) means the server was unreachable — auth
+  // state is unknown, not "logged out". Consumers render a retry panel
+  // (AuthUnavailable) instead of treating the user as anonymous.
+  const isAuthUnknown = !!error && !(error instanceof ApiError && error.status === 401);
 
   const user = data?.user ?? null;
   const memberships = data?.memberships ?? [];
@@ -72,6 +77,9 @@ export function useAuth() {
     tenant,
     isLoading,
     isAuthenticated: !!user,
+    isAuthUnknown,
+    refetch,
+    isRefetching,
     error,
   };
 }
