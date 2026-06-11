@@ -3,6 +3,7 @@ import { createRoot } from "react-dom/client";
 import * as Sentry from "@sentry/react";
 import { GoogleOAuthProvider } from "@react-oauth/google";
 import { App } from "./App";
+import { initUpdateCheck } from "./lib/update-check";
 import "./index.css";
 
 const dsn = import.meta.env.VITE_SENTRY_DSN;
@@ -29,6 +30,12 @@ if ("serviceWorker" in navigator && import.meta.env.PROD) {
   window.addEventListener("load", () => {
     navigator.serviceWorker.register("/sw.js").catch(() => {});
   });
+}
+
+// Keep long-lived tabs and installed PWAs on the latest deploy — reload once
+// when a newer build is detected (on tab focus + a slow interval).
+if (import.meta.env.PROD) {
+  initUpdateCheck();
 }
 
 const googleClientId = import.meta.env.VITE_GOOGLE_CLIENT_ID;

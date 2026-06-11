@@ -17,7 +17,9 @@ kavanow.gr {
 	tls /etc/caddy/origin.pem /etc/caddy/origin.key
 
 	# API: never cached, real client IP forwarded for rate limiting and logs.
+	# `?` sets the header only when the API didn't set one itself.
 	handle /api/* {
+		header ?Cache-Control "no-store"
 		reverse_proxy api:3000 {
 			header_up X-Real-IP {client_ip}
 			header_up X-Forwarded-For {client_ip}
@@ -26,16 +28,23 @@ kavanow.gr {
 		}
 	}
 
-	# SPA shell + service worker + manifest: short cache so new deploys reach
-	# users quickly and the edge can't pin a stale service worker.
-	@nocache path / /index.html /sw.js /site.webmanifest
-	header @nocache Cache-Control "no-cache, must-revalidate"
-
 	# Hashed Vite assets: cache forever — filenames change on every build.
-	header /assets/* Cache-Control "public, max-age=31536000, immutable"
+	# Immutable only when the file actually exists: a missing hash must 404
+	# uncached (no try_files fallback here), never serve index.html pinned
+	# forever under a JS URL.
+	handle /assets/* {
+		root * /srv/web
+		@exists file
+		header @exists Cache-Control "public, max-age=31536000, immutable"
+		file_server
+	}
 
+	# Everything else is the SPA shell (any deep link serves index.html via
+	# try_files), the service worker, manifest, and icons: always revalidate,
+	# so no browser or edge can pin a stale build or a stale service worker.
 	handle {
 		root * /srv/web
+		header ?Cache-Control "no-cache, must-revalidate"
 		try_files {path} /index.html
 		file_server
 	}
