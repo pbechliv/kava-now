@@ -53,16 +53,9 @@ async function main() {
     console.log(`Superadmin seeded: ${SUPERADMIN_EMAIL}`);
   }
 
-  // Demo data (with well-known demo credentials) is opt-OUT in dev but
-  // opt-IN in production.
-  const seedDemo = process.env.SEED_DEMO
-    ? process.env.SEED_DEMO === "true"
-    : process.env.NODE_ENV !== "production";
-  if (seedDemo) {
-    await seedDemoTenant(db);
-  } else {
-    console.log("Skipping demo tenant (SEED_DEMO).");
-  }
+  // Always seed the demo tenant — idempotent (skips if the slug exists), and
+  // the well-known demo customer login is dev-only inside seedDemoTenant.
+  await seedDemoTenant(db);
 
   await sql.end();
   console.log("Seed complete.");

@@ -317,37 +317,48 @@ export async function seedDemoTenant(outerDb: PostgresJsDatabase): Promise<void>
 
     const customerByName = new Map(insertedCustomers.map((c) => [c.name, c.id]));
 
-    // Customer user + membership linked to "Ταβέρνα Ο Νίκος"
-    const customerEmail = (
-      process.env.DEMO_CUSTOMER_EMAIL ?? "customer@demo.kavanow.gr"
-    ).toLowerCase();
-    const customerPassword = process.env.DEMO_CUSTOMER_PASSWORD ?? "demopass";
-    const linkedCustomerId = customerByName.get("Ταβέρνα Ο Νίκος");
-    if (!linkedCustomerId) throw new Error("Demo customer org missing: Ταβέρνα Ο Νίκος");
+    // Customer user + membership linked to "Ταβέρνα Ο Νίκος" — dev only. In
+    // production the superadmin is the only seeded user; customer logins are
+    // created through the invite flow instead.
+    let customerLoginHint = "";
+    if (process.env.NODE_ENV !== "production") {
+      const customerEmail = (
+        process.env.DEMO_CUSTOMER_EMAIL ?? "customer@demo.kavanow.gr"
+      ).toLowerCase();
+      const customerPassword = process.env.DEMO_CUSTOMER_PASSWORD ?? "demopass";
+      const linkedCustomerId = customerByName.get("Ταβέρνα Ο Νίκος");
+      if (!linkedCustomerId) throw new Error("Demo customer org missing: Ταβέρνα Ο Νίκος");
 
-    const [customerUser] = await db
-      .insert(users)
-      .values({
-        email: customerEmail,
-        name: "Demo Customer",
-        emailVerified: true,
-      })
-      .returning({ id: users.id });
-    if (!customerUser) throw new Error("Failed to create demo customer user");
+      const [customerUser] = await db
+        .insert(users)
+        .values({
+          email: customerEmail,
+          name: "Demo Customer",
+          emailVerified: true,
+        })
+        .returning({ id: users.id });
+      if (!customerUser) throw new Error("Failed to create demo customer user");
 
-    await db.insert(accounts).values({
-      accountId: customerUser.id,
-      providerId: "credential",
-      userId: customerUser.id,
-      password: await hashPassword(customerPassword),
-    });
+      await db.insert(accounts).values({
+        accountId: customerUser.id,
+        providerId: "credential",
+        userId: customerUser.id,
+        password: await hashPassword(customerPassword),
+      });
 
-    await db.insert(tenantMemberships).values({
-      userId: customerUser.id,
-      tenantId: demoTenant.id,
-      role: "customer",
-      customerId: linkedCustomerId,
-    });
+      await db.insert(tenantMemberships).values({
+        userId: customerUser.id,
+        tenantId: demoTenant.id,
+        role: "customer",
+        customerId: linkedCustomerId,
+      });
+
+      customerLoginHint = ` Customer login: ${customerEmail} / ${customerPassword} at localhost:3200/k/${DEMO_SLUG}/login`;
+    } else {
+      console.log(
+        "Skipping demo customer user in production — superadmin is the only seeded user.",
+      );
+    }
 
     await db.insert(customerBrandPricing).values(
       DEMO_BRAND_PRICING.map((bp) => {
@@ -409,9 +420,7 @@ export async function seedDemoTenant(outerDb: PostgresJsDatabase): Promise<void>
     console.log(
       `Demo tenant seeded: tenant "${DEMO_SLUG}" + ${DEMO_CUSTOMERS.length} customers + ${DEMO_ORDERS.length} orders. ` +
         `Owner: the superadmin (use /admin to switch into /k/${DEMO_SLUG}).` +
-        (process.env.NODE_ENV !== "production"
-          ? ` Customer login: ${customerEmail} / ${customerPassword} at localhost:3200/k/${DEMO_SLUG}/login`
-          : ""),
+        customerLoginHint,
     );
   });
 }

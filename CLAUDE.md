@@ -54,6 +54,8 @@ Scripts run via `tsx`: `packages/api/src/db/{migrate,seed,reset}.ts`. Drizzle co
 
 **Never run `drizzle-kit push`.** RLS policies and the deferrable FKs are hand-written in the migration SQL and absent from Drizzle's snapshot — `push` would reconcile against a schema that declares them gone. Use `db:generate` + `db:migrate` only.
 
+**Keep the seed data in sync with schema changes.** Whenever the schema changes (new/renamed/removed columns, new tables, changed constraints), update the seed scripts ([seed.ts](packages/api/src/db/seed.ts), [seeds/demo-tenant.ts](packages/api/src/db/seeds/demo-tenant.ts), [seeds/demo-products.ts](packages/api/src/db/seeds/demo-products.ts)) in the same change so `pnpm db:seed` keeps producing complete, representative data. The seed also runs in production on every deploy (idempotent), so a stale seed breaks deploys, not just local dev.
+
 **Run `pnpm db:migrate` once before `pnpm dev`.** Dev connects as the NOSUPERUSER `kavanow_app` role by default (password = role name, provisioned by migrate), so RLS is enforced locally exactly like production.
 
 ### Quality Checks
@@ -203,6 +205,6 @@ Postgres `numeric` columns (`basePrice`, `unitPrice`, `alcoholPct`, `discountPct
 - Node >= 24 (`.node-version`: `24.15.0`). `.node-version` is the only Node pin — read by `vp env`, nodenv, asdf, fnm, and nvm-as-fallback.
 - pnpm > 11 (declared via `packageManager` in root [package.json](package.json); corepack-managed)
 - Config in [packages/api/src/config.ts](packages/api/src/config.ts); env loaded by [packages/api/src/load-env.ts](packages/api/src/load-env.ts) from the repo-root `.env`
-- [.env.example](.env.example) documents `DATABASE_URL`, `APP_ORIGIN`, `BETTER_AUTH_SECRET`, `SMTP_*`, `RESEND_*`, `API_PORT`, `SUPERADMIN_*`, `SEED_DEMO`, `DEMO_CUSTOMER_*`
+- [.env.example](.env.example) documents `DATABASE_URL`, `APP_ORIGIN`, `BETTER_AUTH_SECRET`, `SMTP_*`, `RESEND_*`, `API_PORT`, `SUPERADMIN_*`, `DEMO_CUSTOMER_*`
 - Env is validated through Zod at boot ([config.ts](packages/api/src/config.ts)): dev falls back to local defaults; production refuses to start if `BETTER_AUTH_SECRET`, `APP_ORIGIN`, or the database URL are missing or left at dev defaults
 - Both [packages/api/vite.config.ts](packages/api/vite.config.ts) and [packages/web/vite.config.ts](packages/web/vite.config.ts) call `process.loadEnvFile(...)` pointing at the root `.env` — there is no per-package env file
