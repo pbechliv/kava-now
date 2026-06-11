@@ -2,7 +2,7 @@ import { useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useParams } from "react-router";
 import * as Sentry from "@sentry/react";
-import { api } from "../api";
+import { api, ApiError } from "../api";
 import type { TenantMembership } from "@kava-now/shared";
 
 export interface AuthUser {
@@ -27,7 +27,11 @@ export function useAuth() {
   const { data, isLoading, error } = useQuery({
     queryKey: ["auth"],
     queryFn: () => api.get<AuthMeResponse>("/api/auth/me"),
-    retry: false,
+    // 401 means "not logged in" — fail fast. Anything else (network blip,
+    // 5xx during a deploy) is transient: retry, or a logged-in user landing
+    // on `/` gets stranded on the login form despite a valid session.
+    retry: (failureCount, err) =>
+      !(err instanceof ApiError && err.status === 401) && failureCount < 2,
   });
   const { slug } = useParams<{ slug: string }>();
 

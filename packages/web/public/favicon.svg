@@ -1,15 +1,11 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="KavaNow">
   <defs>
-    <linearGradient id="kava" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0" stop-color="#f59e0b" />
-      <stop offset="1" stop-color="#d97706" />
-    </linearGradient>
     <mask id="band">
       <rect width="512" height="512" fill="#fff" />
       <rect x="194" y="302" width="124" height="11" rx="5.5" fill="#000" />
     </mask>
   </defs>
-  <rect width="512" height="512" rx="112" fill="url(#kava)" />
+  <rect width="512" height="512" rx="112" fill="#d97706" />
   <g mask="url(#band)" transform="translate(256 256) scale(1.08) translate(-256 -256)">
     <rect x="210" y="92" width="92" height="27" rx="13" fill="#fff" />
     <path fill="#fff" d="M226 119 L286 119 C286 158 288 176 294 192 C336 208 352 226 352 254 C352 304 318 348 284 364 L284 382 L228 382 L228 364 C194 348 160 304 160 254 C160 226 176 208 218 192 C224 176 226 158 226 119 Z" />
