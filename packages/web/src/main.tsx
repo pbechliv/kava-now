@@ -36,6 +36,23 @@ if ("serviceWorker" in navigator && import.meta.env.PROD) {
 // when a newer build is detected (on tab focus + a slow interval).
 if (import.meta.env.PROD) {
   initUpdateCheck();
+
+  // A deploy replaces the hashed chunk tree, so a stale tab's next lazy route
+  // import can 404. Reload — the revalidated shell references the live build.
+  // Rate-limited via the same sessionStorage key as public/boot-guard.js so a
+  // genuinely missing chunk surfaces to the error boundary instead of looping.
+  window.addEventListener("vite:preloadError", (event) => {
+    const KEY = "kn-reload-guard";
+    try {
+      const last = Number(sessionStorage.getItem(KEY) || 0);
+      if (Date.now() - last < 60_000) return;
+      sessionStorage.setItem(KEY, String(Date.now()));
+    } catch {
+      return;
+    }
+    event.preventDefault();
+    window.location.reload();
+  });
 }
 
 const googleClientId = import.meta.env.VITE_GOOGLE_CLIENT_ID;

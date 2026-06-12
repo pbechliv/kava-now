@@ -114,10 +114,6 @@ services:
     volumes:
       - caddy-data:/data
       - caddy-config:/config
-      # Web root survives deploys: the entrypoint copies each build in
-      # additively so old hashed assets keep resolving (see Dockerfile caddy
-      # target) instead of 404ing into a white screen mid-swap.
-      - caddy-web:/srv/web
       - /etc/kavanow/tls/origin.pem:/etc/caddy/origin.pem:ro
       - /etc/kavanow/tls/origin.key:/etc/caddy/origin.key:ro
     networks:
@@ -127,7 +123,6 @@ volumes:
   postgres-data:
   caddy-data:
   caddy-config:
-  caddy-web:
 
 networks:
   internal:
