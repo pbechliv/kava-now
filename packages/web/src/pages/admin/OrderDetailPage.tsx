@@ -44,6 +44,7 @@ import {
 import { copyToClipboard } from "@/lib/copy";
 import { ERP_STATUS_LABELS, ORDER_STATUS_LABELS, type OrderStatus } from "@kava-now/shared";
 import { OrderItemDialog } from "@/components/admin/OrderItemDialog";
+import { formatMoney, formatDateTime } from "@/lib/format";
 
 const ALLOWED_TRANSITIONS: Record<OrderStatus, OrderStatus[]> = {
   pending: ["confirmed", "cancelled"],
@@ -177,9 +178,7 @@ export function OrderDetailPage() {
             ERP: {ERP_STATUS_LABELS[order.erpStatus]}
           </Badge>
         </div>
-        <p className="mt-1 text-sm text-muted-foreground">
-          {new Date(order.createdAt).toLocaleString("el-GR")}
-        </p>
+        <p className="mt-1 text-sm text-muted-foreground">{formatDateTime(order.createdAt)}</p>
       </div>
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
@@ -341,10 +340,10 @@ export function OrderDetailPage() {
                         </TableCell>
                         <TableCell className="text-center">{qty}</TableCell>
                         <TableCell className="text-right text-muted-foreground">
-                          {Number(item.unitPrice).toFixed(2)}&nbsp;€
+                          {formatMoney(item.unitPrice)}
                         </TableCell>
                         <TableCell className="text-right">
-                          {(Number(item.unitPrice) * qty).toFixed(2)}&nbsp;€
+                          {formatMoney(Number(item.unitPrice) * qty)}
                         </TableCell>
                       </TableRow>
                     );
@@ -356,7 +355,7 @@ export function OrderDetailPage() {
                       Σύνολο
                     </TableCell>
                     <TableCell className="text-right font-semibold">
-                      {originalTotal.toFixed(2)}&nbsp;€
+                      {formatMoney(originalTotal)}
                     </TableCell>
                   </TableRow>
                 </TableFooter>
@@ -483,12 +482,12 @@ export function OrderDetailPage() {
                               : "text-right text-muted-foreground"
                           }
                         >
-                          {Number(item.unitPrice).toFixed(2)}&nbsp;€
+                          {formatMoney(item.unitPrice)}
                         </TableCell>
                         <TableCell
                           className={isCancelled ? "text-right line-through" : "text-right"}
                         >
-                          {(Number(item.unitPrice) * item.quantity).toFixed(2)}&nbsp;€
+                          {formatMoney(Number(item.unitPrice) * item.quantity)}
                         </TableCell>
                         {canEditItems && (
                           <TableCell className="text-right">
@@ -532,7 +531,7 @@ export function OrderDetailPage() {
                       Σύνολο
                     </TableCell>
                     <TableCell className="text-right font-semibold">
-                      {Number(order.total).toFixed(2)}&nbsp;€
+                      {formatMoney(order.total)}
                     </TableCell>
                   </TableRow>
                 </TableFooter>
@@ -555,11 +554,11 @@ export function OrderDetailPage() {
                               {code ?? "—"}
                             </div>
                             <div className="text-sm text-muted-foreground">
-                              {qty} × {Number(item.unitPrice).toFixed(2)}&nbsp;€
+                              {qty} × {formatMoney(item.unitPrice)}
                             </div>
                           </div>
                           <div className="shrink-0 font-medium">
-                            {(Number(item.unitPrice) * qty).toFixed(2)}&nbsp;€
+                            {formatMoney(Number(item.unitPrice) * qty)}
                           </div>
                         </div>
                       </MobileListItem>
@@ -568,7 +567,7 @@ export function OrderDetailPage() {
                 </MobileList>
                 <div className="flex items-center justify-between border-t bg-muted/50 p-4 font-semibold">
                   <span>Σύνολο</span>
-                  <span>{originalTotal.toFixed(2)}&nbsp;€</span>
+                  <span>{formatMoney(originalTotal)}</span>
                 </div>
               </>
             ) : (
@@ -699,7 +698,7 @@ export function OrderDetailPage() {
                           ) : (
                             <div className="text-sm">
                               <span className={isCancelled ? "line-through" : ""}>
-                                {item.quantity} × {Number(item.unitPrice).toFixed(2)}&nbsp;€
+                                {item.quantity} × {formatMoney(item.unitPrice)}
                               </span>
                               {qtyChanged && !isCancelled && (
                                 <span className="ml-2 text-[10px] text-muted-foreground">
@@ -709,7 +708,7 @@ export function OrderDetailPage() {
                             </div>
                           )}
                           <div className={isCancelled ? "font-medium line-through" : "font-medium"}>
-                            {(Number(item.unitPrice) * item.quantity).toFixed(2)}&nbsp;€
+                            {formatMoney(Number(item.unitPrice) * item.quantity)}
                           </div>
                         </div>
                       </MobileListItem>
@@ -718,7 +717,7 @@ export function OrderDetailPage() {
                 </MobileList>
                 <div className="flex items-center justify-between border-t bg-muted/50 p-4 font-semibold">
                   <span>Σύνολο</span>
-                  <span>{Number(order.total).toFixed(2)}&nbsp;€</span>
+                  <span>{formatMoney(order.total)}</span>
                 </div>
               </>
             )}
@@ -771,11 +770,7 @@ export function OrderDetailPage() {
               <div className="grid grid-cols-1 gap-x-6 gap-y-1 text-muted-foreground sm:grid-cols-2">
                 <div>
                   <span className="text-xs uppercase tracking-wide">Χρόνος διαβίβασης</span>
-                  <p>
-                    {order.erpTransmittedAt
-                      ? new Date(order.erpTransmittedAt).toLocaleString("el-GR")
-                      : "—"}
-                  </p>
+                  <p>{order.erpTransmittedAt ? formatDateTime(order.erpTransmittedAt) : "—"}</p>
                 </div>
                 <div>
                   <span className="text-xs uppercase tracking-wide">Από</span>

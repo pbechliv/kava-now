@@ -38,6 +38,7 @@ app.use("*", async (c, next) => {
   c.set("user", null);
   c.set("session", null);
   c.set("membership", null);
+  c.set("customerId", null);
   return next();
 });
 

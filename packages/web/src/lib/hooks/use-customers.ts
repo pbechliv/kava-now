@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient, keepPreviousData } from "@tanstack/react-query";
 import { useTenantApi, useTenantSlug } from "./use-tenant-api";
+import { withQuery } from "../utils";
 import type {
   Customer,
   CreateCustomerInput,
@@ -16,13 +17,7 @@ interface CustomerFilters {
 export function useCustomers(filters?: CustomerFilters) {
   const slug = useTenantSlug();
   const tApi = useTenantApi();
-  const params = new URLSearchParams();
-  if (filters?.search) params.set("search", filters.search);
-  if (filters?.page) params.set("page", String(filters.page));
-  if (filters?.pageSize) params.set("pageSize", String(filters.pageSize));
-
-  const qs = params.toString();
-  const path = `/admin/customers${qs ? `?${qs}` : ""}`;
+  const path = withQuery("/admin/customers", filters);
 
   return useQuery({
     queryKey: ["admin", slug, "customers", filters],

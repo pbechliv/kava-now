@@ -10,8 +10,8 @@ import { Spinner } from "@/components/spinner";
 import { OrderStatusBadge } from "@/components/order-status-badge";
 import { PaginationControls } from "@/components/PaginationControls";
 import { useCustomerOrders } from "@/lib/hooks/use-customer-orders";
-
-const PAGE_SIZE = 50;
+import { PAGE_SIZE } from "@/lib/constants";
+import { formatMoney, formatDateLong } from "@/lib/format";
 
 export function OrderHistoryPage() {
   const navigate = useNavigate();
@@ -50,17 +50,11 @@ export function OrderHistoryPage() {
                       <OrderStatusBadge status={order.status} />
                     </div>
                     <div className="text-sm text-muted-foreground">
-                      {new Date(order.createdAt).toLocaleDateString("el-GR", {
-                        year: "numeric",
-                        month: "long",
-                        day: "numeric",
-                        hour: "2-digit",
-                        minute: "2-digit",
-                      })}
+                      {formatDateLong(order.createdAt)}
                     </div>
                     <div className="text-sm">
                       {order.itemCount} {order.itemCount === 1 ? "προϊόν" : "προϊόντα"} ·{" "}
-                      <span className="font-medium">{order.totalAmount.toFixed(2)}&nbsp;€</span>
+                      <span className="font-medium">{formatMoney(order.totalAmount)}</span>
                     </div>
                   </div>
                   <Link

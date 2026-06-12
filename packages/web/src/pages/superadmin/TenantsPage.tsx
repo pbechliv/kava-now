@@ -15,8 +15,8 @@ import {
 import { MobileList, MobileListItem } from "@/components/ui/mobile-list";
 import { Spinner } from "@/components/spinner";
 import { PaginationControls } from "@/components/PaginationControls";
-
-const PAGE_SIZE = 50;
+import { PAGE_SIZE } from "@/lib/constants";
+import { formatDate } from "@/lib/format";
 
 export function TenantsPage() {
   const [page, setPage] = useState(1);
@@ -67,7 +67,7 @@ export function TenantsPage() {
                       <TableCell className="text-muted-foreground">{tenant.slug}</TableCell>
                       <TableCell className="text-muted-foreground">{tenant.email}</TableCell>
                       <TableCell className="text-muted-foreground">
-                        {new Date(tenant.createdAt).toLocaleDateString("el-GR")}
+                        {formatDate(tenant.createdAt)}
                       </TableCell>
                       <TableCell className="text-right">
                         {confirmId === tenant.id ? (
@@ -118,7 +118,7 @@ export function TenantsPage() {
                         {tenant.slug} · {tenant.email}
                       </div>
                       <div className="text-sm text-muted-foreground">
-                        {new Date(tenant.createdAt).toLocaleDateString("el-GR")}
+                        {formatDate(tenant.createdAt)}
                       </div>
                     </div>
                     <div className="shrink-0">

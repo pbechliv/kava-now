@@ -25,8 +25,8 @@ import {
   type CustomerPickerValue,
 } from "@/components/admin/CustomerPickerCombobox";
 import { ERP_STATUS_LABELS, type OrderStatus } from "@kava-now/shared";
-
-const PAGE_SIZE = 50;
+import { PAGE_SIZE } from "@/lib/constants";
+import { formatMoney, formatDate } from "@/lib/format";
 
 const STATUS_TABS: { label: string; value: OrderStatus | "all" }[] = [
   { label: "Όλες", value: "all" },
@@ -151,14 +151,12 @@ export function OrdersPage() {
                       </TableCell>
                       <TableCell className="font-medium">{order.customerName ?? "-"}</TableCell>
                       <TableCell className="text-muted-foreground">
-                        {new Date(order.createdAt).toLocaleDateString("el-GR")}
+                        {formatDate(order.createdAt)}
                       </TableCell>
                       <TableCell className="text-center text-muted-foreground">
                         {order.itemCount}
                       </TableCell>
-                      <TableCell className="text-right">
-                        {Number(order.total).toFixed(2)}&nbsp;€
-                      </TableCell>
+                      <TableCell className="text-right">{formatMoney(order.total)}</TableCell>
                       <TableCell>
                         <OrderStatusBadge status={order.status} />
                       </TableCell>
@@ -192,13 +190,10 @@ export function OrdersPage() {
                       <div className="font-medium">{order.customerName ?? "-"}</div>
                       <div className="text-sm text-muted-foreground">
                         <span className="font-mono text-xs">#{order.id.slice(0, 8)}</span> ·{" "}
-                        {new Date(order.createdAt).toLocaleDateString("el-GR")} · {order.itemCount}{" "}
-                        προϊόντα
+                        {formatDate(order.createdAt)} · {order.itemCount} προϊόντα
                       </div>
                     </div>
-                    <div className="shrink-0 font-medium">
-                      {Number(order.total).toFixed(2)}&nbsp;€
-                    </div>
+                    <div className="shrink-0 font-medium">{formatMoney(order.total)}</div>
                   </div>
                   <div className="flex flex-wrap items-center gap-2">
                     <OrderStatusBadge status={order.status} />

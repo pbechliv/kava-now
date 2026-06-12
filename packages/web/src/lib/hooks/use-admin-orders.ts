@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient, keepPreviousData } from "@tanstack/react-query";
 import { useTenantApi, useTenantSlug } from "./use-tenant-api";
+import { withQuery } from "../utils";
 import type { ErpStatus, OrderItem, OrderStatus, PaginatedResponse } from "@kava-now/shared";
 
 interface OrderFilters {
@@ -58,16 +59,7 @@ export type AdminOrderItem = Omit<OrderItem, "orderId"> & {
 export function useAdminOrders(filters?: OrderFilters) {
   const slug = useTenantSlug();
   const tApi = useTenantApi();
-  const params = new URLSearchParams();
-  if (filters?.status) params.set("status", filters.status);
-  if (filters?.customerId) params.set("customerId", filters.customerId);
-  if (filters?.dateFrom) params.set("dateFrom", filters.dateFrom);
-  if (filters?.dateTo) params.set("dateTo", filters.dateTo);
-  if (filters?.page) params.set("page", String(filters.page));
-  if (filters?.pageSize) params.set("pageSize", String(filters.pageSize));
-
-  const qs = params.toString();
-  const path = `/admin/orders${qs ? `?${qs}` : ""}`;
+  const path = withQuery("/admin/orders", filters);
 
   return useQuery({
     queryKey: ["admin", slug, "orders", filters],

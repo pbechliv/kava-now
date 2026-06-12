@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Loader2, Search } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { useProducts } from "@/lib/hooks/use-products";
+import { formatMoney } from "@/lib/format";
 
 export interface ProductPickerValue {
   id: string;
@@ -43,7 +44,7 @@ export function ProductPickerCombobox({ selected, onSelect, excludeProductId }: 
         <div className="text-sm">
           <div className="font-medium">{selected.name}</div>
           <div className="text-xs text-muted-foreground">
-            {selected.brand} · {Number(selected.basePrice).toFixed(2)}&nbsp;€
+            {selected.brand} · {formatMoney(selected.basePrice)}
           </div>
         </div>
         <button
@@ -94,7 +95,7 @@ export function ProductPickerCombobox({ selected, onSelect, excludeProductId }: 
                     <div className="text-xs text-muted-foreground">{p.brand}</div>
                   </div>
                   <div className="font-mono text-xs text-muted-foreground">
-                    {Number(p.basePrice).toFixed(2)}&nbsp;€
+                    {formatMoney(p.basePrice)}
                   </div>
                 </button>
               </li>

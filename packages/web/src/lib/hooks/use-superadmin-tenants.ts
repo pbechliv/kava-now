@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient, keepPreviousData } from "@tanstack/react-query";
 import { api } from "../api";
+import { withQuery } from "../utils";
 import type { RegisterInput, PaginatedResponse } from "@kava-now/shared";
 
 interface TenantListItem {
@@ -22,12 +23,7 @@ interface SuperAdminTenantsFilters {
 }
 
 export function useSuperAdminTenants(filters?: SuperAdminTenantsFilters) {
-  const params = new URLSearchParams();
-  if (filters?.page) params.set("page", String(filters.page));
-  if (filters?.pageSize) params.set("pageSize", String(filters.pageSize));
-
-  const qs = params.toString();
-  const path = `/api/superadmin/tenants${qs ? `?${qs}` : ""}`;
+  const path = withQuery("/api/superadmin/tenants", filters);
 
   return useQuery({
     queryKey: ["superadmin", "tenants", filters],

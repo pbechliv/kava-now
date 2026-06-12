@@ -20,6 +20,7 @@ import {
   updateOrderStatusSchema,
   ORDER_STATUSES,
   ORDER_STATUS_LABELS,
+  ORDER_STATUS_TRANSITIONS,
   addOrderItemSchema,
   updateOrderItemSchema,
   replaceOrderItemSchema,
@@ -32,15 +33,6 @@ import {
 const ordersRouter = new Hono<AppEnv>();
 
 const VALID_STATUSES: readonly OrderStatus[] = ORDER_STATUSES;
-
-// Status transition rules: key = current, value = allowed next statuses
-const ALLOWED_TRANSITIONS: Record<OrderStatus, OrderStatus[]> = {
-  pending: ["confirmed", "cancelled"],
-  confirmed: ["shipped", "cancelled"],
-  shipped: ["delivered", "cancelled"],
-  delivered: [], // terminal
-  cancelled: [], // terminal
-};
 
 type MutableGuard = { ok: true } | { ok: false; code: ApiErrorCode; error: string };
 
@@ -242,7 +234,7 @@ ordersRouter.put("/:id/status", async (c) => {
       return { kind: "not_found" as const };
     }
 
-    const allowed = ALLOWED_TRANSITIONS[order.status];
+    const allowed = ORDER_STATUS_TRANSITIONS[order.status];
     if (!allowed.includes(newStatus)) {
       return { kind: "invalid_transition" as const, from: order.status };
     }

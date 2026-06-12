@@ -24,5 +24,7 @@ export type AppEnv = {
     user: AuthUser | null;
     session: AuthSession | null;
     membership: RequestMembership | null;
+    /** Set by `requireCustomerProfile` — the membership's linked customer row. */
+    customerId: string | null;
   };
 };

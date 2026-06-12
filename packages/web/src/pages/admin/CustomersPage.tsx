@@ -21,8 +21,7 @@ import { ConfirmDialog } from "@/components/confirm-dialog";
 import { PaginationControls } from "@/components/PaginationControls";
 import { useCustomers, useDeleteCustomer } from "@/lib/hooks/use-customers";
 import { CustomerFormModal } from "@/components/admin/CustomerFormModal";
-
-const PAGE_SIZE = 50;
+import { PAGE_SIZE } from "@/lib/constants";
 
 export function CustomersPage() {
   const navigate = useNavigate();

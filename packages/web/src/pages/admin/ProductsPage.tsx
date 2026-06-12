@@ -31,8 +31,8 @@ import { PaginationControls } from "@/components/PaginationControls";
 import { useProducts, useUpdateProduct, useDeleteProduct } from "@/lib/hooks/use-products";
 import { useCategories } from "@/lib/hooks/use-categories";
 import { UNIT_LABELS, type ImportProductsResult } from "@kava-now/shared";
-
-const PAGE_SIZE = 50;
+import { PAGE_SIZE } from "@/lib/constants";
+import { formatMoney } from "@/lib/format";
 
 interface ProductsPageLocationState {
   importResult?: ImportProductsResult;
@@ -197,9 +197,7 @@ export function ProductsPage() {
                       <TableCell className="text-muted-foreground">
                         {product.categoryName ?? "-"}
                       </TableCell>
-                      <TableCell className="text-right">
-                        {Number(product.basePrice).toFixed(2)}&nbsp;€
-                      </TableCell>
+                      <TableCell className="text-right">{formatMoney(product.basePrice)}</TableCell>
                       <TableCell className="text-muted-foreground">
                         {UNIT_LABELS[product.unit]}
                       </TableCell>
@@ -268,7 +266,7 @@ export function ProductsPage() {
                   </div>
                   <div className="flex items-center justify-between gap-3">
                     <div className="text-sm">
-                      {Number(product.basePrice).toFixed(2)}&nbsp;€{" "}
+                      {formatMoney(product.basePrice)}{" "}
                       <span className="text-muted-foreground">/ {UNIT_LABELS[product.unit]}</span>
                     </div>
                     <div className="flex gap-1">

@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient, keepPreviousData } from "@tanstack/react-query";
 import { useTenantApi, useTenantSlug } from "./use-tenant-api";
+import { withQuery } from "../utils";
 import type {
   Product,
   CreateProductInput,
@@ -39,15 +40,7 @@ export function useProductKeys() {
 export function useProducts(filters?: ProductFilters) {
   const slug = useTenantSlug();
   const tApi = useTenantApi();
-  const params = new URLSearchParams();
-  if (filters?.categoryId) params.set("categoryId", filters.categoryId);
-  if (filters?.search) params.set("search", filters.search);
-  if (filters?.active) params.set("active", filters.active);
-  if (filters?.page) params.set("page", String(filters.page));
-  if (filters?.pageSize) params.set("pageSize", String(filters.pageSize));
-
-  const qs = params.toString();
-  const path = `/admin/products${qs ? `?${qs}` : ""}`;
+  const path = withQuery("/admin/products", filters);
 
   return useQuery({
     queryKey: ["admin", slug, "products", filters],

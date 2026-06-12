@@ -16,6 +16,7 @@ import { ErrorBanner } from "@/components/error-banner";
 import { Spinner } from "@/components/spinner";
 import { OrderStatusBadge } from "@/components/order-status-badge";
 import { useCustomerOrder, useReorder } from "@/lib/hooks/use-customer-orders";
+import { formatMoney, formatDateLong } from "@/lib/format";
 
 export function OrderDetailPage() {
   const { id, slug } = useParams<{ id: string; slug: string }>();
@@ -71,15 +72,7 @@ export function OrderDetailPage() {
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Παραγγελία #{order.id.slice(0, 8)}</h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            {new Date(order.createdAt).toLocaleDateString("el-GR", {
-              year: "numeric",
-              month: "long",
-              day: "numeric",
-              hour: "2-digit",
-              minute: "2-digit",
-            })}
-          </p>
+          <p className="mt-1 text-sm text-muted-foreground">{formatDateLong(order.createdAt)}</p>
         </div>
         <div className="flex flex-wrap items-center gap-3">
           <OrderStatusBadge status={order.status} />
@@ -113,10 +106,10 @@ export function OrderDetailPage() {
                   <TableCell className="font-medium">{item.productName}</TableCell>
                   <TableCell className="text-center">{item.quantity}</TableCell>
                   <TableCell className="text-right text-muted-foreground">
-                    {Number(item.unitPrice).toFixed(2)}&nbsp;€
+                    {formatMoney(item.unitPrice)}
                   </TableCell>
                   <TableCell className="text-right font-medium">
-                    {(Number(item.unitPrice) * item.quantity).toFixed(2)}&nbsp;€
+                    {formatMoney(Number(item.unitPrice) * item.quantity)}
                   </TableCell>
                 </TableRow>
               ))}
@@ -126,7 +119,7 @@ export function OrderDetailPage() {
                 <TableCell colSpan={3} className="text-right font-bold">
                   Σύνολο:
                 </TableCell>
-                <TableCell className="text-right font-bold">{total.toFixed(2)}&nbsp;€</TableCell>
+                <TableCell className="text-right font-bold">{formatMoney(total)}</TableCell>
               </TableRow>
             </TableFooter>
           </Table>
@@ -139,11 +132,11 @@ export function OrderDetailPage() {
                   <div className="min-w-0">
                     <div className="font-medium">{item.productName}</div>
                     <div className="text-sm text-muted-foreground">
-                      {item.quantity} × {Number(item.unitPrice).toFixed(2)}&nbsp;€
+                      {item.quantity} × {formatMoney(item.unitPrice)}
                     </div>
                   </div>
                   <div className="shrink-0 font-medium">
-                    {(Number(item.unitPrice) * item.quantity).toFixed(2)}&nbsp;€
+                    {formatMoney(Number(item.unitPrice) * item.quantity)}
                   </div>
                 </div>
               </MobileListItem>
@@ -151,7 +144,7 @@ export function OrderDetailPage() {
           </MobileList>
           <div className="flex items-center justify-between border-t bg-muted/50 p-4 font-bold">
             <span>Σύνολο:</span>
-            <span>{total.toFixed(2)}&nbsp;€</span>
+            <span>{formatMoney(total)}</span>
           </div>
         </div>
       </Card>
