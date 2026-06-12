@@ -21,6 +21,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { MobileList, MobileListItem } from "@/components/ui/mobile-list";
 import { Spinner } from "@/components/spinner";
 import { EmptyState } from "@/components/empty-state";
 import { ConfirmDialog } from "@/components/confirm-dialog";
@@ -169,7 +170,7 @@ export function CategoriesPage() {
         <EmptyState message="Δεν υπάρχουν κατηγορίες" />
       ) : (
         <Card className="overflow-hidden">
-          <div className="overflow-x-auto">
+          <div className="hidden overflow-x-auto md:block">
             <Table>
               <TableHeader>
                 <TableRow>
@@ -264,6 +265,88 @@ export function CategoriesPage() {
               </TableBody>
             </Table>
           </div>
+          <MobileList>
+            {categories.map((cat) =>
+              editingId === cat.id ? (
+                <MobileListItem key={cat.id} className="space-y-3">
+                  <div className="space-y-2">
+                    <Label htmlFor={`edit-name-${cat.id}`}>Όνομα</Label>
+                    <Input
+                      id={`edit-name-${cat.id}`}
+                      value={editName}
+                      onChange={(e) => setEditName(e.target.value)}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor={`edit-parent-${cat.id}`}>Γονική κατηγορία</Label>
+                    <Select
+                      value={editParentId || "none"}
+                      onValueChange={(v) => setEditParentId(v === "none" ? "" : v)}
+                    >
+                      <SelectTrigger id={`edit-parent-${cat.id}`} className="w-full">
+                        <SelectValue placeholder="Καμία" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="none">Καμία</SelectItem>
+                        {categories
+                          .filter((c) => c.id !== cat.id)
+                          .map((c) => (
+                            <SelectItem key={c.id} value={c.id}>
+                              {c.name}
+                            </SelectItem>
+                          ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor={`edit-sort-${cat.id}`}>Σειρά</Label>
+                    <Input
+                      id={`edit-sort-${cat.id}`}
+                      type="number"
+                      value={editSortOrder}
+                      onChange={(e) => setEditSortOrder(Number(e.target.value))}
+                      className="w-24"
+                    />
+                  </div>
+                  <div className="flex gap-2">
+                    <Button size="sm" onClick={handleUpdate} disabled={updateMutation.isPending}>
+                      {updateMutation.isPending && (
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      )}
+                      Αποθήκευση
+                    </Button>
+                    <Button variant="ghost" size="sm" onClick={() => setEditingId(null)}>
+                      Ακύρωση
+                    </Button>
+                  </div>
+                </MobileListItem>
+              ) : (
+                <MobileListItem key={cat.id}>
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <div className="font-medium">{cat.name}</div>
+                      <div className="text-sm text-muted-foreground">
+                        {cat.parentName ? `Γονική: ${cat.parentName} · ` : ""}Σειρά: {cat.sortOrder}
+                      </div>
+                    </div>
+                    <div className="flex shrink-0 gap-1">
+                      <Button variant="ghost" size="sm" onClick={() => startEdit(cat)}>
+                        Επεξεργασία
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="text-destructive hover:bg-destructive/10 hover:text-destructive"
+                        onClick={() => handleDelete(cat.id, cat.name)}
+                      >
+                        Διαγραφή
+                      </Button>
+                    </div>
+                  </div>
+                </MobileListItem>
+              ),
+            )}
+          </MobileList>
         </Card>
       )}
 

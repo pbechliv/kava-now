@@ -14,6 +14,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { MobileList, MobileListItem } from "@/components/ui/mobile-list";
 import { Spinner } from "@/components/spinner";
 import { EmptyState } from "@/components/empty-state";
 import { ConfirmDialog } from "@/components/confirm-dialog";
@@ -100,7 +101,7 @@ export function CustomersPage() {
       ) : (
         <>
           <Card className="overflow-hidden">
-            <div className="overflow-x-auto">
+            <div className="hidden overflow-x-auto md:block">
               <Table>
                 <TableHeader>
                   <TableRow>
@@ -160,6 +161,52 @@ export function CustomersPage() {
                 </TableBody>
               </Table>
             </div>
+            <MobileList>
+              {customers.map((customer) => (
+                <MobileListItem key={customer.id}>
+                  <div className="min-w-0">
+                    <div className="font-medium">{customer.name}</div>
+                    <div className="text-sm text-muted-foreground">
+                      {[customer.email, customer.phone].filter(Boolean).join(" · ") || "-"}
+                    </div>
+                    {customer.contactPerson && (
+                      <div className="text-sm text-muted-foreground">
+                        Υπεύθυνος: {customer.contactPerson}
+                      </div>
+                    )}
+                  </div>
+                  <div className="-mx-2 flex flex-wrap">
+                    <Button variant="ghost" size="sm" onClick={() => handleEdit(customer.id)}>
+                      Επεξεργασία
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => navigate(`${adminBase}/customers/${customer.id}/users`)}
+                    >
+                      Χρήστες
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() =>
+                        navigate(`${adminBase}/customers/${customer.id}/brand-pricing`)
+                      }
+                    >
+                      Τιμολόγηση
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="text-destructive hover:bg-destructive/10 hover:text-destructive"
+                      onClick={() => handleDelete(customer.id, customer.name)}
+                    >
+                      Διαγραφή
+                    </Button>
+                  </div>
+                </MobileListItem>
+              ))}
+            </MobileList>
           </Card>
           <PaginationControls
             page={page}

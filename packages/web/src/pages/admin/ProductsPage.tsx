@@ -23,6 +23,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { MobileList, MobileListItem } from "@/components/ui/mobile-list";
 import { Spinner } from "@/components/spinner";
 import { EmptyState } from "@/components/empty-state";
 import { ConfirmDialog } from "@/components/confirm-dialog";
@@ -173,7 +174,7 @@ export function ProductsPage() {
       ) : (
         <>
           <Card className="overflow-hidden">
-            <div className="overflow-x-auto">
+            <div className="hidden overflow-x-auto md:block">
               <Table>
                 <TableHeader>
                   <TableRow>
@@ -243,6 +244,56 @@ export function ProductsPage() {
                 </TableBody>
               </Table>
             </div>
+            <MobileList>
+              {products.map((product) => (
+                <MobileListItem key={product.id}>
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <div className="font-medium">{product.name}</div>
+                      <div className="text-sm text-muted-foreground">
+                        {[product.brand, product.categoryName].filter(Boolean).join(" · ") || "-"}
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => handleToggleActive(product.id, product.active)}
+                      className="inline-flex shrink-0"
+                      aria-pressed={product.active}
+                      title={product.active ? "Απενεργοποίηση προϊόντος" : "Ενεργοποίηση προϊόντος"}
+                    >
+                      <Badge variant={product.active ? "success" : "muted"}>
+                        {product.active ? "Ενεργό" : "Ανενεργό"}
+                      </Badge>
+                    </button>
+                  </div>
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="text-sm">
+                      {Number(product.basePrice).toFixed(2)}&nbsp;€{" "}
+                      <span className="text-muted-foreground">/ {UNIT_LABELS[product.unit]}</span>
+                    </div>
+                    <div className="flex gap-1">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => navigate(`${adminBase}/products/${product.id}`)}
+                        aria-label="Επεξεργασία"
+                      >
+                        <Pencil className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="text-destructive hover:bg-destructive/10 hover:text-destructive"
+                        onClick={() => handleDelete(product.id, product.name)}
+                        aria-label="Διαγραφή"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </div>
+                </MobileListItem>
+              ))}
+            </MobileList>
           </Card>
           <PaginationControls
             page={page}

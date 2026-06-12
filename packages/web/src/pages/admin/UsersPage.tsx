@@ -41,6 +41,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { MobileList, MobileListItem } from "@/components/ui/mobile-list";
 import { Spinner } from "@/components/spinner";
 import { ConfirmDialog } from "@/components/confirm-dialog";
 
@@ -122,7 +123,7 @@ export function UsersPage() {
       </div>
 
       <Card className="overflow-hidden">
-        <div className="overflow-x-auto">
+        <div className="hidden overflow-x-auto md:block">
           <Table>
             <TableHeader>
               <TableRow>
@@ -219,6 +220,85 @@ export function UsersPage() {
             </TableBody>
           </Table>
         </div>
+        <MobileList>
+          {users.map((u) => (
+            <MobileListItem key={u.id}>
+              <div className="min-w-0">
+                <div className="font-medium">
+                  {u.name}
+                  {u.id === me?.id && (
+                    <span className="ml-2 text-xs text-muted-foreground">(εσείς)</span>
+                  )}
+                  {!u.emailVerified && (
+                    <Badge variant="warning" className="ml-2">
+                      Εκκρεμεί
+                    </Badge>
+                  )}
+                </div>
+                <div className="text-sm text-muted-foreground">{u.email}</div>
+                <div className="text-sm text-muted-foreground">
+                  {ROLE_LABELS[u.role] ?? u.role}
+                  {u.invitedByName && <> · Προσκλήθηκε από {u.invitedByName}</>}
+                </div>
+              </div>
+              {u.id !== me?.id && (
+                <div className="-mx-2 flex flex-wrap items-center gap-y-1">
+                  {resendFeedback?.id === u.id && (
+                    <span
+                      className={`mx-2 text-xs ${
+                        resendFeedback.kind === "success" ? "text-green-600" : "text-destructive"
+                      }`}
+                    >
+                      {resendFeedback.message}
+                    </span>
+                  )}
+                  {!u.emailVerified && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      disabled={resend.isPending && resend.variables === u.id}
+                      onClick={() => handleResend(u.id)}
+                    >
+                      {resend.isPending && resend.variables === u.id && (
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      )}
+                      Επανάληψη πρόσκλησης
+                    </Button>
+                  )}
+                  {canPromote && u.role === "staff" && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="mx-2"
+                      disabled={promote.isPending && promote.variables === u.id}
+                      onClick={() =>
+                        promote.mutate(u.id, {
+                          onSuccess: () => toast.success("Ο χρήστης έγινε ιδιοκτήτης"),
+                        })
+                      }
+                    >
+                      {promote.isPending && promote.variables === u.id && (
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      )}
+                      Μετατροπή σε ιδιοκτήτη
+                    </Button>
+                  )}
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="text-destructive hover:bg-destructive/10 hover:text-destructive"
+                    onClick={() => {
+                      remove.reset();
+                      setDeleteTarget({ id: u.id, name: u.name });
+                    }}
+                  >
+                    Διαγραφή
+                  </Button>
+                </div>
+              )}
+            </MobileListItem>
+          ))}
+        </MobileList>
       </Card>
 
       <Dialog

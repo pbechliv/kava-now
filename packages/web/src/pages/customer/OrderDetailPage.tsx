@@ -11,6 +11,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { MobileList, MobileListItem } from "@/components/ui/mobile-list";
 import { ErrorBanner } from "@/components/error-banner";
 import { Spinner } from "@/components/spinner";
 import { OrderStatusBadge } from "@/components/order-status-badge";
@@ -96,7 +97,7 @@ export function OrderDetailPage() {
       )}
 
       <Card className="overflow-hidden">
-        <div className="overflow-x-auto">
+        <div className="hidden overflow-x-auto md:block">
           <Table>
             <TableHeader>
               <TableRow>
@@ -129,6 +130,29 @@ export function OrderDetailPage() {
               </TableRow>
             </TableFooter>
           </Table>
+        </div>
+        <div className="md:hidden">
+          <MobileList>
+            {order.items.map((item) => (
+              <MobileListItem key={item.id}>
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <div className="font-medium">{item.productName}</div>
+                    <div className="text-sm text-muted-foreground">
+                      {item.quantity} × {Number(item.unitPrice).toFixed(2)}&nbsp;€
+                    </div>
+                  </div>
+                  <div className="shrink-0 font-medium">
+                    {(Number(item.unitPrice) * item.quantity).toFixed(2)}&nbsp;€
+                  </div>
+                </div>
+              </MobileListItem>
+            ))}
+          </MobileList>
+          <div className="flex items-center justify-between border-t bg-muted/50 p-4 font-bold">
+            <span>Σύνολο:</span>
+            <span>{total.toFixed(2)}&nbsp;€</span>
+          </div>
         </div>
       </Card>
 

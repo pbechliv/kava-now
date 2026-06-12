@@ -21,6 +21,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { MobileList, MobileListItem } from "@/components/ui/mobile-list";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -316,7 +317,7 @@ export function OrderDetailPage() {
           </p>
         )}
         <Card className="mt-3 overflow-hidden">
-          <div className="overflow-x-auto">
+          <div className="hidden overflow-x-auto md:block">
             {showOriginal ? (
               <Table>
                 <TableHeader>
@@ -536,6 +537,190 @@ export function OrderDetailPage() {
                   </TableRow>
                 </TableFooter>
               </Table>
+            )}
+          </div>
+          <div className="md:hidden">
+            {showOriginal ? (
+              <>
+                <MobileList>
+                  {originalItems.map((item) => {
+                    const code = item.erpRef ?? item.sku;
+                    const qty = item.originalQuantity ?? 0;
+                    return (
+                      <MobileListItem key={item.id}>
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="min-w-0">
+                            <div className="font-medium">{item.productName}</div>
+                            <div className="font-mono text-xs text-muted-foreground">
+                              {code ?? "—"}
+                            </div>
+                            <div className="text-sm text-muted-foreground">
+                              {qty} × {Number(item.unitPrice).toFixed(2)}&nbsp;€
+                            </div>
+                          </div>
+                          <div className="shrink-0 font-medium">
+                            {(Number(item.unitPrice) * qty).toFixed(2)}&nbsp;€
+                          </div>
+                        </div>
+                      </MobileListItem>
+                    );
+                  })}
+                </MobileList>
+                <div className="flex items-center justify-between border-t bg-muted/50 p-4 font-semibold">
+                  <span>Σύνολο</span>
+                  <span>{originalTotal.toFixed(2)}&nbsp;€</span>
+                </div>
+              </>
+            ) : (
+              <>
+                <MobileList>
+                  {order.items.map((item) => {
+                    const code = item.erpRef ?? item.sku;
+                    const isCancelled = item.status === "cancelled";
+                    const isEditing = editingItemId === item.id;
+                    const replacement = replacementMap.get(item.id);
+                    const isAdminAdded = item.originalQuantity == null;
+                    const qtyChanged =
+                      item.originalQuantity != null && item.originalQuantity !== item.quantity;
+                    return (
+                      <MobileListItem
+                        key={item.id}
+                        className={isCancelled ? "text-muted-foreground" : undefined}
+                      >
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="min-w-0">
+                            <div className="flex flex-wrap items-center gap-2">
+                              <span
+                                className={isCancelled ? "font-medium line-through" : "font-medium"}
+                              >
+                                {item.productName}
+                              </span>
+                              {isCancelled && (
+                                <Badge variant="muted" className="text-[10px]">
+                                  Ακυρωμένο
+                                </Badge>
+                              )}
+                              {!isCancelled && isAdminAdded && (
+                                <Badge variant="secondary" className="text-[10px]">
+                                  Προστέθηκε
+                                </Badge>
+                              )}
+                            </div>
+                            {replacement && (
+                              <div className="text-xs text-muted-foreground">
+                                → Αντικαταστάθηκε με{" "}
+                                <span className="font-medium">{replacement.productName}</span>
+                              </div>
+                            )}
+                            <div className="flex items-center gap-1 text-muted-foreground">
+                              <span
+                                className={
+                                  isCancelled
+                                    ? "font-mono text-xs line-through"
+                                    : "font-mono text-xs"
+                                }
+                              >
+                                {code ?? "—"}
+                              </span>
+                              {code && !isCancelled && (
+                                <Button
+                                  type="button"
+                                  size="icon"
+                                  variant="ghost"
+                                  className="h-6 w-6"
+                                  onClick={() => copyToClipboard(code, "Αντιγραφή κωδικού")}
+                                  aria-label="Αντιγραφή κωδικού"
+                                >
+                                  <Copy className="h-3 w-3" />
+                                </Button>
+                              )}
+                            </div>
+                          </div>
+                          {canEditItems && !isCancelled && !isEditing && (
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-7 w-7 shrink-0"
+                                  aria-label="Ενέργειες"
+                                >
+                                  <MoreHorizontal className="h-4 w-4" />
+                                </Button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="end">
+                                <DropdownMenuItem onClick={() => beginEditQty(item)}>
+                                  Επεξεργασία ποσότητας
+                                </DropdownMenuItem>
+                                <DropdownMenuItem onClick={() => setReplaceTarget(item)}>
+                                  Αντικατάσταση...
+                                </DropdownMenuItem>
+                                <DropdownMenuItem
+                                  variant="destructive"
+                                  onClick={() => setCancelTarget(item)}
+                                >
+                                  Ακύρωση γραμμής
+                                </DropdownMenuItem>
+                              </DropdownMenuContent>
+                            </DropdownMenu>
+                          )}
+                        </div>
+                        <div className="flex items-center justify-between gap-3">
+                          {isEditing ? (
+                            <div className="flex items-center gap-1">
+                              <Input
+                                type="number"
+                                min={1}
+                                value={editingQty}
+                                onChange={(e) => setEditingQty(Math.max(1, Number(e.target.value)))}
+                                className="h-8 w-20 text-center"
+                              />
+                              <Button
+                                size="sm"
+                                variant="default"
+                                disabled={updateItem.isPending}
+                                onClick={() => saveEditQty(item.id)}
+                              >
+                                {updateItem.isPending ? (
+                                  <Loader2 className="h-3 w-3 animate-spin" />
+                                ) : (
+                                  "OK"
+                                )}
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                aria-label="Ακύρωση επεξεργασίας"
+                                onClick={cancelEditQty}
+                              >
+                                ✕
+                              </Button>
+                            </div>
+                          ) : (
+                            <div className="text-sm">
+                              <span className={isCancelled ? "line-through" : ""}>
+                                {item.quantity} × {Number(item.unitPrice).toFixed(2)}&nbsp;€
+                              </span>
+                              {qtyChanged && !isCancelled && (
+                                <span className="ml-2 text-[10px] text-muted-foreground">
+                                  Αρχικά: {item.originalQuantity}
+                                </span>
+                              )}
+                            </div>
+                          )}
+                          <div className={isCancelled ? "font-medium line-through" : "font-medium"}>
+                            {(Number(item.unitPrice) * item.quantity).toFixed(2)}&nbsp;€
+                          </div>
+                        </div>
+                      </MobileListItem>
+                    );
+                  })}
+                </MobileList>
+                <div className="flex items-center justify-between border-t bg-muted/50 p-4 font-semibold">
+                  <span>Σύνολο</span>
+                  <span>{Number(order.total).toFixed(2)}&nbsp;€</span>
+                </div>
+              </>
             )}
           </div>
         </Card>

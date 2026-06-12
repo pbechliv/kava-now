@@ -13,6 +13,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { MobileList, MobileListItem } from "@/components/ui/mobile-list";
 import { Spinner } from "@/components/spinner";
 import { EmptyState } from "@/components/empty-state";
 import { useCustomer } from "@/lib/hooks/use-customers";
@@ -90,7 +91,7 @@ export function CustomerBrandPricingPage() {
         <EmptyState message="Δεν υπάρχουν μάρκες προϊόντων" />
       ) : (
         <Card className="overflow-hidden">
-          <div className="overflow-x-auto">
+          <div className="hidden overflow-x-auto md:block">
             <Table>
               <TableHeader>
                 <TableRow>
@@ -119,6 +120,28 @@ export function CustomerBrandPricingPage() {
               </TableBody>
             </Table>
           </div>
+          <MobileList>
+            {assignments.map((a) => (
+              <MobileListItem key={a.brand} className={a.discountPct ? "bg-primary/5" : undefined}>
+                <div className="flex items-center justify-between gap-3">
+                  <div className="min-w-0 font-medium">{a.brand}</div>
+                  <div className="flex shrink-0 items-center gap-2">
+                    <span className="text-sm text-muted-foreground">Έκπτωση %</span>
+                    <Input
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      max="100"
+                      placeholder="0"
+                      value={a.discountPct}
+                      onChange={(e) => setDiscount(a.brand, e.target.value)}
+                      className="w-24 text-right"
+                    />
+                  </div>
+                </div>
+              </MobileListItem>
+            ))}
+          </MobileList>
         </Card>
       )}
 

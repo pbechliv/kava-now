@@ -12,6 +12,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { MobileList, MobileListItem } from "@/components/ui/mobile-list";
 import { cn } from "@/lib/utils";
 import { useDebouncedValue } from "@/lib/hooks/use-debounced-value";
 import { ErrorBanner } from "@/components/error-banner";
@@ -108,7 +109,7 @@ export function CatalogPage() {
       ) : (
         <>
           <Card className="overflow-hidden">
-            <div className="overflow-x-auto">
+            <div className="hidden overflow-x-auto md:block">
               <Table>
                 <TableHeader>
                   <TableRow>
@@ -171,6 +172,54 @@ export function CatalogPage() {
                 </TableBody>
               </Table>
             </div>
+            <MobileList>
+              {products.map((product) => (
+                <MobileListItem key={product.id}>
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <div className="font-medium">{product.name}</div>
+                      <div className="text-sm text-muted-foreground">
+                        {[product.brand, product.categoryName].filter(Boolean).join(" · ") || "-"}
+                      </div>
+                    </div>
+                    <div className="shrink-0 text-right">
+                      <div className="font-medium">{product.resolvedPrice.toFixed(2)}&nbsp;€</div>
+                      <div className="text-xs text-muted-foreground">
+                        /{UNIT_LABELS[product.unit]}
+                      </div>
+                    </div>
+                  </div>
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="flex items-center rounded-md border">
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        className="h-9 w-9 rounded-r-none"
+                        onClick={() => setQty(product.id, getQty(product.id) - 1)}
+                        aria-label="Μείωση"
+                      >
+                        <Minus className="h-4 w-4" />
+                      </Button>
+                      <span className="w-10 text-center text-sm">{getQty(product.id)}</span>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        className="h-9 w-9 rounded-l-none"
+                        onClick={() => setQty(product.id, getQty(product.id) + 1)}
+                        aria-label="Αύξηση"
+                      >
+                        <Plus className="h-4 w-4" />
+                      </Button>
+                    </div>
+                    <Button type="button" className="flex-1" onClick={() => handleAdd(product)}>
+                      Προσθήκη
+                    </Button>
+                  </div>
+                </MobileListItem>
+              ))}
+            </MobileList>
           </Card>
           <PaginationControls
             page={page}
