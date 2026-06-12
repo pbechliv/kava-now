@@ -22,8 +22,8 @@ import { useCatalog, useCatalogCategories } from "@/lib/hooks/use-catalog";
 import { useCartStore } from "@/lib/store/cart";
 import { UNIT_LABELS } from "@kava-now/shared";
 import type { CatalogProduct } from "@/lib/store/cart";
-
-const PAGE_SIZE = 50;
+import { PAGE_SIZE } from "@/lib/constants";
+import { formatMoney } from "@/lib/format";
 
 export function CatalogPage() {
   const [selectedCategory, setSelectedCategoryState] = useState<string>("");
@@ -135,7 +135,7 @@ export function CatalogPage() {
                         {UNIT_LABELS[product.unit]}
                       </TableCell>
                       <TableCell className="text-right">
-                        {product.resolvedPrice.toFixed(2)}&nbsp;€
+                        {formatMoney(product.resolvedPrice)}
                       </TableCell>
                       <TableCell className="text-right">
                         <div className="flex items-center justify-end gap-2">
@@ -183,7 +183,7 @@ export function CatalogPage() {
                       </div>
                     </div>
                     <div className="shrink-0 text-right">
-                      <div className="font-medium">{product.resolvedPrice.toFixed(2)}&nbsp;€</div>
+                      <div className="font-medium">{formatMoney(product.resolvedPrice)}</div>
                       <div className="text-xs text-muted-foreground">
                         /{UNIT_LABELS[product.unit]}
                       </div>

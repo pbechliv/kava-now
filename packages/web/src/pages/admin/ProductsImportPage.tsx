@@ -38,6 +38,7 @@ import {
   type Mapping,
   type TargetField,
 } from "@/lib/import-mapping";
+import { formatMoney } from "@/lib/format";
 
 type Step = "upload" | "map" | "preview";
 
@@ -410,7 +411,7 @@ export function ProductsImportPage() {
                         {r.row?.categoryName ?? "-"}
                       </TableCell>
                       <TableCell className="text-right">
-                        {r.row ? `${r.row.basePrice.toFixed(2)} €` : "-"}
+                        {r.row ? formatMoney(r.row.basePrice) : "-"}
                       </TableCell>
                     </TableRow>
                   );

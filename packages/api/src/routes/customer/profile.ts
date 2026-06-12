@@ -4,14 +4,12 @@ import { z } from "zod";
 import { API_ERROR_CODES } from "@kava-now/shared";
 import { db } from "../../db/connection";
 import { customers } from "../../db/schema/index";
+import { requireCustomerProfile } from "../../middleware/require-customer-profile";
 import type { AppEnv } from "../../types";
 
 const profileRouter = new Hono<AppEnv>();
 
-const CUSTOMER_PROFILE_MISSING_RESPONSE = {
-  code: API_ERROR_CODES.CUSTOMER_PROFILE_MISSING,
-  error: "Customer profile not linked to this user",
-} as const;
+profileRouter.use("*", requireCustomerProfile);
 
 // Explicit columns: the full row carries internal admin notes, billing/ERP
 // fields, and tenantId — none of the customer's business.
@@ -27,11 +25,7 @@ const PROFILE_COLUMNS = {
 // GET / — return customer record for authenticated user
 profileRouter.get("/", async (c) => {
   const tenantId = c.get("tenantId")!;
-  const customerId = c.get("membership")!.customerId;
-
-  if (!customerId) {
-    return c.json(CUSTOMER_PROFILE_MISSING_RESPONSE, 400);
-  }
+  const customerId = c.get("customerId")!;
 
   // Explicit tenantId filter as defense-in-depth on top of RLS.
   const [customer] = await db
@@ -56,11 +50,7 @@ const updateProfileSchema = z.object({
 // remain admin-controlled (they're tied to billing / invitation).
 profileRouter.patch("/", async (c) => {
   const tenantId = c.get("tenantId")!;
-  const customerId = c.get("membership")!.customerId;
-
-  if (!customerId) {
-    return c.json(CUSTOMER_PROFILE_MISSING_RESPONSE, 400);
-  }
+  const customerId = c.get("customerId")!;
 
   const body = await c.req.json();
   const parsed = updateProfileSchema.safeParse(body);

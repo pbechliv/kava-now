@@ -21,6 +21,7 @@ import { EmptyState } from "@/components/empty-state";
 import { useCartStore } from "@/lib/store/cart";
 import { useCreateOrder } from "@/lib/hooks/use-customer-orders";
 import { UNIT_LABELS } from "@kava-now/shared";
+import { formatMoney } from "@/lib/format";
 
 export function CartPage() {
   const navigate = useNavigate();
@@ -100,7 +101,7 @@ export function CartPage() {
                     )}
                   </TableCell>
                   <TableCell className="text-center text-muted-foreground">
-                    {item.product.resolvedPrice.toFixed(2)}&nbsp;€
+                    {formatMoney(item.product.resolvedPrice)}
                     <span className="text-xs text-muted-foreground/70">
                       /{UNIT_LABELS[item.product.unit]}
                     </span>
@@ -137,7 +138,7 @@ export function CartPage() {
                     </div>
                   </TableCell>
                   <TableCell className="text-right font-medium">
-                    {(item.product.resolvedPrice * item.quantity).toFixed(2)}&nbsp;€
+                    {formatMoney(item.product.resolvedPrice * item.quantity)}
                   </TableCell>
                   <TableCell>
                     <Button
@@ -164,7 +165,7 @@ export function CartPage() {
                   <div className="font-medium">{item.product.name}</div>
                   <div className="text-sm text-muted-foreground">
                     {item.product.brand ? `${item.product.brand} · ` : ""}
-                    {item.product.resolvedPrice.toFixed(2)}&nbsp;€
+                    {formatMoney(item.product.resolvedPrice)}
                     <span className="text-xs text-muted-foreground/70">
                       /{UNIT_LABELS[item.product.unit]}
                     </span>
@@ -210,7 +211,7 @@ export function CartPage() {
                   </Button>
                 </div>
                 <div className="font-medium">
-                  {(item.product.resolvedPrice * item.quantity).toFixed(2)}&nbsp;€
+                  {formatMoney(item.product.resolvedPrice * item.quantity)}
                 </div>
               </div>
             </MobileListItem>
@@ -233,7 +234,7 @@ export function CartPage() {
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <span className="text-sm text-muted-foreground">Σύνολο: </span>
-            <span className="text-xl font-bold">{totalPrice().toFixed(2)}&nbsp;€</span>
+            <span className="text-xl font-bold">{formatMoney(totalPrice())}</span>
           </div>
           <div className="flex flex-wrap gap-2">
             {confirming && (

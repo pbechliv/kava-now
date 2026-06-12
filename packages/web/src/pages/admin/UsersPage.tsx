@@ -1,38 +1,18 @@
 import { useState } from "react";
-import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
 import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
-import { ROLE_LABELS, inviteStaffUserSchema } from "@kava-now/shared";
+import { ROLE_LABELS } from "@kava-now/shared";
 import {
   useUsers,
   useInviteUser,
   useDeleteUser,
   useResendInvite,
   usePromoteToOwner,
-  type InviteUserInput,
 } from "@/lib/hooks/use-users";
 import { useAuth } from "@/lib/hooks/use-auth";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
-import {
-  Form,
-  FormControl,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from "@/components/ui/form";
 import {
   Table,
   TableBody,
@@ -44,6 +24,8 @@ import {
 import { MobileList, MobileListItem } from "@/components/ui/mobile-list";
 import { Spinner } from "@/components/spinner";
 import { ConfirmDialog } from "@/components/confirm-dialog";
+import { InviteUserDialog } from "@/components/admin/InviteUserDialog";
+import { UserInviteActions, useResendInviteFeedback } from "@/components/admin/UserInviteActions";
 
 export function UsersPage() {
   const { user: me, currentMembership } = useAuth();
@@ -54,25 +36,11 @@ export function UsersPage() {
   const promote = usePromoteToOwner();
   const [inviteOpen, setInviteOpen] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<{ id: string; name: string } | null>(null);
-  const [resendFeedback, setResendFeedback] = useState<{
-    id: string;
-    kind: "success" | "error";
-    message: string;
-  } | null>(null);
+  const { feedback, handleResend, resendPendingId } = useResendInviteFeedback(resend);
 
-  const form = useForm<InviteUserInput>({
-    resolver: zodResolver(inviteStaffUserSchema),
-    defaultValues: { role: "staff", name: "", email: "" },
-  });
-
-  const onInvite = (input: InviteUserInput) => {
-    invite.mutate(input, {
-      onSuccess: () => {
-        form.reset();
-        setInviteOpen(false);
-        toast.success("Η πρόσκληση στάλθηκε");
-      },
-    });
+  const handleDelete = (target: { id: string; name: string }) => {
+    remove.reset();
+    setDeleteTarget(target);
   };
 
   const confirmDelete = () => {
@@ -82,23 +50,6 @@ export function UsersPage() {
         setDeleteTarget(null);
         toast.success("Ο χρήστης αφαιρέθηκε");
       },
-    });
-  };
-
-  const handleResend = (id: string) => {
-    resend.mutate(id, {
-      onSuccess: () =>
-        setResendFeedback({
-          id,
-          kind: "success",
-          message: "Η πρόσκληση στάλθηκε ξανά",
-        }),
-      onError: (err) =>
-        setResendFeedback({
-          id,
-          kind: "error",
-          message: err instanceof Error ? err.message : "Σφάλμα",
-        }),
     });
   };
 
@@ -112,6 +63,26 @@ export function UsersPage() {
 
   const users = data?.users ?? [];
   const canPromote = currentMembership?.role === "owner";
+
+  const promoteButton = (u: { id: string; role: string }) =>
+    canPromote &&
+    u.role === "staff" && (
+      <Button
+        variant="outline"
+        size="sm"
+        disabled={promote.isPending && promote.variables === u.id}
+        onClick={() =>
+          promote.mutate(u.id, {
+            onSuccess: () => toast.success("Ο χρήστης έγινε ιδιοκτήτης"),
+          })
+        }
+      >
+        {promote.isPending && promote.variables === u.id && (
+          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+        )}
+        Μετατροπή σε ιδιοκτήτη
+      </Button>
+    );
 
   return (
     <div className="space-y-6">
@@ -159,60 +130,15 @@ export function UsersPage() {
                   </TableCell>
                   <TableCell className="text-right">
                     {u.id !== me?.id && (
-                      <div className="flex flex-wrap items-center justify-end gap-2">
-                        {resendFeedback?.id === u.id && (
-                          <span
-                            className={`text-xs ${
-                              resendFeedback.kind === "success"
-                                ? "text-green-600"
-                                : "text-destructive"
-                            }`}
-                          >
-                            {resendFeedback.message}
-                          </span>
-                        )}
-                        {!u.emailVerified && (
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            disabled={resend.isPending && resend.variables === u.id}
-                            onClick={() => handleResend(u.id)}
-                          >
-                            {resend.isPending && resend.variables === u.id && (
-                              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                            )}
-                            Επανάληψη πρόσκλησης
-                          </Button>
-                        )}
-                        {canPromote && u.role === "staff" && (
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            disabled={promote.isPending && promote.variables === u.id}
-                            onClick={() =>
-                              promote.mutate(u.id, {
-                                onSuccess: () => toast.success("Ο χρήστης έγινε ιδιοκτήτης"),
-                              })
-                            }
-                          >
-                            {promote.isPending && promote.variables === u.id && (
-                              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                            )}
-                            Μετατροπή σε ιδιοκτήτη
-                          </Button>
-                        )}
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="text-destructive hover:bg-destructive/10 hover:text-destructive"
-                          onClick={() => {
-                            remove.reset();
-                            setDeleteTarget({ id: u.id, name: u.name });
-                          }}
-                        >
-                          Διαγραφή
-                        </Button>
-                      </div>
+                      <UserInviteActions
+                        user={u}
+                        feedback={feedback}
+                        resendPendingId={resendPendingId}
+                        onResend={handleResend}
+                        onDelete={handleDelete}
+                      >
+                        {promoteButton(u)}
+                      </UserInviteActions>
                     )}
                   </TableCell>
                 </TableRow>
@@ -242,140 +168,47 @@ export function UsersPage() {
                 </div>
               </div>
               {u.id !== me?.id && (
-                <div className="-mx-2 flex flex-wrap items-center gap-y-1">
-                  {resendFeedback?.id === u.id && (
-                    <span
-                      className={`mx-2 text-xs ${
-                        resendFeedback.kind === "success" ? "text-green-600" : "text-destructive"
-                      }`}
-                    >
-                      {resendFeedback.message}
-                    </span>
-                  )}
-                  {!u.emailVerified && (
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      disabled={resend.isPending && resend.variables === u.id}
-                      onClick={() => handleResend(u.id)}
-                    >
-                      {resend.isPending && resend.variables === u.id && (
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      )}
-                      Επανάληψη πρόσκλησης
-                    </Button>
-                  )}
-                  {canPromote && u.role === "staff" && (
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="mx-2"
-                      disabled={promote.isPending && promote.variables === u.id}
-                      onClick={() =>
-                        promote.mutate(u.id, {
-                          onSuccess: () => toast.success("Ο χρήστης έγινε ιδιοκτήτης"),
-                        })
-                      }
-                    >
-                      {promote.isPending && promote.variables === u.id && (
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      )}
-                      Μετατροπή σε ιδιοκτήτη
-                    </Button>
-                  )}
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="text-destructive hover:bg-destructive/10 hover:text-destructive"
-                    onClick={() => {
-                      remove.reset();
-                      setDeleteTarget({ id: u.id, name: u.name });
-                    }}
-                  >
-                    Διαγραφή
-                  </Button>
-                </div>
+                <UserInviteActions
+                  user={u}
+                  feedback={feedback}
+                  resendPendingId={resendPendingId}
+                  onResend={handleResend}
+                  onDelete={handleDelete}
+                  align="start"
+                >
+                  {promoteButton(u)}
+                </UserInviteActions>
               )}
             </MobileListItem>
           ))}
         </MobileList>
       </Card>
 
-      <Dialog
+      <InviteUserDialog
         open={inviteOpen}
-        onOpenChange={(open) => {
-          if (!open) form.reset();
-          setInviteOpen(open);
-        }}
-      >
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Πρόσκληση χρήστη</DialogTitle>
-            <DialogDescription>
-              Θα σταλεί email στον χρήστη με σύνδεσμο για να ορίσει τον κωδικό του.
-            </DialogDescription>
-          </DialogHeader>
-
-          <Form {...form}>
-            <form onSubmit={form.handleSubmit(onInvite)} className="space-y-4">
-              <FormField
-                control={form.control}
-                name="name"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Όνομα</FormLabel>
-                    <FormControl>
-                      <Input placeholder="Γιάννης Παπαδόπουλος" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="email"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Email</FormLabel>
-                    <FormControl>
-                      <Input type="email" placeholder="user@example.com" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <input type="hidden" {...form.register("role")} value="staff" />
-              <p className="text-xs text-muted-foreground">
-                Οι χρήστες πελατών δημιουργούνται από τη σελίδα{" "}
-                <span className="font-medium">Πελάτες</span>.
-              </p>
-
-              {invite.error && (
-                <p className="text-sm text-destructive">
-                  {invite.error instanceof Error ? invite.error.message : "Σφάλμα"}
-                </p>
-              )}
-
-              <DialogFooter>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  onClick={() => {
-                    form.reset();
-                    setInviteOpen(false);
-                  }}
-                >
-                  Άκυρο
-                </Button>
-                <Button type="submit" disabled={invite.isPending}>
-                  {invite.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                  Αποστολή
-                </Button>
-              </DialogFooter>
-            </form>
-          </Form>
-        </DialogContent>
-      </Dialog>
+        onOpenChange={setInviteOpen}
+        title="Πρόσκληση χρήστη"
+        description="Θα σταλεί email στον χρήστη με σύνδεσμο για να ορίσει τον κωδικό του."
+        footnote={
+          <p className="text-xs text-muted-foreground">
+            Οι χρήστες πελατών δημιουργούνται από τη σελίδα{" "}
+            <span className="font-medium">Πελάτες</span>.
+          </p>
+        }
+        pending={invite.isPending}
+        error={invite.error}
+        onSubmit={(values) =>
+          invite.mutate(
+            { ...values, role: "staff" },
+            {
+              onSuccess: () => {
+                setInviteOpen(false);
+                toast.success("Η πρόσκληση στάλθηκε");
+              },
+            },
+          )
+        }
+      />
 
       <ConfirmDialog
         open={!!deleteTarget}

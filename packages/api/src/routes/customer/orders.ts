@@ -9,12 +9,15 @@ import {
   customers,
   customerBrandPricing,
 } from "../../db/schema/index";
+import { requireCustomerProfile } from "../../middleware/require-customer-profile";
 import { resolvePrice } from "../../services/pricing";
 import { sendOrderNotification } from "../../services/email";
 import { sendPushToUsers, tenantStaffUserIds } from "../../services/push";
 import type { AppEnv } from "../../types";
 
 const ordersRouter = new Hono<AppEnv>();
+
+ordersRouter.use("*", requireCustomerProfile);
 
 // Post-commit notifications shared by create + reorder (a reorder IS a new
 // order): email to the tenant's notification inbox, push to owner/staff
@@ -49,17 +52,7 @@ function queueOrderPlacedNotifications(
 // POST / — create order
 ordersRouter.post("/", async (c) => {
   const tenant = c.get("tenant")!;
-  const customerId = c.get("membership")!.customerId;
-
-  if (!customerId) {
-    return c.json(
-      {
-        code: API_ERROR_CODES.CUSTOMER_PROFILE_MISSING,
-        error: "Customer profile not linked to this user",
-      },
-      400,
-    );
-  }
+  const customerId = c.get("customerId")!;
 
   const body = await c.req.json();
   const parsed = createOrderSchema.safeParse(body);
@@ -177,17 +170,7 @@ ordersRouter.post("/", async (c) => {
 // GET / — list orders for authenticated customer
 ordersRouter.get("/", async (c) => {
   const tenantId = c.get("tenantId")!;
-  const customerId = c.get("membership")!.customerId;
-
-  if (!customerId) {
-    return c.json(
-      {
-        code: API_ERROR_CODES.CUSTOMER_PROFILE_MISSING,
-        error: "Customer profile not linked to this user",
-      },
-      400,
-    );
-  }
+  const customerId = c.get("customerId")!;
 
   const pagination = paginationQuerySchema.safeParse({
     page: c.req.query("page"),
@@ -231,18 +214,8 @@ ordersRouter.get("/", async (c) => {
 // GET /:id — single order with items
 ordersRouter.get("/:id", async (c) => {
   const tenantId = c.get("tenantId")!;
-  const customerId = c.get("membership")!.customerId;
+  const customerId = c.get("customerId")!;
   const orderId = c.req.param("id");
-
-  if (!customerId) {
-    return c.json(
-      {
-        code: API_ERROR_CODES.CUSTOMER_PROFILE_MISSING,
-        error: "Customer profile not linked to this user",
-      },
-      400,
-    );
-  }
 
   // Explicit columns: the full row carries ERP internals (erpMark, the
   // transmitting staff member's UUID) and tenantId — none of the customer's
@@ -284,18 +257,8 @@ ordersRouter.get("/:id", async (c) => {
 // POST /:id/reorder — clone items from referenced order into a new order
 ordersRouter.post("/:id/reorder", async (c) => {
   const tenant = c.get("tenant")!;
-  const customerId = c.get("membership")!.customerId;
+  const customerId = c.get("customerId")!;
   const orderId = c.req.param("id");
-
-  if (!customerId) {
-    return c.json(
-      {
-        code: API_ERROR_CODES.CUSTOMER_PROFILE_MISSING,
-        error: "Customer profile not linked to this user",
-      },
-      400,
-    );
-  }
 
   // Get original order
   const [originalOrder] = await db

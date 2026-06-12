@@ -13,6 +13,7 @@ import { MobileList, MobileListItem } from "@/components/ui/mobile-list";
 import { Spinner } from "@/components/spinner";
 import { OrderStatusBadge } from "@/components/order-status-badge";
 import { useDashboardStats } from "@/lib/hooks/use-dashboard";
+import { formatMoney, formatDate } from "@/lib/format";
 
 export function DashboardPage() {
   const slug = useTenantSlug();
@@ -88,15 +89,13 @@ export function DashboardPage() {
                   stats.recentOrders.map((order) => (
                     <TableRow key={order.id}>
                       <TableCell className="text-muted-foreground">
-                        {new Date(order.createdAt).toLocaleDateString("el-GR")}
+                        {formatDate(order.createdAt)}
                       </TableCell>
                       <TableCell className="font-medium">{order.customerName ?? "-"}</TableCell>
                       <TableCell className="text-center text-muted-foreground">
                         {order.itemCount}
                       </TableCell>
-                      <TableCell className="text-right">
-                        {Number(order.total).toFixed(2)}&euro;
-                      </TableCell>
+                      <TableCell className="text-right">{formatMoney(order.total)}</TableCell>
                       <TableCell>
                         <OrderStatusBadge status={order.status} />
                       </TableCell>
@@ -118,13 +117,10 @@ export function DashboardPage() {
                     <div className="min-w-0">
                       <div className="font-medium">{order.customerName ?? "-"}</div>
                       <div className="text-sm text-muted-foreground">
-                        {new Date(order.createdAt).toLocaleDateString("el-GR")} · {order.itemCount}{" "}
-                        προϊόντα
+                        {formatDate(order.createdAt)} · {order.itemCount} προϊόντα
                       </div>
                     </div>
-                    <div className="shrink-0 font-medium">
-                      {Number(order.total).toFixed(2)}&euro;
-                    </div>
+                    <div className="shrink-0 font-medium">{formatMoney(order.total)}</div>
                   </div>
                   <OrderStatusBadge status={order.status} />
                 </MobileListItem>
