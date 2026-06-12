@@ -122,12 +122,4 @@ CMD ["node", "dist/index.js"]
 # ---------------------------------------------------------------------------
 FROM caddy:2-alpine AS caddy
 COPY Caddyfile /etc/caddy/Caddyfile
-# The build lands in a staging dir, not the web root: the entrypoint syncs it
-# into the volume-backed /srv/web (docker-compose.yml `caddy-web`) so hashed
-# assets from previous deploys remain serveable — an in-flight page load that
-# straddles the container swap must still resolve its old chunk URLs.
-COPY infra/caddy/entrypoint.sh /entrypoint.sh
-RUN chmod +x /entrypoint.sh
-COPY --from=web-build /app/packages/web/dist /srv/web-dist
-ENTRYPOINT ["/entrypoint.sh"]
-CMD ["caddy", "run", "--config", "/etc/caddy/Caddyfile", "--adapter", "caddyfile"]
+COPY --from=web-build /app/packages/web/dist /srv/web

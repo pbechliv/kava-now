@@ -9,6 +9,9 @@
     <!-- Swaps the touch icon for dark mode; must be an external script — the
          production CSP has no 'unsafe-inline' for script-src. -->
     <script src="/icon-scheme.js"></script>
+    <!-- Reloads once when the entry bundle 404s (stale shell racing a
+         deploy) — otherwise the page stays a blank white screen. -->
+    <script src="/boot-guard.js"></script>
     <link rel="manifest" href="/site.webmanifest" />
     <meta name="theme-color" content="#d97706" />
     <title>KavaNow</title>
