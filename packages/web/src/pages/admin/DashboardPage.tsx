@@ -9,6 +9,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { MobileList, MobileListItem } from "@/components/ui/mobile-list";
 import { Spinner } from "@/components/spinner";
 import { OrderStatusBadge } from "@/components/order-status-badge";
 import { useDashboardStats } from "@/lib/hooks/use-dashboard";
@@ -65,7 +66,7 @@ export function DashboardPage() {
         </div>
 
         <Card className="mt-4 overflow-hidden">
-          <div className="overflow-x-auto">
+          <div className="hidden overflow-x-auto md:block">
             <Table>
               <TableHeader>
                 <TableRow>
@@ -105,6 +106,31 @@ export function DashboardPage() {
               </TableBody>
             </Table>
           </div>
+          {stats.recentOrders.length === 0 ? (
+            <p className="py-8 text-center text-muted-foreground md:hidden">
+              Δεν υπάρχουν παραγγελίες
+            </p>
+          ) : (
+            <MobileList>
+              {stats.recentOrders.map((order) => (
+                <MobileListItem key={order.id}>
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <div className="font-medium">{order.customerName ?? "-"}</div>
+                      <div className="text-sm text-muted-foreground">
+                        {new Date(order.createdAt).toLocaleDateString("el-GR")} · {order.itemCount}{" "}
+                        προϊόντα
+                      </div>
+                    </div>
+                    <div className="shrink-0 font-medium">
+                      {Number(order.total).toFixed(2)}&euro;
+                    </div>
+                  </div>
+                  <OrderStatusBadge status={order.status} />
+                </MobileListItem>
+              ))}
+            </MobileList>
+          )}
         </Card>
       </div>
     </div>

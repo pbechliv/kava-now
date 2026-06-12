@@ -12,6 +12,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { MobileList, MobileListItem } from "@/components/ui/mobile-list";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Spinner } from "@/components/spinner";
@@ -124,7 +125,7 @@ export function OrdersPage() {
       ) : (
         <>
           <Card className="overflow-hidden">
-            <div className="overflow-x-auto">
+            <div className="hidden overflow-x-auto md:block">
               <Table>
                 <TableHeader>
                   <TableRow>
@@ -179,6 +180,35 @@ export function OrdersPage() {
                 </TableBody>
               </Table>
             </div>
+            <MobileList>
+              {orders.map((order) => (
+                <MobileListItem
+                  key={order.id}
+                  className="cursor-pointer transition-colors hover:bg-muted/50"
+                  onClick={() => navigate(`${adminBase}/orders/${order.id}`)}
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <div className="font-medium">{order.customerName ?? "-"}</div>
+                      <div className="text-sm text-muted-foreground">
+                        <span className="font-mono text-xs">#{order.id.slice(0, 8)}</span> ·{" "}
+                        {new Date(order.createdAt).toLocaleDateString("el-GR")} · {order.itemCount}{" "}
+                        προϊόντα
+                      </div>
+                    </div>
+                    <div className="shrink-0 font-medium">
+                      {Number(order.total).toFixed(2)}&nbsp;€
+                    </div>
+                  </div>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <OrderStatusBadge status={order.status} />
+                    <Badge variant={order.erpStatus === "transmitted" ? "success" : "muted"}>
+                      {ERP_STATUS_LABELS[order.erpStatus]}
+                    </Badge>
+                  </div>
+                </MobileListItem>
+              ))}
+            </MobileList>
           </Card>
           <PaginationControls
             page={page}

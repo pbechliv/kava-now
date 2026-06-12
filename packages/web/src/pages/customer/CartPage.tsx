@@ -16,6 +16,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { MobileList, MobileListItem } from "@/components/ui/mobile-list";
 import { EmptyState } from "@/components/empty-state";
 import { useCartStore } from "@/lib/store/cart";
 import { useCreateOrder } from "@/lib/hooks/use-customer-orders";
@@ -78,7 +79,7 @@ export function CartPage() {
       <h1 className="text-2xl font-bold tracking-tight">Καλάθι</h1>
 
       <Card className="overflow-hidden">
-        <div className="overflow-x-auto">
+        <div className="hidden overflow-x-auto md:block">
           <Table>
             <TableHeader>
               <TableRow>
@@ -155,6 +156,66 @@ export function CartPage() {
             </TableBody>
           </Table>
         </div>
+        <MobileList>
+          {cartItems.map((item) => (
+            <MobileListItem key={item.product.id}>
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <div className="font-medium">{item.product.name}</div>
+                  <div className="text-sm text-muted-foreground">
+                    {item.product.brand ? `${item.product.brand} · ` : ""}
+                    {item.product.resolvedPrice.toFixed(2)}&nbsp;€
+                    <span className="text-xs text-muted-foreground/70">
+                      /{UNIT_LABELS[item.product.unit]}
+                    </span>
+                  </div>
+                </div>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  className="shrink-0 text-destructive hover:bg-destructive/10 hover:text-destructive"
+                  onClick={() => removeItem(item.product.id)}
+                  aria-label="Αφαίρεση"
+                >
+                  <Trash2 className="h-4 w-4" />
+                </Button>
+              </div>
+              <div className="flex items-center justify-between gap-3">
+                <div className="flex items-center gap-1">
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    className="h-8 w-8"
+                    onClick={() => updateQuantity(item.product.id, item.quantity - 1)}
+                  >
+                    -
+                  </Button>
+                  <Input
+                    type="number"
+                    min={1}
+                    value={item.quantity}
+                    onChange={(e) => updateQuantity(item.product.id, parseInt(e.target.value) || 1)}
+                    className="h-8 w-14 text-center"
+                  />
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    className="h-8 w-8"
+                    onClick={() => updateQuantity(item.product.id, item.quantity + 1)}
+                  >
+                    +
+                  </Button>
+                </div>
+                <div className="font-medium">
+                  {(item.product.resolvedPrice * item.quantity).toFixed(2)}&nbsp;€
+                </div>
+              </div>
+            </MobileListItem>
+          ))}
+        </MobileList>
       </Card>
 
       <div className="space-y-2">

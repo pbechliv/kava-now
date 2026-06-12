@@ -12,6 +12,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { MobileList, MobileListItem } from "@/components/ui/mobile-list";
 import { Spinner } from "@/components/spinner";
 import { PaginationControls } from "@/components/PaginationControls";
 
@@ -48,7 +49,7 @@ export function TenantsPage() {
       ) : (
         <>
           <Card className="overflow-hidden">
-            <div className="overflow-x-auto">
+            <div className="hidden overflow-x-auto md:block">
               <Table>
                 <TableHeader>
                   <TableRow>
@@ -107,6 +108,57 @@ export function TenantsPage() {
                 </TableBody>
               </Table>
             </div>
+            <MobileList>
+              {tenants.map((tenant) => (
+                <MobileListItem key={tenant.id}>
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <div className="font-medium">{tenant.name}</div>
+                      <div className="text-sm text-muted-foreground">
+                        {tenant.slug} · {tenant.email}
+                      </div>
+                      <div className="text-sm text-muted-foreground">
+                        {new Date(tenant.createdAt).toLocaleDateString("el-GR")}
+                      </div>
+                    </div>
+                    <div className="shrink-0">
+                      {confirmId === tenant.id ? (
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs text-destructive">Σίγουρα;</span>
+                          <Button
+                            variant="destructive"
+                            size="sm"
+                            disabled={deleteMutation.isPending}
+                            onClick={() =>
+                              deleteMutation.mutate(tenant.id, {
+                                onSuccess: () => setConfirmId(null),
+                              })
+                            }
+                          >
+                            {deleteMutation.isPending && (
+                              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                            )}
+                            Ναι
+                          </Button>
+                          <Button variant="ghost" size="sm" onClick={() => setConfirmId(null)}>
+                            Όχι
+                          </Button>
+                        </div>
+                      ) : (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="text-destructive hover:bg-destructive/10 hover:text-destructive"
+                          onClick={() => setConfirmId(tenant.id)}
+                        >
+                          Διαγραφή
+                        </Button>
+                      )}
+                    </div>
+                  </div>
+                </MobileListItem>
+              ))}
+            </MobileList>
           </Card>
           <PaginationControls
             page={page}

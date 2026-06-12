@@ -41,6 +41,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { MobileList, MobileListItem } from "@/components/ui/mobile-list";
 import { Spinner } from "@/components/spinner";
 import { ConfirmDialog } from "@/components/confirm-dialog";
 
@@ -134,75 +135,134 @@ export function CustomerUsersPage() {
         {users.length === 0 ? (
           <p className="p-6 text-sm text-muted-foreground">Δεν έχουν προσκληθεί χρήστες ακόμα.</p>
         ) : (
-          <div className="overflow-x-auto">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Όνομα</TableHead>
-                  <TableHead>Email</TableHead>
-                  <TableHead>Προσκλήθηκε από</TableHead>
-                  <TableHead className="text-right" />
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {users.map((u) => (
-                  <TableRow key={u.id}>
-                    <TableCell className="font-medium">
+          <>
+            <div className="hidden overflow-x-auto md:block">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Όνομα</TableHead>
+                    <TableHead>Email</TableHead>
+                    <TableHead>Προσκλήθηκε από</TableHead>
+                    <TableHead className="text-right" />
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {users.map((u) => (
+                    <TableRow key={u.id}>
+                      <TableCell className="font-medium">
+                        {u.name}
+                        {!u.emailVerified && (
+                          <Badge variant="warning" className="ml-2">
+                            Εκκρεμεί
+                          </Badge>
+                        )}
+                      </TableCell>
+                      <TableCell className="text-muted-foreground">{u.email}</TableCell>
+                      <TableCell className="text-muted-foreground">
+                        {u.invitedByName ?? "—"}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <div className="flex flex-wrap items-center justify-end gap-2">
+                          {resendFeedback?.id === u.id && (
+                            <span
+                              className={`text-xs ${
+                                resendFeedback.kind === "success"
+                                  ? "text-green-600"
+                                  : "text-destructive"
+                              }`}
+                            >
+                              {resendFeedback.message}
+                            </span>
+                          )}
+                          {!u.emailVerified && (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              disabled={resend.isPending && resend.variables === u.id}
+                              onClick={() => handleResend(u.id)}
+                            >
+                              {resend.isPending && resend.variables === u.id && (
+                                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                              )}
+                              Επανάληψη πρόσκλησης
+                            </Button>
+                          )}
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="text-destructive hover:bg-destructive/10 hover:text-destructive"
+                            onClick={() => {
+                              remove.reset();
+                              setDeleteTarget({ id: u.id, name: u.name });
+                            }}
+                          >
+                            Διαγραφή
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+            <MobileList>
+              {users.map((u) => (
+                <MobileListItem key={u.id}>
+                  <div className="min-w-0">
+                    <div className="font-medium">
                       {u.name}
                       {!u.emailVerified && (
                         <Badge variant="warning" className="ml-2">
                           Εκκρεμεί
                         </Badge>
                       )}
-                    </TableCell>
-                    <TableCell className="text-muted-foreground">{u.email}</TableCell>
-                    <TableCell className="text-muted-foreground">
-                      {u.invitedByName ?? "—"}
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <div className="flex flex-wrap items-center justify-end gap-2">
-                        {resendFeedback?.id === u.id && (
-                          <span
-                            className={`text-xs ${
-                              resendFeedback.kind === "success"
-                                ? "text-green-600"
-                                : "text-destructive"
-                            }`}
-                          >
-                            {resendFeedback.message}
-                          </span>
-                        )}
-                        {!u.emailVerified && (
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            disabled={resend.isPending && resend.variables === u.id}
-                            onClick={() => handleResend(u.id)}
-                          >
-                            {resend.isPending && resend.variables === u.id && (
-                              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                            )}
-                            Επανάληψη πρόσκλησης
-                          </Button>
-                        )}
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="text-destructive hover:bg-destructive/10 hover:text-destructive"
-                          onClick={() => {
-                            remove.reset();
-                            setDeleteTarget({ id: u.id, name: u.name });
-                          }}
-                        >
-                          Διαγραφή
-                        </Button>
+                    </div>
+                    <div className="text-sm text-muted-foreground">{u.email}</div>
+                    {u.invitedByName && (
+                      <div className="text-sm text-muted-foreground">
+                        Προσκλήθηκε από {u.invitedByName}
                       </div>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </div>
+                    )}
+                  </div>
+                  <div className="-mx-2 flex flex-wrap items-center gap-y-1">
+                    {resendFeedback?.id === u.id && (
+                      <span
+                        className={`mx-2 text-xs ${
+                          resendFeedback.kind === "success" ? "text-green-600" : "text-destructive"
+                        }`}
+                      >
+                        {resendFeedback.message}
+                      </span>
+                    )}
+                    {!u.emailVerified && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        disabled={resend.isPending && resend.variables === u.id}
+                        onClick={() => handleResend(u.id)}
+                      >
+                        {resend.isPending && resend.variables === u.id && (
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        )}
+                        Επανάληψη πρόσκλησης
+                      </Button>
+                    )}
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="text-destructive hover:bg-destructive/10 hover:text-destructive"
+                      onClick={() => {
+                        remove.reset();
+                        setDeleteTarget({ id: u.id, name: u.name });
+                      }}
+                    >
+                      Διαγραφή
+                    </Button>
+                  </div>
+                </MobileListItem>
+              ))}
+            </MobileList>
+          </>
         )}
       </Card>
 
