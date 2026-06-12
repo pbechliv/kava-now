@@ -98,7 +98,9 @@ API mirrors this:
 
 `requireRole` ([packages/api/src/middleware/require-role.ts](packages/api/src/middleware/require-role.ts)) looks up `tenant_memberships` for the authenticated user + URL-resolved tenant and 403s if no membership matches. Superadmins bypass the lookup and get a synthetic `owner` membership. The resolved membership is exposed on the context via `c.get("membership")` (`{ role, customerId }`).
 
-`AppEnv` context variables ([packages/api/src/types.ts](packages/api/src/types.ts)): `tenant`, `tenantId`, `user`, `session`, `membership`.
+`requireCustomerProfile` ([packages/api/src/middleware/require-customer-profile.ts](packages/api/src/middleware/require-customer-profile.ts)) guards customer routes whose handlers need a linked `customers` row: it 400s with `CUSTOMER_PROFILE_MISSING` when `membership.customerId` is null and otherwise exposes it as `c.get("customerId")`. Applied router-wide on `/customer/orders` and `/customer/profile`, and per-route on the catalog list (`/customer/catalog/categories` deliberately stays outside it).
+
+`AppEnv` context variables ([packages/api/src/types.ts](packages/api/src/types.ts)): `tenant`, `tenantId`, `user`, `session`, `membership`, `customerId`.
 
 ### Users + memberships (many-to-many)
 
@@ -178,6 +180,8 @@ Postgres `numeric` columns (`basePrice`, `unitPrice`, `alcoholPct`, `discountPct
 
 `order_items.status` (`active | cancelled`) + `replacedByItemId` form a soft-cancel/replacement chain: cancelled lines stay in the table for audit. Totals and item counts must filter `status='active'` — see the SQL `filter (where ... = 'active')` clauses in the orders list query.
 
+Fulfillment status transition rules live in `ORDER_STATUS_TRANSITIONS` ([packages/shared/src/constants.ts](packages/shared/src/constants.ts)) — the API enforces them, the web reads them to drive the status picker. Don't redeclare them locally.
+
 ### Frontend structure
 
 [packages/web/src/App.tsx](packages/web/src/App.tsx) is a single React Router tree:
@@ -199,6 +203,15 @@ Postgres `numeric` columns (`basePrice`, `unitPrice`, `alcoholPct`, `discountPct
 [TenantSwitcher](packages/web/src/components/TenantSwitcher.tsx) is a shared dropdown section embedded in all three layouts' user menus. Shows the user's other memberships (and an "Admin" link if they're a superadmin not currently on `/admin/*`).
 
 `RequireAuth` / `RequireRole` guards live in [packages/web/src/components/guards/](packages/web/src/components/guards/). `RequireRole` accepts `["superadmin", "owner", "staff", "customer"]` and reads role from `currentMembership` (superadmin bypasses).
+
+**Web conventions** (use these instead of inlining):
+
+- Money/date display: `formatMoney` / `formatDate` / `formatDateTime` / `formatDateLong` in [lib/format.ts](packages/web/src/lib/format.ts) — never inline `toFixed(2)` + `€` or `toLocale*("el-GR")`.
+- Query strings in list hooks: `withQuery(path, filters)` in [lib/utils.ts](packages/web/src/lib/utils.ts).
+- Pagination size: `PAGE_SIZE` from [lib/constants.ts](packages/web/src/lib/constants.ts).
+- Query keys follow `[role, slug, domain, ...detail]` (e.g. `["admin", slug, "orders", id]`); mutations invalidate the domain prefix.
+- Responsive tables: desktop `<Table>` wrapped in `hidden md:block`, paired with a `MobileList`/`MobileListItem` card list ([components/ui/mobile-list.tsx](packages/web/src/components/ui/mobile-list.tsx)) that renders below `md`. Both render from the same data and handlers.
+- The admin order detail page is composed from section components in [components/admin/order-detail/](packages/web/src/components/admin/order-detail/), each owning its own state and mutations.
 
 ### Environment
 
