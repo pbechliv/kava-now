@@ -31,11 +31,15 @@ kavanow.gr {
 	# Hashed Vite assets: cache forever — filenames change on every build.
 	# Immutable only when the file actually exists: a missing hash must 404
 	# uncached (no try_files fallback here), never serve index.html pinned
-	# forever under a JS URL.
+	# forever under a JS URL. The 404 itself is no-store — without an explicit
+	# header Cloudflare caches 404s on .js/.css URLs for minutes, pinning a
+	# white screen at the edge when a request races a deploy.
 	handle /assets/* {
 		root * /srv/web
 		@exists file
 		header @exists Cache-Control "public, max-age=31536000, immutable"
+		@missing not file
+		header @missing Cache-Control "no-store"
 		file_server
 	}
 
