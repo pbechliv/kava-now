@@ -1,38 +1,17 @@
 import { useState } from "react";
-import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
 import { Link, useParams } from "react-router";
-import { ArrowLeft, Loader2 } from "lucide-react";
+import { ArrowLeft } from "lucide-react";
 import { toast } from "sonner";
-import { inviteCustomerUserSchema } from "@kava-now/shared";
 import {
   useCustomerUsers,
   useInviteCustomerUser,
   useResendCustomerUserInvite,
-  type InviteCustomerUserInput,
 } from "@/lib/hooks/use-customer-users";
 import { useCustomer } from "@/lib/hooks/use-customers";
 import { useDeleteUser } from "@/lib/hooks/use-users";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
-import {
-  Form,
-  FormControl,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from "@/components/ui/form";
 import {
   Table,
   TableBody,
@@ -44,6 +23,8 @@ import {
 import { MobileList, MobileListItem } from "@/components/ui/mobile-list";
 import { Spinner } from "@/components/spinner";
 import { ConfirmDialog } from "@/components/confirm-dialog";
+import { InviteUserDialog } from "@/components/admin/InviteUserDialog";
+import { UserInviteActions, useResendInviteFeedback } from "@/components/admin/UserInviteActions";
 
 export function CustomerUsersPage() {
   const { id = "", slug } = useParams<{ id: string; slug: string }>();
@@ -54,42 +35,11 @@ export function CustomerUsersPage() {
   const remove = useDeleteUser();
   const [inviteOpen, setInviteOpen] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<{ id: string; name: string } | null>(null);
-  const [resendFeedback, setResendFeedback] = useState<{
-    id: string;
-    kind: "success" | "error";
-    message: string;
-  } | null>(null);
+  const { feedback, handleResend, resendPendingId } = useResendInviteFeedback(resend);
 
-  const form = useForm<InviteCustomerUserInput>({
-    resolver: zodResolver(inviteCustomerUserSchema),
-    defaultValues: { name: "", email: "" },
-  });
-
-  const handleResend = (userId: string) => {
-    resend.mutate(userId, {
-      onSuccess: () =>
-        setResendFeedback({
-          id: userId,
-          kind: "success",
-          message: "Η πρόσκληση στάλθηκε ξανά",
-        }),
-      onError: (err) =>
-        setResendFeedback({
-          id: userId,
-          kind: "error",
-          message: err instanceof Error ? err.message : "Σφάλμα",
-        }),
-    });
-  };
-
-  const onInvite = (input: InviteCustomerUserInput) => {
-    invite.mutate(input, {
-      onSuccess: () => {
-        form.reset();
-        setInviteOpen(false);
-        toast.success("Η πρόσκληση στάλθηκε");
-      },
-    });
+  const handleDelete = (target: { id: string; name: string }) => {
+    remove.reset();
+    setDeleteTarget(target);
   };
 
   const confirmDelete = () => {
@@ -162,43 +112,13 @@ export function CustomerUsersPage() {
                         {u.invitedByName ?? "—"}
                       </TableCell>
                       <TableCell className="text-right">
-                        <div className="flex flex-wrap items-center justify-end gap-2">
-                          {resendFeedback?.id === u.id && (
-                            <span
-                              className={`text-xs ${
-                                resendFeedback.kind === "success"
-                                  ? "text-green-600"
-                                  : "text-destructive"
-                              }`}
-                            >
-                              {resendFeedback.message}
-                            </span>
-                          )}
-                          {!u.emailVerified && (
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              disabled={resend.isPending && resend.variables === u.id}
-                              onClick={() => handleResend(u.id)}
-                            >
-                              {resend.isPending && resend.variables === u.id && (
-                                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                              )}
-                              Επανάληψη πρόσκλησης
-                            </Button>
-                          )}
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="text-destructive hover:bg-destructive/10 hover:text-destructive"
-                            onClick={() => {
-                              remove.reset();
-                              setDeleteTarget({ id: u.id, name: u.name });
-                            }}
-                          >
-                            Διαγραφή
-                          </Button>
-                        </div>
+                        <UserInviteActions
+                          user={u}
+                          feedback={feedback}
+                          resendPendingId={resendPendingId}
+                          onResend={handleResend}
+                          onDelete={handleDelete}
+                        />
                       </TableCell>
                     </TableRow>
                   ))}
@@ -224,41 +144,14 @@ export function CustomerUsersPage() {
                       </div>
                     )}
                   </div>
-                  <div className="-mx-2 flex flex-wrap items-center gap-y-1">
-                    {resendFeedback?.id === u.id && (
-                      <span
-                        className={`mx-2 text-xs ${
-                          resendFeedback.kind === "success" ? "text-green-600" : "text-destructive"
-                        }`}
-                      >
-                        {resendFeedback.message}
-                      </span>
-                    )}
-                    {!u.emailVerified && (
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        disabled={resend.isPending && resend.variables === u.id}
-                        onClick={() => handleResend(u.id)}
-                      >
-                        {resend.isPending && resend.variables === u.id && (
-                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                        )}
-                        Επανάληψη πρόσκλησης
-                      </Button>
-                    )}
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="text-destructive hover:bg-destructive/10 hover:text-destructive"
-                      onClick={() => {
-                        remove.reset();
-                        setDeleteTarget({ id: u.id, name: u.name });
-                      }}
-                    >
-                      Διαγραφή
-                    </Button>
-                  </div>
+                  <UserInviteActions
+                    user={u}
+                    feedback={feedback}
+                    resendPendingId={resendPendingId}
+                    onResend={handleResend}
+                    onDelete={handleDelete}
+                    align="start"
+                  />
                 </MobileListItem>
               ))}
             </MobileList>
@@ -266,73 +159,22 @@ export function CustomerUsersPage() {
         )}
       </Card>
 
-      <Dialog
+      <InviteUserDialog
         open={inviteOpen}
-        onOpenChange={(open) => {
-          if (!open) form.reset();
-          setInviteOpen(open);
-        }}
-      >
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Προσθήκη χρήστη</DialogTitle>
-            <DialogDescription>
-              Θα σταλεί email με σύνδεσμο για να ορίσει τον κωδικό του στον χρήστη.
-            </DialogDescription>
-          </DialogHeader>
-          <Form {...form}>
-            <form onSubmit={form.handleSubmit(onInvite)} className="space-y-4">
-              <FormField
-                control={form.control}
-                name="name"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Όνομα</FormLabel>
-                    <FormControl>
-                      <Input placeholder="Γιάννης Παπαδόπουλος" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="email"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Email</FormLabel>
-                    <FormControl>
-                      <Input type="email" placeholder="user@example.com" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              {invite.error && (
-                <p className="text-sm text-destructive">
-                  {invite.error instanceof Error ? invite.error.message : "Σφάλμα"}
-                </p>
-              )}
-              <DialogFooter>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  onClick={() => {
-                    form.reset();
-                    setInviteOpen(false);
-                  }}
-                >
-                  Άκυρο
-                </Button>
-                <Button type="submit" disabled={invite.isPending}>
-                  {invite.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                  Αποστολή
-                </Button>
-              </DialogFooter>
-            </form>
-          </Form>
-        </DialogContent>
-      </Dialog>
+        onOpenChange={setInviteOpen}
+        title="Προσθήκη χρήστη"
+        description="Θα σταλεί email με σύνδεσμο για να ορίσει τον κωδικό του στον χρήστη."
+        pending={invite.isPending}
+        error={invite.error}
+        onSubmit={(values) =>
+          invite.mutate(values, {
+            onSuccess: () => {
+              setInviteOpen(false);
+              toast.success("Η πρόσκληση στάλθηκε");
+            },
+          })
+        }
+      />
 
       <ConfirmDialog
         open={!!deleteTarget}
