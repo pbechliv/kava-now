@@ -6,6 +6,10 @@
     <link rel="icon" href="/favicon.ico" sizes="48x48" />
     <link rel="icon" href="/favicon.svg" sizes="any" type="image/svg+xml" />
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <meta name="color-scheme" content="light dark" />
+    <!-- Applies the OS color scheme to <html> before first paint; external
+         script for the same CSP reason as icon-scheme.js below. -->
+    <script src="/theme-init.js"></script>
     <!-- Swaps the touch icon for dark mode; must be an external script — the
          production CSP has no 'unsafe-inline' for script-src. -->
     <script src="/icon-scheme.js"></script>
