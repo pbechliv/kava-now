@@ -3,7 +3,7 @@ import { QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router";
 import { queryClient } from "./lib/query-client";
 import { Toaster } from "./components/ui/sonner";
-import { Spinner } from "./components/spinner";
+import { BootSplash } from "./components/boot-splash";
 
 // Layouts
 import { AuthLayout } from "./components/layouts/AuthLayout";
@@ -76,20 +76,12 @@ const SuperAdminSettingsPage = lazyPage(
 const HomePage = lazyPage(() => import("./pages/HomePage"), "HomePage");
 const NotFoundPage = lazyPage(() => import("./pages/NotFoundPage"), "NotFoundPage");
 
-function RouteFallback() {
-  return (
-    <div className="flex min-h-[40vh] items-center justify-center">
-      <Spinner />
-    </div>
-  );
-}
-
 export function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <BrowserRouter>
         <AuthBootGate>
-          <Suspense fallback={<RouteFallback />}>
+          <Suspense fallback={<BootSplash />}>
             <Routes>
               {/* Platform-level auth — used by superadmin (no tenant context).
               `/` and `/login` both render LoginPage: anonymous users see the
