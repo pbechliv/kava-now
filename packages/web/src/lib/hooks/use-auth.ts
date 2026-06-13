@@ -23,22 +23,37 @@ export interface AuthMeResponse {
  * tenant memberships. The "current" membership (matching the URL's `:slug`
  * param, if any) is also exposed for convenience.
  */
+type AuthState = { user: AuthUser | null; memberships: TenantMembership[] };
+
 export function useAuth() {
-  const { data, isLoading, error, refetch, isRefetching } = useQuery({
+  const { data, isLoading, error, refetch, isRefetching } = useQuery<AuthState>({
     queryKey: ["auth"],
-    queryFn: () => api.get<AuthMeResponse>("/api/auth/me"),
-    // 401 means "not logged in" — fail fast. Anything else (network blip,
-    // 5xx during a deploy) is transient: retry, or a logged-in user landing
-    // on `/` gets stranded on the login form despite a valid session.
-    retry: (failureCount, err) =>
-      !(err instanceof ApiError && err.status === 401) && failureCount < 2,
+    // A 401 means "logged out" — a definite answer, not an error. Returning it
+    // as data (instead of throwing) keeps the query in a *success* state, which
+    // respects staleTime. An errored query is always stale and refetches on
+    // every observer mount, so any re-render/remount loop turned this into a
+    // /api/auth/me flood + a permanent spinner. redirectOn401:false stops api.ts
+    // from bouncing the window on the probe — the guards below do the redirect.
+    queryFn: async () => {
+      try {
+        return await api.get<AuthMeResponse>("/api/auth/me", { redirectOn401: false });
+      } catch (err) {
+        if (err instanceof ApiError && err.status === 401) {
+          return { user: null, memberships: [] };
+        }
+        throw err;
+      }
+    },
+    // Only transient failures (network blip, 5xx during a deploy) reach here now
+    // — retry them so a logged-in user isn't stranded on the login form.
+    retry: (failureCount) => failureCount < 2,
   });
   const { slug } = useParams<{ slug: string }>();
 
-  // A non-401 failure (network, 5xx) means the server was unreachable — auth
-  // state is unknown, not "logged out". Consumers render a retry panel
-  // (AuthUnavailable) instead of treating the user as anonymous.
-  const isAuthUnknown = !!error && !(error instanceof ApiError && error.status === 401);
+  // The query only errors on non-401 failures (network, 5xx): auth state is
+  // unknown, not "logged out". Consumers render a retry panel (AuthUnavailable)
+  // instead of treating the user as anonymous.
+  const isAuthUnknown = !!error;
 
   const user = data?.user ?? null;
   const memberships = data?.memberships ?? [];

@@ -12,12 +12,38 @@ export class ApiError extends Error {
   }
 }
 
-async function request<T>(method: string, path: string, body?: unknown): Promise<T> {
+export interface RequestOptions {
+  /**
+   * On a 401, redirect the whole window to the login page. Default true.
+   * The auth probe (`/api/auth/me`) passes false: a 401 there just means
+   * "logged out" and is handled as data by useAuth. Bouncing the window on the
+   * probe fights the React-Router guards and, when the probe is remounted, can
+   * spin into a redirect/refetch loop.
+   */
+  redirectOn401?: boolean;
+  /** Abort the request after this many ms so a hung connection fails fast. */
+  timeoutMs?: number;
+}
+
+const DEFAULT_TIMEOUT_MS = 15_000;
+
+async function request<T>(
+  method: string,
+  path: string,
+  body?: unknown,
+  { redirectOn401 = true, timeoutMs = DEFAULT_TIMEOUT_MS }: RequestOptions = {},
+): Promise<T> {
   const opts: RequestInit = {
     method,
     credentials: "include",
     headers: { "Content-Type": "application/json" },
   };
+  // A hung socket (server restart, flaky network) must not leave a request
+  // pending forever — that strands loading spinners. AbortSignal.timeout is
+  // supported in every browser this app targets; guard defensively anyway.
+  if (typeof AbortSignal !== "undefined" && typeof AbortSignal.timeout === "function") {
+    opts.signal = AbortSignal.timeout(timeoutMs);
+  }
   if (body !== undefined) {
     opts.body = JSON.stringify(body);
   }
@@ -27,11 +53,11 @@ async function request<T>(method: string, path: string, body?: unknown): Promise
   if (res.status === 401) {
     // If we're not already on a login page, redirect there. Preserve the
     // tenant prefix if we're inside one.
-    const path = window.location.pathname;
+    const currentPath = window.location.pathname;
     // "/" renders the login form itself — bouncing it to /login loses nothing
     // but state.
-    if (path !== "/" && !/\/login(\b|$)/.test(path)) {
-      const tenantMatch = path.match(/^\/k\/([^/]+)/);
+    if (redirectOn401 && currentPath !== "/" && !/\/login(\b|$)/.test(currentPath)) {
+      const tenantMatch = currentPath.match(/^\/k\/([^/]+)/);
       window.location.href = tenantMatch ? `/k/${tenantMatch[1]}/login` : "/login";
     }
     throw new ApiError(401, "Unauthorized");
@@ -58,7 +84,7 @@ async function request<T>(method: string, path: string, body?: unknown): Promise
 }
 
 export const api = {
-  get: <T>(path: string) => request<T>("GET", path),
+  get: <T>(path: string, options?: RequestOptions) => request<T>("GET", path, undefined, options),
   post: <T>(path: string, body?: unknown) => request<T>("POST", path, body),
   put: <T>(path: string, body?: unknown) => request<T>("PUT", path, body),
   patch: <T>(path: string, body?: unknown) => request<T>("PATCH", path, body),
