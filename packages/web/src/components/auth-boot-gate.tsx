@@ -1,6 +1,5 @@
 import { useAuth } from "@/lib/hooks/use-auth";
-import { Spinner } from "@/components/spinner";
-import { Logo } from "@/components/Logo";
+import { BootSplash } from "@/components/boot-splash";
 
 /**
  * Shows a neutral full-screen splash while the initial `/api/auth/me` check is
@@ -13,17 +12,15 @@ import { Logo } from "@/components/Logo";
  * instantly (the `["auth"]` query is already cached). Server-unreachable errors
  * fall through to the route, where `AuthUnavailable` (in `LoginPage`/`RequireAuth`)
  * handles the retry UI.
+ *
+ * The same `BootSplash` backs the route Suspense fallback (see `App.tsx`), so the
+ * auth gate and the first lazy-chunk load read as one continuous loader.
  */
 export function AuthBootGate({ children }: { children: React.ReactNode }) {
   const { isLoading } = useAuth();
 
   if (isLoading) {
-    return (
-      <div className="flex min-h-screen flex-col items-center justify-center gap-4 bg-muted/30">
-        <Logo className="size-14" />
-        <Spinner />
-      </div>
-    );
+    return <BootSplash />;
   }
 
   return <>{children}</>;
