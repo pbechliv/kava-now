@@ -1,9 +1,8 @@
-import { useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { loginSchema, type LoginInput } from "@kava-now/shared";
-import { Link, useLocation, useNavigate, useParams } from "react-router";
+import { Link, Navigate, useLocation, useNavigate, useParams } from "react-router";
 import { Loader2 } from "lucide-react";
 import { AuthUnavailable } from "@/components/auth-unavailable";
 import { GoogleSignInButton } from "@/components/auth/GoogleSignInButton";
@@ -62,30 +61,6 @@ export function LoginPage() {
     defaultValues: { email: "", password: "" },
   });
 
-  useEffect(() => {
-    if (!isAuthenticated || !user) return;
-    const returnTo = returnPathFromState(location.state);
-    if (returnTo) {
-      void navigate(returnTo, { replace: true });
-      return;
-    }
-    if (user.isSuperAdmin) {
-      void navigate("/admin/tenants", { replace: true });
-      return;
-    }
-    if (slug) {
-      const match = memberships.find((m) => m.tenantSlug === slug);
-      if (match) {
-        void navigate(membershipHome(match), { replace: true });
-        return;
-      }
-    }
-    if (memberships.length === 1) {
-      void navigate(membershipHome(memberships[0]!), { replace: true });
-    }
-    // 0 or multiple memberships and we're on /login → fall through to render below.
-  }, [isAuthenticated, user, memberships, slug, navigate, location.state]);
-
   // The cold-load spinner is handled by AuthBootGate (the app-level splash), so
   // by the time LoginPage renders, /api/auth/me has resolved.
 
@@ -95,7 +70,21 @@ export function LoginPage() {
     return <AuthUnavailable onRetry={() => void refetch()} retrying={isRefetching} />;
   }
 
-  if (isAuthenticated && user && !user.isSuperAdmin) {
+  // Already signed in? Redirect *during render* (not in an effect) so the login
+  // form never paints for a frame before navigating away — the reported flicker.
+  if (isAuthenticated && user) {
+    const returnTo = returnPathFromState(location.state);
+    if (returnTo) return <Navigate to={returnTo} replace />;
+    if (user.isSuperAdmin) return <Navigate to="/admin/tenants" replace />;
+    if (slug) {
+      const match = memberships.find((m) => m.tenantSlug === slug);
+      if (match) return <Navigate to={membershipHome(match)} replace />;
+    }
+    if (memberships.length === 1) {
+      return <Navigate to={membershipHome(memberships[0]!)} replace />;
+    }
+    // No single home to send them to — show an in-place chooser instead of the
+    // login form. (Superadmins always redirect above and never reach here.)
     if (memberships.length > 1) {
       return (
         <div className="space-y-4">
@@ -117,27 +106,23 @@ export function LoginPage() {
         </div>
       );
     }
-    if (memberships.length === 0) {
-      return (
-        <div className="space-y-4 text-center">
-          <h2 className="text-lg font-semibold">Δεν έχετε πρόσβαση σε λογαριασμό</h2>
-          <p className="text-sm text-muted-foreground">
-            Επικοινωνήστε με τον διαχειριστή της λογαριασμού σας για πρόσκληση.
-          </p>
-          <Button
-            variant="outline"
-            className="w-full"
-            onClick={() => signOut.mutate()}
-            disabled={signOut.isPending}
-          >
-            {signOut.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-            Σύνδεση με άλλον λογαριασμό
-          </Button>
-        </div>
-      );
-    }
-    // Single membership — useEffect will redirect; render nothing in the meantime.
-    return null;
+    return (
+      <div className="space-y-4 text-center">
+        <h2 className="text-lg font-semibold">Δεν έχετε πρόσβαση σε λογαριασμό</h2>
+        <p className="text-sm text-muted-foreground">
+          Επικοινωνήστε με τον διαχειριστή της λογαριασμού σας για πρόσκληση.
+        </p>
+        <Button
+          variant="outline"
+          className="w-full"
+          onClick={() => signOut.mutate()}
+          disabled={signOut.isPending}
+        >
+          {signOut.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+          Σύνδεση με άλλον λογαριασμό
+        </Button>
+      </div>
+    );
   }
 
   const onSubmit = (data: LoginInput) => {
