@@ -19,7 +19,7 @@ const OFFLINE_HTML = `<!doctype html>
     <meta name="theme-color" content="#d97706" />
     <title>Εκτός σύνδεσης — KavaNow</title>
     <style>
-      :root { color-scheme: light; }
+      :root { color-scheme: light dark; }
       * { box-sizing: border-box; }
       body {
         margin: 0;
@@ -61,6 +61,10 @@ const OFFLINE_HTML = `<!doctype html>
         font-weight: 600;
       }
       button:hover { background: #b45309; }
+      @media (prefers-color-scheme: dark) {
+        body { background: #09090b; color: #fafafa; }
+        p { color: #a1a1aa; }
+      }
     </style>
   </head>
   <body>
