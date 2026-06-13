@@ -14,6 +14,7 @@ import { SuperAdminLayout } from "./components/layouts/SuperAdminLayout";
 // Guards
 import { RequireAuth } from "./components/guards/RequireAuth";
 import { RequireRole } from "./components/guards/RequireRole";
+import { AuthBootGate } from "./components/auth-boot-gate";
 
 // Pages load lazily per route (#59): a customer on a phone must not download
 // the superadmin + admin areas (and papaparse) just to see the catalog. The
@@ -87,94 +88,99 @@ export function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <BrowserRouter>
-        <Suspense fallback={<RouteFallback />}>
-          <Routes>
-            {/* Platform-level auth — used by superadmin (no tenant context).
+        <AuthBootGate>
+          <Suspense fallback={<RouteFallback />}>
+            <Routes>
+              {/* Platform-level auth — used by superadmin (no tenant context).
               `/` and `/login` both render LoginPage: anonymous users see the
               login form, authenticated users are redirected to their home (or
               see a tenant picker if they belong to multiple tenants). */}
-            <Route element={<AuthLayout />}>
-              <Route index element={<LoginPage />} />
-              <Route path="/login" element={<LoginPage />} />
-              <Route path="/auth/forgot-password" element={<ForgotPasswordPage />} />
-              <Route path="/auth/reset-password" element={<ResetPasswordPage />} />
-            </Route>
-
-            {/* Superadmin */}
-            <Route
-              path="/admin"
-              element={
-                <RequireAuth>
-                  <RequireRole allowed={["superadmin"]}>
-                    <SuperAdminLayout />
-                  </RequireRole>
-                </RequireAuth>
-              }
-            >
-              <Route index element={<Navigate to="tenants" replace />} />
-              <Route path="tenants" element={<TenantsPage />} />
-              <Route path="tenants/new" element={<NewTenantPage />} />
-              <Route path="settings" element={<SuperAdminSettingsPage />} />
-            </Route>
-
-            {/* Tenant routes — all live under /k/:slug. */}
-            <Route path="/k/:slug">
-              {/* Tenant-scoped auth */}
               <Route element={<AuthLayout />}>
-                <Route path="login" element={<LoginPage />} />
-                <Route path="auth/forgot-password" element={<ForgotPasswordPage />} />
-                <Route path="auth/reset-password" element={<ResetPasswordPage />} />
-                <Route path="welcome" element={<WelcomePage />} />
+                <Route index element={<LoginPage />} />
+                <Route path="/login" element={<LoginPage />} />
+                <Route path="/auth/forgot-password" element={<ForgotPasswordPage />} />
+                <Route path="/auth/reset-password" element={<ResetPasswordPage />} />
               </Route>
 
+              {/* Superadmin */}
               <Route
-                path="admin"
+                path="/admin"
                 element={
                   <RequireAuth>
-                    <RequireRole allowed={["owner", "staff"]}>
-                      <AdminLayout />
+                    <RequireRole allowed={["superadmin"]}>
+                      <SuperAdminLayout />
                     </RequireRole>
                   </RequireAuth>
                 }
               >
-                <Route index element={<Navigate to="dashboard" replace />} />
-                <Route path="dashboard" element={<DashboardPage />} />
-                <Route path="products" element={<ProductsPage />} />
-                <Route path="products/new" element={<ProductFormPage />} />
-                <Route path="products/import" element={<ProductsImportPage />} />
-                <Route path="products/:id" element={<ProductFormPage />} />
-                <Route path="categories" element={<CategoriesPage />} />
-                <Route path="customers" element={<CustomersPage />} />
-                <Route path="customers/:id/users" element={<CustomerUsersPage />} />
-                <Route path="customers/:id/brand-pricing" element={<CustomerBrandPricingPage />} />
-                <Route path="users" element={<UsersPage />} />
-                <Route path="orders" element={<OrdersPage />} />
-                <Route path="orders/:id" element={<OrderDetailPage />} />
-                <Route path="settings" element={<SettingsPage />} />
+                <Route index element={<Navigate to="tenants" replace />} />
+                <Route path="tenants" element={<TenantsPage />} />
+                <Route path="tenants/new" element={<NewTenantPage />} />
+                <Route path="settings" element={<SuperAdminSettingsPage />} />
               </Route>
 
-              <Route
-                element={
-                  <RequireAuth>
-                    <RequireRole allowed={["customer"]}>
-                      <CustomerLayout />
-                    </RequireRole>
-                  </RequireAuth>
-                }
-              >
-                <Route path="catalog" element={<CatalogPage />} />
-                <Route path="cart" element={<CartPage />} />
-                <Route path="orders" element={<OrderHistoryPage />} />
-                <Route path="orders/:id" element={<CustomerOrderDetailPage />} />
-                <Route path="profile" element={<ProfilePage />} />
+              {/* Tenant routes — all live under /k/:slug. */}
+              <Route path="/k/:slug">
+                {/* Tenant-scoped auth */}
+                <Route element={<AuthLayout />}>
+                  <Route path="login" element={<LoginPage />} />
+                  <Route path="auth/forgot-password" element={<ForgotPasswordPage />} />
+                  <Route path="auth/reset-password" element={<ResetPasswordPage />} />
+                  <Route path="welcome" element={<WelcomePage />} />
+                </Route>
+
+                <Route
+                  path="admin"
+                  element={
+                    <RequireAuth>
+                      <RequireRole allowed={["owner", "staff"]}>
+                        <AdminLayout />
+                      </RequireRole>
+                    </RequireAuth>
+                  }
+                >
+                  <Route index element={<Navigate to="dashboard" replace />} />
+                  <Route path="dashboard" element={<DashboardPage />} />
+                  <Route path="products" element={<ProductsPage />} />
+                  <Route path="products/new" element={<ProductFormPage />} />
+                  <Route path="products/import" element={<ProductsImportPage />} />
+                  <Route path="products/:id" element={<ProductFormPage />} />
+                  <Route path="categories" element={<CategoriesPage />} />
+                  <Route path="customers" element={<CustomersPage />} />
+                  <Route path="customers/:id/users" element={<CustomerUsersPage />} />
+                  <Route
+                    path="customers/:id/brand-pricing"
+                    element={<CustomerBrandPricingPage />}
+                  />
+                  <Route path="users" element={<UsersPage />} />
+                  <Route path="orders" element={<OrdersPage />} />
+                  <Route path="orders/:id" element={<OrderDetailPage />} />
+                  <Route path="settings" element={<SettingsPage />} />
+                </Route>
+
+                <Route
+                  element={
+                    <RequireAuth>
+                      <RequireRole allowed={["customer"]}>
+                        <CustomerLayout />
+                      </RequireRole>
+                    </RequireAuth>
+                  }
+                >
+                  <Route path="catalog" element={<CatalogPage />} />
+                  <Route path="cart" element={<CartPage />} />
+                  <Route path="orders" element={<OrderHistoryPage />} />
+                  <Route path="orders/:id" element={<CustomerOrderDetailPage />} />
+                  <Route path="profile" element={<ProfilePage />} />
+                </Route>
+
+                <Route index element={<HomePage />} />
               </Route>
 
-              <Route index element={<HomePage />} />
-            </Route>
-
-            <Route path="*" element={<NotFoundPage />} />
-          </Routes>
-        </Suspense>
+              <Route path="*" element={<NotFoundPage />} />
+            </Routes>
+          </Suspense>
+        </AuthBootGate>
       </BrowserRouter>
       <Toaster position="top-right" richColors />
     </QueryClientProvider>

@@ -5,7 +5,6 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { loginSchema, type LoginInput } from "@kava-now/shared";
 import { Link, useLocation, useNavigate, useParams } from "react-router";
 import { Loader2 } from "lucide-react";
-import { Spinner } from "@/components/spinner";
 import { AuthUnavailable } from "@/components/auth-unavailable";
 import { GoogleSignInButton } from "@/components/auth/GoogleSignInButton";
 import { useLogin } from "@/lib/hooks/use-login";
@@ -36,8 +35,7 @@ export function LoginPage() {
   const navigate = useNavigate();
   const location = useLocation();
   const queryClient = useQueryClient();
-  const { isAuthenticated, user, memberships, isLoading, isAuthUnknown, refetch, isRefetching } =
-    useAuth();
+  const { isAuthenticated, user, memberships, isAuthUnknown, refetch, isRefetching } = useAuth();
 
   const signOut = useMutation({
     mutationFn: async () => {
@@ -88,15 +86,8 @@ export function LoginPage() {
     // 0 or multiple memberships and we're on /login → fall through to render below.
   }, [isAuthenticated, user, memberships, slug, navigate, location.state]);
 
-  // Don't flash the login form at logged-in users while /api/auth/me is in
-  // flight — the redirect effect above can't run until the session resolves.
-  if (isLoading) {
-    return (
-      <div className="flex justify-center py-8">
-        <Spinner />
-      </div>
-    );
-  }
+  // The cold-load spinner is handled by AuthBootGate (the app-level splash), so
+  // by the time LoginPage renders, /api/auth/me has resolved.
 
   // Server unreachable — auth state unknown. Don't show the login form to a
   // possibly-logged-in user; offer a retry instead.

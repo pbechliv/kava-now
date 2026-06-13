@@ -1,20 +1,14 @@
 import { Navigate, useLocation, useParams } from "react-router";
 import { useAuth } from "@/lib/hooks/use-auth";
-import { Spinner } from "@/components/spinner";
 import { AuthUnavailable } from "@/components/auth-unavailable";
 
 export function RequireAuth({ children }: { children: React.ReactNode }) {
-  const { isAuthenticated, isLoading, isAuthUnknown, refetch, isRefetching } = useAuth();
+  const { isAuthenticated, isAuthUnknown, refetch, isRefetching } = useAuth();
   const location = useLocation();
   const { slug } = useParams<{ slug: string }>();
 
-  if (isLoading) {
-    return (
-      <div className="flex min-h-screen items-center justify-center">
-        <Spinner />
-      </div>
-    );
-  }
+  // The cold-load spinner is handled by AuthBootGate (the app-level splash), so
+  // by the time RequireAuth renders, /api/auth/me has resolved.
 
   // Server unreachable — auth state unknown. Bouncing to /login here would
   // log out (visually) a user whose session cookie is still valid.
