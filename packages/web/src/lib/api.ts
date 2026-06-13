@@ -1,5 +1,6 @@
 import type { ApiErrorCode, ApiErrorBody } from "@kava-now/shared";
 import { translateApiErrorCode, translateApiErrorStatus } from "./api-error-messages";
+import { notifyServerError } from "./deploy-watch";
 
 export class ApiError extends Error {
   constructor(
@@ -48,7 +49,15 @@ async function request<T>(
     opts.body = JSON.stringify(body);
   }
 
-  const res = await fetch(path, opts);
+  let res: Response;
+  try {
+    res = await fetch(path, opts);
+  } catch (err) {
+    // Network failure / aborted timeout — the symptom of a deploy swapping the
+    // api+caddy containers. Let the deploy guard probe /api/health.
+    notifyServerError();
+    throw err;
+  }
 
   if (res.status === 401) {
     // If we're not already on a login page, redirect there. Preserve the
@@ -64,6 +73,8 @@ async function request<T>(
   }
 
   if (!res.ok) {
+    // 5xx = server in trouble (commonly a deploy window): nudge the guard.
+    if (res.status >= 500) notifyServerError();
     const data = (await res.json().catch(() => ({ error: res.statusText }))) as Partial<
       ApiErrorBody & { message: string }
     >;
