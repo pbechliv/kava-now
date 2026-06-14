@@ -31,6 +31,11 @@ suite("POST /admin/products/import (batch upsert)", () => {
       body: JSON.stringify({ rows }),
     });
 
+  const listProducts = (search: string) =>
+    app.request(`/api/k/${slug}/admin/products?search=${encodeURIComponent(search)}`, {
+      headers: { cookie },
+    });
+
   async function productCount() {
     return runWithTenant(tenantId, async () => {
       const rows = await db
@@ -127,5 +132,21 @@ suite("POST /admin/products/import (batch upsert)", () => {
 
     // All-or-nothing: the valid first row must not have been committed.
     expect(await productCount()).toBe(before);
+  });
+
+  it("search folds Greek accents (unaccented query matches an accented name/brand)", async () => {
+    const imp = await importRows([{ name: "Καφές Special", brand: "Βραζιλία", basePrice: 5 }]);
+    expect(imp.status).toBe(200);
+
+    // Unaccented, lowercase query matches the accented, capitalized name.
+    const byName = await listProducts("καφες");
+    expect(byName.status).toBe(200);
+    const names = (await byName.json()).data.map((p: { name: string }) => p.name);
+    expect(names).toContain("Καφές Special");
+
+    // Brand is matched accent-insensitively too.
+    const byBrand = await listProducts("βραζιλια");
+    const brandHits = (await byBrand.json()).data.map((p: { name: string }) => p.name);
+    expect(brandHits).toContain("Καφές Special");
   });
 });

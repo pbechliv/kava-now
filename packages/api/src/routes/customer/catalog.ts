@@ -1,8 +1,8 @@
 import { Hono } from "hono";
-import { eq, and, ilike, or, sql, asc } from "drizzle-orm";
+import { eq, and, or, sql, asc } from "drizzle-orm";
 import { paginationQuerySchema, listFiltersQuerySchema } from "@kava-now/shared";
 import { db } from "../../db/connection";
-import { escapeLike } from "../../db/escape-like";
+import { accentInsensitiveLike } from "../../db/search";
 import { products, categories, customers, customerBrandPricing } from "../../db/schema/index";
 import { requireCustomerProfile } from "../../middleware/require-customer-profile";
 import { resolvePrice } from "../../services/pricing";
@@ -88,8 +88,12 @@ catalogRouter.get("/", requireCustomerProfile, async (c) => {
   }
 
   if (search) {
-    const pattern = `%${escapeLike(search)}%`;
-    conditions.push(or(ilike(products.name, pattern), ilike(products.brand, pattern))!);
+    conditions.push(
+      or(
+        accentInsensitiveLike(products.name, search),
+        accentInsensitiveLike(products.brand, search),
+      )!,
+    );
   }
 
   const whereClause = and(...conditions);

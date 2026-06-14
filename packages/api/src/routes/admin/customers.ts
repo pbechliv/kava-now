@@ -1,5 +1,5 @@
 import { Hono } from "hono";
-import { eq, and, ilike, or, sql } from "drizzle-orm";
+import { eq, and, or, sql } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
 import {
   createCustomerSchema,
@@ -10,7 +10,7 @@ import {
   API_ERROR_CODES,
 } from "@kava-now/shared";
 import { db } from "../../db/connection";
-import { escapeLike } from "../../db/escape-like";
+import { accentInsensitiveLike } from "../../db/search";
 import {
   customers,
   products,
@@ -69,8 +69,12 @@ customersRouter.get("/", async (c) => {
   const conditions = [eq(customers.tenantId, tenantId)];
 
   if (search) {
-    const pattern = `%${escapeLike(search)}%`;
-    conditions.push(or(ilike(customers.name, pattern), ilike(customers.contactPerson, pattern))!);
+    conditions.push(
+      or(
+        accentInsensitiveLike(customers.name, search),
+        accentInsensitiveLike(customers.contactPerson, search),
+      )!,
+    );
   }
 
   const whereClause = and(...conditions);
