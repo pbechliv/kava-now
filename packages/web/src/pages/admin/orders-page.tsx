@@ -18,12 +18,12 @@ import { Badge } from "@/components/ui/badge";
 import { Spinner } from "@/components/spinner";
 import { EmptyState } from "@/components/empty-state";
 import { OrderStatusBadge } from "@/components/order-status-badge";
-import { PaginationControls } from "@/components/PaginationControls";
+import { PaginationControls } from "@/components/pagination-controls";
 import { useAdminOrders } from "@/lib/hooks/use-admin-orders";
 import {
   CustomerPickerCombobox,
   type CustomerPickerValue,
-} from "@/components/admin/CustomerPickerCombobox";
+} from "@/components/admin/customer-picker-combobox";
 import { ERP_STATUS_LABELS, type OrderStatus } from "@kava-now/shared";
 import { PAGE_SIZE } from "@/lib/constants";
 import { formatMoney, formatDate } from "@/lib/format";

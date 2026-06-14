@@ -1,6 +1,6 @@
 import { Outlet } from "react-router";
 import { Card, CardContent } from "@/components/ui/card";
-import { Logo } from "@/components/Logo";
+import { Logo } from "@/components/logo";
 
 export function AuthLayout() {
   return (

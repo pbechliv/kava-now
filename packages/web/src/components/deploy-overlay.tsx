@@ -1,5 +1,5 @@
 import { retryDeployWatch, useDeployState } from "@/lib/deploy-watch";
-import { Logo } from "@/components/Logo";
+import { Logo } from "@/components/logo";
 import { Spinner } from "@/components/spinner";
 import { Button } from "@/components/ui/button";
 

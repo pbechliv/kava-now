@@ -7,8 +7,8 @@ import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Spinner } from "@/components/spinner";
-import { ChangePasswordCard } from "@/components/auth/ChangePasswordCard";
-import { PushNotificationsCard } from "@/components/PushNotificationsCard";
+import { ChangePasswordCard } from "@/components/auth/change-password-card";
+import { PushNotificationsCard } from "@/components/push-notifications-card";
 import { useSettings, useUpdateSettings } from "@/lib/hooks/use-settings";
 import { useAuth, useUpdateMe, useUpdateNotificationPreference } from "@/lib/hooks/use-auth";
 

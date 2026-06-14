@@ -1,15 +1,7 @@
-import { NavLink, Outlet, useParams } from "react-router";
+import { useEffect } from "react";
 import { initials } from "@/lib/utils";
-import {
-  LayoutDashboard,
-  Package,
-  Tag,
-  Users,
-  UserCog,
-  ClipboardList,
-  Settings,
-  LogOut,
-} from "lucide-react";
+import { NavLink, Outlet, Link, useParams } from "react-router";
+import { LogOut, ShoppingBag, ShoppingCart, ScrollText, UserRound } from "lucide-react";
 import { useAuth } from "@/lib/hooks/use-auth";
 import { useLogout } from "@/lib/hooks/use-logout";
 import {
@@ -37,24 +29,33 @@ import {
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Separator } from "@/components/ui/separator";
-import { TenantSwitcher } from "@/components/TenantSwitcher";
-import { Logo } from "@/components/Logo";
+import { Badge } from "@/components/ui/badge";
+import { useCartStore, activateCartForSlug } from "@/lib/store/cart";
+import { TenantSwitcher } from "@/components/tenant-switcher";
+import { Logo } from "@/components/logo";
 
-export function AdminLayout() {
+export function CustomerLayout() {
   const { user, tenant } = useAuth();
   const logout = useLogout();
   const { slug } = useParams<{ slug: string }>();
-  const base = `/k/${slug}/admin`;
+  const base = `/k/${slug}`;
+
+  // Load this tenant's cart (and reset on tenant switch) — single source of
+  // cart-slug wiring, so carts never bleed across tenants.
+  useEffect(() => {
+    if (slug) void activateCartForSlug(slug);
+  }, [slug]);
+
+  const cartCount = useCartStore((s) =>
+    Object.values(s.items).reduce((sum, item) => sum + item.quantity, 0),
+  );
 
   const navItems = [
-    { to: `${base}/orders`, label: "Παραγγελίες", icon: ClipboardList },
-    { to: `${base}/dashboard`, label: "Πίνακας Ελέγχου", icon: LayoutDashboard },
-    { to: `${base}/products`, label: "Προϊόντα", icon: Package },
-    { to: `${base}/categories`, label: "Κατηγορίες", icon: Tag },
-    { to: `${base}/customers`, label: "Πελάτες", icon: Users },
-    { to: `${base}/users`, label: "Χρήστες", icon: UserCog },
-    { to: `${base}/settings`, label: "Ρυθμίσεις", icon: Settings },
-  ];
+    { to: `${base}/catalog`, label: "Κατάλογος", icon: ShoppingBag, end: true, key: "catalog" },
+    { to: `${base}/cart`, label: "Καλάθι", icon: ShoppingCart, end: false, key: "cart" },
+    { to: `${base}/orders`, label: "Ιστορικό", icon: ScrollText, end: false, key: "orders" },
+    { to: `${base}/profile`, label: "Προφίλ", icon: UserRound, end: false, key: "profile" },
+  ] as const;
 
   return (
     <SidebarProvider>
@@ -77,14 +78,19 @@ export function AdminLayout() {
                 {navItems.map((item) => (
                   <SidebarMenuItem key={item.to}>
                     <SidebarMenuButton asChild>
-                      <NavLink to={item.to}>
+                      <NavLink to={item.to} end={item.end}>
                         {({ isActive }) => (
                           <span
                             data-active={isActive || undefined}
                             className="flex w-full items-center gap-2 data-[active]:font-semibold data-[active]:text-sidebar-primary"
                           >
                             <item.icon className="h-4 w-4" />
-                            <span>{item.label}</span>
+                            <span className="flex-1">{item.label}</span>
+                            {item.key === "cart" && cartCount > 0 && (
+                              <Badge variant="default" className="ml-auto">
+                                {cartCount}
+                              </Badge>
+                            )}
                           </span>
                         )}
                       </NavLink>
@@ -104,6 +110,19 @@ export function AdminLayout() {
           <SidebarTrigger />
           <Separator orientation="vertical" className="mx-1 h-5" />
           <div className="flex-1" />
+          <Button asChild variant="ghost" size="sm" className="relative gap-2">
+            <Link to={`${base}/cart`} aria-label="Καλάθι">
+              <ShoppingCart className="h-5 w-5" />
+              {cartCount > 0 && (
+                <Badge
+                  variant="default"
+                  className="absolute -top-1 -right-1 h-5 min-w-5 rounded-full px-1.5 text-[10px] tabular-nums"
+                >
+                  {cartCount}
+                </Badge>
+              )}
+            </Link>
+          </Button>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="ghost" size="sm" className="gap-2">

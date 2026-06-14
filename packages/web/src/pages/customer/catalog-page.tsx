@@ -17,7 +17,7 @@ import { cn } from "@/lib/utils";
 import { useDebouncedValue } from "@/lib/hooks/use-debounced-value";
 import { ErrorBanner } from "@/components/error-banner";
 import { Spinner } from "@/components/spinner";
-import { PaginationControls } from "@/components/PaginationControls";
+import { PaginationControls } from "@/components/pagination-controls";
 import { useCatalog, useCatalogCategories } from "@/lib/hooks/use-catalog";
 import { useCartStore } from "@/lib/store/cart";
 import { UNIT_LABELS } from "@kava-now/shared";

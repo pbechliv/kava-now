@@ -11,7 +11,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { useAddOrderItem, useReplaceOrderItem } from "@/lib/hooks/use-admin-orders";
-import { ProductPickerCombobox, type ProductPickerValue } from "./ProductPickerCombobox";
+import { ProductPickerCombobox, type ProductPickerValue } from "./product-picker-combobox";
 
 type Props = {
   open: boolean;

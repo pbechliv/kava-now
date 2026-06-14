@@ -18,9 +18,9 @@ import { MobileList, MobileListItem } from "@/components/ui/mobile-list";
 import { Spinner } from "@/components/spinner";
 import { EmptyState } from "@/components/empty-state";
 import { ConfirmDialog } from "@/components/confirm-dialog";
-import { PaginationControls } from "@/components/PaginationControls";
+import { PaginationControls } from "@/components/pagination-controls";
 import { useCustomers, useDeleteCustomer } from "@/lib/hooks/use-customers";
-import { CustomerFormModal } from "@/components/admin/CustomerFormModal";
+import { CustomerFormModal } from "@/components/admin/customer-form-modal";
 import { PAGE_SIZE } from "@/lib/constants";
 
 export function CustomersPage() {

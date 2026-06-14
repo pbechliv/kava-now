@@ -6,14 +6,14 @@ import { Toaster } from "./components/ui/sonner";
 import { BootSplash } from "./components/boot-splash";
 
 // Layouts
-import { AuthLayout } from "./components/layouts/AuthLayout";
-import { AdminLayout } from "./components/layouts/AdminLayout";
-import { CustomerLayout } from "./components/layouts/CustomerLayout";
-import { SuperAdminLayout } from "./components/layouts/SuperAdminLayout";
+import { AuthLayout } from "./components/layouts/auth-layout";
+import { AdminLayout } from "./components/layouts/admin-layout";
+import { CustomerLayout } from "./components/layouts/customer-layout";
+import { SuperAdminLayout } from "./components/layouts/super-admin-layout";
 
 // Guards
-import { RequireAuth } from "./components/guards/RequireAuth";
-import { RequireRole } from "./components/guards/RequireRole";
+import { RequireAuth } from "./components/guards/require-auth";
+import { RequireRole } from "./components/guards/require-role";
 import { AuthBootGate } from "./components/auth-boot-gate";
 
 // Pages load lazily per route (#59): a customer on a phone must not download
@@ -23,58 +23,64 @@ const lazyPage = <M, K extends keyof M>(load: () => Promise<M>, name: K) =>
   lazy(() => load().then((m) => ({ default: m[name] as ComponentType }))) as ComponentType;
 
 // Auth pages — eager: they are the entry path for every user.
-import { LoginPage } from "./pages/auth/LoginPage";
-import { ForgotPasswordPage } from "./pages/auth/ForgotPasswordPage";
-import { ResetPasswordPage } from "./pages/auth/ResetPasswordPage";
-import { WelcomePage } from "./pages/auth/WelcomePage";
+import { LoginPage } from "./pages/auth/login-page";
+import { ForgotPasswordPage } from "./pages/auth/forgot-password-page";
+import { ResetPasswordPage } from "./pages/auth/reset-password-page";
+import { WelcomePage } from "./pages/auth/welcome-page";
 
 // Admin pages
-const DashboardPage = lazyPage(() => import("./pages/admin/DashboardPage"), "DashboardPage");
-const ProductsPage = lazyPage(() => import("./pages/admin/ProductsPage"), "ProductsPage");
-const CategoriesPage = lazyPage(() => import("./pages/admin/CategoriesPage"), "CategoriesPage");
-const CustomersPage = lazyPage(() => import("./pages/admin/CustomersPage"), "CustomersPage");
+const DashboardPage = lazyPage(() => import("./pages/admin/dashboard-page"), "DashboardPage");
+const ProductsPage = lazyPage(() => import("./pages/admin/products-page"), "ProductsPage");
+const CategoriesPage = lazyPage(() => import("./pages/admin/categories-page"), "CategoriesPage");
+const CustomersPage = lazyPage(() => import("./pages/admin/customers-page"), "CustomersPage");
 const CustomerBrandPricingPage = lazyPage(
-  () => import("./pages/admin/CustomerBrandPricingPage"),
+  () => import("./pages/admin/customer-brand-pricing-page"),
   "CustomerBrandPricingPage",
 );
-const OrdersPage = lazyPage(() => import("./pages/admin/OrdersPage"), "OrdersPage");
-const OrderDetailPage = lazyPage(() => import("./pages/admin/OrderDetailPage"), "OrderDetailPage");
-const SettingsPage = lazyPage(() => import("./pages/admin/SettingsPage"), "SettingsPage");
-const ProductFormPage = lazyPage(() => import("./pages/admin/ProductFormPage"), "ProductFormPage");
+const OrdersPage = lazyPage(() => import("./pages/admin/orders-page"), "OrdersPage");
+const OrderDetailPage = lazyPage(
+  () => import("./pages/admin/order-detail-page"),
+  "OrderDetailPage",
+);
+const SettingsPage = lazyPage(() => import("./pages/admin/settings-page"), "SettingsPage");
+const ProductFormPage = lazyPage(
+  () => import("./pages/admin/product-form-page"),
+  "ProductFormPage",
+);
 const ProductsImportPage = lazyPage(
-  () => import("./pages/admin/ProductsImportPage"),
+  () => import("./pages/admin/products-import-page"),
   "ProductsImportPage",
 );
-const UsersPage = lazyPage(() => import("./pages/admin/UsersPage"), "UsersPage");
+const UsersPage = lazyPage(() => import("./pages/admin/users-page"), "UsersPage");
 const CustomerUsersPage = lazyPage(
-  () => import("./pages/admin/CustomerUsersPage"),
+  () => import("./pages/admin/customer-users-page"),
   "CustomerUsersPage",
 );
 
 // Customer pages
-const CatalogPage = lazyPage(() => import("./pages/customer/CatalogPage"), "CatalogPage");
-const CartPage = lazyPage(() => import("./pages/customer/CartPage"), "CartPage");
+const CatalogPage = lazyPage(() => import("./pages/customer/catalog-page"), "CatalogPage");
+const CartPage = lazyPage(() => import("./pages/customer/cart-page"), "CartPage");
 const OrderHistoryPage = lazyPage(
-  () => import("./pages/customer/OrderHistoryPage"),
+  () => import("./pages/customer/order-history-page"),
   "OrderHistoryPage",
 );
 const CustomerOrderDetailPage = lazyPage(
-  () => import("./pages/customer/OrderDetailPage"),
+  () => import("./pages/customer/order-detail-page"),
   "OrderDetailPage",
 );
-const ProfilePage = lazyPage(() => import("./pages/customer/ProfilePage"), "ProfilePage");
+const ProfilePage = lazyPage(() => import("./pages/customer/profile-page"), "ProfilePage");
 
 // Superadmin pages
-const TenantsPage = lazyPage(() => import("./pages/superadmin/TenantsPage"), "TenantsPage");
-const NewTenantPage = lazyPage(() => import("./pages/superadmin/NewTenantPage"), "NewTenantPage");
+const TenantsPage = lazyPage(() => import("./pages/superadmin/tenants-page"), "TenantsPage");
+const NewTenantPage = lazyPage(() => import("./pages/superadmin/new-tenant-page"), "NewTenantPage");
 const SuperAdminSettingsPage = lazyPage(
-  () => import("./pages/superadmin/SettingsPage"),
+  () => import("./pages/superadmin/settings-page"),
   "SuperAdminSettingsPage",
 );
 
 // Other
-const HomePage = lazyPage(() => import("./pages/HomePage"), "HomePage");
-const NotFoundPage = lazyPage(() => import("./pages/NotFoundPage"), "NotFoundPage");
+const HomePage = lazyPage(() => import("./pages/home-page"), "HomePage");
+const NotFoundPage = lazyPage(() => import("./pages/not-found-page"), "NotFoundPage");
 
 export function App() {
   return (

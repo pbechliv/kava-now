@@ -14,7 +14,7 @@ import {
 } from "@/components/ui/table";
 import { MobileList, MobileListItem } from "@/components/ui/mobile-list";
 import { Spinner } from "@/components/spinner";
-import { PaginationControls } from "@/components/PaginationControls";
+import { PaginationControls } from "@/components/pagination-controls";
 import { PAGE_SIZE } from "@/lib/constants";
 import { formatDate } from "@/lib/format";
 
