@@ -1,5 +1,5 @@
 import { Hono } from "hono";
-import { eq, and, or, sql } from "drizzle-orm";
+import { eq, and, or, ne, inArray, sql } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
 import {
   createCustomerSchema,
@@ -15,6 +15,7 @@ import {
   customers,
   products,
   customerBrandPricing,
+  customerAssignedUsers,
   orders,
   tenantMemberships,
   users,
@@ -31,17 +32,37 @@ import {
   FK_CONSTRAINTS,
 } from "../../db/errors";
 import type { AppEnv } from "../../types";
+import { getTenant, getTenantId, getUser } from "../../context";
 
 const DUPLICATE_ERP_REF_RESPONSE = {
   code: API_ERROR_CODES.DUPLICATE_CUSTOMER_ERP_REF,
   error: "Duplicate ERP reference for customer in this tenant",
 } as const;
 
+/**
+ * Subset of `ids` that are owner/staff members of this tenant. Used to reject
+ * assigned-user ids that aren't valid staff before writing them.
+ */
+async function tenantStaffIdSet(tenantId: string, ids: string[]): Promise<Set<string>> {
+  if (ids.length === 0) return new Set();
+  const rows = await db
+    .select({ userId: tenantMemberships.userId })
+    .from(tenantMemberships)
+    .where(
+      and(
+        eq(tenantMemberships.tenantId, tenantId),
+        ne(tenantMemberships.role, "customer"),
+        inArray(tenantMemberships.userId, ids),
+      ),
+    );
+  return new Set(rows.map((r) => r.userId));
+}
+
 const customersRouter = new Hono<AppEnv>();
 
 // GET /brands — list distinct brands for this tenant's products
 customersRouter.get("/brands", async (c) => {
-  const tenantId = c.get("tenantId")!;
+  const tenantId = getTenantId(c);
 
   const brands = await db
     .selectDistinct({ brand: products.brand })
@@ -54,7 +75,7 @@ customersRouter.get("/brands", async (c) => {
 
 // GET / — list customers with optional ?search
 customersRouter.get("/", async (c) => {
-  const tenantId = c.get("tenantId")!;
+  const tenantId = getTenantId(c);
   const search = c.req.query("search");
 
   const pagination = paginationQuerySchema.safeParse({
@@ -69,12 +90,11 @@ customersRouter.get("/", async (c) => {
   const conditions = [eq(customers.tenantId, tenantId)];
 
   if (search) {
-    conditions.push(
-      or(
-        accentInsensitiveLike(customers.name, search),
-        accentInsensitiveLike(customers.contactPerson, search),
-      )!,
+    const match = or(
+      accentInsensitiveLike(customers.name, search),
+      accentInsensitiveLike(customers.contactPerson, search),
     );
+    if (match) conditions.push(match);
   }
 
   const whereClause = and(...conditions);
@@ -114,8 +134,8 @@ customersRouter.get("/", async (c) => {
 
 // POST / — create customer (also creates a customer-user when email is set)
 customersRouter.post("/", async (c) => {
-  const tenantId = c.get("tenantId")!;
-  const inviter = c.get("user")!;
+  const tenantId = getTenantId(c);
+  const inviter = getUser(c);
   const body = await c.req.json();
   const parsed = createCustomerSchema.safeParse(body);
 
@@ -123,17 +143,41 @@ customersRouter.post("/", async (c) => {
     return c.json({ error: parsed.error.flatten().fieldErrors }, 400);
   }
 
+  const { assignedUserIds, ...customerData } = parsed.data;
+  const assigneeIds = assignedUserIds ?? [];
+
+  // Reject assignees that aren't owner/staff of this tenant before any write.
+  if (assigneeIds.length > 0) {
+    const valid = await tenantStaffIdSet(tenantId, assigneeIds);
+    if (assigneeIds.some((id) => !valid.has(id))) {
+      return c.json({ error: { assignedUserIds: ["Μη έγκυροι χρήστες"] } }, 400);
+    }
+  }
+
   let customer;
   try {
     [customer] = await db
       .insert(customers)
-      .values({ ...parsed.data, tenantId })
+      .values({ ...customerData, tenantId })
       .returning();
   } catch (err) {
     if (isUniqueViolation(err, UNIQUE_CONSTRAINTS.customerErpRef)) {
       return c.json(DUPLICATE_ERP_REF_RESPONSE, 409);
     }
     throw err;
+  }
+
+  if (!customer) {
+    return c.json({ error: "Failed to create customer" }, 500);
+  }
+  const createdCustomerId = customer.id;
+
+  // Assignments share the request transaction with the insert above, so a
+  // failure here rolls the customer back too (atomic).
+  if (assigneeIds.length > 0) {
+    await db
+      .insert(customerAssignedUsers)
+      .values(assigneeIds.map((userId) => ({ tenantId, customerId: createdCustomerId, userId })));
   }
 
   // If email provided, also create a linked customer-user + send the
@@ -149,7 +193,7 @@ customersRouter.post("/", async (c) => {
         email: parsed.data.email,
         name: parsed.data.name,
         role: "customer",
-        customerId: customer!.id,
+        customerId: customer.id,
         inviterId: inviter.id,
       });
     } catch (err) {
@@ -170,7 +214,7 @@ customersRouter.post("/", async (c) => {
 
 // GET /:id — single customer
 customersRouter.get("/:id", async (c) => {
-  const tenantId = c.get("tenantId")!;
+  const tenantId = getTenantId(c);
   const id = c.req.param("id");
 
   const [customer] = await db
@@ -199,12 +243,19 @@ customersRouter.get("/:id", async (c) => {
     return c.json({ error: "Customer not found" }, 404);
   }
 
-  return c.json(customer);
+  const assigned = await db
+    .select({ userId: customerAssignedUsers.userId })
+    .from(customerAssignedUsers)
+    .where(
+      and(eq(customerAssignedUsers.customerId, id), eq(customerAssignedUsers.tenantId, tenantId)),
+    );
+
+  return c.json({ ...customer, assignedUserIds: assigned.map((a) => a.userId) });
 });
 
 // PUT /:id — update customer
 customersRouter.put("/:id", async (c) => {
-  const tenantId = c.get("tenantId")!;
+  const tenantId = getTenantId(c);
   const id = c.req.param("id");
   const body = await c.req.json();
   const parsed = updateCustomerSchema.safeParse(body);
@@ -213,22 +264,55 @@ customersRouter.put("/:id", async (c) => {
     return c.json({ error: parsed.error.flatten().fieldErrors }, 400);
   }
 
-  let customer;
-  try {
-    [customer] = await db
-      .update(customers)
-      .set(parsed.data)
-      .where(and(eq(customers.id, id), eq(customers.tenantId, tenantId)))
-      .returning();
-  } catch (err) {
-    if (isUniqueViolation(err, UNIQUE_CONSTRAINTS.customerErpRef)) {
-      return c.json(DUPLICATE_ERP_REF_RESPONSE, 409);
+  const { assignedUserIds, ...customerData } = parsed.data;
+
+  // Reject invalid assignees before any write.
+  if (assignedUserIds !== undefined && assignedUserIds.length > 0) {
+    const valid = await tenantStaffIdSet(tenantId, assignedUserIds);
+    if (assignedUserIds.some((uid) => !valid.has(uid))) {
+      return c.json({ error: { assignedUserIds: ["Μη έγκυροι χρήστες"] } }, 400);
     }
-    throw err;
+  }
+
+  let customer;
+  if (Object.keys(customerData).length > 0) {
+    try {
+      [customer] = await db
+        .update(customers)
+        .set(customerData)
+        .where(and(eq(customers.id, id), eq(customers.tenantId, tenantId)))
+        .returning();
+    } catch (err) {
+      if (isUniqueViolation(err, UNIQUE_CONSTRAINTS.customerErpRef)) {
+        return c.json(DUPLICATE_ERP_REF_RESPONSE, 409);
+      }
+      throw err;
+    }
+  } else {
+    // assignedUserIds-only update — still verify the customer exists.
+    [customer] = await db
+      .select()
+      .from(customers)
+      .where(and(eq(customers.id, id), eq(customers.tenantId, tenantId)))
+      .limit(1);
   }
 
   if (!customer) {
     return c.json({ error: "Customer not found" }, 404);
+  }
+
+  // Replace assignments wholesale when provided (empty array clears them).
+  if (assignedUserIds !== undefined) {
+    await db
+      .delete(customerAssignedUsers)
+      .where(
+        and(eq(customerAssignedUsers.customerId, id), eq(customerAssignedUsers.tenantId, tenantId)),
+      );
+    if (assignedUserIds.length > 0) {
+      await db
+        .insert(customerAssignedUsers)
+        .values(assignedUserIds.map((userId) => ({ tenantId, customerId: id, userId })));
+    }
   }
 
   return c.json(customer);
@@ -236,7 +320,7 @@ customersRouter.put("/:id", async (c) => {
 
 // DELETE /:id — fail if customer has orders. Linked memberships cascade.
 customersRouter.delete("/:id", async (c) => {
-  const tenantId = c.get("tenantId")!;
+  const tenantId = getTenantId(c);
   const id = c.req.param("id");
 
   // Friendly pre-check; the no-action FK is the race-safe backstop below.
@@ -289,7 +373,7 @@ customersRouter.delete("/:id", async (c) => {
 
 // GET /:id/brand-pricing — list all brands with this customer's discounts
 customersRouter.get("/:id/brand-pricing", async (c) => {
-  const tenantId = c.get("tenantId")!;
+  const tenantId = getTenantId(c);
   const id = c.req.param("id");
 
   // Verify customer exists
@@ -326,7 +410,7 @@ customersRouter.get("/:id/brand-pricing", async (c) => {
 
 // PUT /:id/brand-pricing — bulk update brand discounts for customer
 customersRouter.put("/:id/brand-pricing", async (c) => {
-  const tenantId = c.get("tenantId")!;
+  const tenantId = getTenantId(c);
   const id = c.req.param("id");
   const body = await c.req.json();
   const parsed = updateCustomerBrandPricingSchema.safeParse(body);
@@ -368,7 +452,7 @@ customersRouter.put("/:id/brand-pricing", async (c) => {
 
 // GET /:id/users — list users linked to a customer in this tenant
 customersRouter.get("/:id/users", async (c) => {
-  const tenantId = c.get("tenantId")!;
+  const tenantId = getTenantId(c);
   const id = c.req.param("id");
   const inviterAlias = alias(users, "inviter");
 
@@ -405,8 +489,8 @@ customersRouter.get("/:id/users", async (c) => {
 customersRouter.post("/:customerId/users/:userId/resend-invite", async (c) => {
   const result = await resendSetPasswordInvite({
     c,
-    tenantId: c.get("tenantId")!,
-    tenantSlug: c.get("tenant")!.slug,
+    tenantId: getTenantId(c),
+    tenantSlug: getTenant(c).slug,
     userId: c.req.param("userId"),
     customerId: c.req.param("customerId"),
   });
@@ -418,8 +502,8 @@ customersRouter.post("/:customerId/users/:userId/resend-invite", async (c) => {
 
 // POST /:id/users/invite — add another user account to an existing customer
 customersRouter.post("/:id/users/invite", async (c) => {
-  const tenantId = c.get("tenantId")!;
-  const inviter = c.get("user")!;
+  const tenantId = getTenantId(c);
+  const inviter = getUser(c);
   const id = c.req.param("id");
   const body = await c.req.json();
   const parsed = inviteCustomerUserSchema.safeParse(body);

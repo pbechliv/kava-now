@@ -5,6 +5,7 @@ import { db } from "../../db/connection";
 import { categories, products } from "../../db/schema/index";
 import { isUniqueViolation, UNIQUE_CONSTRAINTS } from "../../db/errors";
 import type { AppEnv } from "../../types";
+import { getTenantId } from "../../context";
 import { alias } from "drizzle-orm/pg-core";
 
 const categoriesRouter = new Hono<AppEnv>();
@@ -52,7 +53,7 @@ async function createsParentCycle(
 
 // GET / — list categories ordered by sortOrder, include parent info
 categoriesRouter.get("/", async (c) => {
-  const tenantId = c.get("tenantId")!;
+  const tenantId = getTenantId(c);
 
   const rows = await db
     .select({
@@ -75,7 +76,7 @@ categoriesRouter.get("/", async (c) => {
 
 // POST / — create category
 categoriesRouter.post("/", async (c) => {
-  const tenantId = c.get("tenantId")!;
+  const tenantId = getTenantId(c);
   const body = await c.req.json();
   const parsed = createCategorySchema.safeParse(body);
 
@@ -108,7 +109,7 @@ categoriesRouter.post("/", async (c) => {
 
 // PUT /:id — update category
 categoriesRouter.put("/:id", async (c) => {
-  const tenantId = c.get("tenantId")!;
+  const tenantId = getTenantId(c);
   const id = c.req.param("id");
   const body = await c.req.json();
   const parsed = updateCategorySchema.safeParse(body);
@@ -165,7 +166,7 @@ categoriesRouter.put("/:id", async (c) => {
 // DELETE /:id — fail if products reference it. Child categories re-root to
 // top level via the parent_id FK's ON DELETE SET NULL.
 categoriesRouter.delete("/:id", async (c) => {
-  const tenantId = c.get("tenantId")!;
+  const tenantId = getTenantId(c);
   const id = c.req.param("id");
 
   // Check if products reference this category

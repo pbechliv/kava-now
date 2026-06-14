@@ -9,6 +9,7 @@ export * from "./categories";
 export * from "./products";
 export * from "./customers";
 export * from "./customer-brand-pricing";
+export * from "./customer-assigned-users";
 export * from "./orders";
 export * from "./order-items";
 export * from "./push-subscriptions";

@@ -1,6 +1,6 @@
 import { Hono } from "hono";
 import { eq, ne, and, sql, gte, lte, desc } from "drizzle-orm";
-import { afterTenantCommit, db } from "../../db/connection";
+import { db } from "../../db/connection";
 import {
   orders,
   orderItems,
@@ -9,17 +9,15 @@ import {
   users,
   customerBrandPricing,
 } from "../../db/schema/index";
-import { sendOrderStatusChange } from "../../services/email";
-import { customerUserIds, sendPushToUsers } from "../../services/push";
 import { resolvePrice } from "../../services/pricing";
 import type { AppEnv } from "../../types";
+import { getTenantId, getUser } from "../../context";
 import {
   paginationQuerySchema,
   listFiltersQuerySchema,
   markOrderTransmittedSchema,
   updateOrderStatusSchema,
   ORDER_STATUSES,
-  ORDER_STATUS_LABELS,
   ORDER_STATUS_TRANSITIONS,
   addOrderItemSchema,
   updateOrderItemSchema,
@@ -60,7 +58,7 @@ export function assertOrderMutable(order: {
 
 // GET / — list orders with filters
 ordersRouter.get("/", async (c) => {
-  const tenantId = c.get("tenantId")!;
+  const tenantId = getTenantId(c);
   const status = c.req.query("status") as OrderStatus | undefined;
 
   const filters = listFiltersQuerySchema.safeParse({
@@ -137,7 +135,7 @@ ordersRouter.get("/", async (c) => {
 
 // GET /:id — order detail with items and customer info
 ordersRouter.get("/:id", async (c) => {
-  const tenantId = c.get("tenantId")!;
+  const tenantId = getTenantId(c);
   const id = c.req.param("id");
 
   const [order] = await db
@@ -206,7 +204,7 @@ ordersRouter.get("/:id", async (c) => {
 
 // PUT /:id/status — update order status
 ordersRouter.put("/:id/status", async (c) => {
-  const tenantId = c.get("tenantId")!;
+  const tenantId = getTenantId(c);
   const id = c.req.param("id");
   const body = await c.req.json();
   const parsedStatus = updateOrderStatusSchema.safeParse(body);
@@ -261,49 +259,15 @@ ordersRouter.put("/:id/status", async (c) => {
     );
   }
 
-  // Notify the customer after the request transaction commits (#47): the
-  // FOR UPDATE lock above survives the inner savepoint and is only released
-  // at the outer COMMIT — awaiting SMTP here would hold the order row locked
-  // (and pin a pool connection) for the whole mail round-trip.
-  const [customer] = await db
-    .select({ email: customers.email })
-    .from(customers)
-    .where(and(eq(customers.id, result.customerId), eq(customers.tenantId, tenantId)))
-    .limit(1);
-
-  if (customer?.email) {
-    const customerEmail = customer.email;
-    await afterTenantCommit(async () => {
-      try {
-        await sendOrderStatusChange(customerEmail, { id }, newStatus);
-      } catch (err) {
-        console.error("[orders] Failed to send status change email:", err);
-      }
-    });
-  }
-
-  // Push to the customer's signed-up users alongside the email (#28).
-  const tenantSlug = c.get("tenant")!.slug;
-  await afterTenantCommit(async () => {
-    try {
-      const recipients = await customerUserIds(tenantId, result.customerId);
-      await sendPushToUsers(recipients, {
-        title: "Ενημέρωση παραγγελίας",
-        body: `Νέα κατάσταση: ${ORDER_STATUS_LABELS[newStatus]}`,
-        url: `/k/${tenantSlug}/orders/${id}`,
-      });
-    } catch (err) {
-      console.error("[push] status-change push failed:", err);
-    }
-  });
-
+  // Customers receive no order notifications (by design) — status changes are
+  // visible in the customer's order views, not pushed/emailed.
   return c.json(result.updated);
 });
 
 // PATCH /:id/erp — mark an order as transmitted to the ERP, store the AADE MARK
 ordersRouter.patch("/:id/erp", async (c) => {
-  const tenantId = c.get("tenantId")!;
-  const user = c.get("user")!;
+  const tenantId = getTenantId(c);
+  const user = getUser(c);
   const id = c.req.param("id");
   const body = await c.req.json();
   const parsed = markOrderTransmittedSchema.safeParse(body);
@@ -439,7 +403,7 @@ async function lockOrderForMutation(tx: DbOrTx, tenantId: string, id: string) {
 
 // POST /:id/items — add a new line item to an existing order
 ordersRouter.post("/:id/items", async (c) => {
-  const tenantId = c.get("tenantId")!;
+  const tenantId = getTenantId(c);
   const id = c.req.param("id");
   const body = await c.req.json();
   const parsed = addOrderItemSchema.safeParse(body);
@@ -486,7 +450,7 @@ ordersRouter.post("/:id/items", async (c) => {
 
 // PATCH /:id/items/:itemId — adjust quantity on an active line item
 ordersRouter.patch("/:id/items/:itemId", async (c) => {
-  const tenantId = c.get("tenantId")!;
+  const tenantId = getTenantId(c);
   const id = c.req.param("id");
   const itemId = c.req.param("itemId");
   const body = await c.req.json();
@@ -534,7 +498,7 @@ ordersRouter.patch("/:id/items/:itemId", async (c) => {
 
 // POST /:id/items/:itemId/cancel — soft-cancel a line item
 ordersRouter.post("/:id/items/:itemId/cancel", async (c) => {
-  const tenantId = c.get("tenantId")!;
+  const tenantId = getTenantId(c);
   const id = c.req.param("id");
   const itemId = c.req.param("itemId");
 
@@ -580,7 +544,7 @@ ordersRouter.post("/:id/items/:itemId/cancel", async (c) => {
 
 // POST /:id/items/:itemId/replace — swap a line item for a different product
 ordersRouter.post("/:id/items/:itemId/replace", async (c) => {
-  const tenantId = c.get("tenantId")!;
+  const tenantId = getTenantId(c);
   const id = c.req.param("id");
   const itemId = c.req.param("itemId");
   const body = await c.req.json();

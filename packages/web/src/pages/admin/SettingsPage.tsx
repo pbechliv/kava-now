@@ -1,16 +1,16 @@
 import { useState, useEffect } from "react";
-import { Loader2, X } from "lucide-react";
+import { useParams } from "react-router";
+import { Loader2 } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Spinner } from "@/components/spinner";
 import { ChangePasswordCard } from "@/components/auth/ChangePasswordCard";
 import { PushNotificationsCard } from "@/components/PushNotificationsCard";
 import { useSettings, useUpdateSettings } from "@/lib/hooks/use-settings";
-import { useAuth, useUpdateMe } from "@/lib/hooks/use-auth";
+import { useAuth, useUpdateMe, useUpdateNotificationPreference } from "@/lib/hooks/use-auth";
 
 type Tab = "tenant" | "profile" | "password";
 
@@ -33,6 +33,7 @@ export function SettingsPage() {
         <TabsContent value="profile" className="mt-6">
           <div className="max-w-2xl space-y-6">
             <ProfileTab />
+            <OrderNotificationsCard />
             <PushNotificationsCard />
           </div>
         </TabsContent>
@@ -53,9 +54,6 @@ function TenantSettingsTab() {
   const [phone, setPhone] = useState("");
   const [email, setEmail] = useState("");
   const [logoUrl, setLogoUrl] = useState("");
-  const [notificationEmails, setNotificationEmails] = useState<string[]>([]);
-  const [newEmail, setNewEmail] = useState("");
-  const [emailError, setEmailError] = useState("");
 
   useEffect(() => {
     if (settings) {
@@ -64,7 +62,6 @@ function TenantSettingsTab() {
       setPhone(settings.phone ?? "");
       setEmail(settings.email);
       setLogoUrl(settings.logoUrl ?? "");
-      setNotificationEmails(settings.notificationEmails ?? []);
     }
   }, [settings]);
 
@@ -76,30 +73,6 @@ function TenantSettingsTab() {
     );
   }
 
-  const handleAddEmail = () => {
-    const trimmed = newEmail.trim();
-    if (!trimmed) return;
-
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(trimmed)) {
-      setEmailError("Μη έγκυρο email");
-      return;
-    }
-
-    if (notificationEmails.includes(trimmed)) {
-      setEmailError("Το email υπάρχει ήδη");
-      return;
-    }
-
-    setNotificationEmails([...notificationEmails, trimmed]);
-    setNewEmail("");
-    setEmailError("");
-  };
-
-  const handleRemoveEmail = (emailToRemove: string) => {
-    setNotificationEmails(notificationEmails.filter((e) => e !== emailToRemove));
-  };
-
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     updateSettings.mutate({
@@ -108,7 +81,6 @@ function TenantSettingsTab() {
       phone: phone || null,
       email,
       logoUrl: logoUrl || null,
-      notificationEmails,
     });
   };
 
@@ -145,61 +117,6 @@ function TenantSettingsTab() {
               placeholder="https://..."
             />
           </FieldRow>
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader>
-          <CardTitle>Email Ειδοποιήσεων</CardTitle>
-          <CardDescription>
-            Αυτά τα email θα λαμβάνουν ειδοποιήσεις για νέες παραγγελίες.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          <div className="flex flex-wrap gap-2">
-            {notificationEmails.map((ne) => (
-              <Badge key={ne} variant="warning" className="gap-1 py-1">
-                {ne}
-                <button
-                  type="button"
-                  onClick={() => handleRemoveEmail(ne)}
-                  className="ml-1 hover:text-foreground"
-                  aria-label="Αφαίρεση"
-                >
-                  <X className="h-3 w-3" />
-                </button>
-              </Badge>
-            ))}
-            {notificationEmails.length === 0 && (
-              <span className="text-sm text-muted-foreground">
-                Δεν έχουν οριστεί email ειδοποιήσεων
-              </span>
-            )}
-          </div>
-
-          <div className="flex flex-col gap-2 sm:flex-row sm:items-start">
-            <div className="flex-1 space-y-1">
-              <Input
-                value={newEmail}
-                onChange={(e) => {
-                  setNewEmail(e.target.value);
-                  setEmailError("");
-                }}
-                placeholder="email@example.com"
-                aria-invalid={!!emailError}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") {
-                    e.preventDefault();
-                    handleAddEmail();
-                  }
-                }}
-              />
-              {emailError && <p className="text-sm text-destructive">{emailError}</p>}
-            </div>
-            <Button type="button" variant="outline" onClick={handleAddEmail}>
-              Προσθήκη
-            </Button>
-          </div>
         </CardContent>
       </Card>
 
@@ -304,6 +221,39 @@ function ProfileTab() {
         </Button>
       </div>
     </form>
+  );
+}
+
+function OrderNotificationsCard() {
+  const { slug } = useParams<{ slug: string }>();
+  const { currentMembership } = useAuth();
+  const updatePref = useUpdateNotificationPreference(slug ?? "");
+  const enabled = currentMembership?.notifyAllOrders ?? false;
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>Ειδοποιήσεις παραγγελιών</CardTitle>
+        <CardDescription>
+          Λάβετε ειδοποίηση για κάθε νέα παραγγελία, ανεξάρτητα από το αν σας έχει ανατεθεί ο
+          πελάτης.
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="flex items-center justify-between gap-4">
+        <span className="text-sm text-muted-foreground">
+          {enabled ? "Ενεργό — λαμβάνετε όλες τις παραγγελίες" : "Ανενεργό"}
+        </span>
+        <Button
+          type="button"
+          variant={enabled ? "outline" : "default"}
+          disabled={updatePref.isPending || !slug}
+          onClick={() => updatePref.mutate(!enabled)}
+        >
+          {updatePref.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+          {enabled ? "Απενεργοποίηση" : "Ενεργοποίηση"}
+        </Button>
+      </CardContent>
+    </Card>
   );
 }
 

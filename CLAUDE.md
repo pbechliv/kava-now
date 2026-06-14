@@ -68,6 +68,10 @@ pnpm typecheck       # tsc --noEmit across packages (pnpm -r)
 vp check             # Combined lint + fmt + typecheck (Vite+'s validation loop). Add --fix to auto-fix.
 ```
 
+### Code conventions
+
+**No TypeScript non-null assertions (`!`)** anywhere (e.g. not `c.get("user")!.id`). Use optional chaining, an early-return guard, or a narrowed `const`. Enforced by Oxlint (`typescript/no-non-null-assertion` in [vite.config.ts](vite.config.ts)), so `pnpm lint` fails on any `!`. For request context use the [context.ts](packages/api/src/context.ts) helpers (`getUser`, `getTenantId`, …); in tests use `must()` from [test-utils.ts](packages/api/src/test-utils.ts).
+
 ### Build
 
 ```bash

@@ -2,6 +2,7 @@ import { type AnyPgColumn } from "drizzle-orm/pg-core";
 import {
   pgTable,
   uuid,
+  boolean,
   timestamp,
   uniqueIndex,
   index,
@@ -31,6 +32,9 @@ export const tenantMemberships = pgTable(
       .references(() => tenants.id, { onDelete: "cascade" }),
     role: membershipRoleEnum("role").notNull(),
     customerId: uuid("customer_id"),
+    // Self-service opt-in (owner/staff only): receive every order's
+    // notification in this tenant, regardless of customer assignment.
+    notifyAllOrders: boolean("notify_all_orders").notNull().default(false),
     invitedById: uuid("invited_by_id").references((): AnyPgColumn => users.id, {
       onDelete: "set null",
     }),

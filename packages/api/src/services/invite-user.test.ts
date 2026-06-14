@@ -2,6 +2,7 @@ import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { eq, inArray } from "drizzle-orm";
 import type { Context } from "hono";
 import type { AppEnv } from "../types";
+import { must } from "../test-utils";
 
 // Integration tests against a live Postgres (same gate as the RLS suite).
 // users / tenant_memberships / tenants have no RLS, so the app role can
@@ -17,8 +18,6 @@ if (APP_URL) process.env.APP_DATABASE_URL = APP_URL;
 vi.mock("./email", () => ({
   sendPasswordSet: vi.fn().mockResolvedValue(undefined),
   sendMembershipAdded: vi.fn().mockResolvedValue(undefined),
-  sendOrderNotification: vi.fn().mockResolvedValue(undefined),
-  sendOrderStatusChange: vi.fn().mockResolvedValue(undefined),
 }));
 
 // inviteUserToTenant only reads c.req.raw.headers (forwarded to better-auth).
@@ -55,8 +54,8 @@ suite("inviteUserToTenant (invite-only user creation)", () => {
       .insert(schema.tenants)
       .values({ name: "Invite B", slug: `inv-b-${suffix}`, email: "b@example.com" })
       .returning({ id: schema.tenants.id });
-    tenantA = a!.id;
-    tenantB = b!.id;
+    tenantA = must(a).id;
+    tenantB = must(b).id;
   });
 
   afterAll(async () => {
@@ -103,7 +102,7 @@ suite("inviteUserToTenant (invite-only user creation)", () => {
     const accts = await db
       .select({ id: schema.accounts.id })
       .from(schema.accounts)
-      .where(eq(schema.accounts.userId, user!.id));
+      .where(eq(schema.accounts.userId, must(user).id));
     expect(accts).toHaveLength(0);
 
     const memberships = await membershipsOf(addr);
@@ -301,7 +300,7 @@ suite("inviteUserToTenant (invite-only user creation)", () => {
         .insert(schema.customers)
         .values({ tenantId: tenantA, name: "Linked Customer" })
         .returning({ id: schema.customers.id });
-      return row!;
+      return must(row);
     });
 
     await inviteUserToTenant({
