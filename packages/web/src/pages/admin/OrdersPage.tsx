@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Link, useNavigate } from "react-router";
 import { useTenantSlug } from "@/lib/hooks/use-tenant-api";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import { FilterBar, FilterField } from "@/components/ui/filter-bar";
 import { Card } from "@/components/ui/card";
 import {
   Table,
@@ -72,7 +72,7 @@ export function OrdersPage() {
           setPage(1);
         }}
       >
-        <TabsList className="flex h-auto w-full flex-wrap justify-start gap-1 p-1">
+        <TabsList className="flex h-auto w-full justify-start gap-1 overflow-x-auto p-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
           {STATUS_TABS.map((tab) => (
             <TabsTrigger key={tab.value} value={tab.value} className="flex-none">
               {tab.label}
@@ -81,9 +81,16 @@ export function OrdersPage() {
         </TabsList>
       </Tabs>
 
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-        <div className="space-y-2">
-          <Label htmlFor="customer-filter">Πελάτης</Label>
+      <FilterBar
+        activeCount={(customerFilter ? 1 : 0) + (dateFrom ? 1 : 0) + (dateTo ? 1 : 0)}
+        onClear={() => {
+          setCustomerFilter(null);
+          setDateFrom("");
+          setDateTo("");
+          setPage(1);
+        }}
+      >
+        <FilterField label="Πελάτης" className="md:w-64">
           <CustomerPickerCombobox
             selected={customerFilter}
             onSelect={(c) => {
@@ -91,32 +98,30 @@ export function OrdersPage() {
               setPage(1);
             }}
           />
-        </div>
-        <div className="space-y-2">
-          <Label htmlFor="date-from">Από</Label>
+        </FilterField>
+        <FilterField label="Από" className="md:w-40">
           <Input
-            id="date-from"
             type="date"
+            aria-label="Από"
             value={dateFrom}
             onChange={(e) => {
               setDateFrom(e.target.value);
               setPage(1);
             }}
           />
-        </div>
-        <div className="space-y-2">
-          <Label htmlFor="date-to">Έως</Label>
+        </FilterField>
+        <FilterField label="Έως" className="md:w-40">
           <Input
-            id="date-to"
             type="date"
+            aria-label="Έως"
             value={dateTo}
             onChange={(e) => {
               setDateTo(e.target.value);
               setPage(1);
             }}
           />
-        </div>
-      </div>
+        </FilterField>
+      </FilterBar>
 
       {isLoading ? (
         <div className="flex justify-center py-12">

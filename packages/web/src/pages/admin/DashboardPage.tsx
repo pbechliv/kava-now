@@ -1,6 +1,7 @@
 import { Link } from "react-router";
+import { CalendarRange, ClipboardList, Clock, Users } from "lucide-react";
 import { useTenantSlug } from "@/lib/hooks/use-tenant-api";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import {
   Table,
   TableBody,
@@ -14,6 +15,7 @@ import { Spinner } from "@/components/spinner";
 import { OrderStatusBadge } from "@/components/order-status-badge";
 import { useDashboardStats } from "@/lib/hooks/use-dashboard";
 import { formatMoney, formatDate } from "@/lib/format";
+import { cn } from "@/lib/utils";
 
 export function DashboardPage() {
   const slug = useTenantSlug();
@@ -30,26 +32,54 @@ export function DashboardPage() {
   if (!stats) return null;
 
   const statCards = [
-    { label: "Παραγγελίες Σήμερα", value: stats.ordersToday },
-    { label: "Εκκρεμείς", value: stats.pendingOrders },
-    { label: "Αυτή την Εβδομάδα", value: stats.ordersThisWeek },
-    { label: "Πελάτες", value: stats.totalCustomers },
+    {
+      label: "Παραγγελίες Σήμερα",
+      value: stats.ordersToday,
+      icon: ClipboardList,
+      tint: "bg-primary/10 text-primary",
+    },
+    {
+      label: "Εκκρεμείς",
+      value: stats.pendingOrders,
+      icon: Clock,
+      tint: "bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-300",
+    },
+    {
+      label: "Αυτή την Εβδομάδα",
+      value: stats.ordersThisWeek,
+      icon: CalendarRange,
+      tint: "bg-blue-100 text-blue-700 dark:bg-blue-950 dark:text-blue-300",
+    },
+    {
+      label: "Πελάτες",
+      value: stats.totalCustomers,
+      icon: Users,
+      tint: "bg-green-100 text-green-700 dark:bg-green-950 dark:text-green-300",
+    },
   ];
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-6">
       <h1 className="text-2xl font-bold tracking-tight">Πίνακας Ελέγχου</h1>
 
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
         {statCards.map((stat) => (
-          <Card key={stat.label}>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">
-                {stat.label}
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-3xl font-bold">{stat.value}</p>
+          <Card key={stat.label} className="py-0">
+            <CardContent className="flex items-center gap-3 p-3 sm:p-4">
+              <div
+                className={cn(
+                  "flex size-9 shrink-0 items-center justify-center rounded-lg sm:size-10",
+                  stat.tint,
+                )}
+              >
+                <stat.icon className="size-4 sm:size-5" />
+              </div>
+              <div className="min-w-0">
+                <p className="line-clamp-2 text-xs font-medium text-muted-foreground">
+                  {stat.label}
+                </p>
+                <p className="text-2xl font-bold leading-tight sm:text-3xl">{stat.value}</p>
+              </div>
             </CardContent>
           </Card>
         ))}

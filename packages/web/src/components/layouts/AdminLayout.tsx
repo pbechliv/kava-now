@@ -47,12 +47,12 @@ export function AdminLayout() {
   const base = `/k/${slug}/admin`;
 
   const navItems = [
+    { to: `${base}/orders`, label: "Παραγγελίες", icon: ClipboardList },
     { to: `${base}/dashboard`, label: "Πίνακας Ελέγχου", icon: LayoutDashboard },
     { to: `${base}/products`, label: "Προϊόντα", icon: Package },
     { to: `${base}/categories`, label: "Κατηγορίες", icon: Tag },
     { to: `${base}/customers`, label: "Πελάτες", icon: Users },
     { to: `${base}/users`, label: "Χρήστες", icon: UserCog },
-    { to: `${base}/orders`, label: "Παραγγελίες", icon: ClipboardList },
     { to: `${base}/settings`, label: "Ρυθμίσεις", icon: Settings },
   ];
 

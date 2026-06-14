@@ -4,7 +4,7 @@ import { toast } from "sonner";
 import { useTenantSlug } from "@/lib/hooks/use-tenant-api";
 import { useDebouncedValue } from "@/lib/hooks/use-debounced-value";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { SearchInput } from "@/components/ui/search-input";
 import { Card } from "@/components/ui/card";
 import {
   Table,
@@ -78,11 +78,11 @@ export function CustomersPage() {
         </Button>
       </div>
 
-      <Input
+      <SearchInput
         placeholder="Αναζήτηση με όνομα ή υπεύθυνο..."
         value={search}
-        onChange={(e) => {
-          setSearch(e.target.value);
+        onValueChange={(v) => {
+          setSearch(v);
           setPage(1);
         }}
       />
