@@ -80,8 +80,9 @@ export function LoginPage() {
       const match = memberships.find((m) => m.tenantSlug === slug);
       if (match) return <Navigate to={membershipHome(match)} replace />;
     }
-    if (memberships.length === 1) {
-      return <Navigate to={membershipHome(memberships[0]!)} replace />;
+    const [only] = memberships;
+    if (memberships.length === 1 && only) {
+      return <Navigate to={membershipHome(only)} replace />;
     }
     // No single home to send them to — show an in-place chooser instead of the
     // login form. (Superadmins always redirect above and never reach here.)

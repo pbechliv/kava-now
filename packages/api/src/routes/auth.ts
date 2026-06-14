@@ -11,6 +11,7 @@ import { auth as betterAuth } from "../auth";
 import { requireAuth } from "../middleware/require-auth";
 import { isUniqueViolation, UNIQUE_CONSTRAINTS } from "../db/errors";
 import type { AppEnv } from "../types";
+import { getUser } from "../context";
 
 const DUPLICATE_USER_EMAIL_RESPONSE = {
   code: API_ERROR_CODES.DUPLICATE_USER_EMAIL,
@@ -40,7 +41,7 @@ auth.post("/set-password", requireAuth, async (c) => {
 });
 
 auth.get("/me", requireAuth, async (c) => {
-  const authUser = c.get("user")!;
+  const authUser = getUser(c);
 
   const [credentialAccount] = await db
     .select({ id: accounts.id })
@@ -57,6 +58,7 @@ auth.get("/me", requireAuth, async (c) => {
       tenantName: tenants.name,
       role: tenantMemberships.role,
       customerId: tenantMemberships.customerId,
+      notifyAllOrders: tenantMemberships.notifyAllOrders,
       invitedByName: inviter.name,
       invitedByEmail: inviter.email,
     })
@@ -72,6 +74,7 @@ auth.get("/me", requireAuth, async (c) => {
     tenantName: r.tenantName,
     role: r.role,
     customerId: r.customerId,
+    notifyAllOrders: r.notifyAllOrders,
     invitedBy: r.invitedByName ? { name: r.invitedByName, email: r.invitedByEmail ?? "" } : null,
   }));
 
@@ -95,7 +98,7 @@ const updateMeSchema = z.object({
 
 // PATCH /me — edit the current user's name and/or email.
 auth.patch("/me", requireAuth, async (c) => {
-  const authUser = c.get("user")!;
+  const authUser = getUser(c);
   const body = await c.req.json();
   const parsed = updateMeSchema.safeParse(body);
 
@@ -200,7 +203,7 @@ auth.post("/push/subscribe", requireAuth, async (c) => {
   if (!parsed.success) {
     return c.json({ error: parsed.error.flatten().fieldErrors }, 400);
   }
-  const user = c.get("user")!;
+  const user = getUser(c);
 
   // The endpoint is the natural key — a browser re-subscribing (possibly as a
   // different account on a shared machine) re-binds the row to the new user.
@@ -230,7 +233,7 @@ auth.post("/push/unsubscribe", requireAuth, async (c) => {
   if (!parsed.success) {
     return c.json({ error: parsed.error.flatten().fieldErrors }, 400);
   }
-  const user = c.get("user")!;
+  const user = getUser(c);
   await db
     .delete(pushSubscriptions)
     .where(

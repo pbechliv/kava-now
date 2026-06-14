@@ -1,8 +1,6 @@
 import nodemailer from "nodemailer";
 import { Resend } from "resend";
 import { render } from "@react-email/render";
-import { ORDER_STATUS_LABELS } from "@kava-now/shared";
-import type { OrderStatus } from "@kava-now/shared";
 import { config } from "../config";
 import {
   SetPasswordEmail,
@@ -17,10 +15,6 @@ import {
   OrderNotificationEmail,
   subject as orderNotificationSubject,
 } from "../emails/OrderNotificationEmail";
-import {
-  OrderStatusChangeEmail,
-  subject as orderStatusChangeSubject,
-} from "../emails/OrderStatusChangeEmail";
 
 const useResend = Boolean(config.resend.apiKey);
 
@@ -58,7 +52,10 @@ async function deliver({
     }
     return;
   }
-  await transporter!.sendMail({ from: fromAddress, to, subject, html });
+  if (!transporter) {
+    throw new Error("No email transport configured");
+  }
+  await transporter.sendMail({ from: fromAddress, to, subject, html });
 }
 
 export async function sendPasswordSet(
@@ -84,7 +81,6 @@ interface OrderNotificationTenant {
   id: string;
   name: string;
   slug: string;
-  notificationEmails: string[];
 }
 
 interface OrderNotificationCustomer {
@@ -111,10 +107,10 @@ export async function sendOrderNotification(
   customer: OrderNotificationCustomer,
   order: OrderNotificationOrder,
   items: OrderNotificationItem[],
+  recipients: string[],
 ): Promise<void> {
-  const recipients = tenant.notificationEmails;
   if (!recipients || recipients.length === 0) {
-    console.log("[email] No notification emails configured for tenant:", tenant.slug);
+    // No assigned users and nobody opted into all-order notifications.
     return;
   }
 
@@ -131,21 +127,6 @@ export async function sendOrderNotification(
   await deliver({
     to: recipients,
     subject: orderNotificationSubject({ customer: { name: customer.name } }),
-    html,
-  });
-}
-
-export async function sendOrderStatusChange(
-  customerEmail: string,
-  order: { id: string },
-  newStatus: OrderStatus,
-): Promise<void> {
-  const statusLabel = ORDER_STATUS_LABELS[newStatus];
-  const orderShortId = order.id.slice(0, 8);
-  const html = await render(OrderStatusChangeEmail({ orderShortId, statusLabel }));
-  await deliver({
-    to: customerEmail,
-    subject: orderStatusChangeSubject({ orderShortId, statusLabel }),
     html,
   });
 }

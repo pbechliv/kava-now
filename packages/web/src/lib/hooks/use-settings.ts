@@ -8,7 +8,6 @@ export interface TenantSettings {
   address: string | null;
   phone: string | null;
   email: string;
-  notificationEmails: string[];
   logoUrl: string | null;
 }
 
@@ -17,7 +16,6 @@ export interface UpdateSettingsInput {
   address?: string | null;
   phone?: string | null;
   email?: string;
-  notificationEmails?: string[];
   logoUrl?: string | null;
 }
 

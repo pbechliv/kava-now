@@ -1,6 +1,7 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { inArray, eq } from "drizzle-orm";
 import type { OrderStatus, ErpStatus } from "@kava-now/shared";
+import { must } from "../../test-utils";
 
 // Integration tests against a live Postgres reachable as the NOSUPERUSER app
 // role (same gate as the RLS suite). Set RLS_TEST_DATABASE_URL to run them.
@@ -79,11 +80,23 @@ suite("admin order mutations (HTTP, hard lock + soft-cancel totals)", () => {
       const items = await db
         .insert(schema.orderItems)
         .values([
-          { orderId: order!.id, productId: p1, quantity: 2, unitPrice: "10.00", productName: "P1" },
-          { orderId: order!.id, productId: p2, quantity: 3, unitPrice: "5.00", productName: "P2" },
+          {
+            orderId: must(order).id,
+            productId: p1,
+            quantity: 2,
+            unitPrice: "10.00",
+            productName: "P1",
+          },
+          {
+            orderId: must(order).id,
+            productId: p2,
+            quantity: 3,
+            unitPrice: "5.00",
+            productName: "P2",
+          },
         ])
         .returning({ id: schema.orderItems.id });
-      return { orderId: order!.id, itemIds: items.map((i) => i.id) };
+      return { orderId: must(order).id, itemIds: items.map((i) => i.id) };
     });
   }
 
@@ -102,14 +115,13 @@ suite("admin order mutations (HTTP, hard lock + soft-cancel totals)", () => {
     });
     tenantId = created.tenantId;
 
-    // Customer (no email → no status-change emails) + products, inside the
-    // tenant context so RLS WITH CHECK passes.
+    // Customer + products, inside the tenant context so RLS WITH CHECK passes.
     await runWithTenant(tenantId, async () => {
       const [customer] = await db
         .insert(schema.customers)
         .values({ tenantId, name: "Order Test Customer" })
         .returning({ id: schema.customers.id });
-      customerId = customer!.id;
+      customerId = must(customer).id;
 
       const products = await db
         .insert(schema.products)

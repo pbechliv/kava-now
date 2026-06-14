@@ -3,6 +3,7 @@ import { eq, inArray } from "drizzle-orm";
 import { hashPassword } from "better-auth/crypto";
 import type { Context } from "hono";
 import type { AppEnv } from "../../types";
+import { must } from "../../test-utils";
 
 // Integration tests against a live Postgres reachable as the NOSUPERUSER app
 // role (same gate as the RLS suite). Set RLS_TEST_DATABASE_URL to run them.
@@ -15,7 +16,6 @@ vi.mock("../../services/email", () => ({
   sendPasswordSet: vi.fn().mockResolvedValue(undefined),
   sendMembershipAdded: vi.fn().mockResolvedValue(undefined),
   sendOrderNotification: vi.fn().mockResolvedValue(undefined),
-  sendOrderStatusChange: vi.fn().mockResolvedValue(undefined),
 }));
 
 const fakeContext = {
@@ -53,7 +53,7 @@ suite("customer orders (server-side pricing + customer scoping)", () => {
         .insert(schema.customers)
         .values({ tenantId, name })
         .returning({ id: schema.customers.id });
-      return row!;
+      return must(row);
     });
     const { inviteUserToTenant } = await import("../../services/invite-user");
     await inviteUserToTenant({
@@ -69,9 +69,9 @@ suite("customer orders (server-side pricing + customer scoping)", () => {
       .from(schema.users)
       .where(eq(schema.users.email, email));
     await baseDb.insert(schema.accounts).values({
-      accountId: user!.id,
+      accountId: must(user).id,
       providerId: "credential",
-      userId: user!.id,
+      userId: must(user).id,
       password: await hashPassword(password),
     });
     return customer.id;
@@ -115,7 +115,7 @@ suite("customer orders (server-side pricing + customer scoping)", () => {
         .insert(schema.products)
         .values({ tenantId, name: "Discounted Gin", brand: "TBrand", basePrice: "2.01" })
         .returning({ id: schema.products.id });
-      productId = p!.id;
+      productId = must(p).id;
       await db.insert(schema.customerBrandPricing).values({
         tenantId,
         customerId: customerAId,
@@ -139,7 +139,7 @@ suite("customer orders (server-side pricing + customer scoping)", () => {
   });
 
   it("snapshots the server-resolved, brand-discounted unit price at order time", async () => {
-    const res = await api(cookies.a!, "/orders", {
+    const res = await api(must(cookies.a), "/orders", {
       method: "POST",
       body: JSON.stringify({ items: [{ productId, quantity: 2 }] }),
     });
@@ -153,7 +153,7 @@ suite("customer orders (server-side pricing + customer scoping)", () => {
   });
 
   it("a customer without the brand discount pays the base price", async () => {
-    const res = await api(cookies.b!, "/orders", {
+    const res = await api(must(cookies.b), "/orders", {
       method: "POST",
       body: JSON.stringify({ items: [{ productId, quantity: 1 }] }),
     });
@@ -163,16 +163,16 @@ suite("customer orders (server-side pricing + customer scoping)", () => {
   });
 
   it("customers cannot read each other's orders (membership.customerId scoping)", async () => {
-    const created = await api(cookies.a!, "/orders", {
+    const created = await api(must(cookies.a), "/orders", {
       method: "POST",
       body: JSON.stringify({ items: [{ productId, quantity: 1 }] }),
     });
     const orderId = (await created.json()).order.id as string;
 
-    const own = await api(cookies.a!, `/orders/${orderId}`);
+    const own = await api(must(cookies.a), `/orders/${orderId}`);
     expect(own.status).toBe(200);
 
-    const foreign = await api(cookies.b!, `/orders/${orderId}`);
+    const foreign = await api(must(cookies.b), `/orders/${orderId}`);
     expect(foreign.status).toBe(404);
   });
 });

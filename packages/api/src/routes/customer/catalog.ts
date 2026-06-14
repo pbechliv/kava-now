@@ -7,6 +7,7 @@ import { products, categories, customers, customerBrandPricing } from "../../db/
 import { requireCustomerProfile } from "../../middleware/require-customer-profile";
 import { resolvePrice } from "../../services/pricing";
 import type { AppEnv } from "../../types";
+import { getCustomerId, getTenantId } from "../../context";
 
 const catalogRouter = new Hono<AppEnv>();
 
@@ -14,7 +15,7 @@ const catalogRouter = new Hono<AppEnv>();
 // least one active product, independent of the product list's pagination,
 // search, or selected-category filter (#58).
 catalogRouter.get("/categories", async (c) => {
-  const tenantId = c.get("tenantId")!;
+  const tenantId = getTenantId(c);
 
   const rows = await db
     .selectDistinct({
@@ -34,8 +35,8 @@ catalogRouter.get("/categories", async (c) => {
 // customer. /categories above stays outside the profile guard — chips don't
 // depend on a linked customer row.
 catalogRouter.get("/", requireCustomerProfile, async (c) => {
-  const tenantId = c.get("tenantId")!;
-  const customerId = c.get("customerId")!;
+  const tenantId = getTenantId(c);
+  const customerId = getCustomerId(c);
 
   // Verify customer exists. Explicit tenantId filters here (and below) are
   // defense-in-depth on top of RLS — don't rely on RLS as the only guard.
@@ -89,7 +90,8 @@ catalogRouter.get("/", requireCustomerProfile, async (c) => {
 
   if (search) {
     const pattern = `%${escapeLike(search)}%`;
-    conditions.push(or(ilike(products.name, pattern), ilike(products.brand, pattern))!);
+    const match = or(ilike(products.name, pattern), ilike(products.brand, pattern));
+    if (match) conditions.push(match);
   }
 
   const whereClause = and(...conditions);

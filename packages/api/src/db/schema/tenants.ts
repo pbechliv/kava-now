@@ -8,7 +8,6 @@ export const tenants = pgTable("tenants", {
   address: text("address"),
   phone: text("phone"),
   email: text("email").notNull(),
-  notificationEmails: text("notification_emails").array().notNull().default([]),
   settings: jsonb("settings").notNull().default({}),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true })

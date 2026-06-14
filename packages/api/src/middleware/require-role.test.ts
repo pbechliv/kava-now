@@ -3,6 +3,7 @@ import { eq, inArray } from "drizzle-orm";
 import { hashPassword } from "better-auth/crypto";
 import type { Context } from "hono";
 import type { AppEnv } from "../types";
+import { must } from "../test-utils";
 
 // Integration tests against a live Postgres reachable as the NOSUPERUSER app
 // role (same gate as the RLS suite). Set RLS_TEST_DATABASE_URL to run them.
@@ -15,7 +16,6 @@ vi.mock("../services/email", () => ({
   sendPasswordSet: vi.fn().mockResolvedValue(undefined),
   sendMembershipAdded: vi.fn().mockResolvedValue(undefined),
   sendOrderNotification: vi.fn().mockResolvedValue(undefined),
-  sendOrderStatusChange: vi.fn().mockResolvedValue(undefined),
 }));
 
 const fakeContext = {
@@ -87,7 +87,7 @@ suite("requireRole (app-layer tenant privilege boundary)", () => {
         .insert(schema.customers)
         .values({ tenantId: tenantAId, name: "Role Customer" })
         .returning({ id: schema.customers.id });
-      return row!;
+      return must(row);
     });
     await inviteUserToTenant({
       c: fakeContext,
@@ -102,9 +102,9 @@ suite("requireRole (app-layer tenant privilege boundary)", () => {
       .from(schema.users)
       .where(eq(schema.users.email, customerEmail));
     await baseDb.insert(schema.accounts).values({
-      accountId: custUser!.id,
+      accountId: must(custUser).id,
       providerId: "credential",
-      userId: custUser!.id,
+      userId: must(custUser).id,
       password: await hashPassword(password),
     });
 
@@ -114,9 +114,9 @@ suite("requireRole (app-layer tenant privilege boundary)", () => {
       .values({ email: superEmail, name: "Role Super", isSuperAdmin: true, emailVerified: true })
       .returning({ id: schema.users.id });
     await baseDb.insert(schema.accounts).values({
-      accountId: superUser!.id,
+      accountId: must(superUser).id,
       providerId: "credential",
-      userId: superUser!.id,
+      userId: must(superUser).id,
       password: await hashPassword(password),
     });
 
@@ -138,27 +138,27 @@ suite("requireRole (app-layer tenant privilege boundary)", () => {
   });
 
   it("owner reaches their own tenant's admin routes", async () => {
-    const res = await get(cookies.ownerA!, `/api/k/${slugA}/admin/products`);
+    const res = await get(must(cookies.ownerA), `/api/k/${slugA}/admin/products`);
     expect(res.status).toBe(200);
   });
 
   it("customer hitting admin routes → 403", async () => {
-    const res = await get(cookies.customer!, `/api/k/${slugA}/admin/products`);
+    const res = await get(must(cookies.customer), `/api/k/${slugA}/admin/products`);
     expect(res.status).toBe(403);
   });
 
   it("owner of tenant A hitting tenant B's admin routes → 403", async () => {
-    const res = await get(cookies.ownerA!, `/api/k/${slugB}/admin/products`);
+    const res = await get(must(cookies.ownerA), `/api/k/${slugB}/admin/products`);
     expect(res.status).toBe(403);
   });
 
   it("owner hitting customer routes → 403 (no customer membership)", async () => {
-    const res = await get(cookies.ownerA!, `/api/k/${slugA}/customer/catalog`);
+    const res = await get(must(cookies.ownerA), `/api/k/${slugA}/customer/catalog`);
     expect(res.status).toBe(403);
   });
 
   it("customer reaches customer routes", async () => {
-    const res = await get(cookies.customer!, `/api/k/${slugA}/customer/catalog`);
+    const res = await get(must(cookies.customer), `/api/k/${slugA}/customer/catalog`);
     expect(res.status).toBe(200);
   });
 
@@ -168,9 +168,9 @@ suite("requireRole (app-layer tenant privilege boundary)", () => {
   });
 
   it("superadmin bypasses membership lookup with a synthetic owner membership", async () => {
-    const resA = await get(cookies.superadmin!, `/api/k/${slugA}/admin/products`);
+    const resA = await get(must(cookies.superadmin), `/api/k/${slugA}/admin/products`);
     expect(resA.status).toBe(200);
-    const resB = await get(cookies.superadmin!, `/api/k/${slugB}/admin/products`);
+    const resB = await get(must(cookies.superadmin), `/api/k/${slugB}/admin/products`);
     expect(resB.status).toBe(200);
   });
 });

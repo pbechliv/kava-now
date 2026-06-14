@@ -83,7 +83,10 @@ export async function parseXlsx(file: File, opts: ParseOptions = {}): Promise<Pa
   if (!sheetName) {
     return { columns: [], rows: [] };
   }
-  const sheet = wb.Sheets[sheetName]!;
+  const sheet = wb.Sheets[sheetName];
+  if (!sheet) {
+    return { columns: [], rows: [] };
+  }
 
   const matrix = XLSX.utils.sheet_to_json<unknown[]>(sheet, {
     header: 1,

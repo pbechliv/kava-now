@@ -28,6 +28,7 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Spinner } from "@/components/spinner";
+import { AssignedUsersField } from "@/components/admin/AssignedUsersField";
 import { useCustomer, useCreateCustomer, useUpdateCustomer } from "@/lib/hooks/use-customers";
 
 interface Props {
@@ -64,6 +65,7 @@ export function CustomerFormModal({ open, customerId, onClose }: Props) {
         profession: null,
         billingAddress: null,
         erpRef: null,
+        assignedUserIds: [],
       });
     }
   }, [open, isEdit, form]);
@@ -82,6 +84,7 @@ export function CustomerFormModal({ open, customerId, onClose }: Props) {
         profession: customer.profession,
         billingAddress: customer.billingAddress,
         erpRef: customer.erpRef,
+        assignedUserIds: customer.assignedUserIds ?? [],
       });
     }
   }, [customer, isEdit, form]);
@@ -99,11 +102,12 @@ export function CustomerFormModal({ open, customerId, onClose }: Props) {
       profession: data.profession || null,
       billingAddress: data.billingAddress || null,
       erpRef: data.erpRef || null,
+      assignedUserIds: data.assignedUserIds ?? [],
     };
 
-    if (isEdit) {
+    if (customerId) {
       updateMutation.mutate(
-        { id: customerId!, data: cleaned as UpdateCustomerInput },
+        { id: customerId, data: cleaned as UpdateCustomerInput },
         {
           onSuccess: () => {
             toast.success("Ο πελάτης ενημερώθηκε");
@@ -336,6 +340,23 @@ export function CustomerFormModal({ open, customerId, onClose }: Props) {
                         onChange={(e) => field.onChange(e.target.value || null)}
                       />
                     </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="assignedUserIds"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Ανατεθειμένοι χρήστες</FormLabel>
+                    <FormControl>
+                      <AssignedUsersField value={field.value ?? []} onChange={field.onChange} />
+                    </FormControl>
+                    <FormDescription>
+                      Λαμβάνουν ειδοποιήσεις για τις παραγγελίες αυτού του πελάτη
+                    </FormDescription>
                     <FormMessage />
                   </FormItem>
                 )}

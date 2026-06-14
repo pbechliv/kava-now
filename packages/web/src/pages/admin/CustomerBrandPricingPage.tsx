@@ -32,7 +32,7 @@ export function CustomerBrandPricingPage() {
   const navigate = useNavigate();
   const { data: customer } = useCustomer(id);
   const { data: rows, isLoading } = useCustomerBrandPricing(id);
-  const updateMutation = useUpdateCustomerBrandPricing(id!);
+  const updateMutation = useUpdateCustomerBrandPricing(id ?? "");
 
   const [assignments, setAssignments] = useState<LocalAssignment[]>([]);
 

@@ -12,37 +12,54 @@ import {
 import { requireCustomerProfile } from "../../middleware/require-customer-profile";
 import { resolvePrice } from "../../services/pricing";
 import { sendOrderNotification } from "../../services/email";
-import { sendPushToUsers, tenantStaffUserIds } from "../../services/push";
+import { sendPushToUsers, orderNotificationRecipients } from "../../services/push";
 import type { AppEnv } from "../../types";
+import { getCustomerId, getTenant, getTenantId } from "../../context";
 
 const ordersRouter = new Hono<AppEnv>();
 
 ordersRouter.use("*", requireCustomerProfile);
 
 // Post-commit notifications shared by create + reorder (a reorder IS a new
-// order): email to the tenant's notification inbox, push to owner/staff
-// devices (#28). Deferred so a rolled-back order never notifies anyone.
-function queueOrderPlacedNotifications(
-  tenant: { id: string; slug: string; name: string; notificationEmails: string[] },
+// order): email + push to the customer's assigned users (and anyone opted into
+// all-order notifications), #28. Recipients are resolved NOW — inside the
+// request transaction — because customer_assigned_users is RLS-scoped and the
+// post-commit callback runs on the base pool with no tenant context. The
+// dispatch itself is deferred so a rolled-back order never notifies anyone.
+async function queueOrderPlacedNotifications(
+  tenant: { id: string; slug: string; name: string },
   customer: { id: string; name: string; email: string | null },
   result: {
     order: { id: string; createdAt: Date; notes: string | null };
     items: { id: string; productName: string; quantity: number; unitPrice: string }[];
   },
+  actingUserId: string | undefined,
 ): Promise<void> {
+  // Exclude the user who placed the order — never notify someone of their own action.
+  const recipients = await orderNotificationRecipients(tenant.id, customer.id, actingUserId);
+  if (recipients.length === 0) return; // nobody assigned, nobody opted in
+
   return afterTenantCommit(async () => {
     try {
-      await sendOrderNotification(tenant, customer, result.order, result.items);
+      await sendOrderNotification(
+        tenant,
+        customer,
+        result.order,
+        result.items,
+        recipients.map((r) => r.email),
+      );
     } catch (err) {
       console.error("[email] Failed to send order notification:", err);
     }
     try {
-      const staff = await tenantStaffUserIds(tenant.id);
-      await sendPushToUsers(staff, {
-        title: "Νέα παραγγελία",
-        body: `${customer.name} — ${result.items.length} είδη`,
-        url: `/k/${tenant.slug}/admin/orders/${result.order.id}`,
-      });
+      await sendPushToUsers(
+        recipients.map((r) => r.userId),
+        {
+          title: "Νέα παραγγελία",
+          body: `${customer.name} — ${result.items.length} είδη`,
+          url: `/k/${tenant.slug}/admin/orders/${result.order.id}`,
+        },
+      );
     } catch (err) {
       console.error("[push] order-placed push failed:", err);
     }
@@ -51,8 +68,8 @@ function queueOrderPlacedNotifications(
 
 // POST / — create order
 ordersRouter.post("/", async (c) => {
-  const tenant = c.get("tenant")!;
-  const customerId = c.get("customerId")!;
+  const tenant = getTenant(c);
+  const customerId = getCustomerId(c);
 
   const body = await c.req.json();
   const parsed = createOrderSchema.safeParse(body);
@@ -141,7 +158,8 @@ ordersRouter.post("/", async (c) => {
     if (!order) throw new Error("Failed to create order");
 
     const itemValues = items.map((item) => {
-      const product = productMap.get(item.productId)!;
+      const product = productMap.get(item.productId);
+      if (!product) throw new Error(`Product ${item.productId} is not available`);
       const unitPrice = resolvePrice(
         product.basePrice,
         brandDiscountMap.get(product.brand) ?? null,
@@ -162,15 +180,15 @@ ordersRouter.post("/", async (c) => {
     return { order, items: createdItems };
   });
 
-  await queueOrderPlacedNotifications(tenant, customer, result);
+  await queueOrderPlacedNotifications(tenant, customer, result, c.get("user")?.id);
 
   return c.json(result, 201);
 });
 
 // GET / — list orders for authenticated customer
 ordersRouter.get("/", async (c) => {
-  const tenantId = c.get("tenantId")!;
-  const customerId = c.get("customerId")!;
+  const tenantId = getTenantId(c);
+  const customerId = getCustomerId(c);
 
   const pagination = paginationQuerySchema.safeParse({
     page: c.req.query("page"),
@@ -213,8 +231,8 @@ ordersRouter.get("/", async (c) => {
 
 // GET /:id — single order with items
 ordersRouter.get("/:id", async (c) => {
-  const tenantId = c.get("tenantId")!;
-  const customerId = c.get("customerId")!;
+  const tenantId = getTenantId(c);
+  const customerId = getCustomerId(c);
   const orderId = c.req.param("id");
 
   // Explicit columns: the full row carries ERP internals (erpMark, the
@@ -256,8 +274,8 @@ ordersRouter.get("/:id", async (c) => {
 
 // POST /:id/reorder — clone items from referenced order into a new order
 ordersRouter.post("/:id/reorder", async (c) => {
-  const tenant = c.get("tenant")!;
-  const customerId = c.get("customerId")!;
+  const tenant = getTenant(c);
+  const customerId = getCustomerId(c);
   const orderId = c.req.param("id");
 
   // Get original order
@@ -360,7 +378,8 @@ ordersRouter.post("/:id/reorder", async (c) => {
     if (!newOrder) throw new Error("Failed to create order");
 
     const itemValues = validItems.map((item) => {
-      const product = productMap.get(item.productId)!;
+      const product = productMap.get(item.productId);
+      if (!product) throw new Error(`Product ${item.productId} is not available`);
       const unitPrice = resolvePrice(
         product.basePrice,
         brandDiscountMap.get(product.brand) ?? null,
@@ -381,7 +400,7 @@ ordersRouter.post("/:id/reorder", async (c) => {
     return { order: newOrder, items: createdItems };
   });
 
-  await queueOrderPlacedNotifications(tenant, customer, result);
+  await queueOrderPlacedNotifications(tenant, customer, result, c.get("user")?.id);
 
   return c.json(result, 201);
 });

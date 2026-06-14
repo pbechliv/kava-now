@@ -6,6 +6,7 @@ import { db } from "../../db/connection";
 import { customers } from "../../db/schema/index";
 import { requireCustomerProfile } from "../../middleware/require-customer-profile";
 import type { AppEnv } from "../../types";
+import { getCustomerId, getTenantId } from "../../context";
 
 const profileRouter = new Hono<AppEnv>();
 
@@ -24,8 +25,8 @@ const PROFILE_COLUMNS = {
 
 // GET / — return customer record for authenticated user
 profileRouter.get("/", async (c) => {
-  const tenantId = c.get("tenantId")!;
-  const customerId = c.get("customerId")!;
+  const tenantId = getTenantId(c);
+  const customerId = getCustomerId(c);
 
   // Explicit tenantId filter as defense-in-depth on top of RLS.
   const [customer] = await db
@@ -49,8 +50,8 @@ const updateProfileSchema = z.object({
 // PATCH / — customers may update their own phone and address. Name and email
 // remain admin-controlled (they're tied to billing / invitation).
 profileRouter.patch("/", async (c) => {
-  const tenantId = c.get("tenantId")!;
-  const customerId = c.get("customerId")!;
+  const tenantId = getTenantId(c);
+  const customerId = getCustomerId(c);
 
   const body = await c.req.json();
   const parsed = updateProfileSchema.safeParse(body);

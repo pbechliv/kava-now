@@ -115,3 +115,22 @@ export function useUpdateMe() {
     },
   });
 }
+
+/**
+ * Self-service toggle: the current user opts in/out of receiving every order's
+ * notification in the given tenant. Writes the per-membership flag and refreshes
+ * `/api/auth/me` so `currentMembership.notifyAllOrders` reflects the change.
+ */
+export function useUpdateNotificationPreference(slug: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (notifyAllOrders: boolean) =>
+      api.patch<{ notifyAllOrders: boolean }>(
+        `/api/k/${slug}/admin/settings/notification-preference`,
+        { notifyAllOrders },
+      ),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ["auth"] });
+    },
+  });
+}

@@ -19,6 +19,7 @@ import {
   FK_CONSTRAINTS,
 } from "../../db/errors";
 import type { AppEnv } from "../../types";
+import { getTenantId } from "../../context";
 
 const DUPLICATE_ERP_REF_RESPONSE = {
   code: API_ERROR_CODES.DUPLICATE_PRODUCT_ERP_REF,
@@ -60,7 +61,7 @@ const productsRouter = new Hono<AppEnv>();
 
 // GET / — list products with optional filters
 productsRouter.get("/", async (c) => {
-  const tenantId = c.get("tenantId")!;
+  const tenantId = getTenantId(c);
   const filters = listFiltersQuerySchema.safeParse({ categoryId: c.req.query("categoryId") });
   if (!filters.success) {
     return c.json({ error: filters.error.flatten().fieldErrors }, 400);
@@ -86,7 +87,8 @@ productsRouter.get("/", async (c) => {
 
   if (search) {
     const pattern = `%${escapeLike(search)}%`;
-    conditions.push(or(ilike(products.name, pattern), ilike(products.brand, pattern))!);
+    const match = or(ilike(products.name, pattern), ilike(products.brand, pattern));
+    if (match) conditions.push(match);
   }
 
   if (active === "true") {
@@ -136,7 +138,7 @@ productsRouter.get("/", async (c) => {
 // GET /keys — every (name, brand) pair in this tenant. Feeds the import
 // preview's new-vs-update badges, which a paginated list cannot (#61).
 productsRouter.get("/keys", async (c) => {
-  const tenantId = c.get("tenantId")!;
+  const tenantId = getTenantId(c);
   const rows = await db
     .select({ name: products.name, brand: products.brand })
     .from(products)
@@ -149,7 +151,7 @@ productsRouter.get("/keys", async (c) => {
 // with importProductRowSchema, and posts the result here. On conflict
 // (tenantId, name, brand) the existing row is updated.
 productsRouter.post("/import", async (c) => {
-  const tenantId = c.get("tenantId")!;
+  const tenantId = getTenantId(c);
   const body = await c.req.json();
   const parsed = importProductsBatchSchema.safeParse(body);
 
@@ -281,11 +283,13 @@ productsRouter.post("/import", async (c) => {
           // Replay the failed chunk row-by-row in savepoints to locate the
           // offending row for a useful 409 instead of an opaque 500.
           for (let i = 0; i < chunk.length; i++) {
+            const row = chunk[i];
+            if (!row) continue;
             try {
               await tx.transaction(async (sp) => {
                 await sp
                   .insert(products)
-                  .values(chunk[i]!)
+                  .values(row)
                   .onConflictDoUpdate({
                     target: [products.tenantId, products.name, products.brand],
                     set: UPSERT_SET,
@@ -293,7 +297,7 @@ productsRouter.post("/import", async (c) => {
               });
             } catch (rowErr) {
               if (isUniqueViolation(rowErr, UNIQUE_CONSTRAINTS.productErpRef)) {
-                conflict = { rowIndex: offset + i, erpRef: chunk[i]!.erpRef };
+                conflict = { rowIndex: offset + i, erpRef: row.erpRef };
               }
               throw rowErr; // abort the whole import — it is all-or-nothing
             }
@@ -329,7 +333,7 @@ productsRouter.post("/import", async (c) => {
 
 // POST / — create product
 productsRouter.post("/", async (c) => {
-  const tenantId = c.get("tenantId")!;
+  const tenantId = getTenantId(c);
   const body = await c.req.json();
   const parsed = createProductSchema.safeParse(body);
 
@@ -363,7 +367,7 @@ productsRouter.post("/", async (c) => {
 
 // GET /:id — single product
 productsRouter.get("/:id", async (c) => {
-  const tenantId = c.get("tenantId")!;
+  const tenantId = getTenantId(c);
   const id = c.req.param("id");
 
   const [product] = await db
@@ -400,7 +404,7 @@ productsRouter.get("/:id", async (c) => {
 
 // PUT /:id — update product
 productsRouter.put("/:id", async (c) => {
-  const tenantId = c.get("tenantId")!;
+  const tenantId = getTenantId(c);
   const id = c.req.param("id");
   const body = await c.req.json();
   const parsed = updateProductSchema.safeParse(body);
@@ -446,7 +450,7 @@ productsRouter.put("/:id", async (c) => {
 
 // DELETE /:id — soft-delete if referenced, hard-delete otherwise
 productsRouter.delete("/:id", async (c) => {
-  const tenantId = c.get("tenantId")!;
+  const tenantId = getTenantId(c);
   const id = c.req.param("id");
 
   // Soft-delete: set active = false
