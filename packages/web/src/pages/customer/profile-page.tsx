@@ -5,7 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
-import { ChangePasswordCard } from "@/components/auth/ChangePasswordCard";
+import { ChangePasswordCard } from "@/components/auth/change-password-card";
 import { ErrorBanner } from "@/components/error-banner";
 import { Spinner } from "@/components/spinner";
 import { useProfile, useUpdateProfile } from "@/lib/hooks/use-profile";

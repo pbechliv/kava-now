@@ -5,7 +5,8 @@ import { useTenantSlug } from "@/lib/hooks/use-tenant-api";
 import { useDebouncedValue } from "@/lib/hooks/use-debounced-value";
 import { Pencil, Trash2, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { SearchInput } from "@/components/ui/search-input";
+import { FilterBar, FilterField } from "@/components/ui/filter-bar";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import {
@@ -27,7 +28,7 @@ import { MobileList, MobileListItem } from "@/components/ui/mobile-list";
 import { Spinner } from "@/components/spinner";
 import { EmptyState } from "@/components/empty-state";
 import { ConfirmDialog } from "@/components/confirm-dialog";
-import { PaginationControls } from "@/components/PaginationControls";
+import { PaginationControls } from "@/components/pagination-controls";
 import { useProducts, useUpdateProduct, useDeleteProduct } from "@/lib/hooks/use-products";
 import { useCategories } from "@/lib/hooks/use-categories";
 import { UNIT_LABELS, type ImportProductsResult } from "@kava-now/shared";
@@ -130,36 +131,45 @@ export function ProductsPage() {
         </div>
       )}
 
-      <div className="flex flex-col gap-3 sm:flex-row">
-        <Input
-          placeholder="Αναζήτηση με όνομα ή brand..."
-          value={search}
-          onChange={(e) => {
-            setSearch(e.target.value);
-            setPage(1);
-          }}
-          className="flex-1"
-        />
-        <Select
-          value={categoryFilter || "all"}
-          onValueChange={(v) => {
-            setCategoryFilter(v === "all" ? "" : v);
-            setPage(1);
-          }}
-        >
-          <SelectTrigger className="w-full sm:w-56">
-            <SelectValue placeholder="Όλες οι κατηγορίες" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">Όλες οι κατηγορίες</SelectItem>
-            {categories?.map((cat) => (
-              <SelectItem key={cat.id} value={cat.id}>
-                {cat.name}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </div>
+      <FilterBar
+        search={
+          <SearchInput
+            placeholder="Αναζήτηση με όνομα ή brand..."
+            value={search}
+            onValueChange={(v) => {
+              setSearch(v);
+              setPage(1);
+            }}
+          />
+        }
+        activeCount={categoryFilter ? 1 : 0}
+        onClear={() => {
+          setCategoryFilter("");
+          setPage(1);
+        }}
+      >
+        <FilterField label="Κατηγορία">
+          <Select
+            value={categoryFilter || "all"}
+            onValueChange={(v) => {
+              setCategoryFilter(v === "all" ? "" : v);
+              setPage(1);
+            }}
+          >
+            <SelectTrigger className="w-full md:w-56" aria-label="Κατηγορία">
+              <SelectValue placeholder="Όλες οι κατηγορίες" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Όλες οι κατηγορίες</SelectItem>
+              {categories?.map((cat) => (
+                <SelectItem key={cat.id} value={cat.id}>
+                  {cat.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </FilterField>
+      </FilterBar>
 
       {isLoading ? (
         <div className="flex justify-center py-12">

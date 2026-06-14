@@ -2,7 +2,7 @@ import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import * as Sentry from "@sentry/react";
 import { GoogleOAuthProvider } from "@react-oauth/google";
-import { App } from "./App";
+import { App } from "./app";
 import { DeployOverlay } from "./components/deploy-overlay";
 import { initUpdateCheck } from "./lib/update-check";
 import { initDeployWatch, SERVER_RECOVERED_EVENT } from "./lib/deploy-watch";

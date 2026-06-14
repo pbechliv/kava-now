@@ -28,8 +28,8 @@ import {
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Separator } from "@/components/ui/separator";
-import { TenantSwitcher } from "@/components/TenantSwitcher";
-import { Logo } from "@/components/Logo";
+import { TenantSwitcher } from "@/components/tenant-switcher";
+import { Logo } from "@/components/logo";
 
 const navItems = [
   { to: "/admin/tenants", label: "Λογαριασμοί", icon: Building2 },

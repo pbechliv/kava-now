@@ -8,7 +8,7 @@ import { EmptyState } from "@/components/empty-state";
 import { ErrorBanner } from "@/components/error-banner";
 import { Spinner } from "@/components/spinner";
 import { OrderStatusBadge } from "@/components/order-status-badge";
-import { PaginationControls } from "@/components/PaginationControls";
+import { PaginationControls } from "@/components/pagination-controls";
 import { useCustomerOrders } from "@/lib/hooks/use-customer-orders";
 import { PAGE_SIZE } from "@/lib/constants";
 import { formatMoney, formatDateLong } from "@/lib/format";

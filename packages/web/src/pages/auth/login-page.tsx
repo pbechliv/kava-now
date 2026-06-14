@@ -5,7 +5,7 @@ import { loginSchema, type LoginInput } from "@kava-now/shared";
 import { Link, Navigate, useLocation, useNavigate, useParams } from "react-router";
 import { Loader2 } from "lucide-react";
 import { AuthUnavailable } from "@/components/auth-unavailable";
-import { GoogleSignInButton } from "@/components/auth/GoogleSignInButton";
+import { GoogleSignInButton } from "@/components/auth/google-sign-in-button";
 import { useLogin } from "@/lib/hooks/use-login";
 import { useGoogleSignIn } from "@/lib/hooks/use-google-sign-in";
 import { useAuth } from "@/lib/hooks/use-auth";

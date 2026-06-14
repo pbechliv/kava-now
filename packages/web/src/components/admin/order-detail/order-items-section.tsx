@@ -21,7 +21,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { ConfirmDialog } from "@/components/confirm-dialog";
-import { OrderItemDialog } from "@/components/admin/OrderItemDialog";
+import { OrderItemDialog } from "@/components/admin/order-item-dialog";
 import {
   useCancelOrderItem,
   useUpdateOrderItem,

@@ -3,7 +3,7 @@ import { Link, useNavigate, useSearchParams, useParams } from "react-router";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useQuery } from "@tanstack/react-query";
 import { CheckCircle2, Loader2 } from "lucide-react";
-import { GoogleSignInButton } from "@/components/auth/GoogleSignInButton";
+import { GoogleSignInButton } from "@/components/auth/google-sign-in-button";
 import { authClient } from "@/lib/auth-client";
 import { useGoogleSignIn } from "@/lib/hooks/use-google-sign-in";
 import { api } from "@/lib/api";

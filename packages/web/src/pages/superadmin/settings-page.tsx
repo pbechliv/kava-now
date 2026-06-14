@@ -5,8 +5,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { ChangePasswordCard } from "@/components/auth/ChangePasswordCard";
-import { PushNotificationsCard } from "@/components/PushNotificationsCard";
+import { ChangePasswordCard } from "@/components/auth/change-password-card";
+import { PushNotificationsCard } from "@/components/push-notifications-card";
 import { useAuth, useUpdateMe } from "@/lib/hooks/use-auth";
 
 type Tab = "profile" | "password";

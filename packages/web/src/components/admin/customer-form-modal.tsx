@@ -28,7 +28,7 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Spinner } from "@/components/spinner";
-import { AssignedUsersField } from "@/components/admin/AssignedUsersField";
+import { AssignedUsersField } from "@/components/admin/assigned-users-field";
 import { useCustomer, useCreateCustomer, useUpdateCustomer } from "@/lib/hooks/use-customers";
 
 interface Props {

@@ -1,5 +1,5 @@
 import { Spinner } from "@/components/spinner";
-import { Logo } from "@/components/Logo";
+import { Logo } from "@/components/logo";
 
 /**
  * Full-screen branded loading splash. Shared by the auth boot gate

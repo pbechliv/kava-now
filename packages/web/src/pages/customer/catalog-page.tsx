@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Minus, Plus } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { SearchInput } from "@/components/ui/search-input";
 import { Card } from "@/components/ui/card";
 import {
   Table,
@@ -17,7 +17,7 @@ import { cn } from "@/lib/utils";
 import { useDebouncedValue } from "@/lib/hooks/use-debounced-value";
 import { ErrorBanner } from "@/components/error-banner";
 import { Spinner } from "@/components/spinner";
-import { PaginationControls } from "@/components/PaginationControls";
+import { PaginationControls } from "@/components/pagination-controls";
 import { useCatalog, useCatalogCategories } from "@/lib/hooks/use-catalog";
 import { useCartStore } from "@/lib/store/cart";
 import { UNIT_LABELS } from "@kava-now/shared";
@@ -74,14 +74,13 @@ export function CatalogPage() {
     <div className="space-y-6">
       <h1 className="text-2xl font-bold tracking-tight">Κατάλογος</h1>
 
-      <Input
-        type="text"
+      <SearchInput
         placeholder="Αναζήτηση προϊόντων..."
         value={search}
-        onChange={(e) => handleSearchChange(e.target.value)}
+        onValueChange={handleSearchChange}
       />
 
-      <div className="flex flex-wrap gap-2">
+      <div className="-mx-1 flex gap-2 overflow-x-auto px-1 pb-1 [-ms-overflow-style:none] [scrollbar-width:none] md:flex-wrap md:overflow-visible md:pb-0 [&::-webkit-scrollbar]:hidden">
         <CategoryChip
           label="Όλα"
           active={selectedCategory === ""}
@@ -247,7 +246,7 @@ function CategoryChip({
       type="button"
       onClick={onClick}
       className={cn(
-        "rounded-full px-3 py-1.5 text-sm font-medium transition-colors",
+        "shrink-0 rounded-full px-3 py-1.5 text-sm font-medium transition-colors",
         active
           ? "bg-primary text-primary-foreground"
           : "bg-muted text-muted-foreground hover:bg-muted/80",

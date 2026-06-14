@@ -23,8 +23,8 @@ import {
 import { MobileList, MobileListItem } from "@/components/ui/mobile-list";
 import { Spinner } from "@/components/spinner";
 import { ConfirmDialog } from "@/components/confirm-dialog";
-import { InviteUserDialog } from "@/components/admin/InviteUserDialog";
-import { UserInviteActions, useResendInviteFeedback } from "@/components/admin/UserInviteActions";
+import { InviteUserDialog } from "@/components/admin/invite-user-dialog";
+import { UserInviteActions, useResendInviteFeedback } from "@/components/admin/user-invite-actions";
 
 export function CustomerUsersPage() {
   const { id = "", slug } = useParams<{ id: string; slug: string }>();

@@ -4,7 +4,7 @@ import { toast } from "sonner";
 import { useTenantSlug } from "@/lib/hooks/use-tenant-api";
 import { useDebouncedValue } from "@/lib/hooks/use-debounced-value";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { SearchInput } from "@/components/ui/search-input";
 import { Card } from "@/components/ui/card";
 import {
   Table,
@@ -18,9 +18,9 @@ import { MobileList, MobileListItem } from "@/components/ui/mobile-list";
 import { Spinner } from "@/components/spinner";
 import { EmptyState } from "@/components/empty-state";
 import { ConfirmDialog } from "@/components/confirm-dialog";
-import { PaginationControls } from "@/components/PaginationControls";
+import { PaginationControls } from "@/components/pagination-controls";
 import { useCustomers, useDeleteCustomer } from "@/lib/hooks/use-customers";
-import { CustomerFormModal } from "@/components/admin/CustomerFormModal";
+import { CustomerFormModal } from "@/components/admin/customer-form-modal";
 import { PAGE_SIZE } from "@/lib/constants";
 
 export function CustomersPage() {
@@ -78,11 +78,11 @@ export function CustomersPage() {
         </Button>
       </div>
 
-      <Input
+      <SearchInput
         placeholder="Αναζήτηση με όνομα ή υπεύθυνο..."
         value={search}
-        onChange={(e) => {
-          setSearch(e.target.value);
+        onValueChange={(v) => {
+          setSearch(v);
           setPage(1);
         }}
       />
