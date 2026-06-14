@@ -3,6 +3,7 @@ import { eq, inArray } from "drizzle-orm";
 import { hashPassword } from "better-auth/crypto";
 import type { Context } from "hono";
 import type { AppEnv } from "../../types";
+import { must } from "../../test-utils";
 
 // Integration tests against a live Postgres reachable as the NOSUPERUSER app
 // role (same gate as the RLS suite). Set RLS_TEST_DATABASE_URL to run them.
@@ -16,8 +17,6 @@ if (APP_URL) process.env.APP_DATABASE_URL = APP_URL;
 vi.mock("../../services/email", () => ({
   sendPasswordSet: vi.fn().mockResolvedValue(undefined),
   sendMembershipAdded: vi.fn().mockResolvedValue(undefined),
-  sendOrderNotification: vi.fn().mockResolvedValue(undefined),
-  sendOrderStatusChange: vi.fn().mockResolvedValue(undefined),
 }));
 
 const fakeContext = {
@@ -63,7 +62,7 @@ suite("DELETE /admin/users/:id (global-account cleanup boundary)", () => {
       .select({ id: schema.users.id })
       .from(schema.users)
       .where(eq(schema.users.email, emailAddr));
-    return user!.id;
+    return must(user).id;
   }
 
   async function userRowExists(id: string) {
@@ -95,7 +94,7 @@ suite("DELETE /admin/users/:id (global-account cleanup boundary)", () => {
       .insert(schema.tenants)
       .values({ name: "User Test Other", slug: `usr-o-${suffix}`, email: "o@example.com" })
       .returning({ id: schema.tenants.id });
-    otherTenantId = other!.id;
+    otherTenantId = must(other).id;
 
     const signIn = await app.request("/api/auth/sign-in/email", {
       method: "POST",
@@ -166,9 +165,9 @@ suite("DELETE /admin/users/:id (global-account cleanup boundary)", () => {
       .values({ email: superEmail, name: "Super LA", isSuperAdmin: true, emailVerified: true })
       .returning({ id: schema.users.id });
     await baseDb.insert(schema.accounts).values({
-      accountId: superUser!.id,
+      accountId: must(superUser).id,
       providerId: "credential",
-      userId: superUser!.id,
+      userId: must(superUser).id,
       password: await hashPassword(ownerPassword),
     });
     const superSignIn = await app.request("/api/auth/sign-in/email", {
@@ -213,8 +212,8 @@ suite("DELETE /admin/users/:id (global-account cleanup boundary)", () => {
       .from(schema.verifications)
       .where(eq(schema.verifications.value, id));
     expect(tokens).toHaveLength(1);
-    expect(tokens[0]!.identifier).not.toBe("reset-password:stale-token-xyz");
-    expect(tokens[0]!.identifier.startsWith("reset-password:")).toBe(true);
+    expect(must(tokens[0]).identifier).not.toBe("reset-password:stale-token-xyz");
+    expect(must(tokens[0]).identifier.startsWith("reset-password:")).toBe(true);
 
     await baseDb.delete(schema.verifications).where(eq(schema.verifications.value, id));
   });

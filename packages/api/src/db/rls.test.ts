@@ -1,6 +1,7 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { eq, inArray, sql } from "drizzle-orm";
 import { customers, orderItems, orders, products, tenants } from "./schema/index";
+import { must } from "../test-utils";
 
 // These are integration tests against a live Postgres reachable as the
 // NOSUPERUSER application role (RLS is bypassed for superusers, so the role
@@ -33,8 +34,8 @@ suite("RLS tenant isolation", () => {
       .insert(tenants)
       .values({ name: "RLS B", slug: `rls-b-${suffix}`, email: "b@example.com" })
       .returning({ id: tenants.id });
-    tenantA = a!.id;
-    tenantB = b!.id;
+    tenantA = must(a).id;
+    tenantB = must(b).id;
 
     // `products` is RLS-scoped — insert each within its tenant context so the
     // WITH CHECK clause passes.
@@ -91,20 +92,20 @@ suite("RLS tenant isolation", () => {
         .returning({ id: customers.id });
       const [order] = await db
         .insert(orders)
-        .values({ tenantId: tenantA, customerId: cust!.id })
+        .values({ tenantId: tenantA, customerId: must(cust).id })
         .returning({ id: orders.id });
       const [prod] = await db.select({ id: products.id }).from(products).limit(1);
       const [item] = await db
         .insert(orderItems)
         .values({
-          orderId: order!.id,
-          productId: prod!.id,
+          orderId: must(order).id,
+          productId: must(prod).id,
           quantity: 1,
           unitPrice: "1.00",
           productName: "RLS Item",
         })
         .returning({ id: orderItems.id });
-      return { orderId: order!.id, itemId: item!.id };
+      return { orderId: must(order).id, itemId: must(item).id };
     });
 
     // order_items has no tenant_id — its policy goes through the parent
@@ -145,12 +146,15 @@ suite("RLS tenant isolation", () => {
       db
         .update(products)
         .set({ name: "stolen" })
-        .where(eq(products.id, target!.id))
+        .where(eq(products.id, must(target).id))
         .returning({ id: products.id }),
     );
     expect(upd).toHaveLength(0);
     const del = await runWithTenant(tenantB, () =>
-      db.delete(products).where(eq(products.id, target!.id)).returning({ id: products.id }),
+      db
+        .delete(products)
+        .where(eq(products.id, must(target).id))
+        .returning({ id: products.id }),
     );
     expect(del).toHaveLength(0);
   });

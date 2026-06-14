@@ -21,8 +21,9 @@ export function getUserHomePath(
     if (match) return membershipHome(match);
   }
 
-  if (memberships.length === 1) {
-    return membershipHome(memberships[0]!);
+  const [only] = memberships;
+  if (memberships.length === 1 && only) {
+    return membershipHome(only);
   }
   return "/";
 }

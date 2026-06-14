@@ -3,12 +3,13 @@ import { eq, and, sql, gte } from "drizzle-orm";
 import { db } from "../../db/connection";
 import { orders, orderItems, customers } from "../../db/schema/index";
 import type { AppEnv } from "../../types";
+import { getTenantId } from "../../context";
 
 const dashboardRouter = new Hono<AppEnv>();
 
 // GET /stats
 dashboardRouter.get("/stats", async (c) => {
-  const tenantId = c.get("tenantId")!;
+  const tenantId = getTenantId(c);
 
   const now = new Date();
   const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());

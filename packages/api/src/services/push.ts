@@ -1,7 +1,7 @@
 import webpush from "web-push";
 import { and, eq, inArray, ne } from "drizzle-orm";
 import { db } from "../db/connection";
-import { pushSubscriptions, tenantMemberships } from "../db/schema/index";
+import { pushSubscriptions, tenantMemberships, customerAssignedUsers } from "../db/schema/index";
 import { config } from "../config";
 
 if (config.push.enabled) {
@@ -59,22 +59,47 @@ export async function sendPushToUsers(userIds: string[], payload: PushPayload): 
   );
 }
 
-/** All owner/staff user ids of a tenant (order-placed notifications). */
-export async function tenantStaffUserIds(tenantId: string): Promise<string[]> {
-  const rows = await db
-    .select({ userId: tenantMemberships.userId })
-    .from(tenantMemberships)
-    .where(and(eq(tenantMemberships.tenantId, tenantId), ne(tenantMemberships.role, "customer")));
-  return rows.map((r) => r.userId);
-}
+/**
+ * User ids to push a new-order notification to: the union of (a) the customer's
+ * assigned users and (b) every owner/staff member who opted into all-order
+ * notifications, deduped. (Order emails were removed — push only.)
+ *
+ * `excludeUserId` drops the user who triggered the action — you don't get
+ * notified about your own order.
+ *
+ * MUST be called inside the tenant request transaction — customer_assigned_users
+ * is RLS-scoped, so on the base pool (e.g. a post-commit callback) it returns
+ * zero rows. Resolve here, then dispatch post-commit.
+ */
+export async function orderNotificationRecipients(
+  tenantId: string,
+  customerId: string,
+  excludeUserId?: string,
+): Promise<string[]> {
+  const [assigned, optedIn] = await Promise.all([
+    db
+      .select({ userId: customerAssignedUsers.userId })
+      .from(customerAssignedUsers)
+      .where(
+        and(
+          eq(customerAssignedUsers.tenantId, tenantId),
+          eq(customerAssignedUsers.customerId, customerId),
+        ),
+      ),
+    db
+      .select({ userId: tenantMemberships.userId })
+      .from(tenantMemberships)
+      .where(
+        and(
+          eq(tenantMemberships.tenantId, tenantId),
+          ne(tenantMemberships.role, "customer"),
+          eq(tenantMemberships.notifyAllOrders, true),
+        ),
+      ),
+  ]);
 
-/** All user ids linked to a customer entity (status-change notifications). */
-export async function customerUserIds(tenantId: string, customerId: string): Promise<string[]> {
-  const rows = await db
-    .select({ userId: tenantMemberships.userId })
-    .from(tenantMemberships)
-    .where(
-      and(eq(tenantMemberships.tenantId, tenantId), eq(tenantMemberships.customerId, customerId)),
-    );
-  return rows.map((r) => r.userId);
+  const ids = new Set<string>();
+  for (const r of [...assigned, ...optedIn]) ids.add(r.userId);
+  if (excludeUserId) ids.delete(excludeUserId);
+  return [...ids];
 }

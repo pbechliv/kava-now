@@ -12,6 +12,9 @@ export const createCustomerSchema = z.object({
   profession: z.string().optional().nullable(),
   billingAddress: z.string().optional().nullable(),
   erpRef: z.string().optional().nullable(),
+  // Staff/owner users responsible for this customer's orders. Optional — the
+  // form nudges but never blocks. Validated server-side as tenant members.
+  assignedUserIds: z.array(z.string().uuid()).optional(),
 });
 
 export const updateCustomerSchema = z
@@ -27,6 +30,8 @@ export const updateCustomerSchema = z
     profession: z.string().optional().nullable(),
     billingAddress: z.string().optional().nullable(),
     erpRef: z.string().optional().nullable(),
+    // Present → replace the customer's assignments wholesale (empty clears).
+    assignedUserIds: z.array(z.string().uuid()).optional(),
   })
   .refine((d) => Object.keys(d).length > 0, "Δεν δόθηκαν πεδία για ενημέρωση");
 

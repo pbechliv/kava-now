@@ -8,7 +8,6 @@ export const updateTenantSettingsSchema = z
     address: z.string().trim().max(500).optional().nullable(),
     phone: z.string().trim().max(50).optional().nullable(),
     email: optionalEmail.optional(),
-    notificationEmails: z.array(optionalEmail).max(20).optional(),
     logoUrl: z.string().trim().url("Μη έγκυρο URL").max(2048).optional().nullable(),
   })
   .strict()
@@ -17,3 +16,13 @@ export const updateTenantSettingsSchema = z
   });
 
 export type UpdateTenantSettingsInput = z.infer<typeof updateTenantSettingsSchema>;
+
+// Self-service per-membership preference: receive every order's notification
+// in the current tenant, regardless of customer assignment.
+export const updateNotificationPreferenceSchema = z
+  .object({
+    notifyAllOrders: z.boolean(),
+  })
+  .strict();
+
+export type UpdateNotificationPreferenceInput = z.infer<typeof updateNotificationPreferenceSchema>;

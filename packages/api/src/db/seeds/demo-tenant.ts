@@ -5,6 +5,7 @@ import {
   accounts,
   categories,
   customerBrandPricing,
+  customerAssignedUsers,
   customers,
   tenantMemberships,
   tenants,
@@ -316,6 +317,16 @@ export async function seedDemoTenant(outerDb: PostgresJsDatabase): Promise<void>
       .returning({ id: customers.id, name: customers.name });
 
     const customerByName = new Map(insertedCustomers.map((c) => [c.name, c.id]));
+
+    // Assign the owner (superadmin) to every demo customer, so each customer's
+    // orders notify someone — mirrors the production owner-backfill migration.
+    await db.insert(customerAssignedUsers).values(
+      insertedCustomers.map((cust) => ({
+        tenantId: demoTenant.id,
+        customerId: cust.id,
+        userId: superadminUser.id,
+      })),
+    );
 
     // Customer user + membership linked to "Ταβέρνα Ο Νίκος" — dev only. In
     // production the superadmin is the only seeded user; customer logins are

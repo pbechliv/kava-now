@@ -10,12 +10,13 @@ import {
   InviteConflict,
 } from "../../services/invite-user";
 import type { AppEnv } from "../../types";
+import { getMembership, getTenant, getTenantId, getUser } from "../../context";
 
 const usersRouter = new Hono<AppEnv>();
 
 // GET / — list users with a non-customer membership in this tenant (owners + staff)
 usersRouter.get("/", async (c) => {
-  const tenantId = c.get("tenantId")!;
+  const tenantId = getTenantId(c);
   const inviter = alias(users, "inviter");
 
   const rows = await db
@@ -41,8 +42,8 @@ usersRouter.get("/", async (c) => {
 
 // POST /invite — invite a staff user
 usersRouter.post("/invite", async (c) => {
-  const tenantId = c.get("tenantId")!;
-  const inviter = c.get("user")!;
+  const tenantId = getTenantId(c);
+  const inviter = getUser(c);
   const body = await c.req.json();
   const parsed = inviteStaffUserSchema.safeParse(body);
 
@@ -73,8 +74,8 @@ usersRouter.post("/invite", async (c) => {
 usersRouter.post("/:id/resend-invite", async (c) => {
   const result = await resendSetPasswordInvite({
     c,
-    tenantId: c.get("tenantId")!,
-    tenantSlug: c.get("tenant")!.slug,
+    tenantId: getTenantId(c),
+    tenantSlug: getTenant(c).slug,
     userId: c.req.param("id"),
   });
   if (!result.ok) {
@@ -85,9 +86,9 @@ usersRouter.post("/:id/resend-invite", async (c) => {
 
 // POST /:id/promote-to-owner — promote a staff member to owner
 usersRouter.post("/:id/promote-to-owner", async (c) => {
-  const tenantId = c.get("tenantId")!;
+  const tenantId = getTenantId(c);
   const id = c.req.param("id");
-  const myMembership = c.get("membership")!;
+  const myMembership = getMembership(c);
 
   if (myMembership.role !== "owner") {
     return c.json(
@@ -129,9 +130,9 @@ usersRouter.post("/:id/promote-to-owner", async (c) => {
 
 // DELETE /:id — remove a user's membership in this tenant
 usersRouter.delete("/:id", async (c) => {
-  const tenantId = c.get("tenantId")!;
-  const me = c.get("user")!;
-  const myMembership = c.get("membership")!;
+  const tenantId = getTenantId(c);
+  const me = getUser(c);
+  const myMembership = getMembership(c);
   const id = c.req.param("id");
 
   if (id === me.id) {

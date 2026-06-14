@@ -1,15 +1,16 @@
 import { Hono } from "hono";
-import { eq } from "drizzle-orm";
-import { updateTenantSettingsSchema } from "@kava-now/shared";
+import { eq, and } from "drizzle-orm";
+import { updateTenantSettingsSchema, updateNotificationPreferenceSchema } from "@kava-now/shared";
 import { db } from "../../db/connection";
-import { tenants } from "../../db/schema/index";
+import { tenants, tenantMemberships } from "../../db/schema/index";
 import type { AppEnv } from "../../types";
+import { getTenant, getTenantId } from "../../context";
 
 const settingsRouter = new Hono<AppEnv>();
 
 // GET / — return current tenant record
 settingsRouter.get("/", async (c) => {
-  const tenant = c.get("tenant")!;
+  const tenant = getTenant(c);
   return c.json({
     id: tenant.id,
     name: tenant.name,
@@ -17,14 +18,13 @@ settingsRouter.get("/", async (c) => {
     address: tenant.address,
     phone: tenant.phone,
     email: tenant.email,
-    notificationEmails: tenant.notificationEmails,
     logoUrl: tenant.logoUrl,
   });
 });
 
 // PUT / — update tenant fields
 settingsRouter.put("/", async (c) => {
-  const tenantId = c.get("tenantId")!;
+  const tenantId = getTenantId(c);
   const body = await c.req.json();
   const parsed = updateTenantSettingsSchema.safeParse(body);
 
@@ -49,9 +49,36 @@ settingsRouter.put("/", async (c) => {
     address: updated.address,
     phone: updated.phone,
     email: updated.email,
-    notificationEmails: updated.notificationEmails,
     logoUrl: updated.logoUrl,
   });
+});
+
+// PATCH /notification-preference — self-service: the current user opts in/out
+// of receiving every order's notification in this tenant.
+settingsRouter.patch("/notification-preference", async (c) => {
+  const tenantId = c.get("tenantId");
+  const user = c.get("user");
+  if (!tenantId || !user) {
+    return c.json({ error: "Unauthorized" }, 401);
+  }
+  const body = await c.req.json();
+  const parsed = updateNotificationPreferenceSchema.safeParse(body);
+
+  if (!parsed.success) {
+    return c.json({ error: parsed.error.flatten().fieldErrors }, 400);
+  }
+
+  const [updated] = await db
+    .update(tenantMemberships)
+    .set({ notifyAllOrders: parsed.data.notifyAllOrders })
+    .where(and(eq(tenantMemberships.userId, user.id), eq(tenantMemberships.tenantId, tenantId)))
+    .returning({ notifyAllOrders: tenantMemberships.notifyAllOrders });
+
+  if (!updated) {
+    return c.json({ error: "Membership not found" }, 404);
+  }
+
+  return c.json({ notifyAllOrders: updated.notifyAllOrders });
 });
 
 export { settingsRouter };

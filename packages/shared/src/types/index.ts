@@ -17,6 +17,8 @@ export interface TenantMembership {
   tenantName: string;
   role: MembershipRole;
   customerId: string | null;
+  /** Owner/staff opt-in: receive every order's notification in this tenant. */
+  notifyAllOrders: boolean;
   invitedBy: { name: string; email: string } | null;
 }
 
@@ -65,6 +67,8 @@ export interface Customer {
   erpRef: string | null;
   createdAt: string;
   updatedAt: string;
+  /** Staff/owner user ids responsible for this customer. Populated only by the single-customer GET. */
+  assignedUserIds?: string[];
 }
 
 export interface Order {
