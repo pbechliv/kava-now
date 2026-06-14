@@ -1,6 +1,6 @@
 import { MutationCache, QueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { isDeployUpdating } from "./deploy-watch";
+import { isOverlayBlocking } from "./deploy-watch";
 
 export const queryClient = new QueryClient({
   // Global safety net (#50): a failed mutation must never look like a no-op —
@@ -12,9 +12,9 @@ export const queryClient = new QueryClient({
   mutationCache: new MutationCache({
     onError: (error, _variables, _context, mutation) => {
       if (mutation.meta?.suppressErrorToast) return;
-      // The deploy overlay already owns the screen during an update/outage —
-      // don't stack a redundant "something went wrong" toast on top of it.
-      if (isDeployUpdating()) return;
+      // The blocking overlay already owns the screen during an update/outage or
+      // while offline — don't stack a redundant "something went wrong" toast.
+      if (isOverlayBlocking()) return;
       toast.error(error instanceof Error ? error.message : "Κάτι πήγε στραβά");
     },
   }),
