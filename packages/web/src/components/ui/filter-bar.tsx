@@ -53,7 +53,15 @@ function FilterBar({ search, activeCount = 0, onClear, children, className }: Fi
             )}
           </Button>
         </SheetTrigger>
-        <SheetContent side="bottom" className="gap-0">
+        <SheetContent
+          side="bottom"
+          className="gap-0"
+          // Don't let Radix focus the first field (the customer search input)
+          // on open — on iOS that pops the keyboard immediately, and that first
+          // focus (mid-open) is the one WebKit fails to scroll above the
+          // keyboard. Focus stays on the trigger; tapping a field still works.
+          onOpenAutoFocus={(e) => e.preventDefault()}
+        >
           <SheetHeader>
             <SheetTitle>Φίλτρα</SheetTitle>
           </SheetHeader>
