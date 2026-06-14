@@ -3,7 +3,14 @@
 // through postgres-js — model them as `string` and convert at the edge.
 
 export type MembershipRole = "owner" | "staff" | "customer";
-export type OrderStatus = "pending" | "confirmed" | "shipped" | "delivered" | "cancelled";
+export type OrderStatus =
+  | "pending"
+  | "confirmed"
+  | "shipped"
+  | "delivered"
+  | "cancelled"
+  | "cancellation_requested"
+  | "cancelled_by_customer";
 export type ProductUnit = "bottle" | "case" | "keg";
 export type ErpStatus = "pending" | "transmitted";
 export type OrderItemStatus = "active" | "cancelled";

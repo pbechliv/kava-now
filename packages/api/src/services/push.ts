@@ -103,3 +103,34 @@ export async function orderNotificationRecipients(
   if (excludeUserId) ids.delete(excludeUserId);
   return [...ids];
 }
+
+/**
+ * User ids of the customer's own login users — every membership with the
+ * `customer` role linked to this customer in this tenant. Used to notify the
+ * customer when staff resolve a cancellation request.
+ *
+ * `tenant_memberships` is global (not RLS-scoped), so unlike
+ * `orderNotificationRecipients` this is safe to call anywhere — but callers
+ * still resolve in-request and dispatch post-commit for consistency.
+ */
+export async function customerUserRecipients(
+  tenantId: string,
+  customerId: string,
+  excludeUserId?: string,
+): Promise<string[]> {
+  const rows = await db
+    .select({ userId: tenantMemberships.userId })
+    .from(tenantMemberships)
+    .where(
+      and(
+        eq(tenantMemberships.tenantId, tenantId),
+        eq(tenantMemberships.role, "customer"),
+        eq(tenantMemberships.customerId, customerId),
+      ),
+    );
+
+  const ids = new Set<string>();
+  for (const r of rows) ids.add(r.userId);
+  if (excludeUserId) ids.delete(excludeUserId);
+  return [...ids];
+}

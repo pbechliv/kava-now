@@ -10,6 +10,8 @@ const STATUS_VARIANT: Record<keyof typeof ORDER_STATUS_LABELS, Variant> = {
   shipped: "info",
   delivered: "success",
   cancelled: "destructive",
+  cancellation_requested: "warning",
+  cancelled_by_customer: "destructive",
 };
 
 interface OrderStatusBadgeProps {

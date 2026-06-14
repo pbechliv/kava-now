@@ -6,12 +6,21 @@ export const ORDER_STATUSES = [
   "shipped",
   "delivered",
   "cancelled",
+  "cancellation_requested",
+  "cancelled_by_customer",
 ] as const;
 
 /** Body of PUT /admin/orders/:id/status — the transition rules live server-side. */
 export const updateOrderStatusSchema = z.object({
   status: z.enum(ORDER_STATUSES),
 });
+
+/** Body of POST /admin/orders/:id/cancellation-request — staff resolution of a customer request. */
+export const resolveCancellationRequestSchema = z.object({
+  decision: z.enum(["approve", "reject"]),
+});
+
+export type ResolveCancellationRequestInput = z.infer<typeof resolveCancellationRequestSchema>;
 
 export const createOrderSchema = z.object({
   items: z

@@ -89,3 +89,20 @@ export function useReorder(orderId: string) {
     },
   });
 }
+
+// Cancel a pending order outright, or request cancellation of a confirmed one —
+// the server decides the outcome from the order's status and returns the new one.
+export function useCancelOrder(orderId: string) {
+  const slug = useTenantSlug();
+  const tApi = useTenantApi();
+  const qc = useQueryClient();
+
+  return useMutation({
+    mutationFn: () =>
+      tApi.post<{ id: string; status: OrderStatus }>(`/customer/orders/${orderId}/cancel`),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ["customer", slug, "orders"] });
+      void qc.invalidateQueries({ queryKey: ["customer", slug, "orders", orderId] });
+    },
+  });
+}

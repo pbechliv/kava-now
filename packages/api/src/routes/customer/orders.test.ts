@@ -2,6 +2,7 @@ import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { eq, inArray } from "drizzle-orm";
 import { hashPassword } from "better-auth/crypto";
 import type { Context } from "hono";
+import type { OrderStatus } from "@kava-now/shared";
 import type { AppEnv } from "../../types";
 import { must } from "../../test-utils";
 
@@ -173,5 +174,65 @@ suite("customer orders (server-side pricing + customer scoping)", () => {
 
     const foreign = await api(must(cookies.b), `/orders/${orderId}`);
     expect(foreign.status).toBe(404);
+  });
+
+  // ---- Customer-initiated cancellation ----
+
+  async function createOrderA(): Promise<string> {
+    const res = await api(must(cookies.a), "/orders", {
+      method: "POST",
+      body: JSON.stringify({ items: [{ productId, quantity: 1 }] }),
+    });
+    expect(res.status).toBe(201);
+    return (await res.json()).order.id as string;
+  }
+
+  const setStatus = (orderId: string, status: OrderStatus) =>
+    runWithTenant(tenantId, () =>
+      db.update(schema.orders).set({ status }).where(eq(schema.orders.id, orderId)),
+    );
+
+  it("cancels a pending order immediately as cancelled_by_customer", async () => {
+    const orderId = await createOrderA();
+    const res = await api(must(cookies.a), `/orders/${orderId}/cancel`, { method: "POST" });
+    expect(res.status).toBe(200);
+    expect((await res.json()).status).toBe("cancelled_by_customer");
+  });
+
+  it("turns cancellation of a confirmed order into a request, not an outright cancel", async () => {
+    const orderId = await createOrderA();
+    await setStatus(orderId, "confirmed");
+    const res = await api(must(cookies.a), `/orders/${orderId}/cancel`, { method: "POST" });
+    expect(res.status).toBe(200);
+    expect((await res.json()).status).toBe("cancellation_requested");
+  });
+
+  it("refuses to cancel once the order has shipped", async () => {
+    const orderId = await createOrderA();
+    await setStatus(orderId, "shipped");
+    const res = await api(must(cookies.a), `/orders/${orderId}/cancel`, { method: "POST" });
+    expect(res.status).toBe(409);
+    expect((await res.json()).code).toBe("ORDER_LOCKED_BY_STATUS");
+  });
+
+  it("refuses to cancel an ERP-transmitted order", async () => {
+    const orderId = await createOrderA();
+    await runWithTenant(tenantId, () =>
+      db
+        .update(schema.orders)
+        .set({ erpStatus: "transmitted" })
+        .where(eq(schema.orders.id, orderId)),
+    );
+    const res = await api(must(cookies.a), `/orders/${orderId}/cancel`, { method: "POST" });
+    expect(res.status).toBe(409);
+    expect((await res.json()).code).toBe("ORDER_LOCKED_BY_ERP");
+  });
+
+  it("cannot cancel another customer's order — 404, and the order is untouched", async () => {
+    const orderId = await createOrderA();
+    const foreign = await api(must(cookies.b), `/orders/${orderId}/cancel`, { method: "POST" });
+    expect(foreign.status).toBe(404);
+    const detail = await (await api(must(cookies.a), `/orders/${orderId}`)).json();
+    expect(detail.status).toBe("pending");
   });
 });

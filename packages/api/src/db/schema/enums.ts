@@ -8,6 +8,12 @@ export const orderStatusEnum = pgEnum("order_status", [
   "shipped",
   "delivered",
   "cancelled",
+  // Customer-initiated cancellation, kept distinct from staff `cancelled`:
+  // `cancellation_requested` = customer asked to cancel a confirmed order
+  // (awaiting staff); `cancelled_by_customer` = finalized customer cancellation
+  // (immediate from `pending`, or an approved request).
+  "cancellation_requested",
+  "cancelled_by_customer",
 ]);
 
 export const productUnitEnum = pgEnum("product_unit", ["bottle", "case", "keg"]);

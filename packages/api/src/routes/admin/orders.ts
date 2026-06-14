@@ -1,6 +1,6 @@
 import { Hono } from "hono";
 import { eq, ne, and, sql, gte, lte, desc } from "drizzle-orm";
-import { db } from "../../db/connection";
+import { afterTenantCommit, db } from "../../db/connection";
 import {
   orders,
   orderItems,
@@ -10,13 +10,15 @@ import {
   customerBrandPricing,
 } from "../../db/schema/index";
 import { resolvePrice } from "../../services/pricing";
+import { customerUserRecipients, sendPushToUsers } from "../../services/push";
 import type { AppEnv } from "../../types";
-import { getTenantId, getUser } from "../../context";
+import { getTenant, getTenantId, getUser } from "../../context";
 import {
   paginationQuerySchema,
   listFiltersQuerySchema,
   markOrderTransmittedSchema,
   updateOrderStatusSchema,
+  resolveCancellationRequestSchema,
   ORDER_STATUSES,
   ORDER_STATUS_TRANSITIONS,
   addOrderItemSchema,
@@ -264,6 +266,73 @@ ordersRouter.put("/:id/status", async (c) => {
   return c.json(result.updated);
 });
 
+// POST /:id/cancellation-request — staff approve/reject a customer's request to
+// cancel a confirmed order. approve → cancelled_by_customer; reject → confirmed.
+// Either way the customer is notified.
+ordersRouter.post("/:id/cancellation-request", async (c) => {
+  const tenant = getTenant(c);
+  const tenantId = tenant.id;
+  const actingUserId = getUser(c).id;
+  const id = c.req.param("id");
+  const body = await c.req.json();
+  const parsed = resolveCancellationRequestSchema.safeParse(body);
+  if (!parsed.success) {
+    return c.json({ error: parsed.error.flatten().fieldErrors }, 400);
+  }
+  const { decision } = parsed.data;
+
+  const result = await db.transaction(async (tx) => {
+    const [order] = await tx
+      .select({ id: orders.id, status: orders.status, customerId: orders.customerId })
+      .from(orders)
+      .where(and(eq(orders.id, id), eq(orders.tenantId, tenantId)))
+      .limit(1)
+      .for("update");
+
+    if (!order) return { kind: "not_found" as const };
+    if (order.status !== "cancellation_requested") return { kind: "not_requested" as const };
+
+    const nextStatus = decision === "approve" ? "cancelled_by_customer" : "confirmed";
+    const [updated] = await tx
+      .update(orders)
+      .set({ status: nextStatus })
+      .where(and(eq(orders.id, id), eq(orders.tenantId, tenantId)))
+      .returning();
+
+    // Resolve the customer's login users inside the tenant tx; push post-commit.
+    const recipientIds = await customerUserRecipients(tenantId, order.customerId, actingUserId);
+    return { kind: "ok" as const, updated, recipientIds };
+  });
+
+  if (result.kind === "not_found") return c.json({ error: "Order not found" }, 404);
+  if (result.kind === "not_requested") {
+    return c.json(
+      {
+        code: API_ERROR_CODES.ORDER_CANCELLATION_NOT_REQUESTED,
+        error: "Order has no pending cancellation request",
+      },
+      409,
+    );
+  }
+
+  if (result.recipientIds.length > 0) {
+    const approved = decision === "approve";
+    await afterTenantCommit(async () => {
+      try {
+        await sendPushToUsers(result.recipientIds, {
+          title: approved ? "Η παραγγελία ακυρώθηκε" : "Το αίτημα ακύρωσης απορρίφθηκε",
+          body: `#${id.slice(0, 8)}`,
+          url: `/k/${tenant.slug}/orders/${id}`,
+        });
+      } catch (err) {
+        console.error("[push] cancellation-resolution push failed:", err);
+      }
+    });
+  }
+
+  return c.json(result.updated);
+});
+
 // PATCH /:id/erp — mark an order as transmitted to the ERP, store the AADE MARK
 ordersRouter.patch("/:id/erp", async (c) => {
   const tenantId = getTenantId(c);
@@ -287,12 +356,17 @@ ordersRouter.patch("/:id/erp", async (c) => {
   }
 
   // ERP status is orthogonal to fulfillment EXCEPT for cancelled orders —
-  // transmitting a cancelled order to AADE makes no sense.
-  if (existing.status === "cancelled") {
+  // transmitting a cancelled (or cancellation-pending) order to AADE makes no
+  // sense.
+  if (
+    existing.status === "cancelled" ||
+    existing.status === "cancelled_by_customer" ||
+    existing.status === "cancellation_requested"
+  ) {
     return c.json(
       {
         code: API_ERROR_CODES.ORDER_LOCKED_BY_STATUS,
-        error: "A cancelled order cannot be marked as transmitted",
+        error: "A cancelled or cancellation-pending order cannot be marked as transmitted",
       },
       409,
     );

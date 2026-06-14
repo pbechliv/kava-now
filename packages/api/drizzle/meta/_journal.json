@@ -71,6 +71,13 @@
       "when": 1781455469886,
       "tag": "0009_enable_unaccent",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1781457016428,
+      "tag": "0010_fearless_earthquake",
+      "breakpoints": true
     }
   ]
 }

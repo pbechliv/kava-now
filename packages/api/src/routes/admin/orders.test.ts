@@ -25,6 +25,8 @@ describe("assertOrderMutable (ERP + fulfillment hard lock)", () => {
     ["shipped", "pending", false],
     ["delivered", "pending", false],
     ["cancelled", "pending", false],
+    ["cancellation_requested", "pending", false],
+    ["cancelled_by_customer", "pending", false],
     ["pending", "transmitted", false],
     ["confirmed", "transmitted", false],
     ["delivered", "transmitted", false],
@@ -271,6 +273,67 @@ suite("admin order mutations (HTTP, hard lock + soft-cancel totals)", () => {
       body: JSON.stringify({ status: "confirmed" }),
     });
     expect(invalid.status).toBe(400);
+  });
+
+  const setStatus = (orderId: string, status: OrderStatus) =>
+    runWithTenant(tenantId, () =>
+      db.update(schema.orders).set({ status }).where(eq(schema.orders.id, orderId)),
+    );
+
+  it("approving a cancellation request finalizes it as cancelled_by_customer", async () => {
+    const { orderId } = await createOrder();
+    await setStatus(orderId, "cancellation_requested");
+
+    const res = await api(`/orders/${orderId}/cancellation-request`, {
+      method: "POST",
+      body: JSON.stringify({ decision: "approve" }),
+    });
+    expect(res.status).toBe(200);
+    expect((await res.json()).status).toBe("cancelled_by_customer");
+  });
+
+  it("rejecting a cancellation request returns the order to confirmed", async () => {
+    const { orderId } = await createOrder();
+    await setStatus(orderId, "cancellation_requested");
+
+    const res = await api(`/orders/${orderId}/cancellation-request`, {
+      method: "POST",
+      body: JSON.stringify({ decision: "reject" }),
+    });
+    expect(res.status).toBe(200);
+    expect((await res.json()).status).toBe("confirmed");
+  });
+
+  it("resolving an order with no pending request → 409", async () => {
+    const { orderId } = await createOrder(); // still pending
+    const res = await api(`/orders/${orderId}/cancellation-request`, {
+      method: "POST",
+      body: JSON.stringify({ decision: "approve" }),
+    });
+    expect(res.status).toBe(409);
+    expect((await res.json()).code).toBe("ORDER_CANCELLATION_NOT_REQUESTED");
+  });
+
+  it("a staff cancellation stays the distinct 'cancelled' status", async () => {
+    const { orderId } = await createOrder();
+    const res = await api(`/orders/${orderId}/status`, {
+      method: "PUT",
+      body: JSON.stringify({ status: "cancelled" }),
+    });
+    expect(res.status).toBe(200);
+    expect((await res.json()).status).toBe("cancelled");
+  });
+
+  it("a customer-cancelled order cannot be transmitted to ERP", async () => {
+    const { orderId } = await createOrder();
+    await setStatus(orderId, "cancelled_by_customer");
+
+    const res = await api(`/orders/${orderId}/erp`, {
+      method: "PATCH",
+      body: JSON.stringify({ mark: "400001111111111" }),
+    });
+    expect(res.status).toBe(409);
+    expect((await res.json()).code).toBe("ORDER_LOCKED_BY_STATUS");
   });
 
   it("garbage ids and dates are rejected at the boundary, not as 500s (#55)", async () => {

@@ -8,6 +8,7 @@ import { OrderStatusCard } from "@/components/admin/order-detail/OrderStatusCard
 import { OrderBillingCard } from "@/components/admin/order-detail/OrderBillingCard";
 import { OrderItemsSection } from "@/components/admin/order-detail/OrderItemsSection";
 import { OrderErpCard } from "@/components/admin/order-detail/OrderErpCard";
+import { OrderCancellationCard } from "@/components/admin/order-detail/OrderCancellationCard";
 import { useAdminOrder } from "@/lib/hooks/use-admin-orders";
 import { ERP_STATUS_LABELS } from "@kava-now/shared";
 import { formatDateTime } from "@/lib/format";
@@ -47,6 +48,8 @@ export function OrderDetailPage() {
         </div>
         <p className="mt-1 text-sm text-muted-foreground">{formatDateTime(order.createdAt)}</p>
       </div>
+
+      {order.status === "cancellation_requested" && <OrderCancellationCard order={order} />}
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
         <Card>

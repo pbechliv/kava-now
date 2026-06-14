@@ -32,9 +32,11 @@ const STATUS_TABS: { label: string; value: OrderStatus | "all" }[] = [
   { label: "Όλες", value: "all" },
   { label: "Σε αναμονή", value: "pending" },
   { label: "Επιβεβαιωμένες", value: "confirmed" },
+  { label: "Αιτήματα ακύρωσης", value: "cancellation_requested" },
   { label: "Απεσταλμένες", value: "shipped" },
   { label: "Παραδοθείσες", value: "delivered" },
   { label: "Ακυρωμένες", value: "cancelled" },
+  { label: "Ακυρ. από πελάτη", value: "cancelled_by_customer" },
 ];
 
 export function OrdersPage() {

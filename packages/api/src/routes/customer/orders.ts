@@ -390,4 +390,98 @@ ordersRouter.post("/:id/reorder", async (c) => {
   return c.json(result, 201);
 });
 
+// POST /:id/cancel — customer cancels their own order.
+//   pending   → immediate cancellation (cancelled_by_customer)
+//   confirmed → cancellation request (cancellation_requested), staff resolve it
+// Anything else (shipped/delivered/already cancelled, or ERP-transmitted) is
+// locked. Either outcome notifies staff (assigned users + all-order opt-ins).
+ordersRouter.post("/:id/cancel", async (c) => {
+  const tenant = getTenant(c);
+  const tenantId = tenant.id;
+  const customerId = getCustomerId(c);
+  const orderId = c.req.param("id");
+  const actingUserId = c.get("user")?.id;
+
+  const result = await db.transaction(async (tx) => {
+    const [order] = await tx
+      .select({ id: orders.id, status: orders.status, erpStatus: orders.erpStatus })
+      .from(orders)
+      .where(
+        and(
+          eq(orders.id, orderId),
+          eq(orders.tenantId, tenantId),
+          eq(orders.customerId, customerId),
+        ),
+      )
+      .limit(1)
+      .for("update");
+
+    if (!order) return { kind: "not_found" as const };
+
+    // A transmitted order is hard-locked regardless of fulfillment status.
+    if (order.erpStatus === "transmitted") return { kind: "locked_erp" as const };
+
+    let nextStatus: "cancelled_by_customer" | "cancellation_requested";
+    if (order.status === "pending") nextStatus = "cancelled_by_customer";
+    else if (order.status === "confirmed") nextStatus = "cancellation_requested";
+    else return { kind: "locked_status" as const };
+
+    const [updated] = await tx
+      .update(orders)
+      .set({ status: nextStatus })
+      .where(and(eq(orders.id, orderId), eq(orders.tenantId, tenantId)))
+      .returning({ id: orders.id, status: orders.status });
+
+    if (!updated) return { kind: "not_found" as const };
+
+    // Resolve recipients + customer name inside the tenant tx (RLS-scoped);
+    // the push itself is deferred post-commit so a rollback notifies no one.
+    const [customer] = await tx
+      .select({ name: customers.name })
+      .from(customers)
+      .where(and(eq(customers.id, customerId), eq(customers.tenantId, tenantId)))
+      .limit(1);
+    const recipientIds = await orderNotificationRecipients(tenantId, customerId, actingUserId);
+
+    return { kind: "ok" as const, updated, recipientIds, customerName: customer?.name ?? "" };
+  });
+
+  if (result.kind === "not_found") return c.json({ error: "Order not found" }, 404);
+  if (result.kind === "locked_erp") {
+    return c.json(
+      {
+        code: API_ERROR_CODES.ORDER_LOCKED_BY_ERP,
+        error: "Order has already been transmitted to ERP and cannot be cancelled",
+      },
+      409,
+    );
+  }
+  if (result.kind === "locked_status") {
+    return c.json(
+      {
+        code: API_ERROR_CODES.ORDER_LOCKED_BY_STATUS,
+        error: "Order cannot be cancelled in its current status",
+      },
+      409,
+    );
+  }
+
+  if (result.recipientIds.length > 0) {
+    const requested = result.updated.status === "cancellation_requested";
+    await afterTenantCommit(async () => {
+      try {
+        await sendPushToUsers(result.recipientIds, {
+          title: requested ? "Αίτημα ακύρωσης" : "Ακύρωση παραγγελίας",
+          body: `${result.customerName} — #${result.updated.id.slice(0, 8)}`,
+          url: `/k/${tenant.slug}/admin/orders/${result.updated.id}`,
+        });
+      } catch (err) {
+        console.error("[push] order-cancel push failed:", err);
+      }
+    });
+  }
+
+  return c.json(result.updated);
+});
+
 export { ordersRouter };
