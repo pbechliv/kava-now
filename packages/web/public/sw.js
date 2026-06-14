@@ -102,8 +102,16 @@ self.addEventListener("fetch", (event) => {
   // to the network — the SW adds no caching and no offline behaviour for them.
   if (request.mode !== "navigate") return;
 
+  // Always pull the live shell, bypassing the HTTP cache. Without this an
+  // installed PWA (iOS standalone especially) can relaunch from a cached
+  // index.html that points at hashed chunks a newer deploy has already
+  // deleted — the entry script 404s, React never mounts, and the app is a
+  // white screen. A plain fetch(request) respects the HTTP cache, so the stale
+  // shell keeps coming back; no-store removes the shell from the cache equation
+  // entirely, so a launch can never boot a deleted build. Fetch by URL (not the
+  // navigation Request) so the cache override is honoured everywhere.
   event.respondWith(
-    fetch(request).catch(
+    fetch(request.url, { cache: "no-store", credentials: "same-origin" }).catch(
       () =>
         new Response(OFFLINE_HTML, {
           status: 503,
