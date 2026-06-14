@@ -123,7 +123,14 @@ const DEMO_BRAND_PRICING: ReadonlyArray<{
   { customerName: "Πιτσαρία Bella Napoli", brand: "Olympic Brewery", discountPct: "12.00" },
 ];
 
-type OrderStatus = "pending" | "confirmed" | "shipped" | "delivered" | "cancelled";
+type OrderStatus =
+  | "pending"
+  | "confirmed"
+  | "shipped"
+  | "delivered"
+  | "cancelled"
+  | "cancellation_requested"
+  | "cancelled_by_customer";
 
 interface DemoOrderItem {
   productName: string;
@@ -219,6 +226,24 @@ const DEMO_ORDERS: DemoOrder[] = [
     items: [
       { productName: "Ξινόμαυρο", brand: "Κυρ-Γιάννη", quantity: 6 },
       { productName: "Ροζέ", brand: "Λαζαρίδη", quantity: 6 },
+    ],
+  },
+  {
+    customerName: "Μπαρ Στοά Μύλος",
+    status: "cancellation_requested",
+    notes: "Ο πελάτης ζήτησε ακύρωση — αναμονή έγκρισης",
+    items: [
+      { productName: "Άλφα", brand: "Athenian Brewery", quantity: 24 },
+      { productName: "Septem Μέρες", brand: "Septem", quantity: 12 },
+    ],
+  },
+  {
+    customerName: "Πιτσαρία Bella Napoli",
+    status: "cancelled_by_customer",
+    notes: "Ακυρώθηκε από τον πελάτη πριν την επιβεβαίωση",
+    items: [
+      { productName: "Coca-Cola", brand: "Coca-Cola", quantity: 24 },
+      { productName: "Fanta Πορτοκάλι", brand: "Coca-Cola", quantity: 12 },
     ],
   },
 ];

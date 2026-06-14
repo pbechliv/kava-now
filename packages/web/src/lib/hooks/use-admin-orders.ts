@@ -168,3 +168,15 @@ export function useReplaceOrderItem(orderId: string) {
     onSuccess: invalidate,
   });
 }
+
+// Staff resolve a customer's cancellation request: approve → cancelled_by_customer,
+// reject → confirmed.
+export function useResolveCancellationRequest(orderId: string) {
+  const tApi = useTenantApi();
+  const invalidate = useInvalidateOrder(orderId);
+  return useMutation({
+    mutationFn: ({ decision }: { decision: "approve" | "reject" }) =>
+      tApi.post(`/admin/orders/${orderId}/cancellation-request`, { decision }),
+    onSuccess: invalidate,
+  });
+}

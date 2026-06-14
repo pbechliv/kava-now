@@ -1,7 +1,9 @@
+import { useState } from "react";
 import { Link, useParams, useNavigate } from "react-router";
 import { ArrowLeft, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { ConfirmDialog } from "@/components/confirm-dialog";
 import {
   Table,
   TableBody,
@@ -15,7 +17,7 @@ import { MobileList, MobileListItem } from "@/components/ui/mobile-list";
 import { ErrorBanner } from "@/components/error-banner";
 import { Spinner } from "@/components/spinner";
 import { OrderStatusBadge } from "@/components/order-status-badge";
-import { useCustomerOrder, useReorder } from "@/lib/hooks/use-customer-orders";
+import { useCustomerOrder, useReorder, useCancelOrder } from "@/lib/hooks/use-customer-orders";
 import { formatMoney, formatDateLong } from "@/lib/format";
 
 export function OrderDetailPage() {
@@ -24,6 +26,8 @@ export function OrderDetailPage() {
   const base = `/k/${slug}`;
   const { data: order, isLoading, error } = useCustomerOrder(id);
   const reorder = useReorder(id || "");
+  const cancel = useCancelOrder(id || "");
+  const [showCancel, setShowCancel] = useState(false);
 
   const handleReorder = () => {
     reorder.mutate(undefined, {
@@ -60,6 +64,11 @@ export function OrderDetailPage() {
       0,
     ) / 100;
 
+  // pending → cancel outright; confirmed → request cancellation (staff approve).
+  const canCancel = order.status === "pending";
+  const canRequest = order.status === "confirmed";
+  const isRequested = order.status === "cancellation_requested";
+
   return (
     <div className="space-y-6">
       <Link
@@ -76,12 +85,30 @@ export function OrderDetailPage() {
         </div>
         <div className="flex flex-wrap items-center gap-3">
           <OrderStatusBadge status={order.status} />
+          {(canCancel || canRequest) && (
+            <Button
+              variant={canCancel ? "destructive" : "outline"}
+              onClick={() => setShowCancel(true)}
+              disabled={cancel.isPending}
+            >
+              {cancel.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              {canCancel ? "Ακύρωση παραγγελίας" : "Αίτημα ακύρωσης"}
+            </Button>
+          )}
           <Button onClick={handleReorder} disabled={reorder.isPending}>
             {reorder.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
             {reorder.isPending ? "Δημιουργία..." : "Επαναπαραγγελία"}
           </Button>
         </div>
       </div>
+
+      {isRequested && (
+        <Card className="border-warning/40 bg-warning/10 p-4">
+          <p className="text-sm">
+            Το αίτημα ακύρωσης εκκρεμεί — αναμένεται έγκριση από το κατάστημα.
+          </p>
+        </Card>
+      )}
 
       {reorder.isError && (
         <p className="text-sm text-destructive">
@@ -155,6 +182,21 @@ export function OrderDetailPage() {
           <p className="mt-1 text-sm text-muted-foreground">{order.notes}</p>
         </Card>
       )}
+
+      <ConfirmDialog
+        open={showCancel}
+        title={canCancel ? "Ακύρωση παραγγελίας" : "Αίτημα ακύρωσης"}
+        description={
+          canCancel
+            ? "Είστε σίγουρος ότι θέλετε να ακυρώσετε αυτή την παραγγελία;"
+            : "Η παραγγελία έχει επιβεβαιωθεί. Θα σταλεί αίτημα ακύρωσης για έγκριση από το κατάστημα."
+        }
+        confirmLabel={canCancel ? "Ακύρωση παραγγελίας" : "Αποστολή αιτήματος"}
+        pending={cancel.isPending}
+        error={cancel.error?.message}
+        onConfirm={() => cancel.mutate(undefined, { onSuccess: () => setShowCancel(false) })}
+        onClose={() => setShowCancel(false)}
+      />
     </div>
   );
 }

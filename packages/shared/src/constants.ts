@@ -6,6 +6,8 @@ export const ORDER_STATUS_LABELS: Record<OrderStatus, string> = {
   shipped: "Απεσταλμένη",
   delivered: "Παραδοθείσα",
   cancelled: "Ακυρωμένη",
+  cancellation_requested: "Αίτημα ακύρωσης",
+  cancelled_by_customer: "Ακυρώθηκε από πελάτη",
 };
 
 export const ROLE_LABELS: Record<MembershipRole, string> = {
@@ -36,4 +38,10 @@ export const ORDER_STATUS_TRANSITIONS: Record<OrderStatus, OrderStatus[]> = {
   shipped: ["delivered", "cancelled"],
   delivered: [],
   cancelled: [],
+  // Customer-driven statuses are NOT staff-pickable transitions. A pending
+  // cancellation request is resolved via the dedicated approve/reject endpoint,
+  // and customer cancellations are terminal — so the staff status picker offers
+  // nothing here.
+  cancellation_requested: [],
+  cancelled_by_customer: [],
 };
