@@ -11,7 +11,6 @@ import {
 } from "../../db/schema/index";
 import { requireCustomerProfile } from "../../middleware/require-customer-profile";
 import { resolvePrice } from "../../services/pricing";
-import { sendOrderNotification } from "../../services/email";
 import { sendPushToUsers, orderNotificationRecipients } from "../../services/push";
 import type { AppEnv } from "../../types";
 import { getCustomerId, getTenant, getTenantId } from "../../context";
@@ -20,46 +19,32 @@ const ordersRouter = new Hono<AppEnv>();
 
 ordersRouter.use("*", requireCustomerProfile);
 
-// Post-commit notifications shared by create + reorder (a reorder IS a new
-// order): email + push to the customer's assigned users (and anyone opted into
-// all-order notifications), #28. Recipients are resolved NOW — inside the
+// Post-commit push (no email — order emails were removed; email is now only for
+// user management) to the customer's assigned users and anyone opted into
+// all-order notifications (#28). Recipients are resolved NOW — inside the
 // request transaction — because customer_assigned_users is RLS-scoped and the
 // post-commit callback runs on the base pool with no tenant context. The
 // dispatch itself is deferred so a rolled-back order never notifies anyone.
 async function queueOrderPlacedNotifications(
-  tenant: { id: string; slug: string; name: string },
-  customer: { id: string; name: string; email: string | null },
+  tenant: { id: string; slug: string },
+  customer: { id: string; name: string },
   result: {
-    order: { id: string; createdAt: Date; notes: string | null };
-    items: { id: string; productName: string; quantity: number; unitPrice: string }[];
+    order: { id: string };
+    items: { id: string }[];
   },
   actingUserId: string | undefined,
 ): Promise<void> {
   // Exclude the user who placed the order — never notify someone of their own action.
-  const recipients = await orderNotificationRecipients(tenant.id, customer.id, actingUserId);
-  if (recipients.length === 0) return; // nobody assigned, nobody opted in
+  const recipientIds = await orderNotificationRecipients(tenant.id, customer.id, actingUserId);
+  if (recipientIds.length === 0) return; // nobody assigned, nobody opted in
 
   return afterTenantCommit(async () => {
     try {
-      await sendOrderNotification(
-        tenant,
-        customer,
-        result.order,
-        result.items,
-        recipients.map((r) => r.email),
-      );
-    } catch (err) {
-      console.error("[email] Failed to send order notification:", err);
-    }
-    try {
-      await sendPushToUsers(
-        recipients.map((r) => r.userId),
-        {
-          title: "Νέα παραγγελία",
-          body: `${customer.name} — ${result.items.length} είδη`,
-          url: `/k/${tenant.slug}/admin/orders/${result.order.id}`,
-        },
-      );
+      await sendPushToUsers(recipientIds, {
+        title: "Νέα παραγγελία",
+        body: `${customer.name} — ${result.items.length} είδη`,
+        url: `/k/${tenant.slug}/admin/orders/${result.order.id}`,
+      });
     } catch (err) {
       console.error("[push] order-placed push failed:", err);
     }

@@ -17,7 +17,6 @@ if (APP_URL) process.env.APP_DATABASE_URL = APP_URL;
 vi.mock("../../services/email", () => ({
   sendPasswordSet: vi.fn().mockResolvedValue(undefined),
   sendMembershipAdded: vi.fn().mockResolvedValue(undefined),
-  sendOrderNotification: vi.fn().mockResolvedValue(undefined),
 }));
 
 const fakeContext = {

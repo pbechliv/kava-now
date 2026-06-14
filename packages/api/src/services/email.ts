@@ -11,10 +11,6 @@ import {
   MembershipAddedEmail,
   subject as membershipAddedSubject,
 } from "../emails/MembershipAddedEmail";
-import {
-  OrderNotificationEmail,
-  subject as orderNotificationSubject,
-} from "../emails/OrderNotificationEmail";
 
 const useResend = Boolean(config.resend.apiKey);
 
@@ -75,58 +71,4 @@ export async function sendMembershipAdded(
 ): Promise<void> {
   const html = await render(MembershipAddedEmail({ loginUrl, tenantName }));
   await deliver({ to: email, subject: membershipAddedSubject({ tenantName }), html });
-}
-
-interface OrderNotificationTenant {
-  id: string;
-  name: string;
-  slug: string;
-}
-
-interface OrderNotificationCustomer {
-  id: string;
-  name: string;
-  email: string | null;
-}
-
-interface OrderNotificationOrder {
-  id: string;
-  notes: string | null;
-  createdAt: Date;
-}
-
-interface OrderNotificationItem {
-  id: string;
-  productName: string;
-  quantity: number;
-  unitPrice: string;
-}
-
-export async function sendOrderNotification(
-  tenant: OrderNotificationTenant,
-  customer: OrderNotificationCustomer,
-  order: OrderNotificationOrder,
-  items: OrderNotificationItem[],
-  recipients: string[],
-): Promise<void> {
-  if (!recipients || recipients.length === 0) {
-    // No assigned users and nobody opted into all-order notifications.
-    return;
-  }
-
-  const adminOrderUrl = `${config.appOrigin}/k/${tenant.slug}/admin/orders/${order.id}`;
-  const html = await render(
-    OrderNotificationEmail({
-      tenant: { name: tenant.name, slug: tenant.slug },
-      customer: { name: customer.name },
-      order: { notes: order.notes, createdAt: order.createdAt },
-      items,
-      adminOrderUrl,
-    }),
-  );
-  await deliver({
-    to: recipients,
-    subject: orderNotificationSubject({ customer: { name: customer.name } }),
-    html,
-  });
 }

@@ -18,7 +18,6 @@ if (APP_URL) process.env.APP_DATABASE_URL = APP_URL;
 vi.mock("./email", () => ({
   sendPasswordSet: vi.fn().mockResolvedValue(undefined),
   sendMembershipAdded: vi.fn().mockResolvedValue(undefined),
-  sendOrderNotification: vi.fn().mockResolvedValue(undefined),
 }));
 
 // inviteUserToTenant only reads c.req.raw.headers (forwarded to better-auth).
