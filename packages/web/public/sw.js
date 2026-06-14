@@ -102,6 +102,17 @@ self.addEventListener("fetch", (event) => {
   // to the network — the SW adds no caching and no offline behaviour for them.
   if (request.mode !== "navigate") return;
 
+  // Never intercept /api/* navigations. better-auth replies to the email-link
+  // endpoints (e.g. /api/auth/reset-password/:token, clicked straight from an
+  // invite/reset mail) with a 302 to the app. The no-store shell fetch below
+  // uses redirect:"follow" (the default for a URL-string fetch), so it would
+  // follow that 302 and hand respondWith() a `redirected` response — which the
+  // browser rejects for a navigation (its redirect mode is "manual"), failing
+  // the navigation with ERR_FAILED ("This site can't be reached"). A direct
+  // link to an /api/* URL is a navigation, so request.mode above never
+  // excludes it; leave these to the network so the browser follows the 302.
+  if (new URL(request.url).pathname.startsWith("/api/")) return;
+
   // Always pull the live shell, bypassing the HTTP cache. Without this an
   // installed PWA (iOS standalone especially) can relaunch from a cached
   // index.html that points at hashed chunks a newer deploy has already
@@ -110,8 +121,15 @@ self.addEventListener("fetch", (event) => {
   // shell keeps coming back; no-store removes the shell from the cache equation
   // entirely, so a launch can never boot a deleted build. Fetch by URL (not the
   // navigation Request) so the cache override is honoured everywhere.
+  // redirect:"manual" keeps any server redirect as an opaqueredirect the
+  // browser follows itself — a `redirected` response is invalid for a
+  // navigation and fails with ERR_FAILED.
   event.respondWith(
-    fetch(request.url, { cache: "no-store", credentials: "same-origin" }).catch(
+    fetch(request.url, {
+      cache: "no-store",
+      credentials: "same-origin",
+      redirect: "manual",
+    }).catch(
       () =>
         new Response(OFFLINE_HTML, {
           status: 503,
