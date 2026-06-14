@@ -47,6 +47,15 @@ export const auth = betterAuth({
       // Google verifies emails — safe to auto-link a Google sign-in to an existing user row
       // (e.g. an invited user who never set a password).
       trustedProviders: ["google"],
+      // Invited users are created with emailVerified=false and no password
+      // (invite-user.ts). better-auth's requireLocalEmailVerified defaults to
+      // true, which would refuse to link Google to that unverified local row —
+      // making "Continue with Google" fail with "account not linked" on the
+      // /welcome page. Google proves ownership of the address (and the user
+      // already exists only because an admin invited that exact email), so the
+      // local-verified precondition is redundant here. Linking flips the row to
+      // emailVerified=true as a side effect.
+      requireLocalEmailVerified: false,
     },
   },
   databaseHooks: {
