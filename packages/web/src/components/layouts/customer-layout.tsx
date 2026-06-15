@@ -32,6 +32,7 @@ import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
 import { useCartStore, activateCartForSlug } from "@/lib/store/cart";
 import { TenantSwitcher } from "@/components/tenant-switcher";
+import { BottomNav, type BottomNavItem } from "@/components/bottom-nav";
 import { Logo } from "@/components/logo";
 
 export function CustomerLayout() {
@@ -50,12 +51,15 @@ export function CustomerLayout() {
     Object.values(s.items).reduce((sum, item) => sum + item.quantity, 0),
   );
 
-  const navItems = [
-    { to: `${base}/catalog`, label: "Κατάλογος", icon: ShoppingBag, end: true, key: "catalog" },
-    { to: `${base}/cart`, label: "Καλάθι", icon: ShoppingCart, end: false, key: "cart" },
-    { to: `${base}/orders`, label: "Ιστορικό", icon: ScrollText, end: false, key: "orders" },
-    { to: `${base}/profile`, label: "Προφίλ", icon: UserRound, end: false, key: "profile" },
-  ] as const;
+  // One source for both the desktop sidebar and the mobile bottom bar. `end`
+  // tightens the sidebar's active match for the index-style catalog route; the
+  // cart `badge` drives the count bubble in both surfaces.
+  const navItems: (BottomNavItem & { end?: boolean })[] = [
+    { to: `${base}/catalog`, label: "Κατάλογος", icon: ShoppingBag, end: true },
+    { to: `${base}/cart`, label: "Καλάθι", icon: ShoppingCart, badge: cartCount },
+    { to: `${base}/orders`, label: "Ιστορικό", icon: ScrollText },
+    { to: `${base}/profile`, label: "Προφίλ", icon: UserRound },
+  ];
 
   return (
     <SidebarProvider>
@@ -86,11 +90,11 @@ export function CustomerLayout() {
                           >
                             <item.icon className="h-4 w-4" />
                             <span className="flex-1">{item.label}</span>
-                            {item.key === "cart" && cartCount > 0 && (
+                            {item.badge ? (
                               <Badge variant="default" className="ml-auto">
-                                {cartCount}
+                                {item.badge}
                               </Badge>
-                            )}
+                            ) : null}
                           </span>
                         )}
                       </NavLink>
@@ -107,10 +111,20 @@ export function CustomerLayout() {
       </Sidebar>
       <SidebarInset>
         <header className="flex h-14 shrink-0 items-center gap-2 border-b bg-background px-4">
-          <SidebarTrigger />
-          <Separator orientation="vertical" className="mx-1 h-5" />
+          <SidebarTrigger className="hidden md:flex" />
+          <Separator orientation="vertical" className="mx-1 hidden h-5 md:block" />
+          {/* On mobile the sidebar is replaced by the bottom bar, so the brand
+              lives in the header instead. */}
+          <Link to={`${base}/catalog`} className="flex items-center gap-2 md:hidden">
+            <Logo className="size-6" />
+            <span className="max-w-[12rem] truncate font-semibold">
+              {tenant?.name ?? "KavaNow"}
+            </span>
+          </Link>
           <div className="flex-1" />
-          <Button asChild variant="ghost" size="sm" className="relative gap-2">
+          {/* Quick cart access on desktop; on mobile the bottom bar's Cart tab
+              (with the same badge) covers this. */}
+          <Button asChild variant="ghost" size="sm" className="relative gap-2 max-md:hidden">
             <Link to={`${base}/cart`} aria-label="Καλάθι">
               <ShoppingCart className="h-5 w-5" />
               {cartCount > 0 && (
@@ -143,9 +157,10 @@ export function CustomerLayout() {
             </DropdownMenuContent>
           </DropdownMenu>
         </header>
-        <main className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8">
+        <div className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8 max-md:pb-24!">
           <Outlet />
-        </main>
+        </div>
+        <BottomNav items={navItems} />
       </SidebarInset>
     </SidebarProvider>
   );

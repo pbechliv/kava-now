@@ -52,6 +52,7 @@ const ProductsImportPage = lazyPage(
   "ProductsImportPage",
 );
 const UsersPage = lazyPage(() => import("./pages/admin/users-page"), "UsersPage");
+const ManagePage = lazyPage(() => import("./pages/admin/manage-page"), "ManagePage");
 const CustomerUsersPage = lazyPage(
   () => import("./pages/admin/customer-users-page"),
   "CustomerUsersPage",
@@ -153,6 +154,7 @@ export function App() {
                   <Route path="users" element={<UsersPage />} />
                   <Route path="orders" element={<OrdersPage />} />
                   <Route path="orders/:id" element={<OrderDetailPage />} />
+                  <Route path="manage" element={<ManagePage />} />
                   <Route path="settings" element={<SettingsPage />} />
                 </Route>
 

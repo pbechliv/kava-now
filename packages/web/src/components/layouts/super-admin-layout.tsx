@@ -1,4 +1,4 @@
-import { NavLink, Outlet } from "react-router";
+import { Link, NavLink, Outlet } from "react-router";
 import { initials } from "@/lib/utils";
 import { Building2, Settings, LogOut } from "lucide-react";
 import { useAuth } from "@/lib/hooks/use-auth";
@@ -29,9 +29,11 @@ import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Separator } from "@/components/ui/separator";
 import { TenantSwitcher } from "@/components/tenant-switcher";
+import { BottomNav, type BottomNavItem } from "@/components/bottom-nav";
 import { Logo } from "@/components/logo";
 
-const navItems = [
+// One source for both the desktop sidebar and the mobile bottom bar.
+const navItems: BottomNavItem[] = [
   { to: "/admin/tenants", label: "Λογαριασμοί", icon: Building2 },
   { to: "/admin/settings", label: "Ρυθμίσεις", icon: Settings },
 ];
@@ -81,8 +83,16 @@ export function SuperAdminLayout() {
       </Sidebar>
       <SidebarInset>
         <header className="flex h-14 shrink-0 items-center gap-2 border-b bg-background px-4">
-          <SidebarTrigger />
-          <Separator orientation="vertical" className="mx-1 h-5" />
+          <SidebarTrigger className="hidden md:flex" />
+          <Separator orientation="vertical" className="mx-1 hidden h-5 md:block" />
+          {/* On mobile the sidebar is replaced by the bottom bar, so the brand
+              lives in the header instead. */}
+          <Link to="/admin/tenants" className="flex items-center gap-2 md:hidden">
+            <Logo className="size-6" />
+            <span className="font-semibold">
+              KavaNow <span className="text-muted-foreground">Admin</span>
+            </span>
+          </Link>
           <div className="flex-1" />
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
@@ -104,9 +114,10 @@ export function SuperAdminLayout() {
             </DropdownMenuContent>
           </DropdownMenu>
         </header>
-        <main className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8">
+        <div className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8 max-md:pb-24!">
           <Outlet />
-        </main>
+        </div>
+        <BottomNav items={navItems} />
       </SidebarInset>
     </SidebarProvider>
   );
