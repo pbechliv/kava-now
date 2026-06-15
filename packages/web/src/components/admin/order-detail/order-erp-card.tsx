@@ -1,21 +1,28 @@
 import { useState } from "react";
-import { Loader2 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { CopyField } from "@/components/copy-field";
+import { ConfirmDialog } from "@/components/confirm-dialog";
 import { useMarkOrderTransmitted, type AdminOrderDetail } from "@/lib/hooks/use-admin-orders";
 import { formatDateTime } from "@/lib/format";
 
 export function OrderErpCard({ order }: { order: AdminOrderDetail }) {
   const markTransmitted = useMarkOrderTransmitted();
   const [markInput, setMarkInput] = useState("");
+  const [confirmOpen, setConfirmOpen] = useState(false);
 
   const handleMarkTransmitted = () => {
-    if (!markInput.trim()) return;
+    const mark = markInput.trim();
+    if (!mark) return;
     markTransmitted.mutate(
-      { id: order.id, mark: markInput.trim() },
-      { onSuccess: () => setMarkInput("") },
+      { id: order.id, mark },
+      {
+        onSuccess: () => {
+          setConfirmOpen(false);
+          setMarkInput("");
+        },
+      },
     );
   };
 
@@ -57,19 +64,36 @@ export function OrderErpCard({ order }: { order: AdminOrderDetail }) {
               <Button
                 type="button"
                 size="sm"
-                onClick={handleMarkTransmitted}
-                disabled={!markInput.trim() || markTransmitted.isPending}
+                onClick={() => {
+                  markTransmitted.reset();
+                  setConfirmOpen(true);
+                }}
+                disabled={!markInput.trim()}
               >
-                {markTransmitted.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 Σήμανση ως διαβιβασμένη
               </Button>
             </div>
-            {markTransmitted.error && (
-              <p className="text-sm text-destructive">{markTransmitted.error.message}</p>
-            )}
           </div>
         )}
       </CardContent>
+
+      <ConfirmDialog
+        open={confirmOpen}
+        title="Διαβίβαση στο ERP"
+        description={
+          <>
+            Η παραγγελία θα σημανθεί ως διαβιβασμένη με MARK{" "}
+            <span className="font-medium text-foreground">{markInput.trim()}</span>. Η ενέργεια
+            είναι μη αναστρέψιμη και κλειδώνει την παραγγελία — δεν θα μπορείτε πλέον να προσθέσετε
+            ή να επεξεργαστείτε προϊόντα.
+          </>
+        }
+        confirmLabel="Σήμανση ως διαβιβασμένη"
+        pending={markTransmitted.isPending}
+        error={markTransmitted.error?.message}
+        onConfirm={handleMarkTransmitted}
+        onClose={() => setConfirmOpen(false)}
+      />
     </Card>
   );
 }

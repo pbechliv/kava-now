@@ -128,6 +128,65 @@ usersRouter.post("/:id/promote-to-owner", async (c) => {
   return c.json({ success: true });
 });
 
+// POST /:id/demote-to-staff — demote an owner back to staff (inverse of promote)
+usersRouter.post("/:id/demote-to-staff", async (c) => {
+  const tenantId = getTenantId(c);
+  const id = c.req.param("id");
+  const myMembership = getMembership(c);
+
+  if (myMembership.role !== "owner") {
+    return c.json(
+      { code: API_ERROR_CODES.ONLY_OWNER_CAN_PROMOTE, error: "Only an owner can demote an owner" },
+      403,
+    );
+  }
+
+  const [target] = await db
+    .select({ id: users.id, email: users.email, role: tenantMemberships.role })
+    .from(tenantMemberships)
+    .innerJoin(users, eq(users.id, tenantMemberships.userId))
+    .where(and(eq(tenantMemberships.userId, id), eq(tenantMemberships.tenantId, tenantId)))
+    .limit(1);
+
+  if (!target) {
+    return c.json({ error: "User not found" }, 404);
+  }
+  if (target.role === "staff") {
+    return c.json({ success: true });
+  }
+  if (target.role !== "owner") {
+    return c.json({ error: "Only owners can be demoted to staff" }, 400);
+  }
+
+  // Prevent demoting the final owner — the tenant must always retain one.
+  const [remaining] = await db
+    .select({ count: sql<number>`count(*)::int` })
+    .from(tenantMemberships)
+    .where(
+      and(
+        eq(tenantMemberships.tenantId, tenantId),
+        eq(tenantMemberships.role, "owner"),
+        ne(tenantMemberships.userId, id),
+      ),
+    );
+  if (!remaining || remaining.count === 0) {
+    return c.json(
+      {
+        code: API_ERROR_CODES.LAST_OWNER_PROTECTION,
+        error: "Cannot demote the last owner of the tenant",
+      },
+      400,
+    );
+  }
+
+  await db
+    .update(tenantMemberships)
+    .set({ role: "staff" })
+    .where(and(eq(tenantMemberships.userId, id), eq(tenantMemberships.tenantId, tenantId)));
+
+  return c.json({ success: true });
+});
+
 // DELETE /:id — remove a user's membership in this tenant
 usersRouter.delete("/:id", async (c) => {
   const tenantId = getTenantId(c);

@@ -1,6 +1,8 @@
+import { useState } from "react";
 import { Loader2 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { ConfirmDialog } from "@/components/confirm-dialog";
 import { useResolveCancellationRequest, type AdminOrderDetail } from "@/lib/hooks/use-admin-orders";
 
 // Shown only while an order sits in `cancellation_requested` — the customer asked
@@ -8,6 +10,7 @@ import { useResolveCancellationRequest, type AdminOrderDetail } from "@/lib/hook
 // (→ back to confirmed).
 export function OrderCancellationCard({ order }: { order: AdminOrderDetail }) {
   const resolve = useResolveCancellationRequest(order.id);
+  const [confirmOpen, setConfirmOpen] = useState(false);
 
   return (
     <Card className="border-warning/40 bg-warning/10 lg:col-span-2">
@@ -28,7 +31,10 @@ export function OrderCancellationCard({ order }: { order: AdminOrderDetail }) {
             variant="destructive"
             size="sm"
             disabled={resolve.isPending}
-            onClick={() => resolve.mutate({ decision: "approve" })}
+            onClick={() => {
+              resolve.reset();
+              setConfirmOpen(true);
+            }}
           >
             {resolve.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
             Έγκριση ακύρωσης
@@ -43,6 +49,19 @@ export function OrderCancellationCard({ order }: { order: AdminOrderDetail }) {
           </Button>
         </div>
       </CardContent>
+
+      <ConfirmDialog
+        open={confirmOpen}
+        title="Έγκριση ακύρωσης"
+        description="Η παραγγελία θα ακυρωθεί οριστικά. Η ενέργεια δεν αναιρείται."
+        confirmLabel="Έγκριση ακύρωσης"
+        pending={resolve.isPending}
+        error={resolve.error?.message}
+        onConfirm={() =>
+          resolve.mutate({ decision: "approve" }, { onSuccess: () => setConfirmOpen(false) })
+        }
+        onClose={() => setConfirmOpen(false)}
+      />
     </Card>
   );
 }

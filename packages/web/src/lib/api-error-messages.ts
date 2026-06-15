@@ -43,7 +43,7 @@ const CODE_MESSAGES: Record<ApiErrorCode, string> = {
     "Ο τρέχων κωδικός πρόσβασης λείπει ή είναι λανθασμένος",
   [API_ERROR_CODES.CANT_DELETE_SELF]: "Δεν μπορείτε να διαγράψετε τον εαυτό σας",
   [API_ERROR_CODES.LAST_OWNER_PROTECTION]:
-    "Δεν μπορείτε να διαγράψετε τον τελευταίο ιδιοκτήτη του λογαριασμού",
+    "Δεν μπορείτε να αφαιρέσετε τον τελευταίο ιδιοκτήτη του λογαριασμού",
   [API_ERROR_CODES.ONLY_OWNER_CAN_PROMOTE]: "Μόνο ιδιοκτήτης μπορεί να προωθήσει σε ιδιοκτήτη",
   [API_ERROR_CODES.ONLY_OWNER_CAN_DELETE_OWNER]: "Μόνο ιδιοκτήτης μπορεί να διαγράψει ιδιοκτήτη",
   [API_ERROR_CODES.ONLY_STAFF_PROMOTABLE]:

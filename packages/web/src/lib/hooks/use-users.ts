@@ -74,3 +74,16 @@ export function usePromoteToOwner() {
     },
   });
 }
+
+export function useDemoteToStaff() {
+  const slug = useTenantSlug();
+  const tApi = useTenantApi();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) =>
+      tApi.post<{ success: boolean }>(`/admin/users/${id}/demote-to-staff`),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ["admin", slug, "users"] });
+    },
+  });
+}

@@ -1,5 +1,5 @@
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
-import { eq, inArray } from "drizzle-orm";
+import { and, eq, inArray } from "drizzle-orm";
 import { hashPassword } from "better-auth/crypto";
 import type { Context } from "hono";
 import type { AppEnv } from "../../types";
@@ -186,6 +186,67 @@ suite("DELETE /admin/users/:id (global-account cleanup boundary)", () => {
     });
     expect(delLastOwner.status).toBe(400);
     expect((await delLastOwner.json()).code).toBe("LAST_OWNER_PROTECTION");
+  });
+
+  it("demote-to-staff: owner demotes a promoted owner, staff blocked, last owner protected", async () => {
+    // Owner promotes a staff member to owner, then demotes them back to staff.
+    const promotedId = await invitedStaff(`usr-demote-promoted-${suffix}@example.com`);
+    const promote = await app.request(`/api/k/${slug}/admin/users/${promotedId}/promote-to-owner`, {
+      method: "POST",
+      headers: { cookie, "content-type": "application/json" },
+    });
+    expect(promote.status).toBe(200);
+
+    const demote = await app.request(`/api/k/${slug}/admin/users/${promotedId}/demote-to-staff`, {
+      method: "POST",
+      headers: { cookie, "content-type": "application/json" },
+    });
+    expect(demote.status).toBe(200);
+
+    const [demoted] = await db
+      .select({ role: schema.tenantMemberships.role })
+      .from(schema.tenantMemberships)
+      .where(
+        and(
+          eq(schema.tenantMemberships.userId, promotedId),
+          eq(schema.tenantMemberships.tenantId, tenantId),
+        ),
+      );
+    expect(must(demoted).role).toBe("staff");
+
+    // A plain staff member cannot demote an owner.
+    const actorEmail = `usr-demote-actor-${suffix}@example.com`;
+    const actorId = await invitedStaff(actorEmail);
+    await baseDb.insert(schema.accounts).values({
+      accountId: actorId,
+      providerId: "credential",
+      userId: actorId,
+      password: await hashPassword(ownerPassword),
+    });
+    const actorSignIn = await app.request("/api/auth/sign-in/email", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ email: actorEmail, password: ownerPassword }),
+    });
+    expect(actorSignIn.status).toBe(200);
+    const actorCookie = actorSignIn.headers
+      .getSetCookie()
+      .map((c) => c.split(";")[0])
+      .join("; ");
+    const staffDemote = await app.request(
+      `/api/k/${slug}/admin/users/${ownerUserId}/demote-to-staff`,
+      { method: "POST", headers: { cookie: actorCookie, "content-type": "application/json" } },
+    );
+    expect(staffDemote.status).toBe(403);
+    expect((await staffDemote.json()).code).toBe("ONLY_OWNER_CAN_PROMOTE");
+
+    // The original owner is now the last one — demoting them is blocked.
+    const lastOwner = await app.request(
+      `/api/k/${slug}/admin/users/${ownerUserId}/demote-to-staff`,
+      { method: "POST", headers: { cookie, "content-type": "application/json" } },
+    );
+    expect(lastOwner.status).toBe(400);
+    expect((await lastOwner.json()).code).toBe("LAST_OWNER_PROTECTION");
   });
 
   it("resend-invite invalidates stale reset tokens and issues a fresh one (#57)", async () => {
