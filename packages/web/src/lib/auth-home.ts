@@ -29,7 +29,9 @@ export function getUserHomePath(
 }
 
 export function membershipHome(m: TenantMembership): string {
-  return m.role === "customer" ? `/k/${m.tenantSlug}/catalog` : `/k/${m.tenantSlug}/admin/dashboard`;
+  return m.role === "customer"
+    ? `/k/${m.tenantSlug}/catalog`
+    : `/k/${m.tenantSlug}/admin/dashboard`;
 }
 
 /**
