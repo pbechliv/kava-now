@@ -8,6 +8,7 @@ import {
   useDeleteUser,
   useResendInvite,
   usePromoteToOwner,
+  useDemoteToStaff,
 } from "@/lib/hooks/use-users";
 import { useAuth } from "@/lib/hooks/use-auth";
 import { Button } from "@/components/ui/button";
@@ -34,6 +35,7 @@ export function UsersPage() {
   const remove = useDeleteUser();
   const resend = useResendInvite();
   const promote = usePromoteToOwner();
+  const demote = useDemoteToStaff();
   const [inviteOpen, setInviteOpen] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<{ id: string; name: string } | null>(null);
   const { feedback, handleResend, resendPendingId } = useResendInviteFeedback(resend);
@@ -81,6 +83,26 @@ export function UsersPage() {
           <Loader2 className="mr-2 h-4 w-4 animate-spin" />
         )}
         Μετατροπή σε ιδιοκτήτη
+      </Button>
+    );
+
+  const demoteButton = (u: { id: string; role: string }) =>
+    canPromote &&
+    u.role === "owner" && (
+      <Button
+        variant="outline"
+        size="sm"
+        disabled={demote.isPending && demote.variables === u.id}
+        onClick={() =>
+          demote.mutate(u.id, {
+            onSuccess: () => toast.success("Ο χρήστης έγινε προσωπικό"),
+          })
+        }
+      >
+        {demote.isPending && demote.variables === u.id && (
+          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+        )}
+        Υποβάθμιση σε προσωπικό
       </Button>
     );
 
@@ -138,6 +160,7 @@ export function UsersPage() {
                         onDelete={handleDelete}
                       >
                         {promoteButton(u)}
+                        {demoteButton(u)}
                       </UserInviteActions>
                     )}
                   </TableCell>
@@ -177,6 +200,7 @@ export function UsersPage() {
                   align="start"
                 >
                   {promoteButton(u)}
+                  {demoteButton(u)}
                 </UserInviteActions>
               )}
             </MobileListItem>
