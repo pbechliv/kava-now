@@ -137,7 +137,7 @@ export function App() {
                     </RequireAuth>
                   }
                 >
-                  <Route index element={<Navigate to="orders" replace />} />
+                  <Route index element={<Navigate to="dashboard" replace />} />
                   <Route path="dashboard" element={<DashboardPage />} />
                   <Route path="products" element={<ProductsPage />} />
                   <Route path="products/new" element={<ProductFormPage />} />
