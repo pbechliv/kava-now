@@ -1,4 +1,4 @@
-import { Link } from "react-router";
+import { Link, useNavigate } from "react-router";
 import { CalendarRange, ClipboardList, Clock, Send, Users } from "lucide-react";
 import { useTenantSlug } from "@/lib/hooks/use-tenant-api";
 import { Card, CardContent } from "@/components/ui/card";
@@ -18,7 +18,9 @@ import { formatMoney, formatDate } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
 export function DashboardPage() {
+  const navigate = useNavigate();
   const slug = useTenantSlug();
+  const adminBase = `/k/${slug}/admin`;
   const { data: stats, isLoading } = useDashboardStats();
 
   if (isLoading) {
@@ -139,7 +141,11 @@ export function DashboardPage() {
                   </TableRow>
                 ) : (
                   stats.recentOrders.map((order) => (
-                    <TableRow key={order.id}>
+                    <TableRow
+                      key={order.id}
+                      className="cursor-pointer"
+                      onClick={() => navigate(`${adminBase}/orders/${order.id}`)}
+                    >
                       <TableCell className="text-muted-foreground">
                         {formatDate(order.createdAt)}
                       </TableCell>
@@ -164,7 +170,11 @@ export function DashboardPage() {
           ) : (
             <MobileList>
               {stats.recentOrders.map((order) => (
-                <MobileListItem key={order.id}>
+                <MobileListItem
+                  key={order.id}
+                  className="cursor-pointer transition-colors hover:bg-muted/50"
+                  onClick={() => navigate(`${adminBase}/orders/${order.id}`)}
+                >
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0">
                       <div className="font-medium">{order.customerName ?? "-"}</div>
