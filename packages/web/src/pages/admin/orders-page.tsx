@@ -38,9 +38,7 @@ export function OrdersPage() {
   const initialErp = searchParams.get("erpStatus");
   const initialStatus = searchParams.get("status");
   const [statusFilter, setStatusFilter] = useState<OrderStatus | "all">(
-    STATUS_TABS.some((tab) => tab.value === initialStatus)
-      ? (initialStatus as OrderStatus)
-      : "all",
+    STATUS_TABS.some((tab) => tab.value === initialStatus) ? (initialStatus as OrderStatus) : "all",
   );
   const [erpFilter, setErpFilter] = useState<ErpStatus | "all">(
     initialErp === "pending" || initialErp === "transmitted" ? initialErp : "all",
