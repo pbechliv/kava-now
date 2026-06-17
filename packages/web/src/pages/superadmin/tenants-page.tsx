@@ -3,20 +3,13 @@ import { Link } from "react-router";
 import { Loader2 } from "lucide-react";
 import { useSuperAdminTenants, useDeleteTenant } from "@/lib/hooks/use-superadmin-tenants";
 import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import { MobileList, MobileListItem } from "@/components/ui/mobile-list";
+import { ResponsiveTable, type ResponsiveTableColumn } from "@/components/ui/responsive-table";
 import { Spinner } from "@/components/spinner";
 import { PaginationControls } from "@/components/pagination-controls";
 import { PAGE_SIZE } from "@/lib/constants";
 import { formatDate } from "@/lib/format";
+
+type TenantRow = NonNullable<ReturnType<typeof useSuperAdminTenants>["data"]>["data"][number];
 
 export function TenantsPage() {
   const [page, setPage] = useState(1);
@@ -35,6 +28,53 @@ export function TenantsPage() {
   const tenants = data?.data ?? [];
   const total = data?.total ?? 0;
 
+  const columns: ResponsiveTableColumn<TenantRow>[] = [
+    { header: "Όνομα", cellClassName: "font-medium", cell: (tenant) => tenant.name },
+    { header: "Slug", cellClassName: "text-muted-foreground", cell: (tenant) => tenant.slug },
+    { header: "Email", cellClassName: "text-muted-foreground", cell: (tenant) => tenant.email },
+    {
+      header: "Ημ/νία",
+      cellClassName: "text-muted-foreground",
+      cell: (tenant) => formatDate(tenant.createdAt),
+    },
+    {
+      header: undefined,
+      headClassName: "text-right",
+      cellClassName: "text-right",
+      cell: (tenant) =>
+        confirmId === tenant.id ? (
+          <div className="flex items-center justify-end gap-2">
+            <span className="text-xs text-destructive">Σίγουρα;</span>
+            <Button
+              variant="destructive"
+              size="sm"
+              disabled={deleteMutation.isPending}
+              onClick={() =>
+                deleteMutation.mutate(tenant.id, {
+                  onSuccess: () => setConfirmId(null),
+                })
+              }
+            >
+              {deleteMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Ναι
+            </Button>
+            <Button variant="ghost" size="sm" onClick={() => setConfirmId(null)}>
+              Όχι
+            </Button>
+          </div>
+        ) : (
+          <Button
+            variant="ghost"
+            size="sm"
+            className="text-destructive hover:bg-destructive/10 hover:text-destructive"
+            onClick={() => setConfirmId(tenant.id)}
+          >
+            Διαγραφή
+          </Button>
+        ),
+    },
+  ];
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -48,118 +88,58 @@ export function TenantsPage() {
         <p className="text-sm text-muted-foreground">Δεν υπάρχουν λογαριασμοί.</p>
       ) : (
         <>
-          <Card className="overflow-hidden">
-            <div className="hidden overflow-x-auto md:block">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Όνομα</TableHead>
-                    <TableHead>Slug</TableHead>
-                    <TableHead>Email</TableHead>
-                    <TableHead>Ημ/νία</TableHead>
-                    <TableHead className="text-right" />
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {tenants.map((tenant) => (
-                    <TableRow key={tenant.id}>
-                      <TableCell className="font-medium">{tenant.name}</TableCell>
-                      <TableCell className="text-muted-foreground">{tenant.slug}</TableCell>
-                      <TableCell className="text-muted-foreground">{tenant.email}</TableCell>
-                      <TableCell className="text-muted-foreground">
-                        {formatDate(tenant.createdAt)}
-                      </TableCell>
-                      <TableCell className="text-right">
-                        {confirmId === tenant.id ? (
-                          <div className="flex items-center justify-end gap-2">
-                            <span className="text-xs text-destructive">Σίγουρα;</span>
-                            <Button
-                              variant="destructive"
-                              size="sm"
-                              disabled={deleteMutation.isPending}
-                              onClick={() =>
-                                deleteMutation.mutate(tenant.id, {
-                                  onSuccess: () => setConfirmId(null),
-                                })
-                              }
-                            >
-                              {deleteMutation.isPending && (
-                                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                              )}
-                              Ναι
-                            </Button>
-                            <Button variant="ghost" size="sm" onClick={() => setConfirmId(null)}>
-                              Όχι
-                            </Button>
-                          </div>
-                        ) : (
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="text-destructive hover:bg-destructive/10 hover:text-destructive"
-                            onClick={() => setConfirmId(tenant.id)}
-                          >
-                            Διαγραφή
-                          </Button>
-                        )}
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
-            <MobileList>
-              {tenants.map((tenant) => (
-                <MobileListItem key={tenant.id}>
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="min-w-0">
-                      <div className="font-medium">{tenant.name}</div>
-                      <div className="text-sm text-muted-foreground">
-                        {tenant.slug} · {tenant.email}
-                      </div>
-                      <div className="text-sm text-muted-foreground">
-                        {formatDate(tenant.createdAt)}
-                      </div>
-                    </div>
-                    <div className="shrink-0">
-                      {confirmId === tenant.id ? (
-                        <div className="flex items-center gap-2">
-                          <span className="text-xs text-destructive">Σίγουρα;</span>
-                          <Button
-                            variant="destructive"
-                            size="sm"
-                            disabled={deleteMutation.isPending}
-                            onClick={() =>
-                              deleteMutation.mutate(tenant.id, {
-                                onSuccess: () => setConfirmId(null),
-                              })
-                            }
-                          >
-                            {deleteMutation.isPending && (
-                              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                            )}
-                            Ναι
-                          </Button>
-                          <Button variant="ghost" size="sm" onClick={() => setConfirmId(null)}>
-                            Όχι
-                          </Button>
-                        </div>
-                      ) : (
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="text-destructive hover:bg-destructive/10 hover:text-destructive"
-                          onClick={() => setConfirmId(tenant.id)}
-                        >
-                          Διαγραφή
-                        </Button>
-                      )}
-                    </div>
+          <ResponsiveTable
+            data={tenants}
+            columns={columns}
+            getRowKey={(t) => t.id}
+            renderMobileItem={(tenant) => (
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <div className="font-medium">{tenant.name}</div>
+                  <div className="text-sm text-muted-foreground">
+                    {tenant.slug} · {tenant.email}
                   </div>
-                </MobileListItem>
-              ))}
-            </MobileList>
-          </Card>
+                  <div className="text-sm text-muted-foreground">
+                    {formatDate(tenant.createdAt)}
+                  </div>
+                </div>
+                <div className="shrink-0">
+                  {confirmId === tenant.id ? (
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs text-destructive">Σίγουρα;</span>
+                      <Button
+                        variant="destructive"
+                        size="sm"
+                        disabled={deleteMutation.isPending}
+                        onClick={() =>
+                          deleteMutation.mutate(tenant.id, {
+                            onSuccess: () => setConfirmId(null),
+                          })
+                        }
+                      >
+                        {deleteMutation.isPending && (
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        )}
+                        Ναι
+                      </Button>
+                      <Button variant="ghost" size="sm" onClick={() => setConfirmId(null)}>
+                        Όχι
+                      </Button>
+                    </div>
+                  ) : (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="text-destructive hover:bg-destructive/10 hover:text-destructive"
+                      onClick={() => setConfirmId(tenant.id)}
+                    >
+                      Διαγραφή
+                    </Button>
+                  )}
+                </div>
+              </div>
+            )}
+          />
           <PaginationControls
             page={page}
             pageSize={PAGE_SIZE}

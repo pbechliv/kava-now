@@ -12,19 +12,14 @@ import { useDeleteUser } from "@/lib/hooks/use-users";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import { MobileList, MobileListItem } from "@/components/ui/mobile-list";
+import { ResponsiveTable, type ResponsiveTableColumn } from "@/components/ui/responsive-table";
 import { Spinner } from "@/components/spinner";
 import { ConfirmDialog } from "@/components/confirm-dialog";
 import { InviteUserDialog } from "@/components/admin/invite-user-dialog";
 import { UserInviteActions, useResendInviteFeedback } from "@/components/admin/user-invite-actions";
+import { useDeleteConfirmation } from "@/lib/hooks/use-delete-confirmation";
+
+type CustomerUserRow = NonNullable<ReturnType<typeof useCustomerUsers>["data"]>["users"][number];
 
 export function CustomerUsersPage() {
   const { id = "", slug } = useParams<{ id: string; slug: string }>();
@@ -34,23 +29,8 @@ export function CustomerUsersPage() {
   const resend = useResendCustomerUserInvite(id);
   const remove = useDeleteUser();
   const [inviteOpen, setInviteOpen] = useState(false);
-  const [deleteTarget, setDeleteTarget] = useState<{ id: string; name: string } | null>(null);
+  const del = useDeleteConfirmation(remove);
   const { feedback, handleResend, resendPendingId } = useResendInviteFeedback(resend);
-
-  const handleDelete = (target: { id: string; name: string }) => {
-    remove.reset();
-    setDeleteTarget(target);
-  };
-
-  const confirmDelete = () => {
-    if (!deleteTarget) return;
-    remove.mutate(deleteTarget.id, {
-      onSuccess: () => {
-        setDeleteTarget(null);
-        toast.success("Ο χρήστης αφαιρέθηκε");
-      },
-    });
-  };
 
   if (isLoading) {
     return (
@@ -61,6 +41,43 @@ export function CustomerUsersPage() {
   }
 
   const users = data?.users ?? [];
+
+  const columns: ResponsiveTableColumn<CustomerUserRow>[] = [
+    {
+      header: "Όνομα",
+      cellClassName: "font-medium",
+      cell: (u) => (
+        <>
+          {u.name}
+          {!u.emailVerified && (
+            <Badge variant="warning" className="ml-2">
+              Εκκρεμεί
+            </Badge>
+          )}
+        </>
+      ),
+    },
+    { header: "Email", cellClassName: "text-muted-foreground", cell: (u) => u.email },
+    {
+      header: "Προσκλήθηκε από",
+      cellClassName: "text-muted-foreground",
+      cell: (u) => u.invitedByName ?? "—",
+    },
+    {
+      header: undefined,
+      headClassName: "text-right",
+      cellClassName: "text-right",
+      cell: (u) => (
+        <UserInviteActions
+          user={u}
+          feedback={feedback}
+          resendPendingId={resendPendingId}
+          onResend={handleResend}
+          onDelete={del.request}
+        />
+      ),
+    },
+  ];
 
   return (
     <div className="space-y-6">
@@ -81,83 +98,45 @@ export function CustomerUsersPage() {
         </Button>
       </div>
 
-      <Card className="overflow-hidden">
-        {users.length === 0 ? (
+      {users.length === 0 ? (
+        <Card className="overflow-hidden">
           <p className="p-6 text-sm text-muted-foreground">Δεν έχουν προσκληθεί χρήστες ακόμα.</p>
-        ) : (
-          <>
-            <div className="hidden overflow-x-auto md:block">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Όνομα</TableHead>
-                    <TableHead>Email</TableHead>
-                    <TableHead>Προσκλήθηκε από</TableHead>
-                    <TableHead className="text-right" />
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {users.map((u) => (
-                    <TableRow key={u.id}>
-                      <TableCell className="font-medium">
-                        {u.name}
-                        {!u.emailVerified && (
-                          <Badge variant="warning" className="ml-2">
-                            Εκκρεμεί
-                          </Badge>
-                        )}
-                      </TableCell>
-                      <TableCell className="text-muted-foreground">{u.email}</TableCell>
-                      <TableCell className="text-muted-foreground">
-                        {u.invitedByName ?? "—"}
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <UserInviteActions
-                          user={u}
-                          feedback={feedback}
-                          resendPendingId={resendPendingId}
-                          onResend={handleResend}
-                          onDelete={handleDelete}
-                        />
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
-            <MobileList>
-              {users.map((u) => (
-                <MobileListItem key={u.id}>
-                  <div className="min-w-0">
-                    <div className="font-medium">
-                      {u.name}
-                      {!u.emailVerified && (
-                        <Badge variant="warning" className="ml-2">
-                          Εκκρεμεί
-                        </Badge>
-                      )}
-                    </div>
-                    <div className="text-sm text-muted-foreground">{u.email}</div>
-                    {u.invitedByName && (
-                      <div className="text-sm text-muted-foreground">
-                        Προσκλήθηκε από {u.invitedByName}
-                      </div>
-                    )}
+        </Card>
+      ) : (
+        <ResponsiveTable
+          data={users}
+          columns={columns}
+          getRowKey={(u) => u.id}
+          renderMobileItem={(u) => (
+            <>
+              <div className="min-w-0">
+                <div className="font-medium">
+                  {u.name}
+                  {!u.emailVerified && (
+                    <Badge variant="warning" className="ml-2">
+                      Εκκρεμεί
+                    </Badge>
+                  )}
+                </div>
+                <div className="text-sm text-muted-foreground">{u.email}</div>
+                {u.invitedByName && (
+                  <div className="text-sm text-muted-foreground">
+                    Προσκλήθηκε από {u.invitedByName}
                   </div>
-                  <UserInviteActions
-                    user={u}
-                    feedback={feedback}
-                    resendPendingId={resendPendingId}
-                    onResend={handleResend}
-                    onDelete={handleDelete}
-                    align="start"
-                  />
-                </MobileListItem>
-              ))}
-            </MobileList>
-          </>
-        )}
-      </Card>
+                )}
+              </div>
+              <UserInviteActions
+                user={u}
+                feedback={feedback}
+                resendPendingId={resendPendingId}
+                onResend={handleResend}
+                onDelete={del.request}
+                align="start"
+              />
+            </>
+          )}
+        />
+      )}
 
       <InviteUserDialog
         open={inviteOpen}
@@ -177,20 +156,16 @@ export function CustomerUsersPage() {
       />
 
       <ConfirmDialog
-        open={!!deleteTarget}
+        {...del.dialogProps}
         title="Αφαίρεση χρήστη"
         description={
           <>
             Είστε σίγουροι ότι θέλετε να αφαιρέσετε τον χρήστη{" "}
-            <span className="font-medium text-foreground">{deleteTarget?.name}</span> από τον
-            πελάτη;
+            <span className="font-medium text-foreground">{del.target?.name}</span> από τον πελάτη;
           </>
         }
         confirmLabel="Αφαίρεση"
-        pending={remove.isPending}
-        error={remove.error?.message}
-        onConfirm={confirmDelete}
-        onClose={() => setDeleteTarget(null)}
+        onConfirm={() => del.confirm(() => toast.success("Ο χρήστης αφαιρέθηκε"))}
       />
     </div>
   );
