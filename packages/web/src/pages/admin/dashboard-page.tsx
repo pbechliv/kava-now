@@ -21,6 +21,14 @@ export function DashboardPage() {
 
   if (!stats) return null;
 
+  // Match the dashboard API's date windows: today = local midnight, this week =
+  // the last 7 days. Format as local YYYY-MM-DD for the orders date filters.
+  const toDateInput = (d: Date) =>
+    `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+  const today = new Date();
+  const weekAgo = new Date(today);
+  weekAgo.setDate(weekAgo.getDate() - 7);
+
   const statCards: {
     label: string;
     value: number;
@@ -33,12 +41,14 @@ export function DashboardPage() {
       value: stats.ordersToday,
       icon: ClipboardList,
       tint: "bg-primary/10 text-primary",
+      href: `/k/${slug}/admin/orders?dateFrom=${toDateInput(today)}`,
     },
     {
       label: "Εκκρεμείς",
       value: stats.pendingOrders,
       icon: Clock,
       tint: "bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-300",
+      href: `/k/${slug}/admin/orders?status=pending`,
     },
     {
       label: "Εκκρεμεί διαβίβαση ERP",
@@ -52,12 +62,14 @@ export function DashboardPage() {
       value: stats.ordersThisWeek,
       icon: CalendarRange,
       tint: "bg-blue-100 text-blue-700 dark:bg-blue-950 dark:text-blue-300",
+      href: `/k/${slug}/admin/orders?dateFrom=${toDateInput(weekAgo)}`,
     },
     {
       label: "Πελάτες",
       value: stats.totalCustomers,
       icon: Users,
       tint: "bg-green-100 text-green-700 dark:bg-green-950 dark:text-green-300",
+      href: `/k/${slug}/admin/customers`,
     },
   ];
 
