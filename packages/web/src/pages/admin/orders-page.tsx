@@ -36,13 +36,18 @@ const STATUS_TABS: { label: string; value: OrderStatus | "all" }[] = [
 export function OrdersPage() {
   const [searchParams] = useSearchParams();
   const initialErp = searchParams.get("erpStatus");
-  const [statusFilter, setStatusFilter] = useState<OrderStatus | "all">("all");
+  const initialStatus = searchParams.get("status");
+  const [statusFilter, setStatusFilter] = useState<OrderStatus | "all">(
+    STATUS_TABS.some((tab) => tab.value === initialStatus)
+      ? (initialStatus as OrderStatus)
+      : "all",
+  );
   const [erpFilter, setErpFilter] = useState<ErpStatus | "all">(
     initialErp === "pending" || initialErp === "transmitted" ? initialErp : "all",
   );
   const [customerFilter, setCustomerFilter] = useState<CustomerPickerValue | null>(null);
-  const [dateFrom, setDateFrom] = useState("");
-  const [dateTo, setDateTo] = useState("");
+  const [dateFrom, setDateFrom] = useState(searchParams.get("dateFrom") ?? "");
+  const [dateTo, setDateTo] = useState(searchParams.get("dateTo") ?? "");
   const [page, setPage] = useState(1);
 
   const { data, isLoading } = useAdminOrders({
