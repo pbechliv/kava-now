@@ -18,6 +18,7 @@ import {
   listFiltersQuerySchema,
   markOrderTransmittedSchema,
   updateOrderStatusSchema,
+  updateOrderInternalNotesSchema,
   resolveCancellationRequestSchema,
   ORDER_STATUSES,
   ORDER_STATUS_TRANSITIONS,
@@ -150,6 +151,7 @@ ordersRouter.get("/:id", async (c) => {
       customerId: orders.customerId,
       status: orders.status,
       notes: orders.notes,
+      internalNotes: orders.internalNotes,
       createdAt: orders.createdAt,
       customerName: customers.name,
       customerEmail: customers.email,
@@ -268,6 +270,32 @@ ordersRouter.put("/:id/status", async (c) => {
   // Customers receive no order notifications (by design) — status changes are
   // visible in the customer's order views, not pushed/emailed.
   return c.json(result.updated);
+});
+
+// PATCH /:id/internal-notes — staff/owner-only note, never shown to customers.
+// Editable regardless of the ERP/fulfillment hard lock: it's ops metadata, not
+// order content. Empty string clears it (stored as NULL).
+ordersRouter.patch("/:id/internal-notes", async (c) => {
+  const tenantId = getTenantId(c);
+  const id = c.req.param("id");
+  const body = await c.req.json();
+  const parsed = updateOrderInternalNotesSchema.safeParse(body);
+  if (!parsed.success) {
+    return c.json({ error: parsed.error.flatten().fieldErrors }, 400);
+  }
+
+  const trimmed = parsed.data.internalNotes?.trim();
+  const [updated] = await db
+    .update(orders)
+    .set({ internalNotes: trimmed ? trimmed : null })
+    .where(and(eq(orders.id, id), eq(orders.tenantId, tenantId)))
+    .returning();
+
+  if (!updated) {
+    return c.json({ error: "Order not found" }, 404);
+  }
+
+  return c.json(updated);
 });
 
 // POST /:id/cancellation-request — staff approve/reject a customer's request to

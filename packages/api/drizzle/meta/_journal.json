@@ -78,6 +78,13 @@
       "when": 1781457016428,
       "tag": "0010_fearless_earthquake",
       "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1781715753398,
+      "tag": "0011_jazzy_lady_vermin",
+      "breakpoints": true
     }
   ]
 }

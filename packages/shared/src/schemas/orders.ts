@@ -22,6 +22,16 @@ export const resolveCancellationRequestSchema = z.object({
 
 export type ResolveCancellationRequestInput = z.infer<typeof resolveCancellationRequestSchema>;
 
+/**
+ * Body of PATCH /admin/orders/:id/internal-notes — staff/owner-only note.
+ * Empty string clears the note (stored as NULL).
+ */
+export const updateOrderInternalNotesSchema = z.object({
+  internalNotes: z.string().max(2000).nullable(),
+});
+
+export type UpdateOrderInternalNotesInput = z.infer<typeof updateOrderInternalNotesSchema>;
+
 export const createOrderSchema = z.object({
   items: z
     .array(

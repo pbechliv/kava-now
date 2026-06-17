@@ -248,6 +248,39 @@ suite("admin order mutations (HTTP, hard lock + soft-cancel totals)", () => {
     }
   });
 
+  it("internal notes round-trip, clear, and stay editable after the ERP lock", async () => {
+    const { orderId } = await createOrder();
+
+    // Set: leading/trailing whitespace is trimmed before store.
+    const set = await api(`/orders/${orderId}/internal-notes`, {
+      method: "PATCH",
+      body: JSON.stringify({ internalNotes: "  call the warehouse first  " }),
+    });
+    expect(set.status).toBe(200);
+    expect((await set.json()).internalNotes).toBe("call the warehouse first");
+
+    // Hard-lock the order via ERP transmission, then confirm the note is still editable.
+    const erp = await api(`/orders/${orderId}/erp`, {
+      method: "PATCH",
+      body: JSON.stringify({ mark: "400003333333333" }),
+    });
+    expect(erp.status).toBe(200);
+
+    const update = await api(`/orders/${orderId}/internal-notes`, {
+      method: "PATCH",
+      body: JSON.stringify({ internalNotes: "transmitted — invoice on file" }),
+    });
+    expect(update.status).toBe(200);
+
+    // Empty string clears the note (stored as NULL).
+    const clear = await api(`/orders/${orderId}/internal-notes`, {
+      method: "PATCH",
+      body: JSON.stringify({ internalNotes: "" }),
+    });
+    expect(clear.status).toBe(200);
+    expect((await clear.json()).internalNotes).toBeNull();
+  });
+
   it("normalizes a pasted MARK (strips whitespace) and rejects non-numeric input", async () => {
     const { orderId } = await createOrder();
 

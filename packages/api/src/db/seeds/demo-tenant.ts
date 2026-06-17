@@ -142,6 +142,7 @@ interface DemoOrder {
   customerName: DemoCustomerName;
   status: OrderStatus;
   notes: string | null;
+  internalNotes?: string | null;
   items: DemoOrderItem[];
 }
 
@@ -171,6 +172,7 @@ const DEMO_ORDERS: DemoOrder[] = [
     customerName: "Καφέ Αγορά",
     status: "shipped",
     notes: "Αναμένεται παράδοση αύριο 09:00",
+    internalNotes: "Ο οδηγός να καλέσει 10' πριν — δύσκολη πρόσβαση φορτηγού.",
     items: [
       { productName: "Coca-Cola", brand: "Coca-Cola", quantity: 96 },
       { productName: "Coca-Cola Zero", brand: "Coca-Cola", quantity: 48 },
@@ -182,6 +184,7 @@ const DEMO_ORDERS: DemoOrder[] = [
     customerName: "Μπαρ Στοά Μύλος",
     status: "confirmed",
     notes: "Φόρτωση Παρασκευή",
+    internalNotes: "Εκκρεμεί εξόφληση προηγούμενου τιμολογίου — έλεγχος πριν την αποστολή.",
     items: [
       { productName: "Septem Μέρες", brand: "Septem", quantity: 36 },
       { productName: "Άλφα", brand: "Athenian Brewery", quantity: 48 },
@@ -426,6 +429,7 @@ export async function seedDemoTenant(outerDb: PostgresJsDatabase): Promise<void>
           customerId,
           status: order.status,
           notes: order.notes,
+          internalNotes: order.internalNotes ?? null,
           erpStatus: isTransmitted ? "transmitted" : "pending",
           erpMark: isTransmitted ? `4000${String(transmittedSeq).padStart(4, "0")}` : null,
           erpTransmittedAt: isTransmitted ? new Date() : null,
