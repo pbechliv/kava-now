@@ -9,8 +9,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { OrderStatusBadge } from "@/components/order-status-badge";
 import { useUpdateOrderStatus, type AdminOrderDetail } from "@/lib/hooks/use-admin-orders";
-import { ORDER_STATUS_LABELS, ORDER_STATUS_TRANSITIONS, type OrderStatus } from "@kava-now/shared";
+import { ORDER_STATUS_TRANSITIONS, type OrderStatus } from "@kava-now/shared";
 
 export function OrderStatusCard({ order }: { order: AdminOrderDetail }) {
   const updateStatus = useUpdateOrderStatus();
@@ -50,7 +51,7 @@ export function OrderStatusCard({ order }: { order: AdminOrderDetail }) {
               <SelectContent>
                 {allowedNext.map((s) => (
                   <SelectItem key={s} value={s}>
-                    {ORDER_STATUS_LABELS[s]}
+                    <OrderStatusBadge status={s} />
                   </SelectItem>
                 ))}
               </SelectContent>
