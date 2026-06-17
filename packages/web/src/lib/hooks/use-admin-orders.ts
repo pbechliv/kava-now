@@ -30,6 +30,7 @@ export interface AdminOrderDetail {
   customerId: string;
   status: OrderStatus;
   notes: string | null;
+  internalNotes: string | null;
   createdAt: string;
   customerName: string | null;
   customerEmail: string | null;
@@ -90,6 +91,20 @@ export function useUpdateOrderStatus() {
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: ["admin", slug, "orders"] });
       void qc.invalidateQueries({ queryKey: ["admin", slug, "dashboard"] });
+    },
+  });
+}
+
+export function useUpdateOrderInternalNotes() {
+  const slug = useTenantSlug();
+  const tApi = useTenantApi();
+  const qc = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ id, internalNotes }: { id: string; internalNotes: string | null }) =>
+      tApi.patch(`/admin/orders/${id}/internal-notes`, { internalNotes }),
+    onSuccess: (_data, { id }) => {
+      void qc.invalidateQueries({ queryKey: ["admin", slug, "orders", id] });
     },
   });
 }

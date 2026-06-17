@@ -9,6 +9,7 @@ import { OrderBillingCard } from "@/components/admin/order-detail/order-billing-
 import { OrderItemsSection } from "@/components/admin/order-detail/order-items-section";
 import { OrderErpCard } from "@/components/admin/order-detail/order-erp-card";
 import { OrderCancellationCard } from "@/components/admin/order-detail/order-cancellation-card";
+import { OrderInternalNotesCard } from "@/components/admin/order-detail/order-internal-notes-card";
 import { useAdminOrder } from "@/lib/hooks/use-admin-orders";
 import { ERP_STATUS_LABELS } from "@kava-now/shared";
 import { formatDateTime } from "@/lib/format";
@@ -82,7 +83,7 @@ export function OrderDetailPage() {
         <Card>
           <CardHeader>
             <CardTitle className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-              Σημειώσεις
+              Σχόλιο πελάτη
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -90,6 +91,8 @@ export function OrderDetailPage() {
           </CardContent>
         </Card>
       )}
+
+      <OrderInternalNotesCard order={order} />
     </div>
   );
 }

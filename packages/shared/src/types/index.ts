@@ -83,7 +83,10 @@ export interface Order {
   tenantId: string;
   customerId: string;
   status: OrderStatus;
+  /** Customer-authored comment, set at creation. Visible to the customer. */
   notes: string | null;
+  /** Staff/owner-only note. Never exposed through customer-facing endpoints. */
+  internalNotes: string | null;
   createdAt: string;
   updatedAt: string;
   erpStatus: ErpStatus;

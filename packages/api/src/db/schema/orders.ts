@@ -16,7 +16,10 @@ export const orders = pgTable(
     // never destroy them.
     customerId: uuid("customer_id").notNull(),
     status: orderStatusEnum("status").notNull().default("pending"),
+    // Customer-authored comment, set at order creation. Visible to the customer.
     notes: text("notes"),
+    // Staff/owner-only note. NEVER returned by any customer-facing endpoint.
+    internalNotes: text("internal_notes"),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true })
       .notNull()

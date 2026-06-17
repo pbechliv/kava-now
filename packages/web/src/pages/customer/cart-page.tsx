@@ -220,13 +220,13 @@ export function CartPage() {
       </Card>
 
       <div className="space-y-2">
-        <Label htmlFor="order-notes">Σημειώσεις παραγγελίας</Label>
+        <Label htmlFor="order-notes">Σχόλιο παραγγελίας</Label>
         <Textarea
           id="order-notes"
           rows={3}
           value={notes}
           onChange={(e) => setNotes(e.target.value)}
-          placeholder="Προαιρετικές σημειώσεις..."
+          placeholder="Προαιρετικό σχόλιο προς το κατάστημα..."
         />
       </div>
 

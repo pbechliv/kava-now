@@ -176,6 +176,34 @@ suite("customer orders (server-side pricing + customer scoping)", () => {
     expect(foreign.status).toBe(404);
   });
 
+  it("never exposes staff internal notes through customer-facing endpoints", async () => {
+    const created = await api(must(cookies.a), "/orders", {
+      method: "POST",
+      body: JSON.stringify({
+        items: [{ productId, quantity: 1 }],
+        notes: "leave at the back door",
+      }),
+    });
+    const orderId = (await created.json()).order.id as string;
+
+    // Staff attach an internal note directly (no customer route can set it).
+    await runWithTenant(tenantId, () =>
+      db
+        .update(schema.orders)
+        .set({ internalNotes: "watch the credit limit" })
+        .where(eq(schema.orders.id, orderId)),
+    );
+
+    const detail = await (await api(must(cookies.a), `/orders/${orderId}`)).json();
+    expect(detail.notes).toBe("leave at the back door"); // own comment is visible
+    expect(detail.internalNotes).toBeUndefined(); // internal note is not
+
+    const listed = (await (await api(must(cookies.a), "/orders")).json()).data.find(
+      (r: { id: string }) => r.id === orderId,
+    );
+    expect(listed.internalNotes).toBeUndefined();
+  });
+
   // ---- Customer-initiated cancellation ----
 
   async function createOrderA(): Promise<string> {
