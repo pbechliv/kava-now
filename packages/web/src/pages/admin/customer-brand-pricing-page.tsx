@@ -4,16 +4,7 @@ import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Card } from "@/components/ui/card";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import { MobileList, MobileListItem } from "@/components/ui/mobile-list";
+import { ResponsiveTable, type ResponsiveTableColumn } from "@/components/ui/responsive-table";
 import { Spinner } from "@/components/spinner";
 import { EmptyState } from "@/components/empty-state";
 import { useCustomer } from "@/lib/hooks/use-customers";
@@ -53,6 +44,27 @@ export function CustomerBrandPricingPage() {
     );
   };
 
+  const columns: ResponsiveTableColumn<LocalAssignment>[] = [
+    { header: "Μάρκα", cellClassName: "font-medium", cell: (a) => a.brand },
+    {
+      header: "Έκπτωση %",
+      headClassName: "text-right",
+      cellClassName: "text-right",
+      cell: (a) => (
+        <Input
+          type="number"
+          step="0.01"
+          min="0"
+          max="100"
+          placeholder="0"
+          value={a.discountPct}
+          onChange={(e) => setDiscount(a.brand, e.target.value)}
+          className="ml-auto w-24 text-right"
+        />
+      ),
+    },
+  ];
+
   const handleSave = () => {
     updateMutation.mutate(
       {
@@ -90,59 +102,31 @@ export function CustomerBrandPricingPage() {
       ) : !rows || rows.length === 0 ? (
         <EmptyState message="Δεν υπάρχουν μάρκες προϊόντων" />
       ) : (
-        <Card className="overflow-hidden">
-          <div className="hidden overflow-x-auto md:block">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Μάρκα</TableHead>
-                  <TableHead className="text-right">Έκπτωση %</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {assignments.map((a) => (
-                  <TableRow key={a.brand} className={a.discountPct ? "bg-primary/5" : undefined}>
-                    <TableCell className="font-medium">{a.brand}</TableCell>
-                    <TableCell className="text-right">
-                      <Input
-                        type="number"
-                        step="0.01"
-                        min="0"
-                        max="100"
-                        placeholder="0"
-                        value={a.discountPct}
-                        onChange={(e) => setDiscount(a.brand, e.target.value)}
-                        className="ml-auto w-24 text-right"
-                      />
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </div>
-          <MobileList>
-            {assignments.map((a) => (
-              <MobileListItem key={a.brand} className={a.discountPct ? "bg-primary/5" : undefined}>
-                <div className="flex items-center justify-between gap-3">
-                  <div className="min-w-0 font-medium">{a.brand}</div>
-                  <div className="flex shrink-0 items-center gap-2">
-                    <span className="text-sm text-muted-foreground">Έκπτωση %</span>
-                    <Input
-                      type="number"
-                      step="0.01"
-                      min="0"
-                      max="100"
-                      placeholder="0"
-                      value={a.discountPct}
-                      onChange={(e) => setDiscount(a.brand, e.target.value)}
-                      className="w-24 text-right"
-                    />
-                  </div>
-                </div>
-              </MobileListItem>
-            ))}
-          </MobileList>
-        </Card>
+        <ResponsiveTable
+          data={assignments}
+          columns={columns}
+          getRowKey={(a) => a.brand}
+          rowClassName={(a) => (a.discountPct ? "bg-primary/5" : undefined)}
+          mobileItemClassName={(a) => (a.discountPct ? "bg-primary/5" : undefined)}
+          renderMobileItem={(a) => (
+            <div className="flex items-center justify-between gap-3">
+              <div className="min-w-0 font-medium">{a.brand}</div>
+              <div className="flex shrink-0 items-center gap-2">
+                <span className="text-sm text-muted-foreground">Έκπτωση %</span>
+                <Input
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  max="100"
+                  placeholder="0"
+                  value={a.discountPct}
+                  onChange={(e) => setDiscount(a.brand, e.target.value)}
+                  className="w-24 text-right"
+                />
+              </div>
+            </div>
+          )}
+        />
       )}
 
       {updateMutation.error && (

@@ -11,22 +11,16 @@ import {
   useDemoteToStaff,
 } from "@/lib/hooks/use-users";
 import { useAuth } from "@/lib/hooks/use-auth";
+import { useDeleteConfirmation } from "@/lib/hooks/use-delete-confirmation";
 import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import { MobileList, MobileListItem } from "@/components/ui/mobile-list";
+import { ResponsiveTable, type ResponsiveTableColumn } from "@/components/ui/responsive-table";
 import { Spinner } from "@/components/spinner";
 import { ConfirmDialog } from "@/components/confirm-dialog";
 import { InviteUserDialog } from "@/components/admin/invite-user-dialog";
 import { UserInviteActions, useResendInviteFeedback } from "@/components/admin/user-invite-actions";
+
+type UserRow = NonNullable<ReturnType<typeof useUsers>["data"]>["users"][number];
 
 export function UsersPage() {
   const { user: me, currentMembership } = useAuth();
@@ -37,23 +31,8 @@ export function UsersPage() {
   const promote = usePromoteToOwner();
   const demote = useDemoteToStaff();
   const [inviteOpen, setInviteOpen] = useState(false);
-  const [deleteTarget, setDeleteTarget] = useState<{ id: string; name: string } | null>(null);
   const { feedback, handleResend, resendPendingId } = useResendInviteFeedback(resend);
-
-  const handleDelete = (target: { id: string; name: string }) => {
-    remove.reset();
-    setDeleteTarget(target);
-  };
-
-  const confirmDelete = () => {
-    if (!deleteTarget) return;
-    remove.mutate(deleteTarget.id, {
-      onSuccess: () => {
-        setDeleteTarget(null);
-        toast.success("Ο χρήστης αφαιρέθηκε");
-      },
-    });
-  };
+  const del = useDeleteConfirmation(remove);
 
   if (isLoading) {
     return (
@@ -106,6 +85,54 @@ export function UsersPage() {
       </Button>
     );
 
+  const columns: ResponsiveTableColumn<UserRow>[] = [
+    {
+      header: "Όνομα",
+      cellClassName: "font-medium",
+      cell: (u) => (
+        <>
+          {u.name}
+          {u.id === me?.id && <span className="ml-2 text-xs text-muted-foreground">(εσείς)</span>}
+          {!u.emailVerified && (
+            <Badge variant="warning" className="ml-2">
+              Εκκρεμεί
+            </Badge>
+          )}
+        </>
+      ),
+    },
+    { header: "Email", cellClassName: "text-muted-foreground", cell: (u) => u.email },
+    { header: "Ρόλος", cell: (u) => ROLE_LABELS[u.role] ?? u.role },
+    {
+      header: "Προσκλήθηκε από",
+      cellClassName: "text-muted-foreground",
+      cell: (u) =>
+        u.invitedByName ? (
+          <span title={u.invitedByEmail ?? ""}>{u.invitedByName}</span>
+        ) : (
+          <span className="text-muted-foreground/60">—</span>
+        ),
+    },
+    {
+      header: undefined,
+      headClassName: "text-right",
+      cellClassName: "text-right",
+      cell: (u) =>
+        u.id !== me?.id && (
+          <UserInviteActions
+            user={u}
+            feedback={feedback}
+            resendPendingId={resendPendingId}
+            onResend={handleResend}
+            onDelete={del.request}
+          >
+            {promoteButton(u)}
+            {demoteButton(u)}
+          </UserInviteActions>
+        ),
+    },
+  ];
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -115,98 +142,46 @@ export function UsersPage() {
         </Button>
       </div>
 
-      <Card className="overflow-hidden">
-        <div className="hidden overflow-x-auto md:block">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Όνομα</TableHead>
-                <TableHead>Email</TableHead>
-                <TableHead>Ρόλος</TableHead>
-                <TableHead>Προσκλήθηκε από</TableHead>
-                <TableHead className="text-right" />
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {users.map((u) => (
-                <TableRow key={u.id}>
-                  <TableCell className="font-medium">
-                    {u.name}
-                    {u.id === me?.id && (
-                      <span className="ml-2 text-xs text-muted-foreground">(εσείς)</span>
-                    )}
-                    {!u.emailVerified && (
-                      <Badge variant="warning" className="ml-2">
-                        Εκκρεμεί
-                      </Badge>
-                    )}
-                  </TableCell>
-                  <TableCell className="text-muted-foreground">{u.email}</TableCell>
-                  <TableCell>{ROLE_LABELS[u.role] ?? u.role}</TableCell>
-                  <TableCell className="text-muted-foreground">
-                    {u.invitedByName ? (
-                      <span title={u.invitedByEmail ?? ""}>{u.invitedByName}</span>
-                    ) : (
-                      <span className="text-muted-foreground/60">—</span>
-                    )}
-                  </TableCell>
-                  <TableCell className="text-right">
-                    {u.id !== me?.id && (
-                      <UserInviteActions
-                        user={u}
-                        feedback={feedback}
-                        resendPendingId={resendPendingId}
-                        onResend={handleResend}
-                        onDelete={handleDelete}
-                      >
-                        {promoteButton(u)}
-                        {demoteButton(u)}
-                      </UserInviteActions>
-                    )}
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </div>
-        <MobileList>
-          {users.map((u) => (
-            <MobileListItem key={u.id}>
-              <div className="min-w-0">
-                <div className="font-medium">
-                  {u.name}
-                  {u.id === me?.id && (
-                    <span className="ml-2 text-xs text-muted-foreground">(εσείς)</span>
-                  )}
-                  {!u.emailVerified && (
-                    <Badge variant="warning" className="ml-2">
-                      Εκκρεμεί
-                    </Badge>
-                  )}
-                </div>
-                <div className="text-sm text-muted-foreground">{u.email}</div>
-                <div className="text-sm text-muted-foreground">
-                  {ROLE_LABELS[u.role] ?? u.role}
-                  {u.invitedByName && <> · Προσκλήθηκε από {u.invitedByName}</>}
-                </div>
+      <ResponsiveTable
+        data={users}
+        columns={columns}
+        getRowKey={(u) => u.id}
+        renderMobileItem={(u) => (
+          <>
+            <div className="min-w-0">
+              <div className="font-medium">
+                {u.name}
+                {u.id === me?.id && (
+                  <span className="ml-2 text-xs text-muted-foreground">(εσείς)</span>
+                )}
+                {!u.emailVerified && (
+                  <Badge variant="warning" className="ml-2">
+                    Εκκρεμεί
+                  </Badge>
+                )}
               </div>
-              {u.id !== me?.id && (
-                <UserInviteActions
-                  user={u}
-                  feedback={feedback}
-                  resendPendingId={resendPendingId}
-                  onResend={handleResend}
-                  onDelete={handleDelete}
-                  align="start"
-                >
-                  {promoteButton(u)}
-                  {demoteButton(u)}
-                </UserInviteActions>
-              )}
-            </MobileListItem>
-          ))}
-        </MobileList>
-      </Card>
+              <div className="text-sm text-muted-foreground">{u.email}</div>
+              <div className="text-sm text-muted-foreground">
+                {ROLE_LABELS[u.role] ?? u.role}
+                {u.invitedByName && <> · Προσκλήθηκε από {u.invitedByName}</>}
+              </div>
+            </div>
+            {u.id !== me?.id && (
+              <UserInviteActions
+                user={u}
+                feedback={feedback}
+                resendPendingId={resendPendingId}
+                onResend={handleResend}
+                onDelete={del.request}
+                align="start"
+              >
+                {promoteButton(u)}
+                {demoteButton(u)}
+              </UserInviteActions>
+            )}
+          </>
+        )}
+      />
 
       <InviteUserDialog
         open={inviteOpen}
@@ -235,20 +210,17 @@ export function UsersPage() {
       />
 
       <ConfirmDialog
-        open={!!deleteTarget}
+        {...del.dialogProps}
         title="Αφαίρεση χρήστη"
         description={
           <>
             Είστε σίγουροι ότι θέλετε να αφαιρέσετε τον χρήστη{" "}
-            <span className="font-medium text-foreground">{deleteTarget?.name}</span> από τον
+            <span className="font-medium text-foreground">{del.target?.name}</span> από τον
             λογαριασμό;
           </>
         }
         confirmLabel="Αφαίρεση"
-        pending={remove.isPending}
-        error={remove.error?.message}
-        onConfirm={confirmDelete}
-        onClose={() => setDeleteTarget(null)}
+        onConfirm={() => del.confirm(() => toast.success("Ο χρήστης αφαιρέθηκε"))}
       />
     </div>
   );

@@ -5,23 +5,17 @@ import { useTenantSlug } from "@/lib/hooks/use-tenant-api";
 import { useDebouncedValue } from "@/lib/hooks/use-debounced-value";
 import { Button } from "@/components/ui/button";
 import { SearchInput } from "@/components/ui/search-input";
-import { Card } from "@/components/ui/card";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import { MobileList, MobileListItem } from "@/components/ui/mobile-list";
+import { ResponsiveTable, type ResponsiveTableColumn } from "@/components/ui/responsive-table";
 import { Spinner } from "@/components/spinner";
 import { EmptyState } from "@/components/empty-state";
 import { ConfirmDialog } from "@/components/confirm-dialog";
 import { PaginationControls } from "@/components/pagination-controls";
 import { useCustomers, useDeleteCustomer } from "@/lib/hooks/use-customers";
+import { useDeleteConfirmation } from "@/lib/hooks/use-delete-confirmation";
 import { CustomerFormModal } from "@/components/admin/customer-form-modal";
 import { PAGE_SIZE } from "@/lib/constants";
+
+type CustomerRow = NonNullable<ReturnType<typeof useCustomers>["data"]>["data"][number];
 
 export function CustomersPage() {
   const navigate = useNavigate();
@@ -31,7 +25,6 @@ export function CustomersPage() {
   const [modalOpen, setModalOpen] = useState(false);
   const [editId, setEditId] = useState<string | undefined>(undefined);
   const [page, setPage] = useState(1);
-  const [deleteTarget, setDeleteTarget] = useState<{ id: string; name: string } | null>(null);
 
   const debouncedSearch = useDebouncedValue(search);
 
@@ -43,21 +36,7 @@ export function CustomersPage() {
   const customers = data?.data ?? [];
   const total = data?.total ?? 0;
   const deleteMutation = useDeleteCustomer();
-
-  const handleDelete = (id: string, name: string) => {
-    deleteMutation.reset();
-    setDeleteTarget({ id, name });
-  };
-
-  const confirmDelete = () => {
-    if (!deleteTarget) return;
-    deleteMutation.mutate(deleteTarget.id, {
-      onSuccess: () => {
-        setDeleteTarget(null);
-        toast.success("Ο πελάτης διαγράφηκε");
-      },
-    });
-  };
+  const del = useDeleteConfirmation(deleteMutation);
 
   const handleEdit = (id: string) => {
     setEditId(id);
@@ -68,6 +47,51 @@ export function CustomersPage() {
     setEditId(undefined);
     setModalOpen(true);
   };
+
+  const columns: ResponsiveTableColumn<CustomerRow>[] = [
+    { header: "Όνομα", cellClassName: "font-medium", cell: (c) => c.name },
+    { header: "Email", cellClassName: "text-muted-foreground", cell: (c) => c.email ?? "-" },
+    { header: "Τηλέφωνο", cellClassName: "text-muted-foreground", cell: (c) => c.phone ?? "-" },
+    {
+      header: "Υπεύθυνος",
+      cellClassName: "text-muted-foreground",
+      cell: (c) => c.contactPerson ?? "-",
+    },
+    {
+      header: "Ενέργειες",
+      headClassName: "text-right",
+      cellClassName: "text-right",
+      cell: (customer) => (
+        <div className="flex justify-end gap-1">
+          <Button variant="ghost" size="sm" onClick={() => handleEdit(customer.id)}>
+            Επεξεργασία
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => navigate(`${adminBase}/customers/${customer.id}/users`)}
+          >
+            Χρήστες
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => navigate(`${adminBase}/customers/${customer.id}/brand-pricing`)}
+          >
+            Τιμολόγηση
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="text-destructive hover:bg-destructive/10 hover:text-destructive"
+            onClick={() => del.request({ id: customer.id, name: customer.name })}
+          >
+            Διαγραφή
+          </Button>
+        </div>
+      ),
+    },
+  ];
 
   return (
     <div className="space-y-6">
@@ -99,114 +123,53 @@ export function CustomersPage() {
         />
       ) : (
         <>
-          <Card className="overflow-hidden">
-            <div className="hidden overflow-x-auto md:block">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Όνομα</TableHead>
-                    <TableHead>Email</TableHead>
-                    <TableHead>Τηλέφωνο</TableHead>
-                    <TableHead>Υπεύθυνος</TableHead>
-                    <TableHead className="text-right">Ενέργειες</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {customers.map((customer) => (
-                    <TableRow key={customer.id}>
-                      <TableCell className="font-medium">{customer.name}</TableCell>
-                      <TableCell className="text-muted-foreground">
-                        {customer.email ?? "-"}
-                      </TableCell>
-                      <TableCell className="text-muted-foreground">
-                        {customer.phone ?? "-"}
-                      </TableCell>
-                      <TableCell className="text-muted-foreground">
-                        {customer.contactPerson ?? "-"}
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <div className="flex justify-end gap-1">
-                          <Button variant="ghost" size="sm" onClick={() => handleEdit(customer.id)}>
-                            Επεξεργασία
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => navigate(`${adminBase}/customers/${customer.id}/users`)}
-                          >
-                            Χρήστες
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() =>
-                              navigate(`${adminBase}/customers/${customer.id}/brand-pricing`)
-                            }
-                          >
-                            Τιμολόγηση
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="text-destructive hover:bg-destructive/10 hover:text-destructive"
-                            onClick={() => handleDelete(customer.id, customer.name)}
-                          >
-                            Διαγραφή
-                          </Button>
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
-            <MobileList>
-              {customers.map((customer) => (
-                <MobileListItem key={customer.id}>
-                  <div className="min-w-0">
-                    <div className="font-medium">{customer.name}</div>
+          <ResponsiveTable
+            data={customers}
+            columns={columns}
+            getRowKey={(c) => c.id}
+            renderMobileItem={(customer) => (
+              <>
+                <div className="min-w-0">
+                  <div className="font-medium">{customer.name}</div>
+                  <div className="text-sm text-muted-foreground">
+                    {[customer.email, customer.phone].filter(Boolean).join(" · ") || "-"}
+                  </div>
+                  {customer.contactPerson && (
                     <div className="text-sm text-muted-foreground">
-                      {[customer.email, customer.phone].filter(Boolean).join(" · ") || "-"}
+                      Υπεύθυνος: {customer.contactPerson}
                     </div>
-                    {customer.contactPerson && (
-                      <div className="text-sm text-muted-foreground">
-                        Υπεύθυνος: {customer.contactPerson}
-                      </div>
-                    )}
-                  </div>
-                  <div className="-mx-2 flex flex-wrap">
-                    <Button variant="ghost" size="sm" onClick={() => handleEdit(customer.id)}>
-                      Επεξεργασία
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => navigate(`${adminBase}/customers/${customer.id}/users`)}
-                    >
-                      Χρήστες
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() =>
-                        navigate(`${adminBase}/customers/${customer.id}/brand-pricing`)
-                      }
-                    >
-                      Τιμολόγηση
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="text-destructive hover:bg-destructive/10 hover:text-destructive"
-                      onClick={() => handleDelete(customer.id, customer.name)}
-                    >
-                      Διαγραφή
-                    </Button>
-                  </div>
-                </MobileListItem>
-              ))}
-            </MobileList>
-          </Card>
+                  )}
+                </div>
+                <div className="-mx-2 flex flex-wrap">
+                  <Button variant="ghost" size="sm" onClick={() => handleEdit(customer.id)}>
+                    Επεξεργασία
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => navigate(`${adminBase}/customers/${customer.id}/users`)}
+                  >
+                    Χρήστες
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => navigate(`${adminBase}/customers/${customer.id}/brand-pricing`)}
+                  >
+                    Τιμολόγηση
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="text-destructive hover:bg-destructive/10 hover:text-destructive"
+                    onClick={() => del.request({ id: customer.id, name: customer.name })}
+                  >
+                    Διαγραφή
+                  </Button>
+                </div>
+              </>
+            )}
+          />
           <PaginationControls
             page={page}
             pageSize={PAGE_SIZE}
@@ -226,20 +189,17 @@ export function CustomersPage() {
       />
 
       <ConfirmDialog
-        open={!!deleteTarget}
+        {...del.dialogProps}
         title="Διαγραφή πελάτη"
         description={
           <>
             Είστε σίγουροι ότι θέλετε να διαγράψετε τον{" "}
-            <span className="font-medium text-foreground">{deleteTarget?.name}</span>; Οι
-            συνδεδεμένοι χρήστες του θα χάσουν την πρόσβασή τους.
+            <span className="font-medium text-foreground">{del.target?.name}</span>; Οι συνδεδεμένοι
+            χρήστες του θα χάσουν την πρόσβασή τους.
           </>
         }
         confirmLabel="Διαγραφή"
-        pending={deleteMutation.isPending}
-        error={deleteMutation.error?.message}
-        onConfirm={confirmDelete}
-        onClose={() => setDeleteTarget(null)}
+        onConfirm={() => del.confirm(() => toast.success("Ο πελάτης διαγράφηκε"))}
       />
     </div>
   );

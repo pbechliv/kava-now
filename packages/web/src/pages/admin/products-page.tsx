@@ -8,7 +8,6 @@ import { Button } from "@/components/ui/button";
 import { SearchInput } from "@/components/ui/search-input";
 import { FilterBar, FilterField } from "@/components/ui/filter-bar";
 import { Badge } from "@/components/ui/badge";
-import { Card } from "@/components/ui/card";
 import {
   Select,
   SelectContent,
@@ -16,24 +15,19 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import { MobileList, MobileListItem } from "@/components/ui/mobile-list";
+import { ResponsiveTable, type ResponsiveTableColumn } from "@/components/ui/responsive-table";
 import { Spinner } from "@/components/spinner";
 import { EmptyState } from "@/components/empty-state";
 import { ConfirmDialog } from "@/components/confirm-dialog";
 import { PaginationControls } from "@/components/pagination-controls";
 import { useProducts, useUpdateProduct, useDeleteProduct } from "@/lib/hooks/use-products";
 import { useCategories } from "@/lib/hooks/use-categories";
+import { useDeleteConfirmation } from "@/lib/hooks/use-delete-confirmation";
 import { UNIT_LABELS, type ImportProductsResult } from "@kava-now/shared";
 import { PAGE_SIZE } from "@/lib/constants";
 import { formatMoney } from "@/lib/format";
+
+type ProductRow = NonNullable<ReturnType<typeof useProducts>["data"]>["data"][number];
 
 interface ProductsPageLocationState {
   importResult?: ImportProductsResult;
@@ -49,7 +43,6 @@ export function ProductsPage() {
   const [categoryFilter, setCategoryFilter] = useState("");
   const [bannerResult, setBannerResult] = useState<ImportProductsResult | null>(importResult);
   const [page, setPage] = useState(1);
-  const [deleteTarget, setDeleteTarget] = useState<{ id: string; name: string } | null>(null);
 
   useEffect(() => {
     if (importResult) {
@@ -70,29 +63,83 @@ export function ProductsPage() {
   const { data: categories } = useCategories();
   const updateMutation = useUpdateProduct();
   const deleteMutation = useDeleteProduct();
+  const del = useDeleteConfirmation(deleteMutation);
 
   const handleToggleActive = (id: string, currentActive: boolean) => {
     updateMutation.mutate({ id, data: { active: !currentActive } });
   };
 
-  const handleDelete = (id: string, name: string) => {
-    deleteMutation.reset();
-    setDeleteTarget({ id, name });
-  };
+  const confirmDelete = () =>
+    del.confirm((res) =>
+      toast.success(
+        res.product
+          ? "Το προϊόν απενεργοποιήθηκε — υπάρχει σε παραγγελίες και δεν διαγράφεται"
+          : "Το προϊόν διαγράφηκε",
+      ),
+    );
 
-  const confirmDelete = () => {
-    if (!deleteTarget) return;
-    deleteMutation.mutate(deleteTarget.id, {
-      onSuccess: (res) => {
-        setDeleteTarget(null);
-        toast.success(
-          res.product
-            ? "Το προϊόν απενεργοποιήθηκε — υπάρχει σε παραγγελίες και δεν διαγράφεται"
-            : "Το προϊόν διαγράφηκε",
-        );
-      },
-    });
-  };
+  const columns: ResponsiveTableColumn<ProductRow>[] = [
+    { header: "Όνομα", cellClassName: "font-medium", cell: (p) => p.name },
+    { header: "Brand", cellClassName: "text-muted-foreground", cell: (p) => p.brand ?? "-" },
+    {
+      header: "Κατηγορία",
+      cellClassName: "text-muted-foreground",
+      cell: (p) => p.categoryName ?? "-",
+    },
+    {
+      header: "Τιμή",
+      headClassName: "text-right",
+      cellClassName: "text-right",
+      cell: (p) => formatMoney(p.basePrice),
+    },
+    {
+      header: "Μονάδα",
+      cellClassName: "text-muted-foreground",
+      cell: (p) => UNIT_LABELS[p.unit],
+    },
+    {
+      header: "Ενεργό",
+      headClassName: "text-center",
+      cellClassName: "text-center",
+      cell: (p) => (
+        <button
+          type="button"
+          onClick={() => handleToggleActive(p.id, p.active)}
+          className="inline-flex"
+          aria-pressed={p.active}
+          title={p.active ? "Απενεργοποίηση προϊόντος" : "Ενεργοποίηση προϊόντος"}
+        >
+          <Badge variant={p.active ? "success" : "muted"}>{p.active ? "Ναι" : "Όχι"}</Badge>
+        </button>
+      ),
+    },
+    {
+      header: "Ενέργειες",
+      headClassName: "text-right",
+      cellClassName: "text-right",
+      cell: (p) => (
+        <div className="flex justify-end gap-1">
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => navigate(`${adminBase}/products/${p.id}`)}
+            aria-label="Επεξεργασία"
+          >
+            <Pencil className="h-4 w-4" />
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="text-destructive hover:bg-destructive/10 hover:text-destructive"
+            onClick={() => del.request({ id: p.id, name: p.name })}
+            aria-label="Διαγραφή"
+          >
+            <Trash2 className="h-4 w-4" />
+          </Button>
+        </div>
+      ),
+    },
+  ];
 
   return (
     <div className="space-y-6">
@@ -183,126 +230,59 @@ export function ProductsPage() {
         />
       ) : (
         <>
-          <Card className="overflow-hidden">
-            <div className="hidden overflow-x-auto md:block">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Όνομα</TableHead>
-                    <TableHead>Brand</TableHead>
-                    <TableHead>Κατηγορία</TableHead>
-                    <TableHead className="text-right">Τιμή</TableHead>
-                    <TableHead>Μονάδα</TableHead>
-                    <TableHead className="text-center">Ενεργό</TableHead>
-                    <TableHead className="text-right">Ενέργειες</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {products.map((product) => (
-                    <TableRow key={product.id}>
-                      <TableCell className="font-medium">{product.name}</TableCell>
-                      <TableCell className="text-muted-foreground">
-                        {product.brand ?? "-"}
-                      </TableCell>
-                      <TableCell className="text-muted-foreground">
-                        {product.categoryName ?? "-"}
-                      </TableCell>
-                      <TableCell className="text-right">{formatMoney(product.basePrice)}</TableCell>
-                      <TableCell className="text-muted-foreground">
-                        {UNIT_LABELS[product.unit]}
-                      </TableCell>
-                      <TableCell className="text-center">
-                        <button
-                          type="button"
-                          onClick={() => handleToggleActive(product.id, product.active)}
-                          className="inline-flex"
-                          aria-pressed={product.active}
-                          title={
-                            product.active ? "Απενεργοποίηση προϊόντος" : "Ενεργοποίηση προϊόντος"
-                          }
-                        >
-                          <Badge variant={product.active ? "success" : "muted"}>
-                            {product.active ? "Ναι" : "Όχι"}
-                          </Badge>
-                        </button>
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <div className="flex justify-end gap-1">
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => navigate(`${adminBase}/products/${product.id}`)}
-                            aria-label="Επεξεργασία"
-                          >
-                            <Pencil className="h-4 w-4" />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="text-destructive hover:bg-destructive/10 hover:text-destructive"
-                            onClick={() => handleDelete(product.id, product.name)}
-                            aria-label="Διαγραφή"
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
-            <MobileList>
-              {products.map((product) => (
-                <MobileListItem key={product.id}>
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="min-w-0">
-                      <div className="font-medium">{product.name}</div>
-                      <div className="text-sm text-muted-foreground">
-                        {[product.brand, product.categoryName].filter(Boolean).join(" · ") || "-"}
-                      </div>
+          <ResponsiveTable
+            data={products}
+            columns={columns}
+            getRowKey={(p) => p.id}
+            renderMobileItem={(product) => (
+              <>
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <div className="font-medium">{product.name}</div>
+                    <div className="text-sm text-muted-foreground">
+                      {[product.brand, product.categoryName].filter(Boolean).join(" · ") || "-"}
                     </div>
-                    <button
-                      type="button"
-                      onClick={() => handleToggleActive(product.id, product.active)}
-                      className="inline-flex shrink-0"
-                      aria-pressed={product.active}
-                      title={product.active ? "Απενεργοποίηση προϊόντος" : "Ενεργοποίηση προϊόντος"}
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => handleToggleActive(product.id, product.active)}
+                    className="inline-flex shrink-0"
+                    aria-pressed={product.active}
+                    title={product.active ? "Απενεργοποίηση προϊόντος" : "Ενεργοποίηση προϊόντος"}
+                  >
+                    <Badge variant={product.active ? "success" : "muted"}>
+                      {product.active ? "Ενεργό" : "Ανενεργό"}
+                    </Badge>
+                  </button>
+                </div>
+                <div className="flex items-center justify-between gap-3">
+                  <div className="text-sm">
+                    {formatMoney(product.basePrice)}{" "}
+                    <span className="text-muted-foreground">/ {UNIT_LABELS[product.unit]}</span>
+                  </div>
+                  <div className="flex gap-1">
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => navigate(`${adminBase}/products/${product.id}`)}
+                      aria-label="Επεξεργασία"
                     >
-                      <Badge variant={product.active ? "success" : "muted"}>
-                        {product.active ? "Ενεργό" : "Ανενεργό"}
-                      </Badge>
-                    </button>
+                      <Pencil className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="text-destructive hover:bg-destructive/10 hover:text-destructive"
+                      onClick={() => del.request({ id: product.id, name: product.name })}
+                      aria-label="Διαγραφή"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
                   </div>
-                  <div className="flex items-center justify-between gap-3">
-                    <div className="text-sm">
-                      {formatMoney(product.basePrice)}{" "}
-                      <span className="text-muted-foreground">/ {UNIT_LABELS[product.unit]}</span>
-                    </div>
-                    <div className="flex gap-1">
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => navigate(`${adminBase}/products/${product.id}`)}
-                        aria-label="Επεξεργασία"
-                      >
-                        <Pencil className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="text-destructive hover:bg-destructive/10 hover:text-destructive"
-                        onClick={() => handleDelete(product.id, product.name)}
-                        aria-label="Διαγραφή"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  </div>
-                </MobileListItem>
-              ))}
-            </MobileList>
-          </Card>
+                </div>
+              </>
+            )}
+          />
           <PaginationControls
             page={page}
             pageSize={PAGE_SIZE}
@@ -313,20 +293,17 @@ export function ProductsPage() {
       )}
 
       <ConfirmDialog
-        open={!!deleteTarget}
+        {...del.dialogProps}
         title="Διαγραφή προϊόντος"
         description={
           <>
             Είστε σίγουροι ότι θέλετε να διαγράψετε το{" "}
-            <span className="font-medium text-foreground">{deleteTarget?.name}</span>; Αν
+            <span className="font-medium text-foreground">{del.target?.name}</span>; Αν
             χρησιμοποιείται σε παραγγελίες θα απενεργοποιηθεί αντί να διαγραφεί.
           </>
         }
         confirmLabel="Διαγραφή"
-        pending={deleteMutation.isPending}
-        error={deleteMutation.error?.message}
         onConfirm={confirmDelete}
-        onClose={() => setDeleteTarget(null)}
       />
     </div>
   );

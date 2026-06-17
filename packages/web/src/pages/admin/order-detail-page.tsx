@@ -1,9 +1,9 @@
 import { useParams, Link } from "react-router";
 import { ArrowLeft } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { Spinner } from "@/components/spinner";
 import { OrderStatusBadge } from "@/components/order-status-badge";
+import { ErpStatusBadge } from "@/components/admin/erp-status-badge";
 import { OrderStatusCard } from "@/components/admin/order-detail/order-status-card";
 import { OrderBillingCard } from "@/components/admin/order-detail/order-billing-card";
 import { OrderItemsSection } from "@/components/admin/order-detail/order-items-section";
@@ -11,7 +11,6 @@ import { OrderErpCard } from "@/components/admin/order-detail/order-erp-card";
 import { OrderCancellationCard } from "@/components/admin/order-detail/order-cancellation-card";
 import { OrderInternalNotesCard } from "@/components/admin/order-detail/order-internal-notes-card";
 import { useAdminOrder } from "@/lib/hooks/use-admin-orders";
-import { ERP_STATUS_LABELS } from "@kava-now/shared";
 import { formatDateTime } from "@/lib/format";
 
 export function OrderDetailPage() {
@@ -43,9 +42,7 @@ export function OrderDetailPage() {
         <div className="flex flex-wrap items-center gap-3">
           <h1 className="text-2xl font-bold tracking-tight">Παραγγελία #{order.id.slice(0, 8)}</h1>
           <OrderStatusBadge status={order.status} />
-          <Badge variant={order.erpStatus === "transmitted" ? "success" : "muted"}>
-            ERP: {ERP_STATUS_LABELS[order.erpStatus]}
-          </Badge>
+          <ErpStatusBadge status={order.erpStatus} prefix="ERP: " />
         </div>
         <p className="mt-1 text-sm text-muted-foreground">{formatDateTime(order.createdAt)}</p>
       </div>
