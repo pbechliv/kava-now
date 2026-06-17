@@ -5,6 +5,7 @@ import type { OrderStatus } from "@kava-now/shared";
 export interface DashboardStats {
   ordersToday: number;
   pendingOrders: number;
+  pendingErp: number;
   ordersThisWeek: number;
   totalCustomers: number;
   recentOrders: {

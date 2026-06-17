@@ -62,6 +62,7 @@ export function assertOrderMutable(order: {
 ordersRouter.get("/", async (c) => {
   const tenantId = getTenantId(c);
   const status = c.req.query("status") as OrderStatus | undefined;
+  const erpStatus = c.req.query("erpStatus") as ErpStatus | undefined;
 
   const filters = listFiltersQuerySchema.safeParse({
     customerId: c.req.query("customerId"),
@@ -86,6 +87,9 @@ ordersRouter.get("/", async (c) => {
 
   if (status && VALID_STATUSES.includes(status)) {
     conditions.push(eq(orders.status, status));
+  }
+  if (erpStatus === "pending" || erpStatus === "transmitted") {
+    conditions.push(eq(orders.erpStatus, erpStatus));
   }
   if (customerId) {
     conditions.push(eq(orders.customerId, customerId));
