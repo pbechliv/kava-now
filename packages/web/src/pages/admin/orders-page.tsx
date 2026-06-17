@@ -1,8 +1,15 @@
 import { useState } from "react";
-import { Link, useNavigate } from "react-router";
+import { Link, useNavigate, useSearchParams } from "react-router";
 import { useTenantSlug } from "@/lib/hooks/use-tenant-api";
 import { Input } from "@/components/ui/input";
 import { FilterBar, FilterField } from "@/components/ui/filter-bar";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Card } from "@/components/ui/card";
 import {
   Table,
@@ -24,7 +31,7 @@ import {
   CustomerPickerCombobox,
   type CustomerPickerValue,
 } from "@/components/admin/customer-picker-combobox";
-import { ERP_STATUS_LABELS, type OrderStatus } from "@kava-now/shared";
+import { ERP_STATUS_LABELS, type ErpStatus, type OrderStatus } from "@kava-now/shared";
 import { PAGE_SIZE } from "@/lib/constants";
 import { formatMoney, formatDate } from "@/lib/format";
 
@@ -43,7 +50,12 @@ export function OrdersPage() {
   const navigate = useNavigate();
   const slug = useTenantSlug();
   const adminBase = `/k/${slug}/admin`;
+  const [searchParams] = useSearchParams();
+  const initialErp = searchParams.get("erpStatus");
   const [statusFilter, setStatusFilter] = useState<OrderStatus | "all">("all");
+  const [erpFilter, setErpFilter] = useState<ErpStatus | "all">(
+    initialErp === "pending" || initialErp === "transmitted" ? initialErp : "all",
+  );
   const [customerFilter, setCustomerFilter] = useState<CustomerPickerValue | null>(null);
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
@@ -51,6 +63,7 @@ export function OrdersPage() {
 
   const { data, isLoading } = useAdminOrders({
     status: statusFilter === "all" ? undefined : statusFilter,
+    erpStatus: erpFilter === "all" ? undefined : erpFilter,
     customerId: customerFilter?.id,
     dateFrom: dateFrom || undefined,
     dateTo: dateTo || undefined,
@@ -82,14 +95,38 @@ export function OrdersPage() {
       </Tabs>
 
       <FilterBar
-        activeCount={(customerFilter ? 1 : 0) + (dateFrom ? 1 : 0) + (dateTo ? 1 : 0)}
+        activeCount={
+          (customerFilter ? 1 : 0) +
+          (dateFrom ? 1 : 0) +
+          (dateTo ? 1 : 0) +
+          (erpFilter !== "all" ? 1 : 0)
+        }
         onClear={() => {
           setCustomerFilter(null);
           setDateFrom("");
           setDateTo("");
+          setErpFilter("all");
           setPage(1);
         }}
       >
+        <FilterField label="ERP" className="md:w-48">
+          <Select
+            value={erpFilter}
+            onValueChange={(v) => {
+              setErpFilter(v as ErpStatus | "all");
+              setPage(1);
+            }}
+          >
+            <SelectTrigger className="w-full" aria-label="ERP">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Όλες</SelectItem>
+              <SelectItem value="pending">{ERP_STATUS_LABELS.pending}</SelectItem>
+              <SelectItem value="transmitted">{ERP_STATUS_LABELS.transmitted}</SelectItem>
+            </SelectContent>
+          </Select>
+        </FilterField>
         <FilterField label="Πελάτης" className="md:w-64">
           <CustomerPickerCombobox
             selected={customerFilter}

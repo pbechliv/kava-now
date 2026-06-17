@@ -38,7 +38,20 @@ export const createOrderSchema = z.object({
 export type CreateOrderInput = z.infer<typeof createOrderSchema>;
 
 export const markOrderTransmittedSchema = z.object({
-  mark: z.string().trim().min(1, "Το MARK είναι υποχρεωτικό"),
+  // The AADE MARK is a numeric string. Copy-paste from AADE/Galaxy commonly
+  // carries stray whitespace, so we strip all whitespace before validating that
+  // only digits remain. Length stays permissive on purpose — the AADE digit
+  // count can drift, and we only want to catch obvious cruft/typos.
+  mark: z
+    .string()
+    .trim()
+    .transform((v) => v.replace(/\s+/g, ""))
+    .pipe(
+      z
+        .string()
+        .min(1, "Το MARK είναι υποχρεωτικό")
+        .regex(/^\d+$/, "Το MARK πρέπει να περιέχει μόνο αριθμούς"),
+    ),
 });
 
 export type MarkOrderTransmittedInput = z.infer<typeof markOrderTransmittedSchema>;

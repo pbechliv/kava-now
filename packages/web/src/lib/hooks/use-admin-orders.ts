@@ -5,6 +5,7 @@ import type { ErpStatus, OrderItem, OrderStatus, PaginatedResponse } from "@kava
 
 interface OrderFilters {
   status?: OrderStatus;
+  erpStatus?: ErpStatus;
   customerId?: string;
   dateFrom?: string;
   dateTo?: string;

@@ -1,5 +1,5 @@
 import { Link } from "react-router";
-import { CalendarRange, ClipboardList, Clock, Users } from "lucide-react";
+import { CalendarRange, ClipboardList, Clock, Send, Users } from "lucide-react";
 import { useTenantSlug } from "@/lib/hooks/use-tenant-api";
 import { Card, CardContent } from "@/components/ui/card";
 import {
@@ -31,7 +31,13 @@ export function DashboardPage() {
 
   if (!stats) return null;
 
-  const statCards = [
+  const statCards: {
+    label: string;
+    value: number;
+    icon: typeof ClipboardList;
+    tint: string;
+    href?: string;
+  }[] = [
     {
       label: "Παραγγελίες Σήμερα",
       value: stats.ordersToday,
@@ -43,6 +49,13 @@ export function DashboardPage() {
       value: stats.pendingOrders,
       icon: Clock,
       tint: "bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-300",
+    },
+    {
+      label: "Εκκρεμεί διαβίβαση ERP",
+      value: stats.pendingErp,
+      icon: Send,
+      tint: "bg-rose-100 text-rose-700 dark:bg-rose-950 dark:text-rose-300",
+      href: `/k/${slug}/admin/orders?erpStatus=pending`,
     },
     {
       label: "Αυτή την Εβδομάδα",
@@ -62,27 +75,36 @@ export function DashboardPage() {
     <div className="space-y-6">
       <h1 className="text-2xl font-bold tracking-tight">Πίνακας Ελέγχου</h1>
 
-      <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
-        {statCards.map((stat) => (
-          <Card key={stat.label} className="py-0">
-            <CardContent className="flex items-center gap-3 p-3 sm:p-4">
-              <div
-                className={cn(
-                  "flex size-9 shrink-0 items-center justify-center rounded-lg sm:size-10",
-                  stat.tint,
-                )}
-              >
-                <stat.icon className="size-4 sm:size-5" />
-              </div>
-              <div className="min-w-0">
-                <p className="line-clamp-2 text-xs font-medium text-muted-foreground">
-                  {stat.label}
-                </p>
-                <p className="text-2xl font-bold leading-tight sm:text-3xl">{stat.value}</p>
-              </div>
-            </CardContent>
-          </Card>
-        ))}
+      <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-5">
+        {statCards.map((stat) => {
+          const card = (
+            <Card className={cn("h-full py-0", stat.href && "transition-colors hover:bg-muted/50")}>
+              <CardContent className="flex items-center gap-3 p-3 sm:p-4">
+                <div
+                  className={cn(
+                    "flex size-9 shrink-0 items-center justify-center rounded-lg sm:size-10",
+                    stat.tint,
+                  )}
+                >
+                  <stat.icon className="size-4 sm:size-5" />
+                </div>
+                <div className="min-w-0">
+                  <p className="line-clamp-2 text-xs font-medium text-muted-foreground">
+                    {stat.label}
+                  </p>
+                  <p className="text-2xl font-bold leading-tight sm:text-3xl">{stat.value}</p>
+                </div>
+              </CardContent>
+            </Card>
+          );
+          return stat.href ? (
+            <Link key={stat.label} to={stat.href}>
+              {card}
+            </Link>
+          ) : (
+            <div key={stat.label}>{card}</div>
+          );
+        })}
       </div>
 
       <div>

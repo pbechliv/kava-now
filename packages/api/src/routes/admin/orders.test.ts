@@ -248,6 +248,53 @@ suite("admin order mutations (HTTP, hard lock + soft-cancel totals)", () => {
     }
   });
 
+  it("normalizes a pasted MARK (strips whitespace) and rejects non-numeric input", async () => {
+    const { orderId } = await createOrder();
+
+    // Copy-paste cruft: surrounding + internal whitespace is stripped before store.
+    const ok = await api(`/orders/${orderId}/erp`, {
+      method: "PATCH",
+      body: JSON.stringify({ mark: "  4000 0123 4567 890  " }),
+    });
+    expect(ok.status).toBe(200);
+    expect((await ok.json()).erpMark).toBe("400001234567890");
+
+    // A MARK with letters is rejected at the boundary, not stored.
+    const { orderId: other } = await createOrder();
+    const bad = await api(`/orders/${other}/erp`, {
+      method: "PATCH",
+      body: JSON.stringify({ mark: "MARK-123" }),
+    });
+    expect(bad.status).toBe(400);
+    const detail = await (await api(`/orders/${other}`)).json();
+    expect(detail.erpStatus).toBe("pending");
+    expect(detail.erpMark).toBeNull();
+  });
+
+  it("filters the orders list by erpStatus", async () => {
+    const { orderId: transmitted } = await createOrder();
+    const { orderId: pending } = await createOrder();
+
+    const mark = await api(`/orders/${transmitted}/erp`, {
+      method: "PATCH",
+      body: JSON.stringify({ mark: "400007777777777" }),
+    });
+    expect(mark.status).toBe(200);
+
+    const ids = async (query: string) => {
+      const list = await (await api(`/orders${query}`)).json();
+      return new Set(list.data.map((r: { id: string }) => r.id));
+    };
+
+    const transmittedIds = await ids("?erpStatus=transmitted");
+    expect(transmittedIds.has(transmitted)).toBe(true);
+    expect(transmittedIds.has(pending)).toBe(false);
+
+    const pendingIds = await ids("?erpStatus=pending");
+    expect(pendingIds.has(pending)).toBe(true);
+    expect(pendingIds.has(transmitted)).toBe(false);
+  });
+
   it("fulfillment status past 'confirmed' locks item mutations; invalid transitions 400", async () => {
     const { orderId, itemIds } = await createOrder();
 
