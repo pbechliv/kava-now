@@ -5,7 +5,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Spinner } from "@/components/spinner";
 import { OrdersTable } from "@/components/admin/orders-table";
 import { useDashboardStats } from "@/lib/hooks/use-dashboard";
-import { cn, href } from "@/lib/utils";
+import { cn } from "@/lib/utils";
 
 export function DashboardPage() {
   const slug = useTenantSlug();
@@ -113,7 +113,8 @@ export function DashboardPage() {
         <div className="flex items-center justify-between">
           <h2 className="text-lg font-semibold">Πρόσφατες Παραγγελίες</h2>
           <Link
-            to={href(`/k/${slug}/admin/orders`)}
+            to="/k/$slug/admin/orders"
+            params={{ slug }}
             className="text-sm font-medium text-primary hover:underline"
           >
             Προβολή όλων

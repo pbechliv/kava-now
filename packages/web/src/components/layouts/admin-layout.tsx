@@ -1,8 +1,9 @@
-import { Link, Outlet, useParams } from "@tanstack/react-router";
-import { href, initials } from "@/lib/utils";
+import { Link, Outlet } from "@tanstack/react-router";
+import { initials } from "@/lib/utils";
 import { LayoutDashboard, ClipboardList, LayoutGrid, LogOut } from "lucide-react";
 import { useAuth } from "@/lib/hooks/use-auth";
 import { useLogout } from "@/lib/hooks/use-logout";
+import { useTenantSlug } from "@/lib/hooks/use-tenant-api";
 import {
   Sidebar,
   SidebarContent,
@@ -37,7 +38,7 @@ import { ADMIN_NAV_GROUPS, ADMIN_MANAGE_SECTIONS } from "@/lib/admin-nav";
 export function AdminLayout() {
   const { user, tenant } = useAuth();
   const logout = useLogout();
-  const { slug } = useParams({ strict: false });
+  const slug = useTenantSlug();
   const base = `/k/${slug}/admin`;
 
   // Mobile bottom bar: the two daily destinations + a hub that folds in the
@@ -74,23 +75,27 @@ export function AdminLayout() {
               <SidebarGroupLabel>{group.label}</SidebarGroupLabel>
               <SidebarGroupContent>
                 <SidebarMenu>
-                  {group.items.map((item) => (
-                    <SidebarMenuItem key={item.path}>
-                      <SidebarMenuButton asChild>
-                        <Link to={href(`${base}/${item.path}`)}>
-                          {({ isActive }) => (
-                            <span
-                              data-active={isActive || undefined}
-                              className="flex w-full items-center gap-2 data-[active]:font-semibold data-[active]:text-sidebar-primary"
-                            >
-                              <item.icon className="h-4 w-4" />
-                              <span>{item.label}</span>
-                            </span>
-                          )}
-                        </Link>
-                      </SidebarMenuButton>
-                    </SidebarMenuItem>
-                  ))}
+                  {group.items.map((item) => {
+                    // Data-driven path (item.path) — not a static route literal.
+                    const to: string = `${base}/${item.path}`;
+                    return (
+                      <SidebarMenuItem key={item.path}>
+                        <SidebarMenuButton asChild>
+                          <Link to={to}>
+                            {({ isActive }) => (
+                              <span
+                                data-active={isActive || undefined}
+                                className="flex w-full items-center gap-2 data-[active]:font-semibold data-[active]:text-sidebar-primary"
+                              >
+                                <item.icon className="h-4 w-4" />
+                                <span>{item.label}</span>
+                              </span>
+                            )}
+                          </Link>
+                        </SidebarMenuButton>
+                      </SidebarMenuItem>
+                    );
+                  })}
                 </SidebarMenu>
               </SidebarGroupContent>
             </SidebarGroup>
@@ -106,7 +111,11 @@ export function AdminLayout() {
           <Separator orientation="vertical" className="mx-1 hidden h-5 md:block" />
           {/* On mobile the sidebar is replaced by the bottom bar, so the brand
               lives in the header instead. */}
-          <Link to={href(`${base}/dashboard`)} className="flex items-center gap-2 md:hidden">
+          <Link
+            to="/k/$slug/admin/dashboard"
+            params={{ slug }}
+            className="flex items-center gap-2 md:hidden"
+          >
             <Logo className="size-6" />
             <span className="max-w-[12rem] truncate font-semibold">
               {tenant?.name ?? "KavaNow"}

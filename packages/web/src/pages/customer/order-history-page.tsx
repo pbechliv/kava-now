@@ -3,7 +3,7 @@ import { Link, useNavigate } from "@tanstack/react-router";
 import { useTenantSlug } from "@/lib/hooks/use-tenant-api";
 import { buttonVariants } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { cn, href } from "@/lib/utils";
+import { cn } from "@/lib/utils";
 import { EmptyState } from "@/components/empty-state";
 import { ErrorBanner } from "@/components/error-banner";
 import { Spinner } from "@/components/spinner";
@@ -16,7 +16,6 @@ import { formatMoney, formatDateLong } from "@/lib/format";
 export function OrderHistoryPage() {
   const navigate = useNavigate();
   const slug = useTenantSlug();
-  const base = `/k/${slug}`;
   const [page, setPage] = useState(1);
   const { data, isLoading, error } = useCustomerOrders({ page, pageSize: PAGE_SIZE });
   const orders = data?.data ?? [];
@@ -36,7 +35,7 @@ export function OrderHistoryPage() {
         <EmptyState
           message="Δεν υπάρχουν παραγγελίες"
           actionLabel="Πλοήγηση στον κατάλογο"
-          onAction={() => navigate({ to: `${base}/catalog` })}
+          onAction={() => navigate({ to: "/k/$slug/catalog", params: { slug } })}
         />
       ) : (
         <>
@@ -58,7 +57,8 @@ export function OrderHistoryPage() {
                     </div>
                   </div>
                   <Link
-                    to={href(`${base}/orders/${order.id}`)}
+                    to="/k/$slug/orders/$id"
+                    params={{ slug, id: order.id }}
                     className={cn(
                       buttonVariants({ variant: "outline", size: "sm" }),
                       "self-start sm:self-auto",
