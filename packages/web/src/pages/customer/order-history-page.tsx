@@ -1,6 +1,7 @@
-import { useState } from "react";
 import { Link, useNavigate } from "@tanstack/react-router";
+import type { PageOnlySearch } from "@kava-now/shared";
 import { useTenantSlug } from "@/lib/hooks/use-tenant-api";
+import { useFilterSearch } from "@/lib/hooks/use-filter-search";
 import { buttonVariants } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
@@ -16,7 +17,8 @@ import { formatMoney, formatDateLong } from "@/lib/format";
 export function OrderHistoryPage() {
   const navigate = useNavigate();
   const slug = useTenantSlug();
-  const [page, setPage] = useState(1);
+  const { search, setFilters } = useFilterSearch<PageOnlySearch>();
+  const page = search.page ?? 1;
   const { data, isLoading, error } = useCustomerOrders({ page, pageSize: PAGE_SIZE });
   const orders = data?.data ?? [];
   const total = data?.total ?? 0;
@@ -74,7 +76,7 @@ export function OrderHistoryPage() {
             page={page}
             pageSize={PAGE_SIZE}
             total={total}
-            onPageChange={setPage}
+            onPageChange={(p) => setFilters({ page: p })}
           />
         </>
       )}

@@ -2,42 +2,17 @@ import { useQuery, useMutation, useQueryClient, keepPreviousData } from "@tansta
 import { useTenantApi, useTenantSlug } from "./use-tenant-api";
 import { withQuery } from "../utils";
 import type {
-  Order,
-  OrderItem,
   OrderStatus,
   CreateOrderInput,
+  CreateOrderResponse,
+  CustomerOrderListItem,
+  CustomerOrderDetailResponse,
+  PageOnlySearch,
   PaginatedResponse,
 } from "@kava-now/shared";
 import { useCartStore } from "../store/cart";
 
-interface OrderSummary {
-  id: string;
-  status: OrderStatus;
-  notes: string | null;
-  createdAt: string;
-  itemCount: number;
-  totalAmount: number;
-}
-
-// The customer detail endpoint deliberately omits ERP internals and tenantId,
-// and item rows omit orderId (implied by the URL).
-interface OrderDetail {
-  id: string;
-  status: OrderStatus;
-  notes: string | null;
-  createdAt: string;
-  items: Omit<OrderItem, "orderId">[];
-}
-
-interface CreateOrderResponse {
-  order: Order;
-  items: OrderItem[];
-}
-
-interface CustomerOrdersFilters {
-  page?: number;
-  pageSize?: number;
-}
+type CustomerOrdersFilters = PageOnlySearch & { pageSize?: number };
 
 export function useCustomerOrders(filters?: CustomerOrdersFilters) {
   const slug = useTenantSlug();
@@ -46,7 +21,7 @@ export function useCustomerOrders(filters?: CustomerOrdersFilters) {
 
   return useQuery({
     queryKey: ["customer", slug, "orders", filters],
-    queryFn: () => tApi.get<PaginatedResponse<OrderSummary>>(path),
+    queryFn: () => tApi.get<PaginatedResponse<CustomerOrderListItem>>(path),
     placeholderData: keepPreviousData,
   });
 }
@@ -56,7 +31,7 @@ export function useCustomerOrder(id: string | undefined) {
   const tApi = useTenantApi();
   return useQuery({
     queryKey: ["customer", slug, "orders", id],
-    queryFn: () => tApi.get<OrderDetail>(`/customer/orders/${id}`),
+    queryFn: () => tApi.get<CustomerOrderDetailResponse>(`/customer/orders/${id}`),
     enabled: !!id,
   });
 }

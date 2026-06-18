@@ -12,15 +12,14 @@ import {
 import { resolvePrice } from "../../services/pricing";
 import { customerUserRecipients, sendPushToUsers } from "../../services/push";
 import type { AppEnv } from "../../types";
+import type { PreSerialize } from "../../serialize";
 import { getTenant, getTenantId, getUser } from "../../context";
 import {
-  paginationQuerySchema,
-  listFiltersQuerySchema,
+  adminOrdersQuerySchema,
   markOrderTransmittedSchema,
   updateOrderStatusSchema,
   updateOrderInternalNotesSchema,
   resolveCancellationRequestSchema,
-  ORDER_STATUSES,
   ORDER_STATUS_TRANSITIONS,
   addOrderItemSchema,
   updateOrderItemSchema,
@@ -29,11 +28,13 @@ import {
   type ApiErrorCode,
   type OrderStatus,
   type ErpStatus,
+  type AdminOrderListItem,
+  type AdminOrderItemWithProduct,
+  type AdminOrderDetailResponse,
+  type PaginatedResponse,
 } from "@kava-now/shared";
 
 const ordersRouter = new Hono<AppEnv>();
-
-const VALID_STATUSES: readonly OrderStatus[] = ORDER_STATUSES;
 
 type MutableGuard = { ok: true } | { ok: false; code: ApiErrorCode; error: string };
 
@@ -62,34 +63,19 @@ export function assertOrderMutable(order: {
 // GET / — list orders with filters
 ordersRouter.get("/", async (c) => {
   const tenantId = getTenantId(c);
-  const status = c.req.query("status") as OrderStatus | undefined;
-  const erpStatus = c.req.query("erpStatus") as ErpStatus | undefined;
 
-  const filters = listFiltersQuerySchema.safeParse({
-    customerId: c.req.query("customerId"),
-    dateFrom: c.req.query("dateFrom"),
-    dateTo: c.req.query("dateTo"),
-  });
-  if (!filters.success) {
-    return c.json({ error: filters.error.flatten().fieldErrors }, 400);
+  const parsed = adminOrdersQuerySchema.safeParse(c.req.query());
+  if (!parsed.success) {
+    return c.json({ error: parsed.error.flatten().fieldErrors }, 400);
   }
-  const { customerId, dateFrom, dateTo } = filters.data;
-
-  const pagination = paginationQuerySchema.safeParse({
-    page: c.req.query("page"),
-    pageSize: c.req.query("pageSize"),
-  });
-  if (!pagination.success) {
-    return c.json({ error: pagination.error.flatten().fieldErrors }, 400);
-  }
-  const { page, pageSize } = pagination.data;
+  const { status, erpStatus, customerId, dateFrom, dateTo, page, pageSize } = parsed.data;
 
   const conditions: ReturnType<typeof eq>[] = [eq(orders.tenantId, tenantId)];
 
-  if (status && VALID_STATUSES.includes(status)) {
+  if (status) {
     conditions.push(eq(orders.status, status));
   }
-  if (erpStatus === "pending" || erpStatus === "transmitted") {
+  if (erpStatus) {
     conditions.push(eq(orders.erpStatus, erpStatus));
   }
   if (customerId) {
@@ -137,7 +123,13 @@ ordersRouter.get("/", async (c) => {
     .limit(pageSize)
     .offset((page - 1) * pageSize);
 
-  return c.json({ data: rows, total, page, pageSize });
+  const body = {
+    data: rows,
+    total,
+    page,
+    pageSize,
+  } satisfies PreSerialize<PaginatedResponse<AdminOrderListItem>>;
+  return c.json(body);
 });
 
 // GET /:id — order detail with items and customer info
@@ -179,7 +171,7 @@ ordersRouter.get("/:id", async (c) => {
     return c.json({ error: "Order not found" }, 404);
   }
 
-  const items = await db
+  const items: AdminOrderItemWithProduct[] = await db
     .select({
       id: orderItems.id,
       productId: orderItems.productId,
@@ -207,7 +199,8 @@ ordersRouter.get("/:id", async (c) => {
   );
   const total = totalCents / 100;
 
-  return c.json({ ...order, items, total });
+  const body = { ...order, items, total } satisfies PreSerialize<AdminOrderDetailResponse>;
+  return c.json(body);
 });
 
 // PUT /:id/status — update order status

@@ -4,9 +4,11 @@ import {
   createProductSchema,
   updateProductSchema,
   importProductsBatchSchema,
-  paginationQuerySchema,
-  listFiltersQuerySchema,
+  adminProductsQuerySchema,
   type ImportProductsResult,
+  type ProductWithCategoryName,
+  type ProductNameBrandKey,
+  type PaginatedResponse,
   API_ERROR_CODES,
 } from "@kava-now/shared";
 import { db } from "../../db/connection";
@@ -19,6 +21,7 @@ import {
   FK_CONSTRAINTS,
 } from "../../db/errors";
 import type { AppEnv } from "../../types";
+import type { PreSerialize } from "../../serialize";
 import { getTenantId } from "../../context";
 
 const DUPLICATE_ERP_REF_RESPONSE = {
@@ -62,22 +65,12 @@ const productsRouter = new Hono<AppEnv>();
 // GET / — list products with optional filters
 productsRouter.get("/", async (c) => {
   const tenantId = getTenantId(c);
-  const filters = listFiltersQuerySchema.safeParse({ categoryId: c.req.query("categoryId") });
-  if (!filters.success) {
-    return c.json({ error: filters.error.flatten().fieldErrors }, 400);
-  }
-  const { categoryId } = filters.data;
-  const search = c.req.query("search");
-  const active = c.req.query("active");
 
-  const pagination = paginationQuerySchema.safeParse({
-    page: c.req.query("page"),
-    pageSize: c.req.query("pageSize"),
-  });
-  if (!pagination.success) {
-    return c.json({ error: pagination.error.flatten().fieldErrors }, 400);
+  const parsed = adminProductsQuerySchema.safeParse(c.req.query());
+  if (!parsed.success) {
+    return c.json({ error: parsed.error.flatten().fieldErrors }, 400);
   }
-  const { page, pageSize } = pagination.data;
+  const { categoryId, search, active, page, pageSize } = parsed.data;
 
   const conditions = [eq(products.tenantId, tenantId)];
 
@@ -134,14 +127,20 @@ productsRouter.get("/", async (c) => {
     .limit(pageSize)
     .offset((page - 1) * pageSize);
 
-  return c.json({ data: rows, total, page, pageSize });
+  const body = {
+    data: rows,
+    total,
+    page,
+    pageSize,
+  } satisfies PreSerialize<PaginatedResponse<ProductWithCategoryName>>;
+  return c.json(body);
 });
 
 // GET /keys — every (name, brand) pair in this tenant. Feeds the import
 // preview's new-vs-update badges, which a paginated list cannot (#61).
 productsRouter.get("/keys", async (c) => {
   const tenantId = getTenantId(c);
-  const rows = await db
+  const rows: ProductNameBrandKey[] = await db
     .select({ name: products.name, brand: products.brand })
     .from(products)
     .where(eq(products.tenantId, tenantId));
@@ -401,7 +400,8 @@ productsRouter.get("/:id", async (c) => {
     return c.json({ error: "Product not found" }, 404);
   }
 
-  return c.json(product);
+  const body = product satisfies PreSerialize<ProductWithCategoryName>;
+  return c.json(body);
 });
 
 // PUT /:id — update product

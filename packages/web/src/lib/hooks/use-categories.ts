@@ -1,10 +1,13 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useTenantApi, useTenantSlug } from "./use-tenant-api";
-import type { Category, CreateCategoryInput, UpdateCategoryInput } from "@kava-now/shared";
+import type {
+  Category,
+  CreateCategoryInput,
+  UpdateCategoryInput,
+  CategoryWithParentName,
+} from "@kava-now/shared";
 
-interface CategoryWithParent extends Category {
-  parentName: string | null;
-}
+type CategoryWithParent = CategoryWithParentName;
 
 export function useCategories() {
   const slug = useTenantSlug();

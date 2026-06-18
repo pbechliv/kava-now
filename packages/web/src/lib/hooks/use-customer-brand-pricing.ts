@@ -1,11 +1,9 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useTenantApi, useTenantSlug } from "./use-tenant-api";
-import type { UpdateCustomerBrandPricingInput } from "@kava-now/shared";
+import type { UpdateCustomerBrandPricingInput, CustomerBrandPrice } from "@kava-now/shared";
 
-export interface BrandPricingRow {
-  brand: string;
-  discountPct: number;
-}
+// Local alias for the historical name used by the brand-pricing page.
+export type BrandPricingRow = CustomerBrandPrice;
 
 export function useCustomerBrandPricing(customerId: string | undefined) {
   const slug = useTenantSlug();

@@ -1,26 +1,16 @@
 import { useQuery, useMutation, useQueryClient, keepPreviousData } from "@tanstack/react-query";
 import { api } from "../api";
 import { withQuery } from "../utils";
-import type { RegisterInput, PaginatedResponse } from "@kava-now/shared";
+import type {
+  RegisterInput,
+  SuperAdminTenantListItem,
+  CreateTenantResponse,
+  PageOnlySearch,
+  PaginatedResponse,
+} from "@kava-now/shared";
 
-interface TenantListItem {
-  id: string;
-  name: string;
-  slug: string;
-  email: string;
-  createdAt: string;
-}
-
-interface CreateTenantResponse {
-  success: boolean;
-  slug: string;
-  hasPassword: boolean;
-}
-
-interface SuperAdminTenantsFilters {
-  page?: number;
-  pageSize?: number;
-}
+type TenantListItem = SuperAdminTenantListItem;
+type SuperAdminTenantsFilters = PageOnlySearch & { pageSize?: number };
 
 export function useSuperAdminTenants(filters?: SuperAdminTenantsFilters) {
   const path = withQuery("/api/superadmin/tenants", filters);

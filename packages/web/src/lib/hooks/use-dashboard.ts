@@ -1,22 +1,9 @@
 import { useQuery } from "@tanstack/react-query";
 import { useTenantApi, useTenantSlug } from "./use-tenant-api";
-import type { OrderStatus } from "@kava-now/shared";
+import type { DashboardStatsResponse } from "@kava-now/shared";
 
-export interface DashboardStats {
-  ordersToday: number;
-  pendingOrders: number;
-  pendingErp: number;
-  ordersThisWeek: number;
-  totalCustomers: number;
-  recentOrders: {
-    id: string;
-    status: OrderStatus;
-    createdAt: string;
-    customerName: string | null;
-    itemCount: number;
-    total: number;
-  }[];
-}
+// Local alias for the historical name used by the dashboard page.
+export type DashboardStats = DashboardStatsResponse;
 
 export function useDashboardStats() {
   const slug = useTenantSlug();

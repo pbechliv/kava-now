@@ -1,7 +1,10 @@
 import { Hono } from "hono";
 import { and, eq } from "drizzle-orm";
-import { z } from "zod";
-import { API_ERROR_CODES } from "@kava-now/shared";
+import {
+  API_ERROR_CODES,
+  updateProfileSchema,
+  type CustomerProfileResponse,
+} from "@kava-now/shared";
 import { db } from "../../db/connection";
 import { customers } from "../../db/schema/index";
 import { requireCustomerProfile } from "../../middleware/require-customer-profile";
@@ -39,12 +42,8 @@ profileRouter.get("/", async (c) => {
     return c.json({ error: "Customer not found" }, 404);
   }
 
-  return c.json(customer);
-});
-
-const updateProfileSchema = z.object({
-  phone: z.string().optional().nullable(),
-  address: z.string().optional().nullable(),
+  const body: CustomerProfileResponse = customer;
+  return c.json(body);
 });
 
 // PATCH / — customers may update their own phone and address. Name and email
@@ -84,7 +83,8 @@ profileRouter.patch("/", async (c) => {
     return c.json({ error: "Customer not found" }, 404);
   }
 
-  return c.json(updated);
+  const responseBody: CustomerProfileResponse = updated;
+  return c.json(responseBody);
 });
 
 export { profileRouter };

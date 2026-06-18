@@ -1,21 +1,9 @@
 import { create } from "zustand";
 import { persist, createJSONStorage } from "zustand/middleware";
-import type { ProductUnit } from "@kava-now/shared";
+import type { CatalogProduct } from "@kava-now/shared";
 
-export interface CatalogProduct {
-  id: string;
-  name: string;
-  brand: string;
-  description: string | null;
-  imageUrl: string | null;
-  unit: ProductUnit;
-  volumeMl: number | null;
-  // numeric column — serialized as a string by the API
-  alcoholPct: string | null;
-  categoryId: string | null;
-  categoryName: string | null;
-  resolvedPrice: number;
-}
+// Re-exported so cart consumers keep importing it from the store.
+export type { CatalogProduct };
 
 export interface CartItem {
   product: CatalogProduct;

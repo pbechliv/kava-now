@@ -57,7 +57,17 @@ export const resetPasswordSchema = z
     path: ["confirmPassword"],
   });
 
+// Body of PATCH /api/auth/me — edit the current user's name and/or email.
+// currentPassword is proof-of-ownership, required by the handler when the email
+// actually changes.
+export const updateMeSchema = z.object({
+  name: z.string().min(2, "Το όνομα πρέπει να έχει τουλάχιστον 2 χαρακτήρες").optional(),
+  email: z.email("Μη έγκυρο email").optional(),
+  currentPassword: z.string().optional(),
+});
+
 export type LoginInput = z.infer<typeof loginSchema>;
 export type RegisterInput = z.infer<typeof registerSchema>;
 export type ForgotPasswordInput = z.infer<typeof forgotPasswordSchema>;
 export type ResetPasswordInput = z.infer<typeof resetPasswordSchema>;
+export type UpdateMeInput = z.infer<typeof updateMeSchema>;

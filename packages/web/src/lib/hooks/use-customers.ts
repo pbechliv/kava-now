@@ -5,14 +5,11 @@ import type {
   Customer,
   CreateCustomerInput,
   UpdateCustomerInput,
+  AdminCustomersSearch,
   PaginatedResponse,
 } from "@kava-now/shared";
 
-interface CustomerFilters {
-  search?: string;
-  page?: number;
-  pageSize?: number;
-}
+type CustomerFilters = AdminCustomersSearch & { pageSize?: number };
 
 export function useCustomers(filters?: CustomerFilters) {
   const slug = useTenantSlug();

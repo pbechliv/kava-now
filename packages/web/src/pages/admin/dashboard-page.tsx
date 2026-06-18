@@ -5,6 +5,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Spinner } from "@/components/spinner";
 import { OrdersTable } from "@/components/admin/orders-table";
 import { useDashboardStats } from "@/lib/hooks/use-dashboard";
+import type { OrderStatus } from "@kava-now/shared";
 import { cn } from "@/lib/utils";
 
 export function DashboardPage() {
@@ -36,7 +37,7 @@ export function DashboardPage() {
     icon: typeof ClipboardList;
     tint: string;
     to: string;
-    search?: { status?: string; erpStatus?: "pending" | "transmitted"; dateFrom?: string };
+    search?: { status?: OrderStatus; erpStatus?: "pending" | "transmitted"; dateFrom?: string };
   }[] = [
     {
       label: "Παραγγελίες Σήμερα",

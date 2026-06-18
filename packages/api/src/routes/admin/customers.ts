@@ -6,7 +6,11 @@ import {
   updateCustomerSchema,
   updateCustomerBrandPricingSchema,
   inviteCustomerUserSchema,
-  paginationQuerySchema,
+  adminCustomersQuerySchema,
+  type Customer,
+  type CustomerBrandPrice,
+  type CustomerLinkedUsersResponse,
+  type PaginatedResponse,
   API_ERROR_CODES,
 } from "@kava-now/shared";
 import { db } from "../../db/connection";
@@ -32,6 +36,7 @@ import {
   FK_CONSTRAINTS,
 } from "../../db/errors";
 import type { AppEnv } from "../../types";
+import type { PreSerialize } from "../../serialize";
 import { getTenant, getTenantId, getUser } from "../../context";
 
 const DUPLICATE_ERP_REF_RESPONSE = {
@@ -76,16 +81,12 @@ customersRouter.get("/brands", async (c) => {
 // GET / — list customers with optional ?search
 customersRouter.get("/", async (c) => {
   const tenantId = getTenantId(c);
-  const search = c.req.query("search");
 
-  const pagination = paginationQuerySchema.safeParse({
-    page: c.req.query("page"),
-    pageSize: c.req.query("pageSize"),
-  });
-  if (!pagination.success) {
-    return c.json({ error: pagination.error.flatten().fieldErrors }, 400);
+  const parsed = adminCustomersQuerySchema.safeParse(c.req.query());
+  if (!parsed.success) {
+    return c.json({ error: parsed.error.flatten().fieldErrors }, 400);
   }
-  const { page, pageSize } = pagination.data;
+  const { search, page, pageSize } = parsed.data;
 
   const conditions = [eq(customers.tenantId, tenantId)];
 
@@ -129,7 +130,13 @@ customersRouter.get("/", async (c) => {
     .limit(pageSize)
     .offset((page - 1) * pageSize);
 
-  return c.json({ data: rows, total, page, pageSize });
+  const body = {
+    data: rows,
+    total,
+    page,
+    pageSize,
+  } satisfies PreSerialize<PaginatedResponse<Customer>>;
+  return c.json(body);
 });
 
 // POST / — create customer (also creates a customer-user when email is set)
@@ -400,7 +407,7 @@ customersRouter.get("/:id/brand-pricing", async (c) => {
 
   const pricingMap = new Map(pricing.map((p) => [p.brand, p.discountPct]));
 
-  const result = brands.map((b) => ({
+  const result: CustomerBrandPrice[] = brands.map((b) => ({
     brand: b.brand,
     discountPct: pricingMap.has(b.brand) ? Number(pricingMap.get(b.brand)) : 0,
   }));
@@ -482,7 +489,8 @@ customersRouter.get("/:id/users", async (c) => {
     .where(and(eq(tenantMemberships.customerId, id), eq(tenantMemberships.tenantId, tenantId)))
     .orderBy(tenantMemberships.createdAt);
 
-  return c.json({ users: rows });
+  const body = { users: rows } satisfies PreSerialize<CustomerLinkedUsersResponse>;
+  return c.json(body);
 });
 
 // POST /:customerId/users/:userId/resend-invite — re-issue the set-password invite

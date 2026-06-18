@@ -2,7 +2,9 @@ import { Hono } from "hono";
 import { eq, and, sql, gte } from "drizzle-orm";
 import { db } from "../../db/connection";
 import { orders, orderItems, customers } from "../../db/schema/index";
+import type { DashboardStatsResponse } from "@kava-now/shared";
 import type { AppEnv } from "../../types";
+import type { PreSerialize } from "../../serialize";
 import { getTenantId } from "../../context";
 
 const dashboardRouter = new Hono<AppEnv>();
@@ -66,14 +68,15 @@ dashboardRouter.get("/stats", async (c) => {
       .limit(5),
   ]);
 
-  return c.json({
+  const body = {
     ordersToday: ordersToday?.count ?? 0,
     pendingOrders: pendingOrders?.count ?? 0,
     pendingErp: pendingErp?.count ?? 0,
     ordersThisWeek: ordersThisWeek?.count ?? 0,
     totalCustomers: totalCustomers?.count ?? 0,
     recentOrders,
-  });
+  } satisfies PreSerialize<DashboardStatsResponse>;
+  return c.json(body);
 });
 
 export { dashboardRouter };

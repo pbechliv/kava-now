@@ -2,7 +2,12 @@ import { Hono } from "hono";
 import { eq, ne, and } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
 import { z } from "zod";
-import { API_ERROR_CODES, normalizeEmail } from "@kava-now/shared";
+import {
+  API_ERROR_CODES,
+  normalizeEmail,
+  updateMeSchema,
+  type AuthMeResponse,
+} from "@kava-now/shared";
 import { db } from "../db/connection";
 import { config } from "../config";
 import { accounts, pushSubscriptions, tenantMemberships, tenants, users } from "../db/schema/index";
@@ -78,7 +83,7 @@ auth.get("/me", requireAuth, async (c) => {
     invitedBy: r.invitedByName ? { name: r.invitedByName, email: r.invitedByEmail ?? "" } : null,
   }));
 
-  return c.json({
+  const body: AuthMeResponse = {
     user: {
       id: authUser.id,
       email: authUser.email,
@@ -87,13 +92,8 @@ auth.get("/me", requireAuth, async (c) => {
       hasPassword: !!credentialAccount,
     },
     memberships,
-  });
-});
-
-const updateMeSchema = z.object({
-  name: z.string().min(2, "Το όνομα πρέπει να έχει τουλάχιστον 2 χαρακτήρες").optional(),
-  email: z.email("Μη έγκυρο email").optional(),
-  currentPassword: z.string().optional(),
+  };
+  return c.json(body);
 });
 
 // PATCH /me — edit the current user's name and/or email.

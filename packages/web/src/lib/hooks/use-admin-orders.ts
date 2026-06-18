@@ -1,62 +1,22 @@
 import { useQuery, useMutation, useQueryClient, keepPreviousData } from "@tanstack/react-query";
 import { useTenantApi, useTenantSlug } from "./use-tenant-api";
 import { withQuery } from "../utils";
-import type { ErpStatus, OrderItem, OrderStatus, PaginatedResponse } from "@kava-now/shared";
+import type {
+  AdminOrderListItem,
+  AdminOrderDetailResponse,
+  AdminOrderItemWithProduct,
+  AdminOrdersSearch,
+  OrderStatus,
+  PaginatedResponse,
+} from "@kava-now/shared";
 
-interface OrderFilters {
-  status?: OrderStatus;
-  erpStatus?: ErpStatus;
-  customerId?: string;
-  dateFrom?: string;
-  dateTo?: string;
-  page?: number;
-  pageSize?: number;
-}
+// Wire contracts live in @kava-now/shared (one definition for API + web).
+// Local aliases keep the historical names used across the order components.
+export type AdminOrderRow = AdminOrderListItem;
+export type AdminOrderDetail = AdminOrderDetailResponse;
+export type AdminOrderItem = AdminOrderItemWithProduct;
 
-export interface AdminOrderRow {
-  id: string;
-  customerId: string;
-  status: OrderStatus;
-  notes: string | null;
-  createdAt: string;
-  customerName: string | null;
-  erpStatus: ErpStatus;
-  itemCount: number;
-  total: number;
-}
-
-export interface AdminOrderDetail {
-  id: string;
-  customerId: string;
-  status: OrderStatus;
-  notes: string | null;
-  internalNotes: string | null;
-  createdAt: string;
-  customerName: string | null;
-  customerEmail: string | null;
-  customerPhone: string | null;
-  customerAddress: string | null;
-  customerVatId: string | null;
-  customerTaxOffice: string | null;
-  customerProfession: string | null;
-  customerBillingAddress: string | null;
-  customerErpRef: string | null;
-  erpStatus: ErpStatus;
-  erpMark: string | null;
-  erpTransmittedAt: string | null;
-  erpTransmittedBy: string | null;
-  erpTransmittedByName: string | null;
-  erpTransmittedByEmail: string | null;
-  items: AdminOrderItem[];
-  total: number;
-}
-
-// The admin detail endpoint omits orderId (implied by the URL) and joins in
-// the product's sku/erpRef.
-export type AdminOrderItem = Omit<OrderItem, "orderId"> & {
-  sku: string | null;
-  erpRef: string | null;
-};
+type OrderFilters = AdminOrdersSearch & { pageSize?: number };
 
 export function useAdminOrders(filters?: OrderFilters) {
   const slug = useTenantSlug();

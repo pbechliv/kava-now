@@ -7,25 +7,17 @@ import type {
   UpdateProductInput,
   ImportProductRow,
   ImportProductsResult,
+  ProductWithCategoryName,
+  ProductNameBrandKey,
+  AdminProductsSearch,
   PaginatedResponse,
 } from "@kava-now/shared";
 
-interface ProductWithCategory extends Product {
-  categoryName: string | null;
-}
+type ProductWithCategory = ProductWithCategoryName;
+// Local alias for the historical name used by the import preview page.
+export type ProductKey = ProductNameBrandKey;
 
-interface ProductFilters {
-  categoryId?: string;
-  search?: string;
-  active?: "true" | "false";
-  page?: number;
-  pageSize?: number;
-}
-
-export interface ProductKey {
-  name: string;
-  brand: string;
-}
+type ProductFilters = AdminProductsSearch & { pageSize?: number };
 
 /** All (name, brand) pairs — unpaginated, for the import preview (#61). */
 export function useProductKeys() {
