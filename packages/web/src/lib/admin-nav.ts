@@ -10,7 +10,7 @@ import {
 } from "lucide-react";
 
 export interface AdminNavLink {
-  /** Path relative to the tenant admin base (`/k/:slug/admin`). */
+  /** Path relative to the tenant admin base (`/k/$slug/admin`). */
   path: string;
   label: string;
   icon: LucideIcon;

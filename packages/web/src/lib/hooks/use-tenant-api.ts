@@ -3,7 +3,7 @@ import { api } from "../api";
 
 /**
  * Returns the slug for the current tenant route. Throws if used outside a
- * `/k/:slug/*` route — caller bug.
+ * `/k/$slug/*` route — caller bug.
  */
 export function useTenantSlug(): string {
   const { slug } = useParams({ strict: false });

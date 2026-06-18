@@ -135,7 +135,8 @@ const HomePage = lazyRouteComponent(() => import("./pages/home-page"), "HomePage
 const NotFoundPage = lazyRouteComponent(() => import("./pages/not-found-page"), "NotFoundPage");
 
 // ---------------------------------------------------------------------------
-// Route tree — mirrors the former React Router tree in app.tsx one-to-one.
+// Route tree — path-based multi-tenancy: platform auth + superadmin at the
+// root, everything tenant-scoped under /k/$slug.
 // ---------------------------------------------------------------------------
 
 const rootRoute = createRootRoute({

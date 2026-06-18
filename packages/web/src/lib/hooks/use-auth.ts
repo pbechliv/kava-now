@@ -20,7 +20,7 @@ export interface AuthMeResponse {
 
 /**
  * Hook for authenticated user state. Returns the global user + their list of
- * tenant memberships. The "current" membership (matching the URL's `:slug`
+ * tenant memberships. The "current" membership (matching the URL's `$slug`
  * param, if any) is also exposed for convenience.
  */
 type AuthState = { user: AuthUser | null; memberships: TenantMembership[] };

@@ -11,7 +11,7 @@ interface RequireRoleProps {
 /**
  * Allow access if:
  * - user is superadmin and `superadmin` is in `allowed`, OR
- * - user has a membership in the current `:slug` tenant whose role is in `allowed`.
+ * - user has a membership in the current `$slug` tenant whose role is in `allowed`.
  *
  * Otherwise redirect to the user's own home.
  */
