@@ -4,9 +4,24 @@
       <rect width="512" height="512" fill="#fff" />
       <rect x="194" y="302" width="124" height="11" rx="5.5" fill="#000" />
     </mask>
+    <!-- subtle top-lit gradient (midpoint ≈ brand amber-600 #d97706) -->
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="512" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#e6870f" />
+      <stop offset="1" stop-color="#c66405" />
+    </linearGradient>
+    <!-- faint specular sheen across the top edge -->
+    <linearGradient id="sheen" x1="0" y1="0" x2="0" y2="512" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#fff" stop-opacity="0.1" />
+      <stop offset="0.42" stop-color="#fff" stop-opacity="0" />
+    </linearGradient>
+    <!-- soft drop shadow lifting the amphora off the surface -->
+    <filter id="lift" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="7" stdDeviation="7" flood-color="#7a3d00" flood-opacity="0.28" />
+    </filter>
   </defs>
-  <rect width="512" height="512" rx="112" fill="#d97706" />
-  <g mask="url(#band)" transform="translate(256 256) scale(1.08) translate(-256 -256)">
+  <rect width="512" height="512" rx="112" fill="url(#bg)" />
+  <rect width="512" height="512" rx="112" fill="url(#sheen)" />
+  <g mask="url(#band)" filter="url(#lift)" transform="translate(256 256) scale(1.08) translate(-256 -256)">
     <rect x="210" y="92" width="92" height="27" rx="13" fill="#fff" />
     <path fill="#fff" d="M226 119 L286 119 C286 158 288 176 294 192 C336 208 352 226 352 254 C352 304 318 348 284 364 L284 382 L228 382 L228 364 C194 348 160 304 160 254 C160 226 176 208 218 192 C224 176 226 158 226 119 Z" />
     <path fill="#fff" d="M230 390 L282 390 C282 400 290 405 302 408 C310 410 314 414 314 419 L198 419 C198 414 202 410 210 408 C222 405 230 400 230 390 Z" />

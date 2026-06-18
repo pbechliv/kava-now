@@ -11,6 +11,9 @@ import { cn } from "@/lib/utils";
  */
 export function Logo({ className }: { className?: string }) {
   const maskId = useId();
+  const bgId = useId();
+  const sheenId = useId();
+  const liftId = useId();
   return (
     <svg
       viewBox="0 0 512 512"
@@ -24,9 +27,28 @@ export function Logo({ className }: { className?: string }) {
           {/* decorative pottery band — partial cut keeps the silhouette connected */}
           <rect x="194" y="302" width="124" height="11" rx="5.5" fill="#000" />
         </mask>
+        {/* subtle top-lit gradient (midpoint ≈ brand amber-600 #d97706) */}
+        <linearGradient id={bgId} x1="0" y1="0" x2="0" y2="512" gradientUnits="userSpaceOnUse">
+          <stop offset="0" stopColor="#e6870f" />
+          <stop offset="1" stopColor="#c66405" />
+        </linearGradient>
+        {/* faint specular sheen across the top edge */}
+        <linearGradient id={sheenId} x1="0" y1="0" x2="0" y2="512" gradientUnits="userSpaceOnUse">
+          <stop offset="0" stopColor="#fff" stopOpacity="0.1" />
+          <stop offset="0.42" stopColor="#fff" stopOpacity="0" />
+        </linearGradient>
+        {/* soft drop shadow lifting the amphora off the surface */}
+        <filter id={liftId} x="-20%" y="-20%" width="140%" height="140%">
+          <feDropShadow dx="0" dy="7" stdDeviation="7" floodColor="#7a3d00" floodOpacity="0.28" />
+        </filter>
       </defs>
-      <rect width="512" height="512" rx="112" fill="#d97706" />
-      <g mask={`url(#${maskId})`} transform="translate(256 256) scale(1.08) translate(-256 -256)">
+      <rect width="512" height="512" rx="112" fill={`url(#${bgId})`} />
+      <rect width="512" height="512" rx="112" fill={`url(#${sheenId})`} />
+      <g
+        mask={`url(#${maskId})`}
+        filter={`url(#${liftId})`}
+        transform="translate(256 256) scale(1.08) translate(-256 -256)"
+      >
         {/* mouth */}
         <rect x="210" y="92" width="92" height="27" rx="13" fill="#fff" />
         {/* neck + body */}
