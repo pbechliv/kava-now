@@ -1,5 +1,5 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { useLocation, useNavigate, useParams } from "react-router";
+import { useLocation, useNavigate, useParams } from "@tanstack/react-router";
 import { api } from "../api";
 import { authClient } from "../auth-client";
 import { getUserHomePath, returnPathFromState } from "../auth-home";
@@ -10,7 +10,7 @@ export function useLogin() {
   const queryClient = useQueryClient();
   const navigate = useNavigate();
   const location = useLocation();
-  const { slug } = useParams<{ slug: string }>();
+  const { slug } = useParams({ strict: false });
 
   return useMutation<void, Error, LoginInput>({
     // LoginPage always renders this error inline — skip the global toast.
@@ -31,7 +31,8 @@ export function useLogin() {
       if (me.user) {
         // Honor the deep link RequireAuth stashed before bouncing here (#62).
         const returnTo = returnPathFromState(location.state);
-        void navigate(returnTo ?? getUserHomePath(me.user, me.memberships, slug ?? null), {
+        void navigate({
+          to: returnTo ?? getUserHomePath(me.user, me.memberships, slug ?? null),
           replace: true,
         });
       }

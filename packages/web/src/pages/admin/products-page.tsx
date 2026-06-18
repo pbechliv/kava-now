@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useLocation, useNavigate } from "react-router";
+import { useLocation, useNavigate } from "@tanstack/react-router";
 import { toast } from "sonner";
 import { useTenantSlug } from "@/lib/hooks/use-tenant-api";
 import { useDebouncedValue } from "@/lib/hooks/use-debounced-value";
@@ -29,16 +29,12 @@ import { formatMoney } from "@/lib/format";
 
 type ProductRow = NonNullable<ReturnType<typeof useProducts>["data"]>["data"][number];
 
-interface ProductsPageLocationState {
-  importResult?: ImportProductsResult;
-}
-
 export function ProductsPage() {
   const navigate = useNavigate();
   const location = useLocation();
   const slug = useTenantSlug();
   const adminBase = `/k/${slug}/admin`;
-  const importResult = (location.state as ProductsPageLocationState | null)?.importResult ?? null;
+  const importResult = location.state.importResult ?? null;
   const [search, setSearch] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("");
   const [bannerResult, setBannerResult] = useState<ImportProductsResult | null>(importResult);
@@ -46,7 +42,7 @@ export function ProductsPage() {
 
   useEffect(() => {
     if (importResult) {
-      void navigate(location.pathname, { replace: true, state: null });
+      void navigate({ to: location.pathname, replace: true, state: {} });
     }
   }, [importResult, location.pathname, navigate]);
 
@@ -122,7 +118,7 @@ export function ProductsPage() {
           <Button
             variant="ghost"
             size="icon"
-            onClick={() => navigate(`${adminBase}/products/${p.id}`)}
+            onClick={() => navigate({ to: `${adminBase}/products/${p.id}` })}
             aria-label="Επεξεργασία"
           >
             <Pencil className="h-4 w-4" />
@@ -146,10 +142,13 @@ export function ProductsPage() {
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <h1 className="text-2xl font-bold tracking-tight">Προϊόντα</h1>
         <div className="flex flex-wrap gap-2">
-          <Button variant="outline" onClick={() => navigate(`${adminBase}/products/import`)}>
+          <Button
+            variant="outline"
+            onClick={() => navigate({ to: `${adminBase}/products/import` })}
+          >
             Εισαγωγή από αρχείο
           </Button>
-          <Button onClick={() => navigate(`${adminBase}/products/new`)}>Νέο Προϊόν</Button>
+          <Button onClick={() => navigate({ to: `${adminBase}/products/new` })}>Νέο Προϊόν</Button>
         </div>
       </div>
 
@@ -226,7 +225,7 @@ export function ProductsPage() {
         <EmptyState
           message="Δεν βρέθηκαν προϊόντα"
           actionLabel="Νέο Προϊόν"
-          onAction={() => navigate(`${adminBase}/products/new`)}
+          onAction={() => navigate({ to: `${adminBase}/products/new` })}
         />
       ) : (
         <>
@@ -264,7 +263,7 @@ export function ProductsPage() {
                     <Button
                       variant="ghost"
                       size="icon"
-                      onClick={() => navigate(`${adminBase}/products/${product.id}`)}
+                      onClick={() => navigate({ to: `${adminBase}/products/${product.id}` })}
                       aria-label="Επεξεργασία"
                     >
                       <Pencil className="h-4 w-4" />

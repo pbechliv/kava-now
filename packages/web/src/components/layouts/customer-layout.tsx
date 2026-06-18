@@ -1,9 +1,10 @@
 import { useEffect } from "react";
 import { initials } from "@/lib/utils";
-import { NavLink, Outlet, Link, useParams } from "react-router";
+import { Link, Outlet } from "@tanstack/react-router";
 import { LogOut, ShoppingBag, ShoppingCart, ScrollText, UserRound } from "lucide-react";
 import { useAuth } from "@/lib/hooks/use-auth";
 import { useLogout } from "@/lib/hooks/use-logout";
+import { useTenantSlug } from "@/lib/hooks/use-tenant-api";
 import {
   Sidebar,
   SidebarContent,
@@ -38,7 +39,7 @@ import { Logo } from "@/components/logo";
 export function CustomerLayout() {
   const { user, tenant } = useAuth();
   const logout = useLogout();
-  const { slug } = useParams<{ slug: string }>();
+  const slug = useTenantSlug();
   const base = `/k/${slug}`;
 
   // Load this tenant's cart (and reset on tenant switch) — single source of
@@ -82,7 +83,7 @@ export function CustomerLayout() {
                 {navItems.map((item) => (
                   <SidebarMenuItem key={item.to}>
                     <SidebarMenuButton asChild>
-                      <NavLink to={item.to} end={item.end}>
+                      <Link to={item.to} activeOptions={{ exact: item.end ?? false }}>
                         {({ isActive }) => (
                           <span
                             data-active={isActive || undefined}
@@ -97,7 +98,7 @@ export function CustomerLayout() {
                             ) : null}
                           </span>
                         )}
-                      </NavLink>
+                      </Link>
                     </SidebarMenuButton>
                   </SidebarMenuItem>
                 ))}
@@ -115,7 +116,11 @@ export function CustomerLayout() {
           <Separator orientation="vertical" className="mx-1 hidden h-5 md:block" />
           {/* On mobile the sidebar is replaced by the bottom bar, so the brand
               lives in the header instead. */}
-          <Link to={`${base}/catalog`} className="flex items-center gap-2 md:hidden">
+          <Link
+            to="/k/$slug/catalog"
+            params={{ slug }}
+            className="flex items-center gap-2 md:hidden"
+          >
             <Logo className="size-6" />
             <span className="max-w-[12rem] truncate font-semibold">
               {tenant?.name ?? "KavaNow"}
@@ -125,7 +130,7 @@ export function CustomerLayout() {
           {/* Quick cart access on desktop; on mobile the bottom bar's Cart tab
               (with the same badge) covers this. */}
           <Button asChild variant="ghost" size="sm" className="relative gap-2 max-md:hidden">
-            <Link to={`${base}/cart`} aria-label="Καλάθι">
+            <Link to="/k/$slug/cart" params={{ slug }} aria-label="Καλάθι">
               <ShoppingCart className="h-5 w-5" />
               {cartCount > 0 && (
                 <Badge

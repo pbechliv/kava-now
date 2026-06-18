@@ -1,6 +1,6 @@
 import { useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { useParams } from "react-router";
+import { useParams } from "@tanstack/react-router";
 import * as Sentry from "@sentry/react";
 import { api, ApiError } from "../api";
 import type { TenantMembership } from "@kava-now/shared";
@@ -20,7 +20,7 @@ export interface AuthMeResponse {
 
 /**
  * Hook for authenticated user state. Returns the global user + their list of
- * tenant memberships. The "current" membership (matching the URL's `:slug`
+ * tenant memberships. The "current" membership (matching the URL's `$slug`
  * param, if any) is also exposed for convenience.
  */
 type AuthState = { user: AuthUser | null; memberships: TenantMembership[] };
@@ -48,7 +48,7 @@ export function useAuth() {
     // — retry them so a logged-in user isn't stranded on the login form.
     retry: (failureCount) => failureCount < 2,
   });
-  const { slug } = useParams<{ slug: string }>();
+  const { slug } = useParams({ strict: false });
 
   // The query only errors on non-401 failures (network, 5xx): auth state is
   // unknown, not "logged out". Consumers render a retry panel (AuthUnavailable)

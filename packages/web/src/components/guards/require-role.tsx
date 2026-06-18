@@ -1,4 +1,4 @@
-import { Navigate, useParams } from "react-router";
+import { Navigate, useParams } from "@tanstack/react-router";
 import { useAuth } from "@/lib/hooks/use-auth";
 import { getUserHomePath } from "@/lib/auth-home";
 import type { MembershipRole } from "@kava-now/shared";
@@ -11,13 +11,13 @@ interface RequireRoleProps {
 /**
  * Allow access if:
  * - user is superadmin and `superadmin` is in `allowed`, OR
- * - user has a membership in the current `:slug` tenant whose role is in `allowed`.
+ * - user has a membership in the current `$slug` tenant whose role is in `allowed`.
  *
  * Otherwise redirect to the user's own home.
  */
 export function RequireRole({ allowed, children }: RequireRoleProps) {
   const { user, memberships, currentMembership } = useAuth();
-  const { slug: routeSlug } = useParams<{ slug: string }>();
+  const { slug: routeSlug } = useParams({ strict: false });
 
   if (!user) {
     return <Navigate to="/login" replace />;

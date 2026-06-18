@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useNavigate } from "react-router";
+import { useNavigate } from "@tanstack/react-router";
 import { toast } from "sonner";
 import { useTenantSlug } from "@/lib/hooks/use-tenant-api";
 import { Loader2, Trash2 } from "lucide-react";
@@ -56,7 +56,7 @@ export function CartPage() {
       {
         onSuccess: () => {
           toast.success("Η παραγγελία καταχωρήθηκε");
-          void navigate(`${base}/orders`);
+          void navigate({ to: `${base}/orders` });
         },
       },
     );
@@ -69,7 +69,7 @@ export function CartPage() {
         <EmptyState
           message="Το καλάθι σας είναι άδειο"
           actionLabel="Πλοήγηση στον κατάλογο"
-          onAction={() => navigate(`${base}/catalog`)}
+          onAction={() => navigate({ to: `${base}/catalog` })}
         />
       </div>
     );

@@ -1,4 +1,4 @@
-import { Link, useNavigate } from "react-router";
+import { Link, useNavigate } from "@tanstack/react-router";
 import { OrderStatusBadge } from "@/components/order-status-badge";
 import { ErpStatusBadge } from "@/components/admin/erp-status-badge";
 import { ResponsiveTable, type ResponsiveTableColumn } from "@/components/ui/responsive-table";
@@ -37,7 +37,6 @@ export function OrdersTable({
 }: OrdersTableProps) {
   const navigate = useNavigate();
   const slug = useTenantSlug();
-  const adminBase = `/k/${slug}/admin`;
 
   const columns: ResponsiveTableColumn<OrdersTableOrder>[] = [
     ...(showId
@@ -91,7 +90,8 @@ export function OrdersTable({
             cellClassName: "text-right",
             cell: (order: OrdersTableOrder) => (
               <Link
-                to={`${adminBase}/orders/${order.id}`}
+                to="/k/$slug/admin/orders/$id"
+                params={{ slug, id: order.id }}
                 className="text-sm font-medium text-primary hover:underline"
                 onClick={(e) => e.stopPropagation()}
               >
@@ -109,7 +109,9 @@ export function OrdersTable({
       columns={columns}
       getRowKey={(order) => order.id}
       emptyMessage={emptyMessage}
-      onRowClick={(order) => navigate(`${adminBase}/orders/${order.id}`)}
+      onRowClick={(order) =>
+        navigate({ to: "/k/$slug/admin/orders/$id", params: { slug, id: order.id } })
+      }
       renderMobileItem={(order) => (
         <>
           <div className="flex items-start justify-between gap-3">

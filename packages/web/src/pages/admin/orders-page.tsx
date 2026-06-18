@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useSearchParams } from "react-router";
+import { useSearch } from "@tanstack/react-router";
 import { Input } from "@/components/ui/input";
 import { FilterBar, FilterField } from "@/components/ui/filter-bar";
 import {
@@ -34,18 +34,19 @@ const STATUS_TABS: { label: string; value: OrderStatus | "all" }[] = [
 ];
 
 export function OrdersPage() {
-  const [searchParams] = useSearchParams();
-  const initialErp = searchParams.get("erpStatus");
-  const initialStatus = searchParams.get("status");
+  const {
+    erpStatus: initialErp,
+    status: initialStatus,
+    dateFrom: initialDateFrom,
+    dateTo: initialDateTo,
+  } = useSearch({ strict: false });
   const [statusFilter, setStatusFilter] = useState<OrderStatus | "all">(
     STATUS_TABS.some((tab) => tab.value === initialStatus) ? (initialStatus as OrderStatus) : "all",
   );
-  const [erpFilter, setErpFilter] = useState<ErpStatus | "all">(
-    initialErp === "pending" || initialErp === "transmitted" ? initialErp : "all",
-  );
+  const [erpFilter, setErpFilter] = useState<ErpStatus | "all">(initialErp ?? "all");
   const [customerFilter, setCustomerFilter] = useState<CustomerPickerValue | null>(null);
-  const [dateFrom, setDateFrom] = useState(searchParams.get("dateFrom") ?? "");
-  const [dateTo, setDateTo] = useState(searchParams.get("dateTo") ?? "");
+  const [dateFrom, setDateFrom] = useState(initialDateFrom ?? "");
+  const [dateTo, setDateTo] = useState(initialDateTo ?? "");
   const [page, setPage] = useState(1);
 
   const { data, isLoading } = useAdminOrders({

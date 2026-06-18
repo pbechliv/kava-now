@@ -13,7 +13,7 @@ import { BootSplash } from "@/components/boot-splash";
  * fall through to the route, where `AuthUnavailable` (in `LoginPage`/`RequireAuth`)
  * handles the retry UI.
  *
- * The same `BootSplash` backs the route Suspense fallback (see `App.tsx`), so the
+ * The same `BootSplash` backs the route Suspense fallback (see `router.tsx`), so the
  * auth gate and the first lazy-chunk load read as one continuous loader.
  */
 export function AuthBootGate({ children }: { children: React.ReactNode }) {

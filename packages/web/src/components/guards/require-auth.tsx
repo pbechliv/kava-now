@@ -1,11 +1,11 @@
-import { Navigate, useLocation, useParams } from "react-router";
+import { Navigate, useLocation, useParams } from "@tanstack/react-router";
 import { useAuth } from "@/lib/hooks/use-auth";
 import { AuthUnavailable } from "@/components/auth-unavailable";
 
 export function RequireAuth({ children }: { children: React.ReactNode }) {
   const { isAuthenticated, isAuthUnknown, refetch, isRefetching } = useAuth();
   const location = useLocation();
-  const { slug } = useParams<{ slug: string }>();
+  const { slug } = useParams({ strict: false });
 
   // The cold-load spinner is handled by AuthBootGate (the app-level splash), so
   // by the time RequireAuth renders, /api/auth/me has resolved.
@@ -24,7 +24,13 @@ export function RequireAuth({ children }: { children: React.ReactNode }) {
 
   if (!isAuthenticated) {
     const loginPath = slug ? `/k/${slug}/login` : "/login";
-    return <Navigate to={loginPath} state={{ from: location }} replace />;
+    return (
+      <Navigate
+        to={loginPath}
+        state={{ from: { pathname: location.pathname, search: location.searchStr } }}
+        replace
+      />
+    );
   }
 
   return <>{children}</>;

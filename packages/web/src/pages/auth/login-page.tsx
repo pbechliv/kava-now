@@ -2,7 +2,7 @@ import { useForm } from "react-hook-form";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { loginSchema, type LoginInput } from "@kava-now/shared";
-import { Link, Navigate, useLocation, useNavigate, useParams } from "react-router";
+import { Link, Navigate, useLocation, useNavigate, useParams } from "@tanstack/react-router";
 import { Loader2 } from "lucide-react";
 import { AuthUnavailable } from "@/components/auth-unavailable";
 import { GoogleSignInButton } from "@/components/auth/google-sign-in-button";
@@ -30,7 +30,7 @@ const googleEnabled = !!import.meta.env.VITE_GOOGLE_CLIENT_ID;
 export function LoginPage() {
   const login = useLogin();
   const googleSignIn = useGoogleSignIn();
-  const { slug } = useParams<{ slug: string }>();
+  const { slug } = useParams({ strict: false });
   const navigate = useNavigate();
   const location = useLocation();
   const queryClient = useQueryClient();
@@ -96,7 +96,7 @@ export function LoginPage() {
                 <Button
                   variant="outline"
                   className="w-full justify-between"
-                  onClick={() => void navigate(membershipHome(m))}
+                  onClick={() => void navigate({ to: membershipHome(m) })}
                 >
                   <span>{m.tenantName}</span>
                   <span className="text-xs text-muted-foreground">{m.role}</span>

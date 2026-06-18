@@ -1,13 +1,13 @@
-import { useParams } from "react-router";
+import { useParams } from "@tanstack/react-router";
 import { api } from "../api";
 
 /**
  * Returns the slug for the current tenant route. Throws if used outside a
- * `/k/:slug/*` route — caller bug.
+ * `/k/$slug/*` route — caller bug.
  */
 export function useTenantSlug(): string {
-  const { slug } = useParams<{ slug: string }>();
-  if (!slug) throw new Error("useTenantSlug must be used inside a /k/:slug route");
+  const { slug } = useParams({ strict: false });
+  if (!slug) throw new Error("useTenantSlug must be used inside a /k/$slug route");
   return slug;
 }
 

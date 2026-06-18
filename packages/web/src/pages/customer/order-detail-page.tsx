@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Link, useParams, useNavigate } from "react-router";
+import { Link, useParams, useNavigate } from "@tanstack/react-router";
 import { ArrowLeft, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -18,12 +18,13 @@ import { ErrorBanner } from "@/components/error-banner";
 import { Spinner } from "@/components/spinner";
 import { OrderStatusBadge } from "@/components/order-status-badge";
 import { useCustomerOrder, useReorder, useCancelOrder } from "@/lib/hooks/use-customer-orders";
+import { useTenantSlug } from "@/lib/hooks/use-tenant-api";
 import { formatMoney, formatDateLong } from "@/lib/format";
 
 export function OrderDetailPage() {
-  const { id, slug } = useParams<{ id: string; slug: string }>();
+  const { id } = useParams({ strict: false });
+  const slug = useTenantSlug();
   const navigate = useNavigate();
-  const base = `/k/${slug}`;
   const { data: order, isLoading, error } = useCustomerOrder(id);
   const reorder = useReorder(id || "");
   const cancel = useCancelOrder(id || "");
@@ -32,7 +33,7 @@ export function OrderDetailPage() {
   const handleReorder = () => {
     reorder.mutate(undefined, {
       onSuccess: (data) => {
-        void navigate(`${base}/orders/${data.order.id}`);
+        void navigate({ to: "/k/$slug/orders/$id", params: { slug, id: data.order.id } });
       },
     });
   };
@@ -72,7 +73,8 @@ export function OrderDetailPage() {
   return (
     <div className="space-y-6">
       <Link
-        to={`${base}/orders`}
+        to="/k/$slug/orders"
+        params={{ slug }}
         className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
       >
         <ArrowLeft className="h-4 w-4" /> Πίσω στο ιστορικό

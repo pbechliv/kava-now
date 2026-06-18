@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Link, useNavigate, useSearchParams, useParams } from "react-router";
+import { Link, useNavigate, useParams, useSearch } from "@tanstack/react-router";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useQuery } from "@tanstack/react-query";
 import { CheckCircle2, Loader2 } from "lucide-react";
@@ -15,11 +15,10 @@ import { Separator } from "@/components/ui/separator";
 const googleEnabled = !!import.meta.env.VITE_GOOGLE_CLIENT_ID;
 
 export function WelcomePage() {
-  const [searchParams] = useSearchParams();
-  const token = searchParams.get("token") ?? "";
+  const { token = "" } = useSearch({ strict: false });
   const navigate = useNavigate();
   const queryClient = useQueryClient();
-  const { slug } = useParams<{ slug: string }>();
+  const { slug } = useParams({ strict: false });
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
   const [error, setError] = useState("");
@@ -72,7 +71,7 @@ export function WelcomePage() {
         </div>
         <h2 className="text-lg font-semibold">Ο κωδικός ορίστηκε</h2>
         <p className="mt-2 text-sm text-muted-foreground">Ο λογαριασμός σας είναι έτοιμος.</p>
-        <Button className="mt-6" onClick={() => void navigate(homePath, { replace: true })}>
+        <Button className="mt-6" onClick={() => void navigate({ to: homePath, replace: true })}>
           Συνέχεια
         </Button>
       </div>
