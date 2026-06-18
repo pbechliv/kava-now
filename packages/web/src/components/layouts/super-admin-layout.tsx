@@ -58,19 +58,21 @@ export function SuperAdminLayout() {
               <SidebarMenu>
                 {navItems.map((item) => (
                   <SidebarMenuItem key={item.to}>
-                    <SidebarMenuButton asChild>
-                      <Link to={item.to}>
-                        {({ isActive }) => (
-                          <span
-                            data-active={isActive || undefined}
-                            className="flex w-full items-center gap-2 data-[active]:font-semibold data-[active]:text-sidebar-primary"
-                          >
-                            <item.icon className="h-4 w-4" />
-                            <span>{item.label}</span>
-                          </span>
-                        )}
-                      </Link>
-                    </SidebarMenuButton>
+                    <SidebarMenuButton
+                      render={
+                        <Link to={item.to}>
+                          {({ isActive }) => (
+                            <span
+                              data-active={isActive || undefined}
+                              className="flex w-full items-center gap-2 data-[active]:font-semibold data-[active]:text-sidebar-primary"
+                            >
+                              <item.icon className="h-4 w-4" />
+                              <span>{item.label}</span>
+                            </span>
+                          )}
+                        </Link>
+                      }
+                    />
                   </SidebarMenuItem>
                 ))}
               </SidebarMenu>
@@ -95,14 +97,16 @@ export function SuperAdminLayout() {
           </Link>
           <div className="flex-1" />
           <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="sm" className="gap-2">
-                <Avatar className="h-7 w-7">
-                  <AvatarFallback>{initials(user?.name)}</AvatarFallback>
-                </Avatar>
-                <span className="hidden sm:inline">{user?.name}</span>
-              </Button>
-            </DropdownMenuTrigger>
+            <DropdownMenuTrigger
+              render={
+                <Button variant="ghost" size="sm" className="gap-2">
+                  <Avatar className="h-7 w-7">
+                    <AvatarFallback>{initials(user?.name)}</AvatarFallback>
+                  </Avatar>
+                  <span className="hidden sm:inline">{user?.name}</span>
+                </Button>
+              }
+            />
             <DropdownMenuContent align="end" className="w-56">
               <DropdownMenuLabel className="truncate">{user?.email}</DropdownMenuLabel>
               <TenantSwitcher currentSlug={null} />

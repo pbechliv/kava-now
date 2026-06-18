@@ -140,7 +140,7 @@ export function CategoriesPage() {
             <Label htmlFor="cat-parent">Γονική κατηγορία</Label>
             <Select
               value={newParentId || "none"}
-              onValueChange={(v) => setNewParentId(v === "none" ? "" : v)}
+              onValueChange={(v) => setNewParentId(v && v !== "none" ? v : "")}
             >
               <SelectTrigger id="cat-parent" className="w-full">
                 <SelectValue placeholder="Καμία" />
@@ -191,7 +191,7 @@ export function CategoriesPage() {
                         <TableCell>
                           <Select
                             value={editParentId || "none"}
-                            onValueChange={(v) => setEditParentId(v === "none" ? "" : v)}
+                            onValueChange={(v) => setEditParentId(v && v !== "none" ? v : "")}
                           >
                             <SelectTrigger className="w-full">
                               <SelectValue placeholder="Καμία" />
@@ -281,7 +281,7 @@ export function CategoriesPage() {
                     <Label htmlFor={`edit-parent-${cat.id}`}>Γονική κατηγορία</Label>
                     <Select
                       value={editParentId || "none"}
-                      onValueChange={(v) => setEditParentId(v === "none" ? "" : v)}
+                      onValueChange={(v) => setEditParentId(v && v !== "none" ? v : "")}
                     >
                       <SelectTrigger id={`edit-parent-${cat.id}`} className="w-full">
                         <SelectValue placeholder="Καμία" />

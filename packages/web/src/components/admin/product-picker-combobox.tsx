@@ -1,14 +1,7 @@
 import { useMemo, useState } from "react";
-import { Check, ChevronsUpDown, Loader2 } from "lucide-react";
+import { Check, ChevronsUpDown, Loader2, SearchIcon } from "lucide-react";
+import { Combobox } from "@base-ui/react/combobox";
 import { Button } from "@/components/ui/button";
-import {
-  Command,
-  CommandEmpty,
-  CommandInput,
-  CommandItem,
-  CommandList,
-} from "@/components/ui/command";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
 import { useProducts } from "@/lib/hooks/use-products";
 import { useDebouncedValue } from "@/lib/hooks/use-debounced-value";
@@ -29,11 +22,11 @@ interface Props {
 }
 
 /**
- * Searchable product picker built on the shadcn Combobox pattern (Popover +
- * Command). Search is server-side, so cmdk's own filtering is disabled.
+ * Searchable product picker built on the Base UI Combobox. Search is server-side,
+ * so the built-in client filtering is disabled (`filter={null}`) and results are
+ * driven by the debounced query.
  */
 export function ProductPickerCombobox({ selected, onSelect, excludeProductId }: Props) {
-  const [open, setOpen] = useState(false);
   const [search, setSearch] = useState("");
   const debounced = useDebouncedValue(search.trim(), 200);
 
@@ -49,79 +42,84 @@ export function ProductPickerCombobox({ selected, onSelect, excludeProductId }: 
   );
 
   return (
-    <Popover open={open} onOpenChange={setOpen}>
-      <PopoverTrigger asChild>
-        <Button
-          variant="outline"
-          role="combobox"
-          aria-expanded={open}
-          className="h-auto min-h-9 w-full justify-between font-normal"
-        >
-          {selected ? (
-            <span className="flex min-w-0 flex-col items-start">
-              <span className="truncate font-medium">{selected.name}</span>
-              <span className="text-xs text-muted-foreground">
-                {selected.brand} · {formatMoney(selected.basePrice)}
-              </span>
-            </span>
-          ) : (
-            <span className="text-muted-foreground">Αναζήτηση προϊόντος ή μάρκας...</span>
-          )}
-          <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-        </Button>
-      </PopoverTrigger>
-      <PopoverContent
-        onOpenAutoFocus={(e) => e.preventDefault()}
-        className="w-(--radix-popover-trigger-width) p-0"
-        align="start"
-      >
-        <Command shouldFilter={false}>
-          <CommandInput
-            placeholder="Αναζήτηση προϊόντος ή μάρκας..."
-            value={search}
-            onValueChange={setSearch}
+    <Combobox.Root<ProductPickerValue>
+      items={results}
+      value={selected}
+      onValueChange={(value) => onSelect(value)}
+      inputValue={search}
+      onInputValueChange={setSearch}
+      filter={null}
+      isItemEqualToValue={(a, b) => a?.id === b?.id}
+      itemToStringLabel={(item) => item?.name ?? ""}
+    >
+      <Combobox.Trigger
+        render={
+          <Button
+            variant="outline"
+            role="combobox"
+            className="h-auto min-h-9 w-full justify-between font-normal"
           />
-          <CommandList>
-            {isFetching && results.length === 0 ? (
-              <div className="flex items-center justify-center py-6 text-sm text-muted-foreground">
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Φόρτωση...
-              </div>
-            ) : (
-              <CommandEmpty>
-                {debounced ? "Δεν βρέθηκαν προϊόντα" : "Πληκτρολογήστε για αναζήτηση"}
-              </CommandEmpty>
-            )}
-            {results.map((p) => (
-              <CommandItem
-                key={p.id}
-                value={p.id}
-                onSelect={() => {
-                  onSelect(
-                    selected?.id === p.id
-                      ? null
-                      : { id: p.id, name: p.name, brand: p.brand, basePrice: p.basePrice },
-                  );
-                  setOpen(false);
-                }}
-              >
-                <Check
-                  className={cn(
-                    "mr-2 h-4 w-4 shrink-0",
-                    selected?.id === p.id ? "opacity-100" : "opacity-0",
-                  )}
-                />
-                <span className="flex min-w-0 flex-1 flex-col">
-                  <span className="truncate font-medium">{p.name}</span>
-                  <span className="text-xs text-muted-foreground">{p.brand}</span>
+        }
+      >
+        {selected ? (
+          <span className="flex min-w-0 flex-col items-start">
+            <span className="truncate font-medium">{selected.name}</span>
+            <span className="text-xs text-muted-foreground">
+              {selected.brand} · {formatMoney(selected.basePrice)}
+            </span>
+          </span>
+        ) : (
+          <span className="text-muted-foreground">Αναζήτηση προϊόντος ή μάρκας...</span>
+        )}
+        <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+      </Combobox.Trigger>
+      <Combobox.Portal>
+        <Combobox.Positioner align="start" sideOffset={4} className="z-50">
+          <Combobox.Popup className="w-(--anchor-width) overflow-hidden rounded-md border bg-popover text-popover-foreground shadow-md">
+            <div className="flex h-9 items-center gap-2 border-b px-3">
+              <SearchIcon className="size-4 shrink-0 opacity-50" />
+              <Combobox.Input
+                placeholder="Αναζήτηση προϊόντος ή μάρκας..."
+                className="flex h-10 w-full bg-transparent py-3 text-sm outline-hidden placeholder:text-muted-foreground"
+              />
+            </div>
+            <Combobox.Empty className="py-6 text-center text-sm text-muted-foreground">
+              {isFetching && results.length === 0 ? (
+                <span className="flex items-center justify-center">
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Φόρτωση...
                 </span>
-                <span className="font-mono text-xs text-muted-foreground">
-                  {formatMoney(p.basePrice)}
-                </span>
-              </CommandItem>
-            ))}
-          </CommandList>
-        </Command>
-      </PopoverContent>
-    </Popover>
+              ) : debounced ? (
+                "Δεν βρέθηκαν προϊόντα"
+              ) : (
+                "Πληκτρολογήστε για αναζήτηση"
+              )}
+            </Combobox.Empty>
+            <Combobox.List className="max-h-[300px] overflow-x-hidden overflow-y-auto p-1">
+              {(product: ProductPickerValue) => (
+                <Combobox.Item
+                  key={product.id}
+                  value={product}
+                  className="relative flex cursor-pointer items-center gap-2 rounded-sm px-2 py-1.5 text-sm outline-hidden select-none data-[highlighted]:bg-accent data-[highlighted]:text-accent-foreground"
+                >
+                  <Check
+                    className={cn(
+                      "h-4 w-4 shrink-0",
+                      selected?.id === product.id ? "opacity-100" : "opacity-0",
+                    )}
+                  />
+                  <span className="flex min-w-0 flex-1 flex-col">
+                    <span className="truncate font-medium">{product.name}</span>
+                    <span className="text-xs text-muted-foreground">{product.brand}</span>
+                  </span>
+                  <span className="font-mono text-xs text-muted-foreground">
+                    {formatMoney(product.basePrice)}
+                  </span>
+                </Combobox.Item>
+              )}
+            </Combobox.List>
+          </Combobox.Popup>
+        </Combobox.Positioner>
+      </Combobox.Portal>
+    </Combobox.Root>
   );
 }
