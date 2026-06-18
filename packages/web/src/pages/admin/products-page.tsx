@@ -199,7 +199,7 @@ export function ProductsPage() {
         <FilterField label="Κατηγορία">
           <Select
             value={categoryFilter || "all"}
-            onValueChange={(v) => setFilters({ categoryId: v === "all" ? undefined : v })}
+            onValueChange={(v) => setFilters({ categoryId: v && v !== "all" ? v : undefined })}
           >
             <SelectTrigger className="w-full md:w-56" aria-label="Κατηγορία">
               <SelectValue placeholder="Όλες οι κατηγορίες" />

@@ -82,24 +82,26 @@ export function CustomerLayout() {
               <SidebarMenu>
                 {navItems.map((item) => (
                   <SidebarMenuItem key={item.to}>
-                    <SidebarMenuButton asChild>
-                      <Link to={item.to} activeOptions={{ exact: item.end ?? false }}>
-                        {({ isActive }) => (
-                          <span
-                            data-active={isActive || undefined}
-                            className="flex w-full items-center gap-2 data-[active]:font-semibold data-[active]:text-sidebar-primary"
-                          >
-                            <item.icon className="h-4 w-4" />
-                            <span className="flex-1">{item.label}</span>
-                            {item.badge ? (
-                              <Badge variant="default" className="ml-auto">
-                                {item.badge}
-                              </Badge>
-                            ) : null}
-                          </span>
-                        )}
-                      </Link>
-                    </SidebarMenuButton>
+                    <SidebarMenuButton
+                      render={
+                        <Link to={item.to} activeOptions={{ exact: item.end ?? false }}>
+                          {({ isActive }) => (
+                            <span
+                              data-active={isActive || undefined}
+                              className="flex w-full items-center gap-2 data-[active]:font-semibold data-[active]:text-sidebar-primary"
+                            >
+                              <item.icon className="h-4 w-4" />
+                              <span className="flex-1">{item.label}</span>
+                              {item.badge ? (
+                                <Badge variant="default" className="ml-auto">
+                                  {item.badge}
+                                </Badge>
+                              ) : null}
+                            </span>
+                          )}
+                        </Link>
+                      }
+                    />
                   </SidebarMenuItem>
                 ))}
               </SidebarMenu>
@@ -129,28 +131,35 @@ export function CustomerLayout() {
           <div className="flex-1" />
           {/* Quick cart access on desktop; on mobile the bottom bar's Cart tab
               (with the same badge) covers this. */}
-          <Button asChild variant="ghost" size="sm" className="relative gap-2 max-md:hidden">
-            <Link to="/k/$slug/cart" params={{ slug }} aria-label="Καλάθι">
-              <ShoppingCart className="h-5 w-5" />
-              {cartCount > 0 && (
-                <Badge
-                  variant="default"
-                  className="absolute -top-1 -right-1 h-5 min-w-5 rounded-full px-1.5 text-[10px] tabular-nums"
-                >
-                  {cartCount}
-                </Badge>
-              )}
-            </Link>
-          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="relative gap-2 max-md:hidden"
+            render={
+              <Link to="/k/$slug/cart" params={{ slug }} aria-label="Καλάθι">
+                <ShoppingCart className="h-5 w-5" />
+                {cartCount > 0 && (
+                  <Badge
+                    variant="default"
+                    className="absolute -top-1 -right-1 h-5 min-w-5 rounded-full px-1.5 text-[10px] tabular-nums"
+                  >
+                    {cartCount}
+                  </Badge>
+                )}
+              </Link>
+            }
+          />
           <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="sm" className="gap-2">
-                <Avatar className="h-7 w-7">
-                  <AvatarFallback>{initials(user?.name)}</AvatarFallback>
-                </Avatar>
-                <span className="hidden sm:inline">{user?.name}</span>
-              </Button>
-            </DropdownMenuTrigger>
+            <DropdownMenuTrigger
+              render={
+                <Button variant="ghost" size="sm" className="gap-2">
+                  <Avatar className="h-7 w-7">
+                    <AvatarFallback>{initials(user?.name)}</AvatarFallback>
+                  </Avatar>
+                  <span className="hidden sm:inline">{user?.name}</span>
+                </Button>
+              }
+            />
             <DropdownMenuContent align="end" className="w-56">
               <DropdownMenuLabel className="truncate">{user?.email}</DropdownMenuLabel>
               <TenantSwitcher currentSlug={slug ?? null} />

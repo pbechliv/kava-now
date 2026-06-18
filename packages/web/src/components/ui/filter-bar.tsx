@@ -42,25 +42,27 @@ function FilterBar({ search, activeCount = 0, onClear, children, className }: Fi
 
       {/* Mobile: filters in a bottom sheet */}
       <Sheet open={open} onOpenChange={setOpen}>
-        <SheetTrigger asChild>
-          <Button variant="outline" className={cn("gap-2 md:hidden", !search && "flex-1")}>
-            <SlidersHorizontal className="size-4" />
-            Φίλτρα
-            {activeCount > 0 && (
-              <Badge variant="secondary" className="ml-0.5 px-1.5">
-                {activeCount}
-              </Badge>
-            )}
-          </Button>
-        </SheetTrigger>
+        <SheetTrigger
+          render={
+            <Button variant="outline" className={cn("gap-2 md:hidden", !search && "flex-1")}>
+              <SlidersHorizontal className="size-4" />
+              Φίλτρα
+              {activeCount > 0 && (
+                <Badge variant="secondary" className="ml-0.5 px-1.5">
+                  {activeCount}
+                </Badge>
+              )}
+            </Button>
+          }
+        />
         <SheetContent
           side="bottom"
           className="gap-0"
-          // Don't let Radix focus the first field (the customer search input)
+          // Don't move focus into the first field (the customer search input)
           // on open — on iOS that pops the keyboard immediately, and that first
           // focus (mid-open) is the one WebKit fails to scroll above the
           // keyboard. Focus stays on the trigger; tapping a field still works.
-          onOpenAutoFocus={(e) => e.preventDefault()}
+          initialFocus={false}
         >
           <SheetHeader>
             <SheetTitle>Φίλτρα</SheetTitle>

@@ -12,6 +12,7 @@
     "test:watch": "vp test"
   },
   "dependencies": {
+    "@base-ui/react": "^1.6.0",
     "@hookform/resolvers": "^5.4.0",
     "@kava-now/shared": "workspace:*",
     "@react-oauth/google": "^0.13.5",
@@ -21,11 +22,9 @@
     "better-auth": "^1.6.18",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
-    "cmdk": "^1.1.1",
     "lucide-react": "^1.17.0",
     "next-themes": "^0.4.6",
     "papaparse": "^5.5.3",
-    "radix-ui": "^1.4.3",
     "react": "^19.2.7",
     "react-dom": "^19.2.7",
     "react-hook-form": "^7.77.0",

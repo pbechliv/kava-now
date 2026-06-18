@@ -130,11 +130,13 @@ function ItemActionsMenu({
 }) {
   return (
     <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        <Button variant="ghost" size="icon" className={className} aria-label="Ενέργειες">
-          <MoreHorizontal className="h-4 w-4" />
-        </Button>
-      </DropdownMenuTrigger>
+      <DropdownMenuTrigger
+        render={
+          <Button variant="ghost" size="icon" className={className} aria-label="Ενέργειες">
+            <MoreHorizontal className="h-4 w-4" />
+          </Button>
+        }
+      />
       <DropdownMenuContent align="end">
         <DropdownMenuItem onClick={onEditQty}>Επεξεργασία ποσότητας</DropdownMenuItem>
         <DropdownMenuItem onClick={onReplace}>Αντικατάσταση...</DropdownMenuItem>

@@ -315,7 +315,7 @@ export function ProductsImportPage() {
                     onValueChange={(v) =>
                       setMapping((prev) => {
                         const next = { ...prev };
-                        if (v === "none") {
+                        if (!v || v === "none") {
                           delete next[target];
                         } else {
                           next[target] = v;
