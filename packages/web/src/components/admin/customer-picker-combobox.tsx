@@ -1,7 +1,15 @@
-import { useState } from "react";
-import { Check, ChevronsUpDown, Loader2, SearchIcon } from "lucide-react";
-import { Combobox } from "@base-ui/react/combobox";
+import { useMemo, useState } from "react";
+import { ChevronsUpDown, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import {
+  Combobox,
+  ComboboxContent,
+  ComboboxEmpty,
+  ComboboxInput,
+  ComboboxItem,
+  ComboboxList,
+  ComboboxTrigger,
+} from "@/components/ui/combobox";
 import { cn } from "@/lib/utils";
 import { useCustomers } from "@/lib/hooks/use-customers";
 import { useDebouncedValue } from "@/lib/hooks/use-debounced-value";
@@ -10,6 +18,12 @@ export interface CustomerPickerValue {
   id: string;
   name: string;
 }
+
+// Stable identities — Base UI Combobox reads these in effects, so inline
+// arrows (new every render) would retrigger them and loop.
+const itemsEqual = (a: CustomerPickerValue | null, b: CustomerPickerValue | null) =>
+  a?.id === b?.id;
+const itemToLabel = (item: CustomerPickerValue | null) => item?.name ?? "";
 
 interface Props {
   selected: CustomerPickerValue | null;
@@ -30,20 +44,18 @@ export function CustomerPickerCombobox({ selected, onSelect }: Props) {
     search: debounced || undefined,
     pageSize: 20,
   });
-  const results = data?.data ?? [];
+  const results = useMemo(() => data?.data ?? [], [data]);
 
   return (
-    <Combobox.Root<CustomerPickerValue>
+    <Combobox<CustomerPickerValue>
       items={results}
-      value={selected}
       onValueChange={(value) => onSelect(value)}
-      inputValue={search}
       onInputValueChange={setSearch}
       filter={null}
-      isItemEqualToValue={(a, b) => a?.id === b?.id}
-      itemToStringLabel={(item) => item?.name ?? ""}
+      isItemEqualToValue={itemsEqual}
+      itemToStringLabel={itemToLabel}
     >
-      <Combobox.Trigger
+      <ComboboxTrigger
         render={
           <Button
             variant="outline"
@@ -55,47 +67,27 @@ export function CustomerPickerCombobox({ selected, onSelect }: Props) {
         <span className={cn("truncate", !selected && "text-muted-foreground")}>
           {selected ? selected.name : "Αναζήτηση πελάτη..."}
         </span>
-        <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-      </Combobox.Trigger>
-      <Combobox.Portal>
-        <Combobox.Positioner align="start" sideOffset={4} className="z-50">
-          <Combobox.Popup className="w-(--anchor-width) overflow-hidden rounded-md border bg-popover text-popover-foreground shadow-md">
-            <div className="flex h-9 items-center gap-2 border-b px-3">
-              <SearchIcon className="size-4 shrink-0 opacity-50" />
-              <Combobox.Input
-                placeholder="Αναζήτηση πελάτη..."
-                className="flex h-10 w-full bg-transparent py-3 text-sm outline-hidden placeholder:text-muted-foreground"
-              />
-            </div>
-            <Combobox.Empty className="py-6 text-center text-sm text-muted-foreground">
-              {isFetching && results.length === 0 ? (
-                <span className="flex items-center justify-center">
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Φόρτωση...
-                </span>
-              ) : (
-                "Δεν βρέθηκαν πελάτες"
-              )}
-            </Combobox.Empty>
-            <Combobox.List className="max-h-[300px] overflow-x-hidden overflow-y-auto p-1">
-              {(customer: CustomerPickerValue) => (
-                <Combobox.Item
-                  key={customer.id}
-                  value={customer}
-                  className="relative flex cursor-pointer items-center gap-2 rounded-sm px-2 py-1.5 text-sm outline-hidden select-none data-[highlighted]:bg-accent data-[highlighted]:text-accent-foreground"
-                >
-                  <Check
-                    className={cn(
-                      "h-4 w-4 shrink-0",
-                      selected?.id === customer.id ? "opacity-100" : "opacity-0",
-                    )}
-                  />
-                  <span className="min-w-0 flex-1 truncate">{customer.name}</span>
-                </Combobox.Item>
-              )}
-            </Combobox.List>
-          </Combobox.Popup>
-        </Combobox.Positioner>
-      </Combobox.Portal>
-    </Combobox.Root>
+        <ChevronsUpDown className="ml-2 size-4 shrink-0 opacity-50" />
+      </ComboboxTrigger>
+      <ComboboxContent>
+        <ComboboxInput placeholder="Αναζήτηση πελάτη..." />
+        <ComboboxEmpty>
+          {isFetching && results.length === 0 ? (
+            <span className="flex items-center justify-center">
+              <Loader2 className="mr-2 size-4 animate-spin" /> Φόρτωση...
+            </span>
+          ) : (
+            "Δεν βρέθηκαν πελάτες"
+          )}
+        </ComboboxEmpty>
+        <ComboboxList>
+          {(customer: CustomerPickerValue) => (
+            <ComboboxItem key={customer.id} value={customer}>
+              <span className="min-w-0 flex-1 truncate">{customer.name}</span>
+            </ComboboxItem>
+          )}
+        </ComboboxList>
+      </ComboboxContent>
+    </Combobox>
   );
 }
