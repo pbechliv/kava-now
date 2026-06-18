@@ -1,4 +1,4 @@
-import { Outlet } from "react-router";
+import { Outlet } from "@tanstack/react-router";
 import { Card, CardContent } from "@/components/ui/card";
 import { Logo } from "@/components/logo";
 

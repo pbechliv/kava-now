@@ -1,11 +1,11 @@
-import { Link } from "react-router";
+import { Link } from "@tanstack/react-router";
 import { CalendarRange, ClipboardList, Clock, Send, Users } from "lucide-react";
 import { useTenantSlug } from "@/lib/hooks/use-tenant-api";
 import { Card, CardContent } from "@/components/ui/card";
 import { Spinner } from "@/components/spinner";
 import { OrdersTable } from "@/components/admin/orders-table";
 import { useDashboardStats } from "@/lib/hooks/use-dashboard";
-import { cn } from "@/lib/utils";
+import { cn, href } from "@/lib/utils";
 
 export function DashboardPage() {
   const slug = useTenantSlug();
@@ -113,7 +113,7 @@ export function DashboardPage() {
         <div className="flex items-center justify-between">
           <h2 className="text-lg font-semibold">Πρόσφατες Παραγγελίες</h2>
           <Link
-            to={`/k/${slug}/admin/orders`}
+            to={href(`/k/${slug}/admin/orders`)}
             className="text-sm font-medium text-primary hover:underline"
           >
             Προβολή όλων

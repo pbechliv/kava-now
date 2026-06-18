@@ -1,5 +1,6 @@
-import { Link, useParams } from "react-router";
+import { Link, useParams } from "@tanstack/react-router";
 import { ChevronRight } from "lucide-react";
+import { href } from "@/lib/utils";
 import { ADMIN_MANAGE_SECTIONS } from "@/lib/admin-nav";
 
 /**
@@ -11,7 +12,7 @@ import { ADMIN_MANAGE_SECTIONS } from "@/lib/admin-nav";
  * matching can't drift apart.
  */
 export function ManagePage() {
-  const { slug } = useParams<{ slug: string }>();
+  const { slug } = useParams({ strict: false });
   const base = `/k/${slug}/admin`;
 
   return (
@@ -21,7 +22,7 @@ export function ManagePage() {
         {ADMIN_MANAGE_SECTIONS.map((section) => (
           <Link
             key={section.path}
-            to={`${base}/${section.path}`}
+            to={href(`${base}/${section.path}`)}
             className="flex min-w-0 items-center gap-4 rounded-lg border bg-card p-4 transition-colors hover:bg-accent"
           >
             <div className="flex size-10 shrink-0 items-center justify-center rounded-md bg-primary/10 text-primary">

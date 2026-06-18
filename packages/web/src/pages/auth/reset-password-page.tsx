@@ -2,7 +2,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { resetPasswordSchema, type ResetPasswordInput } from "@kava-now/shared";
 import { useMutation } from "@tanstack/react-query";
-import { useSearchParams, Link, useParams } from "react-router";
+import { Link, useParams, useSearch } from "@tanstack/react-router";
 import { CheckCircle2, Loader2 } from "lucide-react";
 import { authClient } from "@/lib/auth-client";
 import { Button } from "@/components/ui/button";
@@ -17,9 +17,8 @@ import {
 } from "@/components/ui/form";
 
 export function ResetPasswordPage() {
-  const [searchParams] = useSearchParams();
-  const token = searchParams.get("token") || "";
-  const { slug } = useParams<{ slug: string }>();
+  const { token = "" } = useSearch({ strict: false });
+  const { slug } = useParams({ strict: false });
   const forgotPath = slug ? `/k/${slug}/auth/forgot-password` : "/auth/forgot-password";
   const loginPath = slug ? `/k/${slug}/login` : "/login";
 

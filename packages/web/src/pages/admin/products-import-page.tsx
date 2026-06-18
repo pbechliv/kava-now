@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { useNavigate } from "react-router";
+import { useNavigate } from "@tanstack/react-router";
 import { useTenantSlug } from "@/lib/hooks/use-tenant-api";
 import { Loader2, Upload } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -169,7 +169,7 @@ export function ProductsImportPage() {
   const handleImport = () => {
     if (validRows.length === 0) return;
     importMutation.mutate(validRows, {
-      onSuccess: (result) => void navigate(productsPath, { state: { importResult: result } }),
+      onSuccess: (result) => void navigate({ to: productsPath, state: { importResult: result } }),
     });
   };
 
@@ -189,7 +189,7 @@ export function ProductsImportPage() {
             Ανέβασμα CSV ή Excel · Αντιστοίχιση στηλών · Προεπισκόπηση
           </p>
         </div>
-        <Button variant="outline" onClick={() => navigate(productsPath)}>
+        <Button variant="outline" onClick={() => navigate({ to: productsPath })}>
           Πίσω στα προϊόντα
         </Button>
       </div>

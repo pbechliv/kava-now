@@ -1,8 +1,9 @@
-import { Link, useNavigate } from "react-router";
+import { Link, useNavigate } from "@tanstack/react-router";
 import { OrderStatusBadge } from "@/components/order-status-badge";
 import { ErpStatusBadge } from "@/components/admin/erp-status-badge";
 import { ResponsiveTable, type ResponsiveTableColumn } from "@/components/ui/responsive-table";
 import { useTenantSlug } from "@/lib/hooks/use-tenant-api";
+import { href } from "@/lib/utils";
 import { formatMoney, formatDate } from "@/lib/format";
 import type { ErpStatus, OrderStatus } from "@kava-now/shared";
 
@@ -91,7 +92,7 @@ export function OrdersTable({
             cellClassName: "text-right",
             cell: (order: OrdersTableOrder) => (
               <Link
-                to={`${adminBase}/orders/${order.id}`}
+                to={href(`${adminBase}/orders/${order.id}`)}
                 className="text-sm font-medium text-primary hover:underline"
                 onClick={(e) => e.stopPropagation()}
               >
@@ -109,7 +110,7 @@ export function OrdersTable({
       columns={columns}
       getRowKey={(order) => order.id}
       emptyMessage={emptyMessage}
-      onRowClick={(order) => navigate(`${adminBase}/orders/${order.id}`)}
+      onRowClick={(order) => navigate({ to: `${adminBase}/orders/${order.id}` })}
       renderMobileItem={(order) => (
         <>
           <div className="flex items-start justify-between gap-3">

@@ -1,9 +1,9 @@
 import { useState } from "react";
-import { Link, useNavigate } from "react-router";
+import { Link, useNavigate } from "@tanstack/react-router";
 import { useTenantSlug } from "@/lib/hooks/use-tenant-api";
 import { buttonVariants } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { cn } from "@/lib/utils";
+import { cn, href } from "@/lib/utils";
 import { EmptyState } from "@/components/empty-state";
 import { ErrorBanner } from "@/components/error-banner";
 import { Spinner } from "@/components/spinner";
@@ -36,7 +36,7 @@ export function OrderHistoryPage() {
         <EmptyState
           message="Δεν υπάρχουν παραγγελίες"
           actionLabel="Πλοήγηση στον κατάλογο"
-          onAction={() => navigate(`${base}/catalog`)}
+          onAction={() => navigate({ to: `${base}/catalog` })}
         />
       ) : (
         <>
@@ -58,7 +58,7 @@ export function OrderHistoryPage() {
                     </div>
                   </div>
                   <Link
-                    to={`${base}/orders/${order.id}`}
+                    to={href(`${base}/orders/${order.id}`)}
                     className={cn(
                       buttonVariants({ variant: "outline", size: "sm" }),
                       "self-start sm:self-auto",

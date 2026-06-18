@@ -1,5 +1,5 @@
 import { useEffect } from "react";
-import { useNavigate, useParams } from "react-router";
+import { useNavigate, useParams } from "@tanstack/react-router";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Loader2 } from "lucide-react";
@@ -37,7 +37,7 @@ type FormData = CreateProductInput;
 
 export function ProductFormPage() {
   const navigate = useNavigate();
-  const { id, slug } = useParams<{ id?: string; slug: string }>();
+  const { id, slug } = useParams({ strict: false });
   const isEdit = !!id && id !== "new";
   const productsPath = `/k/${slug}/admin/products`;
 
@@ -71,7 +71,7 @@ export function ProductFormPage() {
   const onSubmit = (data: FormData) => {
     const onSuccess = () => {
       toast.success(isEdit ? "Το προϊόν ενημερώθηκε" : "Το προϊόν δημιουργήθηκε");
-      void navigate(productsPath);
+      void navigate({ to: productsPath });
     };
     if (isEdit) {
       updateMutation.mutate({ id, data: data as UpdateProductInput }, { onSuccess });
@@ -316,7 +316,11 @@ export function ProductFormPage() {
                   {isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                   {isEdit ? "Αποθήκευση" : "Δημιουργία"}
                 </Button>
-                <Button type="button" variant="outline" onClick={() => navigate(productsPath)}>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => navigate({ to: productsPath })}
+                >
                   Ακύρωση
                 </Button>
               </div>

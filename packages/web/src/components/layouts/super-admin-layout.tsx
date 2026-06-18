@@ -1,4 +1,4 @@
-import { Link, NavLink, Outlet } from "react-router";
+import { Link, Outlet } from "@tanstack/react-router";
 import { initials } from "@/lib/utils";
 import { Building2, Settings, LogOut } from "lucide-react";
 import { useAuth } from "@/lib/hooks/use-auth";
@@ -59,7 +59,7 @@ export function SuperAdminLayout() {
                 {navItems.map((item) => (
                   <SidebarMenuItem key={item.to}>
                     <SidebarMenuButton asChild>
-                      <NavLink to={item.to}>
+                      <Link to={item.to}>
                         {({ isActive }) => (
                           <span
                             data-active={isActive || undefined}
@@ -69,7 +69,7 @@ export function SuperAdminLayout() {
                             <span>{item.label}</span>
                           </span>
                         )}
-                      </NavLink>
+                      </Link>
                     </SidebarMenuButton>
                   </SidebarMenuItem>
                 ))}

@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useParams } from "react-router";
+import { useParams } from "@tanstack/react-router";
 import { Loader2 } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -225,7 +225,7 @@ function ProfileTab() {
 }
 
 function OrderNotificationsCard() {
-  const { slug } = useParams<{ slug: string }>();
+  const { slug } = useParams({ strict: false });
   const { currentMembership } = useAuth();
   const updatePref = useUpdateNotificationPreference(slug ?? "");
   const enabled = currentMembership?.notifyAllOrders ?? false;

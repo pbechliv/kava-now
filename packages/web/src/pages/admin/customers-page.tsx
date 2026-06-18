@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useNavigate } from "react-router";
+import { useNavigate } from "@tanstack/react-router";
 import { toast } from "sonner";
 import { useTenantSlug } from "@/lib/hooks/use-tenant-api";
 import { useDebouncedValue } from "@/lib/hooks/use-debounced-value";
@@ -69,14 +69,14 @@ export function CustomersPage() {
           <Button
             variant="ghost"
             size="sm"
-            onClick={() => navigate(`${adminBase}/customers/${customer.id}/users`)}
+            onClick={() => navigate({ to: `${adminBase}/customers/${customer.id}/users` })}
           >
             Χρήστες
           </Button>
           <Button
             variant="ghost"
             size="sm"
-            onClick={() => navigate(`${adminBase}/customers/${customer.id}/brand-pricing`)}
+            onClick={() => navigate({ to: `${adminBase}/customers/${customer.id}/brand-pricing` })}
           >
             Τιμολόγηση
           </Button>
@@ -147,14 +147,16 @@ export function CustomersPage() {
                   <Button
                     variant="ghost"
                     size="sm"
-                    onClick={() => navigate(`${adminBase}/customers/${customer.id}/users`)}
+                    onClick={() => navigate({ to: `${adminBase}/customers/${customer.id}/users` })}
                   >
                     Χρήστες
                   </Button>
                   <Button
                     variant="ghost"
                     size="sm"
-                    onClick={() => navigate(`${adminBase}/customers/${customer.id}/brand-pricing`)}
+                    onClick={() =>
+                      navigate({ to: `${adminBase}/customers/${customer.id}/brand-pricing` })
+                    }
                   >
                     Τιμολόγηση
                   </Button>

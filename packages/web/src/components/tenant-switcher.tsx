@@ -1,4 +1,4 @@
-import { useNavigate } from "react-router";
+import { useNavigate } from "@tanstack/react-router";
 import { Building2, ShieldCheck } from "lucide-react";
 import { useAuth } from "@/lib/hooks/use-auth";
 import { membershipHome } from "@/lib/auth-home";
@@ -34,13 +34,13 @@ export function TenantSwitcher({ currentSlug }: { currentSlug: string | null }) 
         Εναλλαγή
       </DropdownMenuLabel>
       {showAdminLink && (
-        <DropdownMenuItem onSelect={() => navigate("/admin/tenants")}>
+        <DropdownMenuItem onSelect={() => navigate({ to: "/admin/tenants" })}>
           <ShieldCheck className="mr-2 h-4 w-4" />
           Admin
         </DropdownMenuItem>
       )}
       {otherMemberships.map((m) => (
-        <DropdownMenuItem key={m.tenantId} onSelect={() => navigate(membershipHome(m))}>
+        <DropdownMenuItem key={m.tenantId} onSelect={() => navigate({ to: membershipHome(m) })}>
           <Building2 className="mr-2 h-4 w-4" />
           <span className="flex-1 truncate">{m.tenantName}</span>
           <span className="ml-2 text-xs text-muted-foreground">{m.role}</span>

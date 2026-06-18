@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Link, useParams, useNavigate } from "react-router";
+import { Link, useParams, useNavigate } from "@tanstack/react-router";
 import { ArrowLeft, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -19,9 +19,10 @@ import { Spinner } from "@/components/spinner";
 import { OrderStatusBadge } from "@/components/order-status-badge";
 import { useCustomerOrder, useReorder, useCancelOrder } from "@/lib/hooks/use-customer-orders";
 import { formatMoney, formatDateLong } from "@/lib/format";
+import { href } from "@/lib/utils";
 
 export function OrderDetailPage() {
-  const { id, slug } = useParams<{ id: string; slug: string }>();
+  const { id, slug } = useParams({ strict: false });
   const navigate = useNavigate();
   const base = `/k/${slug}`;
   const { data: order, isLoading, error } = useCustomerOrder(id);
@@ -32,7 +33,7 @@ export function OrderDetailPage() {
   const handleReorder = () => {
     reorder.mutate(undefined, {
       onSuccess: (data) => {
-        void navigate(`${base}/orders/${data.order.id}`);
+        void navigate({ to: `${base}/orders/${data.order.id}` });
       },
     });
   };
@@ -72,7 +73,7 @@ export function OrderDetailPage() {
   return (
     <div className="space-y-6">
       <Link
-        to={`${base}/orders`}
+        to={href(`${base}/orders`)}
         className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
       >
         <ArrowLeft className="h-4 w-4" /> Πίσω στο ιστορικό

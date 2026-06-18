@@ -22,6 +22,18 @@ export function withQuery<T extends { [K in keyof T]: string | number | undefine
   return qs ? `${path}?${qs}` : path;
 }
 
+/**
+ * Marks a runtime-built path for TanStack Router's `to` prop. Tenant routes are
+ * keyed by a `$slug` that's only known at runtime, and the sidebars build paths
+ * from data (ADMIN_NAV_GROUPS, nav-item arrays), so these can't be checked
+ * against the literal route tree. Routing them through here keeps them typed as
+ * `string` (TanStack resolves a plain string `to` at runtime) while the route
+ * definitions, typed search, and redirects carry the compile-time safety.
+ */
+export function href(path: string): string {
+  return path;
+}
+
 /** "Panos Bechlivanos" → "PB"; used by the layout avatar fallbacks. */
 export function initials(name: string | null | undefined): string {
   if (!name) return "?";

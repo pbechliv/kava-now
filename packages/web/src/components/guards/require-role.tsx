@@ -1,4 +1,4 @@
-import { Navigate, useParams } from "react-router";
+import { Navigate, useParams } from "@tanstack/react-router";
 import { useAuth } from "@/lib/hooks/use-auth";
 import { getUserHomePath } from "@/lib/auth-home";
 import type { MembershipRole } from "@kava-now/shared";
@@ -17,7 +17,7 @@ interface RequireRoleProps {
  */
 export function RequireRole({ allowed, children }: RequireRoleProps) {
   const { user, memberships, currentMembership } = useAuth();
-  const { slug: routeSlug } = useParams<{ slug: string }>();
+  const { slug: routeSlug } = useParams({ strict: false });
 
   if (!user) {
     return <Navigate to="/login" replace />;

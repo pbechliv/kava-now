@@ -7,7 +7,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 KavaNow is a multi-tenant SaaS platform for kava bar/shop management. pnpm 11 monorepo with three packages:
 
 - **`packages/api`** — Hono server (Vite+-powered dev, `@hono/vite-build` production) with Drizzle ORM, **better-auth**, PostgreSQL
-- **`packages/web`** — React 19 SPA with React Router 7, TanStack Query, Zustand, Tailwind 4, `better-auth/react` client
+- **`packages/web`** — React 19 SPA with TanStack Router (code-based, type-safe), TanStack Query, Zustand, Tailwind 4, `better-auth/react` client
 - **`packages/shared`** — Zod schemas, TypeScript types, and constants (raw TS, no build step, imported via `workspace:*`)
 
 ## Toolchain (Vite+)
@@ -188,15 +188,20 @@ Fulfillment status transition rules live in `ORDER_STATUS_TRANSITIONS` ([package
 
 ### Frontend structure
 
-[packages/web/src/App.tsx](packages/web/src/App.tsx) is a single React Router tree:
+[packages/web/src/router.tsx](packages/web/src/router.tsx) builds the single TanStack Router tree (code-based: `createRootRoute` + `createRoute` + `createRouter`, no `@tanstack/router-plugin` / no generated `routeTree.gen.ts` — keeps the bespoke Vite+ toolchain plugin-free). [App.tsx](packages/web/src/app.tsx) is just `QueryClientProvider` → `RouterProvider`. Routes (note TanStack's `$slug`/`$id` dynamic-segment syntax, not `:slug`):
 
 - `/` → `LoginPage` (anonymous users see the login form; logged-in users get redirected to their home, or an inline membership picker when they belong to several tenants)
 - `/login`, `/auth/forgot-password`, `/auth/reset-password` → superadmin auth (also serves as canonical fallback)
 - `/admin/*` → `SuperAdminLayout` (RequireAuth + RequireRole `superadmin`) — `tenants`, `tenants/new`, `settings`
-- `/k/:slug/login`, `/k/:slug/auth/*`, `/k/:slug/welcome` → tenant auth
-- `/k/:slug/admin/*` → `AdminLayout` (RequireAuth + RequireRole `owner|staff`) — products, categories, customers, customer users, customer brand pricing, orders, users, settings, dashboard
-- `/k/:slug/{catalog, cart, orders, orders/:id, profile}` → `CustomerLayout` (RequireRole `customer`)
-- `/k/:slug` → `HomePage` (redirects to the user's home based on their membership in this tenant)
+- `/k/$slug/login`, `/k/$slug/auth/*`, `/k/$slug/welcome` → tenant auth
+- `/k/$slug/admin/*` → `AdminLayout` (RequireAuth + RequireRole `owner|staff`) — products, categories, customers, customer users, customer brand pricing, orders, users, settings, dashboard
+- `/k/$slug/{catalog, cart, orders, orders/$id, profile}` → `CustomerLayout` (RequireRole `customer`)
+- `/k/$slug` → `HomePage` (redirects to the user's home based on their membership in this tenant)
+- unmatched paths → `NotFoundPage` (`createRouter`'s `defaultNotFoundComponent`)
+
+**Routing type safety** (the reason for code-based routing): `router.tsx` ends with a `declare module "@tanstack/react-router"` block registering `interface Register { router }` — this type-checks every statically-written `<Link to>` / `navigate({ to })` against the route tree. Index redirects use typed `redirect({ to, params })` in `beforeLoad`. Typed search params come from `validateSearch` (zod) on the routes (`token` on reset-password/welcome, `erpStatus` on admin orders); read them with `useSearch({ strict: false })`. Custom history state (`from` for deep-link return, `importResult` for the import flow) is typed via the same block's `interface HistoryState`.
+
+**Route conventions**: layouts/guards stay component-based — a route's `component` wraps `RequireAuth` + `RequireRole` around the layout, which renders `<Outlet />`. Pages lazy-load via `lazyRouteComponent(() => import(...), "Export")` (preserves the per-area code split; auth pages + layouts are eager). Shared code that runs across many routes (guards, `useAuth`, `useTenantApi`) reads params with `useParams({ strict: false })` (slug/id optional). Tenant-slug and data-driven paths (sidebar nav arrays) that can't be statically typed are passed through `href()` from [lib/utils.ts](packages/web/src/lib/utils.ts), which marks a runtime-built path as a plain `string` for the `to` prop.
 
 [packages/web/src/lib/auth-client.ts](packages/web/src/lib/auth-client.ts): `createAuthClient` from `better-auth/react` with `baseURL: window.location.origin`. Requests flow through Vite's `/api` proxy. **Do not hand-roll fetches to `/api/auth` routes** — use the better-auth client.
 

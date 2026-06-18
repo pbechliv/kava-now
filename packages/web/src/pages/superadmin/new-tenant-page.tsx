@@ -1,6 +1,6 @@
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useNavigate, Link } from "react-router";
+import { useNavigate, Link } from "@tanstack/react-router";
 import { ArrowLeft, Loader2 } from "lucide-react";
 import { registerSchema, type RegisterInput } from "@kava-now/shared";
 import { useCreateTenant } from "@/lib/hooks/use-superadmin-tenants";
@@ -32,7 +32,7 @@ export function NewTenantPage() {
 
   const onSubmit = (data: RegisterInput) => {
     createTenant.mutate(data, {
-      onSuccess: () => navigate("/admin/tenants", { replace: true }),
+      onSuccess: () => navigate({ to: "/admin/tenants", replace: true }),
     });
   };
 

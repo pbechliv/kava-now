@@ -1,5 +1,6 @@
-import { useParams, Link } from "react-router";
+import { useParams, Link } from "@tanstack/react-router";
 import { ArrowLeft } from "lucide-react";
+import { href } from "@/lib/utils";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Spinner } from "@/components/spinner";
 import { OrderStatusBadge } from "@/components/order-status-badge";
@@ -14,7 +15,7 @@ import { useAdminOrder } from "@/lib/hooks/use-admin-orders";
 import { formatDateTime } from "@/lib/format";
 
 export function OrderDetailPage() {
-  const { id, slug } = useParams<{ id: string; slug: string }>();
+  const { id, slug } = useParams({ strict: false });
   const { data: order, isLoading } = useAdminOrder(id);
 
   if (isLoading) {
@@ -32,7 +33,7 @@ export function OrderDetailPage() {
   return (
     <div className="space-y-6">
       <Link
-        to={`/k/${slug}/admin/orders`}
+        to={href(`/k/${slug}/admin/orders`)}
         className="inline-flex items-center gap-1 text-sm text-primary hover:underline"
       >
         <ArrowLeft className="h-4 w-4" /> Πίσω στις παραγγελίες

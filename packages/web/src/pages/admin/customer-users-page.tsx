@@ -1,5 +1,6 @@
 import { useState } from "react";
-import { Link, useParams } from "react-router";
+import { Link, useParams } from "@tanstack/react-router";
+import { href } from "@/lib/utils";
 import { ArrowLeft } from "lucide-react";
 import { toast } from "sonner";
 import {
@@ -22,7 +23,7 @@ import { useDeleteConfirmation } from "@/lib/hooks/use-delete-confirmation";
 type CustomerUserRow = NonNullable<ReturnType<typeof useCustomerUsers>["data"]>["users"][number];
 
 export function CustomerUsersPage() {
-  const { id = "", slug } = useParams<{ id: string; slug: string }>();
+  const { id = "", slug } = useParams({ strict: false });
   const { data: customer } = useCustomer(id);
   const { data, isLoading } = useCustomerUsers(id);
   const invite = useInviteCustomerUser(id);
@@ -84,7 +85,7 @@ export function CustomerUsersPage() {
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <Link
-            to={`/k/${slug}/admin/customers`}
+            to={href(`/k/${slug}/admin/customers`)}
             className="inline-flex items-center gap-1 text-sm font-medium text-primary hover:underline"
           >
             <ArrowLeft className="h-4 w-4" /> Πίσω στους πελάτες

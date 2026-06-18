@@ -2,7 +2,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { forgotPasswordSchema, type ForgotPasswordInput } from "@kava-now/shared";
 import { useMutation } from "@tanstack/react-query";
-import { Link, useParams } from "react-router";
+import { Link, useParams } from "@tanstack/react-router";
 import { Loader2, MailCheck } from "lucide-react";
 import { authClient } from "@/lib/auth-client";
 import { Button } from "@/components/ui/button";
@@ -17,7 +17,7 @@ import {
 } from "@/components/ui/form";
 
 export function ForgotPasswordPage() {
-  const { slug } = useParams<{ slug: string }>();
+  const { slug } = useParams({ strict: false });
 
   const form = useForm<ForgotPasswordInput>({
     resolver: zodResolver(forgotPasswordSchema),
