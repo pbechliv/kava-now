@@ -29,47 +29,53 @@ export function DashboardPage() {
   const weekAgo = new Date(today);
   weekAgo.setDate(weekAgo.getDate() - 7);
 
+  // Query filters go in TanStack's typed `search`, not baked into `to`.
   const statCards: {
     label: string;
     value: number;
     icon: typeof ClipboardList;
     tint: string;
-    href?: string;
+    to: string;
+    search?: { status?: string; erpStatus?: "pending" | "transmitted"; dateFrom?: string };
   }[] = [
     {
       label: "Παραγγελίες Σήμερα",
       value: stats.ordersToday,
       icon: ClipboardList,
       tint: "bg-primary/10 text-primary",
-      href: `/k/${slug}/admin/orders?dateFrom=${toDateInput(today)}`,
+      to: "/k/$slug/admin/orders",
+      search: { dateFrom: toDateInput(today) },
     },
     {
       label: "Εκκρεμείς",
       value: stats.pendingOrders,
       icon: Clock,
       tint: "bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-300",
-      href: `/k/${slug}/admin/orders?status=pending`,
+      to: "/k/$slug/admin/orders",
+      search: { status: "pending" },
     },
     {
       label: "Εκκρεμεί διαβίβαση ERP",
       value: stats.pendingErp,
       icon: Send,
       tint: "bg-rose-100 text-rose-700 dark:bg-rose-950 dark:text-rose-300",
-      href: `/k/${slug}/admin/orders?erpStatus=pending`,
+      to: "/k/$slug/admin/orders",
+      search: { erpStatus: "pending" },
     },
     {
       label: "Αυτή την Εβδομάδα",
       value: stats.ordersThisWeek,
       icon: CalendarRange,
       tint: "bg-blue-100 text-blue-700 dark:bg-blue-950 dark:text-blue-300",
-      href: `/k/${slug}/admin/orders?dateFrom=${toDateInput(weekAgo)}`,
+      to: "/k/$slug/admin/orders",
+      search: { dateFrom: toDateInput(weekAgo) },
     },
     {
       label: "Πελάτες",
       value: stats.totalCustomers,
       icon: Users,
       tint: "bg-green-100 text-green-700 dark:bg-green-950 dark:text-green-300",
-      href: `/k/${slug}/admin/customers`,
+      to: "/k/$slug/admin/customers",
     },
   ];
 
@@ -78,9 +84,9 @@ export function DashboardPage() {
       <h1 className="text-2xl font-bold tracking-tight">Πίνακας Ελέγχου</h1>
 
       <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-5">
-        {statCards.map((stat) => {
-          const card = (
-            <Card className={cn("h-full py-0", stat.href && "transition-colors hover:bg-muted/50")}>
+        {statCards.map((stat) => (
+          <Link key={stat.label} to={stat.to} params={{ slug }} search={stat.search}>
+            <Card className="h-full py-0 transition-colors hover:bg-muted/50">
               <CardContent className="flex items-center gap-3 p-3 sm:p-4">
                 <div
                   className={cn(
@@ -98,15 +104,8 @@ export function DashboardPage() {
                 </div>
               </CardContent>
             </Card>
-          );
-          return stat.href ? (
-            <Link key={stat.label} to={stat.href}>
-              {card}
-            </Link>
-          ) : (
-            <div key={stat.label}>{card}</div>
-          );
-        })}
+          </Link>
+        ))}
       </div>
 
       <div>
