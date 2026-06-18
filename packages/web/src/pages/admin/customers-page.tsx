@@ -1,8 +1,10 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "@tanstack/react-router";
 import { toast } from "sonner";
+import type { AdminCustomersSearch } from "@kava-now/shared";
 import { useTenantSlug } from "@/lib/hooks/use-tenant-api";
 import { useDebouncedValue } from "@/lib/hooks/use-debounced-value";
+import { useFilterSearch } from "@/lib/hooks/use-filter-search";
 import { Button } from "@/components/ui/button";
 import { SearchInput } from "@/components/ui/search-input";
 import { ResponsiveTable, type ResponsiveTableColumn } from "@/components/ui/responsive-table";
@@ -21,15 +23,21 @@ export function CustomersPage() {
   const navigate = useNavigate();
   const slug = useTenantSlug();
   const adminBase = `/k/${slug}/admin`;
-  const [search, setSearch] = useState("");
+  const { search: urlSearch, setFilters } = useFilterSearch<AdminCustomersSearch>();
+  const page = urlSearch.page ?? 1;
+  const [search, setSearch] = useState(urlSearch.search ?? "");
   const [modalOpen, setModalOpen] = useState(false);
   const [editId, setEditId] = useState<string | undefined>(undefined);
-  const [page, setPage] = useState(1);
 
   const debouncedSearch = useDebouncedValue(search);
+  useEffect(() => {
+    if (debouncedSearch !== (urlSearch.search ?? "")) {
+      setFilters({ search: debouncedSearch || undefined });
+    }
+  }, [debouncedSearch, urlSearch.search, setFilters]);
 
   const { data, isLoading } = useCustomers({
-    search: debouncedSearch || undefined,
+    search: urlSearch.search,
     page,
     pageSize: PAGE_SIZE,
   });
@@ -105,10 +113,7 @@ export function CustomersPage() {
       <SearchInput
         placeholder="Αναζήτηση με όνομα ή υπεύθυνο..."
         value={search}
-        onValueChange={(v) => {
-          setSearch(v);
-          setPage(1);
-        }}
+        onValueChange={setSearch}
       />
 
       {isLoading ? (
@@ -176,7 +181,7 @@ export function CustomersPage() {
             page={page}
             pageSize={PAGE_SIZE}
             total={total}
-            onPageChange={setPage}
+            onPageChange={(p) => setFilters({ page: p })}
           />
         </>
       )}

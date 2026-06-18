@@ -35,5 +35,13 @@ export const updateCustomerSchema = z
   })
   .refine((d) => Object.keys(d).length > 0, "Δεν δόθηκαν πεδία για ενημέρωση");
 
+// Body of PATCH /customer/profile — customers may update only their own phone
+// and address (name/email stay admin-controlled).
+export const updateProfileSchema = z.object({
+  phone: z.string().optional().nullable(),
+  address: z.string().optional().nullable(),
+});
+
 export type CreateCustomerInput = z.infer<typeof createCustomerSchema>;
 export type UpdateCustomerInput = z.infer<typeof updateCustomerSchema>;
+export type UpdateProfileInput = z.infer<typeof updateProfileSchema>;

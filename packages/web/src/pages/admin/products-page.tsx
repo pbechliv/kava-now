@@ -3,6 +3,7 @@ import { useLocation, useNavigate } from "@tanstack/react-router";
 import { toast } from "sonner";
 import { useTenantSlug } from "@/lib/hooks/use-tenant-api";
 import { useDebouncedValue } from "@/lib/hooks/use-debounced-value";
+import { useFilterSearch } from "@/lib/hooks/use-filter-search";
 import { Pencil, Trash2, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { SearchInput } from "@/components/ui/search-input";
@@ -23,7 +24,7 @@ import { PaginationControls } from "@/components/pagination-controls";
 import { useProducts, useUpdateProduct, useDeleteProduct } from "@/lib/hooks/use-products";
 import { useCategories } from "@/lib/hooks/use-categories";
 import { useDeleteConfirmation } from "@/lib/hooks/use-delete-confirmation";
-import { UNIT_LABELS, type ImportProductsResult } from "@kava-now/shared";
+import { UNIT_LABELS, type AdminProductsSearch, type ImportProductsResult } from "@kava-now/shared";
 import { PAGE_SIZE } from "@/lib/constants";
 import { formatMoney } from "@/lib/format";
 
@@ -35,10 +36,12 @@ export function ProductsPage() {
   const slug = useTenantSlug();
   const adminBase = `/k/${slug}/admin`;
   const importResult = location.state.importResult ?? null;
-  const [search, setSearch] = useState("");
-  const [categoryFilter, setCategoryFilter] = useState("");
+  const { search: urlSearch, setFilters } = useFilterSearch<AdminProductsSearch>();
+  const categoryFilter = urlSearch.categoryId ?? "";
+  const page = urlSearch.page ?? 1;
+  // Local mirror of the search box for responsive typing; debounced into the URL.
+  const [search, setSearch] = useState(urlSearch.search ?? "");
   const [bannerResult, setBannerResult] = useState<ImportProductsResult | null>(importResult);
-  const [page, setPage] = useState(1);
 
   useEffect(() => {
     if (importResult) {
@@ -47,10 +50,15 @@ export function ProductsPage() {
   }, [importResult, location.pathname, navigate]);
 
   const debouncedSearch = useDebouncedValue(search);
+  useEffect(() => {
+    if (debouncedSearch !== (urlSearch.search ?? "")) {
+      setFilters({ search: debouncedSearch || undefined });
+    }
+  }, [debouncedSearch, urlSearch.search, setFilters]);
 
   const { data, isLoading } = useProducts({
-    search: debouncedSearch || undefined,
-    categoryId: categoryFilter || undefined,
+    search: urlSearch.search,
+    categoryId: urlSearch.categoryId,
     page,
     pageSize: PAGE_SIZE,
   });
@@ -182,25 +190,16 @@ export function ProductsPage() {
           <SearchInput
             placeholder="Αναζήτηση με όνομα ή brand..."
             value={search}
-            onValueChange={(v) => {
-              setSearch(v);
-              setPage(1);
-            }}
+            onValueChange={setSearch}
           />
         }
         activeCount={categoryFilter ? 1 : 0}
-        onClear={() => {
-          setCategoryFilter("");
-          setPage(1);
-        }}
+        onClear={() => setFilters({ categoryId: undefined })}
       >
         <FilterField label="Κατηγορία">
           <Select
             value={categoryFilter || "all"}
-            onValueChange={(v) => {
-              setCategoryFilter(v === "all" ? "" : v);
-              setPage(1);
-            }}
+            onValueChange={(v) => setFilters({ categoryId: v === "all" ? undefined : v })}
           >
             <SelectTrigger className="w-full md:w-56" aria-label="Κατηγορία">
               <SelectValue placeholder="Όλες οι κατηγορίες" />
@@ -286,7 +285,7 @@ export function ProductsPage() {
             page={page}
             pageSize={PAGE_SIZE}
             total={total}
-            onPageChange={setPage}
+            onPageChange={(p) => setFilters({ page: p })}
           />
         </>
       )}

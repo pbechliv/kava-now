@@ -1,22 +1,16 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useTenantApi, useTenantSlug } from "./use-tenant-api";
-import type { InviteCustomerUserInput } from "@kava-now/shared";
+import type {
+  InviteCustomerUserInput,
+  CustomerLinkedUser,
+  CustomerLinkedUsersResponse,
+} from "@kava-now/shared";
 
 export type { InviteCustomerUserInput };
 
-export interface CustomerUser {
-  id: string;
-  email: string;
-  emailVerified: boolean;
-  name: string;
-  createdAt: string;
-  invitedByName: string | null;
-  invitedByEmail: string | null;
-}
-
-interface CustomerUsersResponse {
-  users: CustomerUser[];
-}
+// Local alias for the historical name used by the customer-users page.
+export type CustomerUser = CustomerLinkedUser;
+type CustomerUsersResponse = CustomerLinkedUsersResponse;
 
 export function useCustomerUsers(customerId: string | undefined) {
   const slug = useTenantSlug();

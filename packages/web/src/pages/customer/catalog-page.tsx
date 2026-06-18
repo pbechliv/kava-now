@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Minus, Plus } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -15,33 +15,37 @@ import {
 import { MobileList, MobileListItem } from "@/components/ui/mobile-list";
 import { cn } from "@/lib/utils";
 import { useDebouncedValue } from "@/lib/hooks/use-debounced-value";
+import { useFilterSearch } from "@/lib/hooks/use-filter-search";
 import { ErrorBanner } from "@/components/error-banner";
 import { Spinner } from "@/components/spinner";
 import { PaginationControls } from "@/components/pagination-controls";
 import { useCatalog, useCatalogCategories } from "@/lib/hooks/use-catalog";
 import { useCartStore } from "@/lib/store/cart";
-import { UNIT_LABELS } from "@kava-now/shared";
+import { UNIT_LABELS, type CatalogSearch } from "@kava-now/shared";
 import type { CatalogProduct } from "@/lib/store/cart";
 import { PAGE_SIZE } from "@/lib/constants";
 import { formatMoney } from "@/lib/format";
 
 export function CatalogPage() {
-  const [selectedCategory, setSelectedCategoryState] = useState<string>("");
-  const [search, setSearch] = useState("");
+  const { search: urlSearch, setFilters } = useFilterSearch<CatalogSearch>();
+  const selectedCategory = urlSearch.categoryId ?? "";
+  const page = urlSearch.page ?? 1;
+  const [search, setSearch] = useState(urlSearch.search ?? "");
   const [quantities, setQuantities] = useState<Record<string, number>>({});
-  const [page, setPage] = useState(1);
 
   const addItem = useCartStore((s) => s.addItem);
   const debouncedSearch = useDebouncedValue(search);
+  useEffect(() => {
+    if (debouncedSearch !== (urlSearch.search ?? "")) {
+      setFilters({ search: debouncedSearch || undefined });
+    }
+  }, [debouncedSearch, urlSearch.search, setFilters]);
 
-  const setSelectedCategory = (id: string) => {
-    setSelectedCategoryState(id);
-    setPage(1);
-  };
+  const setSelectedCategory = (id: string) => setFilters({ categoryId: id || undefined });
 
   const { data, isLoading, error } = useCatalog({
-    categoryId: selectedCategory || undefined,
-    search: debouncedSearch || undefined,
+    categoryId: urlSearch.categoryId,
+    search: urlSearch.search,
     page,
     pageSize: PAGE_SIZE,
   });
@@ -52,10 +56,7 @@ export function CatalogPage() {
   // page of results made chips vanish under filters/search (#58).
   const { data: categories = [], error: categoriesError } = useCatalogCategories();
 
-  const handleSearchChange = (value: string) => {
-    setSearch(value);
-    setPage(1);
-  };
+  const handleSearchChange = (value: string) => setSearch(value);
 
   const getQty = (productId: string) => quantities[productId] ?? 1;
 
@@ -224,7 +225,7 @@ export function CatalogPage() {
             page={page}
             pageSize={PAGE_SIZE}
             total={total}
-            onPageChange={setPage}
+            onPageChange={(p) => setFilters({ page: p })}
           />
         </>
       )}

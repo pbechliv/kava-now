@@ -1,6 +1,8 @@
 import { useState } from "react";
 import { Link } from "@tanstack/react-router";
 import { Loader2 } from "lucide-react";
+import type { PageOnlySearch } from "@kava-now/shared";
+import { useFilterSearch } from "@/lib/hooks/use-filter-search";
 import { useSuperAdminTenants, useDeleteTenant } from "@/lib/hooks/use-superadmin-tenants";
 import { Button } from "@/components/ui/button";
 import { ResponsiveTable, type ResponsiveTableColumn } from "@/components/ui/responsive-table";
@@ -12,7 +14,8 @@ import { formatDate } from "@/lib/format";
 type TenantRow = NonNullable<ReturnType<typeof useSuperAdminTenants>["data"]>["data"][number];
 
 export function TenantsPage() {
-  const [page, setPage] = useState(1);
+  const { search, setFilters } = useFilterSearch<PageOnlySearch>();
+  const page = search.page ?? 1;
   const { data, isLoading } = useSuperAdminTenants({ page, pageSize: PAGE_SIZE });
   const deleteMutation = useDeleteTenant();
   const [confirmId, setConfirmId] = useState<string | null>(null);
@@ -144,7 +147,7 @@ export function TenantsPage() {
             page={page}
             pageSize={PAGE_SIZE}
             total={total}
-            onPageChange={setPage}
+            onPageChange={(p) => setFilters({ page: p })}
           />
         </>
       )}

@@ -1,6 +1,11 @@
 import { Hono } from "hono";
 import { eq, and, or, sql, asc } from "drizzle-orm";
-import { paginationQuerySchema, listFiltersQuerySchema } from "@kava-now/shared";
+import {
+  catalogQuerySchema,
+  type CatalogProduct,
+  type CatalogCategoryChip,
+  type PaginatedResponse,
+} from "@kava-now/shared";
 import { db } from "../../db/connection";
 import { accentInsensitiveLike } from "../../db/search";
 import { products, categories, customers, customerBrandPricing } from "../../db/schema/index";
@@ -28,7 +33,8 @@ catalogRouter.get("/categories", async (c) => {
     .where(and(eq(categories.tenantId, tenantId), eq(products.active, true)))
     .orderBy(asc(categories.sortOrder), asc(categories.name));
 
-  return c.json(rows);
+  const body: CatalogCategoryChip[] = rows;
+  return c.json(body);
 });
 
 // GET / — all active products with per-brand pricing for the authenticated
@@ -66,21 +72,11 @@ catalogRouter.get("/", requireCustomerProfile, async (c) => {
 
   const brandDiscountMap = new Map(brandPricing.map((bp) => [bp.brand, bp.discountPct]));
 
-  const filters = listFiltersQuerySchema.safeParse({ categoryId: c.req.query("categoryId") });
-  if (!filters.success) {
-    return c.json({ error: filters.error.flatten().fieldErrors }, 400);
+  const parsed = catalogQuerySchema.safeParse(c.req.query());
+  if (!parsed.success) {
+    return c.json({ error: parsed.error.flatten().fieldErrors }, 400);
   }
-  const { categoryId } = filters.data;
-  const search = c.req.query("search");
-
-  const pagination = paginationQuerySchema.safeParse({
-    page: c.req.query("page"),
-    pageSize: c.req.query("pageSize"),
-  });
-  if (!pagination.success) {
-    return c.json({ error: pagination.error.flatten().fieldErrors }, 400);
-  }
-  const { page, pageSize } = pagination.data;
+  const { categoryId, search, page, pageSize } = parsed.data;
 
   const conditions = [eq(products.tenantId, tenantId), eq(products.active, true)];
 
@@ -125,7 +121,7 @@ catalogRouter.get("/", requireCustomerProfile, async (c) => {
     .limit(pageSize)
     .offset((page - 1) * pageSize);
 
-  const data = rows.map((row) => ({
+  const data: CatalogProduct[] = rows.map((row) => ({
     id: row.id,
     name: row.name,
     brand: row.brand,
@@ -139,7 +135,8 @@ catalogRouter.get("/", requireCustomerProfile, async (c) => {
     resolvedPrice: resolvePrice(row.basePrice, brandDiscountMap.get(row.brand) ?? null),
   }));
 
-  return c.json({ data, total, page, pageSize });
+  const body: PaginatedResponse<CatalogProduct> = { data, total, page, pageSize };
+  return c.json(body);
 });
 
 export { catalogRouter };

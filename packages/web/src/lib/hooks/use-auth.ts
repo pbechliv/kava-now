@@ -3,20 +3,9 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useParams } from "@tanstack/react-router";
 import * as Sentry from "@sentry/react";
 import { api, ApiError } from "../api";
-import type { TenantMembership } from "@kava-now/shared";
+import type { TenantMembership, AuthUser, AuthMeResponse, UpdateMeInput } from "@kava-now/shared";
 
-export interface AuthUser {
-  id: string;
-  email: string;
-  name: string;
-  isSuperAdmin: boolean;
-  hasPassword: boolean;
-}
-
-export interface AuthMeResponse {
-  user: AuthUser;
-  memberships: TenantMembership[];
-}
+export type { AuthUser, AuthMeResponse, UpdateMeInput };
 
 /**
  * Hook for authenticated user state. Returns the global user + their list of
@@ -97,13 +86,6 @@ export function useAuth() {
     isRefetching,
     error,
   };
-}
-
-export interface UpdateMeInput {
-  name?: string;
-  email?: string;
-  /** Required by the API when changing email — proof of account ownership. */
-  currentPassword?: string;
 }
 
 export function useUpdateMe() {

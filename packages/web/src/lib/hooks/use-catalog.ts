@@ -1,21 +1,17 @@
 import { useQuery, keepPreviousData } from "@tanstack/react-query";
 import { useTenantApi, useTenantSlug } from "./use-tenant-api";
 import { withQuery } from "../utils";
-import type { PaginatedResponse } from "@kava-now/shared";
-import type { CatalogProduct } from "../store/cart";
+import type {
+  CatalogProduct,
+  CatalogCategoryChip,
+  CatalogSearch,
+  PaginatedResponse,
+} from "@kava-now/shared";
 
-interface CatalogFilters {
-  categoryId?: string;
-  search?: string;
-  page?: number;
-  pageSize?: number;
-}
+type CatalogFilters = CatalogSearch & { pageSize?: number };
 
-export interface CatalogCategory {
-  id: string;
-  name: string;
-  sortOrder: number;
-}
+// Local alias for the historical name used by the catalog page.
+export type CatalogCategory = CatalogCategoryChip;
 
 /** Category chips — independent of the paginated/filtered product list. */
 export function useCatalogCategories() {

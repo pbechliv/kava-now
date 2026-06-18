@@ -1,6 +1,14 @@
 import { Hono } from "hono";
 import { eq, and, desc, sql, inArray } from "drizzle-orm";
-import { createOrderSchema, paginationQuerySchema, API_ERROR_CODES } from "@kava-now/shared";
+import {
+  createOrderSchema,
+  paginationQuerySchema,
+  API_ERROR_CODES,
+  type CustomerOrderListItem,
+  type CustomerOrderDetailResponse,
+  type CreateOrderResponse,
+  type PaginatedResponse,
+} from "@kava-now/shared";
 import { afterTenantCommit, db } from "../../db/connection";
 import {
   orders,
@@ -13,6 +21,7 @@ import { requireCustomerProfile } from "../../middleware/require-customer-profil
 import { resolvePrice } from "../../services/pricing";
 import { sendPushToUsers, orderNotificationRecipients } from "../../services/push";
 import type { AppEnv } from "../../types";
+import type { PreSerialize } from "../../serialize";
 import { getCustomerId, getTenant, getTenantId } from "../../context";
 
 const ordersRouter = new Hono<AppEnv>();
@@ -167,7 +176,8 @@ ordersRouter.post("/", async (c) => {
 
   await queueOrderPlacedNotifications(tenant, customer, result, c.get("user")?.id);
 
-  return c.json(result, 201);
+  const responseBody = result satisfies PreSerialize<CreateOrderResponse>;
+  return c.json(responseBody, 201);
 });
 
 // GET / — list orders for authenticated customer
@@ -211,7 +221,13 @@ ordersRouter.get("/", async (c) => {
     .limit(pageSize)
     .offset((page - 1) * pageSize);
 
-  return c.json({ data: rows, total, page, pageSize });
+  const body = {
+    data: rows,
+    total,
+    page,
+    pageSize,
+  } satisfies PreSerialize<PaginatedResponse<CustomerOrderListItem>>;
+  return c.json(body);
 });
 
 // GET /:id — single order with items
@@ -254,7 +270,8 @@ ordersRouter.get("/:id", async (c) => {
     .from(orderItems)
     .where(eq(orderItems.orderId, orderId));
 
-  return c.json({ ...order, items });
+  const body = { ...order, items } satisfies PreSerialize<CustomerOrderDetailResponse>;
+  return c.json(body);
 });
 
 // POST /:id/reorder — clone items from referenced order into a new order
@@ -387,7 +404,8 @@ ordersRouter.post("/:id/reorder", async (c) => {
 
   await queueOrderPlacedNotifications(tenant, customer, result, c.get("user")?.id);
 
-  return c.json(result, 201);
+  const responseBody = result satisfies PreSerialize<CreateOrderResponse>;
+  return c.json(responseBody, 201);
 });
 
 // POST /:id/cancel — customer cancels their own order.

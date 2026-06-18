@@ -1,23 +1,10 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useTenantApi, useTenantSlug } from "./use-tenant-api";
+import type { TenantSettingsResponse, UpdateTenantSettingsInput } from "@kava-now/shared";
 
-export interface TenantSettings {
-  id: string;
-  name: string;
-  slug: string;
-  address: string | null;
-  phone: string | null;
-  email: string;
-  logoUrl: string | null;
-}
-
-export interface UpdateSettingsInput {
-  name?: string;
-  address?: string | null;
-  phone?: string | null;
-  email?: string;
-  logoUrl?: string | null;
-}
+// Local aliases for the historical names used by the settings page.
+export type TenantSettings = TenantSettingsResponse;
+export type UpdateSettingsInput = UpdateTenantSettingsInput;
 
 export function useSettings() {
   const slug = useTenantSlug();

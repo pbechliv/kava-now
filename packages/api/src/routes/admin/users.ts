@@ -1,7 +1,7 @@
 import { Hono } from "hono";
 import { eq, and, ne, sql } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
-import { API_ERROR_CODES, inviteStaffUserSchema } from "@kava-now/shared";
+import { API_ERROR_CODES, inviteStaffUserSchema, type UsersListResponse } from "@kava-now/shared";
 import { db } from "../../db/connection";
 import { accounts, tenantMemberships, users } from "../../db/schema/index";
 import {
@@ -10,6 +10,7 @@ import {
   InviteConflict,
 } from "../../services/invite-user";
 import type { AppEnv } from "../../types";
+import type { PreSerialize } from "../../serialize";
 import { getMembership, getTenant, getTenantId, getUser } from "../../context";
 
 const usersRouter = new Hono<AppEnv>();
@@ -37,7 +38,8 @@ usersRouter.get("/", async (c) => {
     .where(and(eq(tenantMemberships.tenantId, tenantId), ne(tenantMemberships.role, "customer")))
     .orderBy(tenantMemberships.createdAt);
 
-  return c.json({ users: rows });
+  const body = { users: rows } satisfies PreSerialize<UsersListResponse>;
+  return c.json(body);
 });
 
 // POST /invite — invite a staff user

@@ -1,13 +1,11 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useTenantApi, useTenantSlug } from "./use-tenant-api";
-import type { Customer } from "@kava-now/shared";
+import type { CustomerProfileResponse, UpdateProfileInput } from "@kava-now/shared";
 
-// The profile endpoint whitelists customer-facing columns — internal admin
-// notes, billing/ERP fields, and tenantId are never returned.
-export type CustomerProfile = Pick<
-  Customer,
-  "id" | "name" | "email" | "address" | "phone" | "contactPerson"
->;
+export type { UpdateProfileInput };
+
+// Local alias for the historical name used by the profile page.
+export type CustomerProfile = CustomerProfileResponse;
 
 export function useProfile() {
   const slug = useTenantSlug();
@@ -16,11 +14,6 @@ export function useProfile() {
     queryKey: ["customer", slug, "profile"],
     queryFn: () => tApi.get<CustomerProfile>("/customer/profile"),
   });
-}
-
-export interface UpdateProfileInput {
-  phone?: string | null;
-  address?: string | null;
 }
 
 export function useUpdateProfile() {

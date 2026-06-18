@@ -1,6 +1,13 @@
 import { Hono } from "hono";
 import { and, eq, inArray, notExists, sql } from "drizzle-orm";
-import { registerSchema, paginationQuerySchema, API_ERROR_CODES } from "@kava-now/shared";
+import {
+  registerSchema,
+  paginationQuerySchema,
+  API_ERROR_CODES,
+  type SuperAdminTenantListItem,
+  type CreateTenantResponse,
+  type PaginatedResponse,
+} from "@kava-now/shared";
 import { db } from "../../db/connection";
 import { accounts, tenantMemberships, tenants, users } from "../../db/schema/index";
 import { createTenantWithOwner } from "../../services/create-tenant";
@@ -9,6 +16,7 @@ import { requireAuth } from "../../middleware/require-auth";
 import { requireSuperAdmin } from "../../middleware/require-superadmin";
 import { isUniqueViolation, UNIQUE_CONSTRAINTS } from "../../db/errors";
 import type { AppEnv } from "../../types";
+import type { PreSerialize } from "../../serialize";
 
 const DUPLICATE_TENANT_SLUG_RESPONSE = {
   code: API_ERROR_CODES.DUPLICATE_TENANT_SLUG,
@@ -47,7 +55,13 @@ superadmin.get("/tenants", async (c) => {
     .limit(pageSize)
     .offset((page - 1) * pageSize);
 
-  return c.json({ data, total, page, pageSize });
+  const body = {
+    data,
+    total,
+    page,
+    pageSize,
+  } satisfies PreSerialize<PaginatedResponse<SuperAdminTenantListItem>>;
+  return c.json(body);
 });
 
 // POST /superadmin/tenants — create tenant + owner user + membership
@@ -94,7 +108,8 @@ superadmin.post("/tenants", async (c) => {
     }
   }
 
-  return c.json({ success: true, slug, hasPassword: !!password });
+  const responseBody: CreateTenantResponse = { success: true, slug, hasPassword: !!password };
+  return c.json(responseBody);
 });
 
 // DELETE /superadmin/tenants/:id — hard delete a tenant (memberships cascade)

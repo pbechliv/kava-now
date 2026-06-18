@@ -1,6 +1,10 @@
 import { Hono } from "hono";
 import { eq, and } from "drizzle-orm";
-import { updateTenantSettingsSchema, updateNotificationPreferenceSchema } from "@kava-now/shared";
+import {
+  updateTenantSettingsSchema,
+  updateNotificationPreferenceSchema,
+  type TenantSettingsResponse,
+} from "@kava-now/shared";
 import { db } from "../../db/connection";
 import { tenants, tenantMemberships } from "../../db/schema/index";
 import type { AppEnv } from "../../types";
@@ -11,7 +15,7 @@ const settingsRouter = new Hono<AppEnv>();
 // GET / — return current tenant record
 settingsRouter.get("/", async (c) => {
   const tenant = getTenant(c);
-  return c.json({
+  const body: TenantSettingsResponse = {
     id: tenant.id,
     name: tenant.name,
     slug: tenant.slug,
@@ -19,7 +23,8 @@ settingsRouter.get("/", async (c) => {
     phone: tenant.phone,
     email: tenant.email,
     logoUrl: tenant.logoUrl,
-  });
+  };
+  return c.json(body);
 });
 
 // PUT / — update tenant fields
@@ -42,7 +47,7 @@ settingsRouter.put("/", async (c) => {
     return c.json({ error: "Failed to update settings" }, 500);
   }
 
-  return c.json({
+  const responseBody: TenantSettingsResponse = {
     id: updated.id,
     name: updated.name,
     slug: updated.slug,
@@ -50,7 +55,8 @@ settingsRouter.put("/", async (c) => {
     phone: updated.phone,
     email: updated.email,
     logoUrl: updated.logoUrl,
-  });
+  };
+  return c.json(responseBody);
 });
 
 // PATCH /notification-preference — self-service: the current user opts in/out

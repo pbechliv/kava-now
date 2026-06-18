@@ -8,7 +8,14 @@ import {
   redirect,
 } from "@tanstack/react-router";
 import { z } from "zod";
-import type { ImportProductsResult } from "@kava-now/shared";
+import {
+  adminOrdersSearchSchema,
+  adminProductsSearchSchema,
+  adminCustomersSearchSchema,
+  catalogSearchSchema,
+  pageOnlySearchSchema,
+  type ImportProductsResult,
+} from "@kava-now/shared";
 
 import { BootSplash } from "./components/boot-splash";
 import { AuthBootGate } from "./components/auth-boot-gate";
@@ -43,14 +50,6 @@ const RouterDevtools = import.meta.env.PROD
 // old `searchParams.get("…") ?? ""` string coercion.
 const tokenSearchSchema = z.object({
   token: z.string().optional().catch(""),
-});
-
-const ordersSearchSchema = z.object({
-  erpStatus: z.enum(["pending", "transmitted"]).optional().catch(undefined),
-  // Deep-link filters from the dashboard stat cards (#114).
-  status: z.string().optional().catch(undefined),
-  dateFrom: z.string().optional().catch(undefined),
-  dateTo: z.string().optional().catch(undefined),
 });
 
 // Pages load lazily per route (#59): a customer on a phone must not download
@@ -207,6 +206,7 @@ const tenantsRoute = createRoute({
   getParentRoute: () => adminRoute,
   path: "tenants",
   component: TenantsPage,
+  validateSearch: pageOnlySearchSchema,
 });
 const newTenantRoute = createRoute({
   getParentRoute: () => adminRoute,
@@ -285,6 +285,7 @@ const productsRoute = createRoute({
   getParentRoute: () => tenantAdminRoute,
   path: "products",
   component: ProductsPage,
+  validateSearch: adminProductsSearchSchema,
 });
 const productsNewRoute = createRoute({
   getParentRoute: () => tenantAdminRoute,
@@ -310,6 +311,7 @@ const customersRoute = createRoute({
   getParentRoute: () => tenantAdminRoute,
   path: "customers",
   component: CustomersPage,
+  validateSearch: adminCustomersSearchSchema,
 });
 const customerUsersRoute = createRoute({
   getParentRoute: () => tenantAdminRoute,
@@ -329,7 +331,7 @@ const usersRoute = createRoute({
 const ordersRoute = createRoute({
   getParentRoute: () => tenantAdminRoute,
   path: "orders",
-  validateSearch: ordersSearchSchema,
+  validateSearch: adminOrdersSearchSchema,
   component: OrdersPage,
 });
 const orderDetailRoute = createRoute({
@@ -366,6 +368,7 @@ const catalogRoute = createRoute({
   getParentRoute: () => tenantCustomerLayoutRoute,
   path: "catalog",
   component: CatalogPage,
+  validateSearch: catalogSearchSchema,
 });
 const cartRoute = createRoute({
   getParentRoute: () => tenantCustomerLayoutRoute,
@@ -376,6 +379,7 @@ const customerOrdersRoute = createRoute({
   getParentRoute: () => tenantCustomerLayoutRoute,
   path: "orders",
   component: OrderHistoryPage,
+  validateSearch: pageOnlySearchSchema,
 });
 const customerOrderDetailRoute = createRoute({
   getParentRoute: () => tenantCustomerLayoutRoute,

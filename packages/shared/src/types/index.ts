@@ -105,3 +105,6 @@ export interface OrderItem {
   status: OrderItemStatus;
   replacedByItemId: string | null;
 }
+
+// API response / DTO shapes (kept next to the entity types they build on).
+export * from "./responses";
