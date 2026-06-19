@@ -66,12 +66,7 @@ export function TenantsPage() {
             </Button>
           </div>
         ) : (
-          <Button
-            variant="ghost"
-            size="sm"
-            className="text-destructive hover:bg-destructive/10 hover:text-destructive"
-            onClick={() => setConfirmId(tenant.id)}
-          >
+          <Button variant="ghost-destructive" size="sm" onClick={() => setConfirmId(tenant.id)}>
             Διαγραφή
           </Button>
         ),
@@ -131,9 +126,8 @@ export function TenantsPage() {
                     </div>
                   ) : (
                     <Button
-                      variant="ghost"
+                      variant="ghost-destructive"
                       size="sm"
-                      className="text-destructive hover:bg-destructive/10 hover:text-destructive"
                       onClick={() => setConfirmId(tenant.id)}
                     >
                       Διαγραφή

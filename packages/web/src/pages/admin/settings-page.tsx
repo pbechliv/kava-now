@@ -211,7 +211,7 @@ function ProfileTab() {
             </div>
           )}
           {error && <p className="text-sm text-destructive">{error}</p>}
-          {updateMe.isSuccess && <p className="text-sm text-green-600">Το προφίλ ενημερώθηκε</p>}
+          {updateMe.isSuccess && <p className="text-sm text-success">Το προφίλ ενημερώθηκε</p>}
         </CardContent>
       </Card>
       <div className="flex justify-end">

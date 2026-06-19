@@ -89,9 +89,8 @@ export function CustomersPage() {
             Τιμολόγηση
           </Button>
           <Button
-            variant="ghost"
+            variant="ghost-destructive"
             size="sm"
-            className="text-destructive hover:bg-destructive/10 hover:text-destructive"
             onClick={() => del.request({ id: customer.id, name: customer.name })}
           >
             Διαγραφή
@@ -166,9 +165,8 @@ export function CustomersPage() {
                     Τιμολόγηση
                   </Button>
                   <Button
-                    variant="ghost"
+                    variant="ghost-destructive"
                     size="sm"
-                    className="text-destructive hover:bg-destructive/10 hover:text-destructive"
                     onClick={() => del.request({ id: customer.id, name: customer.name })}
                   >
                     Διαγραφή

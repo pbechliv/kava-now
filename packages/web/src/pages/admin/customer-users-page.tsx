@@ -12,7 +12,7 @@ import { useTenantSlug } from "@/lib/hooks/use-tenant-api";
 import { useDeleteUser } from "@/lib/hooks/use-users";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
+import { InvitationStatusBadge } from "@/components/admin/invitation-status-badge";
 import { ResponsiveTable, type ResponsiveTableColumn } from "@/components/ui/responsive-table";
 import { Spinner } from "@/components/spinner";
 import { ConfirmDialog } from "@/components/confirm-dialog";
@@ -51,11 +51,7 @@ export function CustomerUsersPage() {
       cell: (u) => (
         <>
           {u.name}
-          {!u.emailVerified && (
-            <Badge variant="warning" className="ml-2">
-              Εκκρεμεί
-            </Badge>
-          )}
+          {!u.emailVerified && <InvitationStatusBadge className="ml-2" />}
         </>
       ),
     },
@@ -115,11 +111,7 @@ export function CustomerUsersPage() {
               <div className="min-w-0">
                 <div className="font-medium">
                   {u.name}
-                  {!u.emailVerified && (
-                    <Badge variant="warning" className="ml-2">
-                      Εκκρεμεί
-                    </Badge>
-                  )}
+                  {!u.emailVerified && <InvitationStatusBadge className="ml-2" />}
                 </div>
                 <div className="text-sm text-muted-foreground">{u.email}</div>
                 {u.invitedByName && (

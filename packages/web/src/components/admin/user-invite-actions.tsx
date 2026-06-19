@@ -73,7 +73,7 @@ export function UserInviteActions({
         <span
           className={cn(
             "text-xs",
-            feedback.kind === "success" ? "text-green-600" : "text-destructive",
+            feedback.kind === "success" ? "text-success" : "text-destructive",
           )}
         >
           {feedback.message}
@@ -92,9 +92,8 @@ export function UserInviteActions({
       )}
       {children}
       <Button
-        variant="ghost"
+        variant="ghost-destructive"
         size="sm"
-        className="text-destructive hover:bg-destructive/10 hover:text-destructive"
         onClick={() => onDelete({ id: user.id, name: user.name })}
       >
         Διαγραφή
