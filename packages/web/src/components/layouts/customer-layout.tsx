@@ -164,7 +164,7 @@ export function CustomerLayout() {
               <DropdownMenuLabel className="truncate">{user?.email}</DropdownMenuLabel>
               <TenantSwitcher currentSlug={slug ?? null} />
               <DropdownMenuSeparator />
-              <DropdownMenuItem onSelect={() => logout.mutate()}>
+              <DropdownMenuItem onClick={() => logout.mutate()}>
                 <LogOut className="mr-2 h-4 w-4" />
                 Αποσύνδεση
               </DropdownMenuItem>
