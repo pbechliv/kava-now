@@ -25,6 +25,7 @@ import { PaginationControls } from "@/components/pagination-controls";
 import { useProducts, useUpdateProduct, useDeleteProduct } from "@/lib/hooks/use-products";
 import { useCategories } from "@/lib/hooks/use-categories";
 import { useDeleteConfirmation } from "@/lib/hooks/use-delete-confirmation";
+import { ProductFormModal } from "@/components/admin/product-form-modal";
 import { UNIT_LABELS, type AdminProductsSearch, type ImportProductsResult } from "@kava-now/shared";
 import { PAGE_SIZE } from "@/lib/constants";
 import { formatMoney } from "@/lib/format";
@@ -43,6 +44,18 @@ export function ProductsPage() {
   // Local mirror of the search box for responsive typing; debounced into the URL.
   const [search, setSearch] = useState(urlSearch.search ?? "");
   const [bannerResult, setBannerResult] = useState<ImportProductsResult | null>(importResult);
+  const [modalOpen, setModalOpen] = useState(false);
+  const [editProductId, setEditProductId] = useState<string | undefined>(undefined);
+
+  const handleCreate = () => {
+    setEditProductId(undefined);
+    setModalOpen(true);
+  };
+
+  const handleEdit = (id: string) => {
+    setEditProductId(id);
+    setModalOpen(true);
+  };
 
   useEffect(() => {
     if (importResult) {
@@ -127,7 +140,7 @@ export function ProductsPage() {
           <Button
             variant="ghost"
             size="icon"
-            onClick={() => navigate({ to: `${adminBase}/products/${p.id}` })}
+            onClick={() => handleEdit(p.id)}
             aria-label="Επεξεργασία"
           >
             <Pencil className="h-4 w-4" />
@@ -156,7 +169,7 @@ export function ProductsPage() {
           >
             Εισαγωγή από αρχείο
           </Button>
-          <Button onClick={() => navigate({ to: `${adminBase}/products/new` })}>Νέο Προϊόν</Button>
+          <Button onClick={handleCreate}>Νέο Προϊόν</Button>
         </div>
       </div>
 
@@ -220,7 +233,7 @@ export function ProductsPage() {
         <EmptyState
           message="Δεν βρέθηκαν προϊόντα"
           actionLabel="Νέο Προϊόν"
-          onAction={() => navigate({ to: `${adminBase}/products/new` })}
+          onAction={handleCreate}
         />
       ) : (
         <>
@@ -258,7 +271,7 @@ export function ProductsPage() {
                     <Button
                       variant="ghost"
                       size="icon"
-                      onClick={() => navigate({ to: `${adminBase}/products/${product.id}` })}
+                      onClick={() => handleEdit(product.id)}
                       aria-label="Επεξεργασία"
                     >
                       <Pencil className="h-4 w-4" />
@@ -297,6 +310,15 @@ export function ProductsPage() {
         }
         confirmLabel="Διαγραφή"
         onConfirm={confirmDelete}
+      />
+
+      <ProductFormModal
+        open={modalOpen}
+        productId={editProductId}
+        onClose={() => {
+          setModalOpen(false);
+          setEditProductId(undefined);
+        }}
       />
     </div>
   );
