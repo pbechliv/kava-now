@@ -14,7 +14,7 @@ KavaNow is a multi-tenant SaaS platform for kava bar/shop management. pnpm 11 mo
 
 The repo uses **[Vite+](https://viteplus.dev)** (`vp` CLI, installed under `~/.vite-plus`) as a unified frontend toolchain wrapping Vite, Vitest, Oxlint, Oxfmt, and Rolldown. Install once with `curl -fsSL https://vite.plus | bash`.
 
-`pnpm-workspace.yaml` uses pnpm catalogs to pin `vite`/`vitest` to the Vite+-vendored builds (`@voidzero-dev/vite-plus-core`, `@voidzero-dev/vite-plus-test`) and overrides any transitive `vite`/`vitest` to those catalog entries. A `zod` override (`^4.4.3`) dedupes zod across better-auth's transitive deps — without it, TS emits "cannot be named without a reference to `$strip` from zod@..." errors. Build-script approval is restricted to `esbuild` + `@sentry/cli` via `allowBuilds` in `pnpm-workspace.yaml` (the live setting in pnpm 11 — `onlyBuiltDependencies` is ignored).
+`pnpm-workspace.yaml` uses pnpm catalogs to pin `vite` to the Vite+-vendored build (`@voidzero-dev/vite-plus-core`) and `vitest` to upstream `vitest` (4.x — Vite+ 0.2 dropped the vendored `@voidzero-dev/vite-plus-test`, which stopped at 0.1.24), and overrides any transitive `vite`/`vitest` to those catalog entries. A `zod` override (`^4.4.3`) dedupes zod across better-auth's transitive deps — without it, TS emits "cannot be named without a reference to `$strip` from zod@..." errors. Build-script approval is restricted to `esbuild` + `@sentry/cli` via `allowBuilds` in `pnpm-workspace.yaml` (the live setting in pnpm 11 — `onlyBuiltDependencies` is ignored).
 
 The repo-root `vite.config.ts` is **only** for `vp fmt`/`vp lint` configuration. Per-package builds live in `packages/api/vite.config.ts` and `packages/web/vite.config.ts` (both `import { defineConfig } from "vite-plus"`). Do **not** run `vp build` from the repo root — it has no entry. Use `pnpm build` or run inside a workspace.
 
@@ -224,7 +224,7 @@ Fulfillment status transition rules live in `ORDER_STATUS_TRANSITIONS` ([package
 
 ### Environment
 
-- Node >= 24 (`.node-version`: `24.15.0`). `.node-version` is the only Node pin — read by `vp env`, nodenv, asdf, fnm, and nvm-as-fallback.
+- Node >= 24 (`.node-version`: `24.16.0`). `.node-version` is the only Node pin — read by `vp env`, nodenv, asdf, fnm, and nvm-as-fallback.
 - pnpm > 11 (declared via `packageManager` in root [package.json](package.json); corepack-managed)
 - Config in [packages/api/src/config.ts](packages/api/src/config.ts); env loaded by [packages/api/src/load-env.ts](packages/api/src/load-env.ts) from the repo-root `.env`
 - [.env.example](.env.example) documents `DATABASE_URL`, `APP_ORIGIN`, `BETTER_AUTH_SECRET`, `SMTP_*`, `RESEND_*`, `API_PORT`, `SUPERADMIN_*`, `DEMO_CUSTOMER_*`

@@ -139,6 +139,10 @@ export function CategoriesPage() {
           <div className="space-y-2 sm:w-56">
             <Label htmlFor="cat-parent">Γονική κατηγορία</Label>
             <Select
+              items={[
+                { value: "none", label: "Καμία" },
+                ...(categories ?? []).map((cat) => ({ value: cat.id, label: cat.name })),
+              ]}
               value={newParentId || "none"}
               onValueChange={(v) => setNewParentId(v && v !== "none" ? v : "")}
             >
@@ -190,6 +194,12 @@ export function CategoriesPage() {
                         </TableCell>
                         <TableCell>
                           <Select
+                            items={[
+                              { value: "none", label: "Καμία" },
+                              ...categories
+                                .filter((c) => c.id !== cat.id)
+                                .map((c) => ({ value: c.id, label: c.name })),
+                            ]}
                             value={editParentId || "none"}
                             onValueChange={(v) => setEditParentId(v && v !== "none" ? v : "")}
                           >
@@ -280,6 +290,12 @@ export function CategoriesPage() {
                   <div className="space-y-2">
                     <Label htmlFor={`edit-parent-${cat.id}`}>Γονική κατηγορία</Label>
                     <Select
+                      items={[
+                        { value: "none", label: "Καμία" },
+                        ...categories
+                          .filter((c) => c.id !== cat.id)
+                          .map((c) => ({ value: c.id, label: c.name })),
+                      ]}
                       value={editParentId || "none"}
                       onValueChange={(v) => setEditParentId(v && v !== "none" ? v : "")}
                     >

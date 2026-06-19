@@ -134,6 +134,10 @@ export function ProductFormPage() {
                     <FormItem>
                       <FormLabel>Κατηγορία</FormLabel>
                       <Select
+                        items={[
+                          { value: "none", label: "Χωρίς κατηγορία" },
+                          ...(categories ?? []).map((cat) => ({ value: cat.id, label: cat.name })),
+                        ]}
                         onValueChange={(v) => field.onChange(v === "none" ? "" : v)}
                         value={field.value || "none"}
                       >
