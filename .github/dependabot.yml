@@ -50,12 +50,17 @@ updates:
         patterns:
           - vite-plus
           - "@voidzero-dev/*"
+      nodemailer:
+        patterns:
+          - nodemailer
+          - "@types/nodemailer"
       types:
         patterns:
           - "@types/*"
         exclude-patterns:
           - "@types/react"
           - "@types/react-dom"
+          - "@types/nodemailer"
 
   - package-ecosystem: docker
     directory: /
@@ -69,6 +74,12 @@ updates:
     commit-message:
       prefix: chore
       include: scope
+    # The Node version is pinned in both the Dockerfile and .node-version, but
+    # dependabot's docker ecosystem only sees the Dockerfile — bumping it alone
+    # drifts the two. .node-version has no dependabot ecosystem, so Node bumps
+    # are done by hand across both files. Caddy updates still flow through here.
+    ignore:
+      - dependency-name: "node"
 
   - package-ecosystem: docker-compose
     directories:
