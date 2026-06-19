@@ -1,5 +1,4 @@
 import { useEffect } from "react";
-import { useNavigate, useParams } from "@tanstack/react-router";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Loader2 } from "lucide-react";
@@ -13,7 +12,13 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Card, CardContent } from "@/components/ui/card";
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import {
   Select,
   SelectContent,
@@ -33,15 +38,17 @@ import { Spinner } from "@/components/spinner";
 import { useProduct, useCreateProduct, useUpdateProduct } from "@/lib/hooks/use-products";
 import { useCategories } from "@/lib/hooks/use-categories";
 
+interface Props {
+  open: boolean;
+  productId?: string;
+  onClose: () => void;
+}
+
 type FormData = CreateProductInput;
 
-export function ProductFormPage() {
-  const navigate = useNavigate();
-  const { id, slug } = useParams({ strict: false });
-  const isEdit = !!id && id !== "new";
-  const productsPath = `/k/${slug}/admin/products`;
-
-  const { data: product, isLoading: productLoading } = useProduct(isEdit ? id : undefined);
+export function ProductFormModal({ open, productId, onClose }: Props) {
+  const isEdit = !!productId;
+  const { data: product, isLoading: productLoading } = useProduct(isEdit ? productId : undefined);
   const { data: categories } = useCategories();
   const createMutation = useCreateProduct();
   const updateMutation = useUpdateProduct();
@@ -49,6 +56,24 @@ export function ProductFormPage() {
   const form = useForm<FormData>({
     resolver: zodResolver(createProductSchema),
   });
+
+  useEffect(() => {
+    if (open && !isEdit) {
+      form.reset({
+        name: "",
+        brand: "",
+        categoryId: "",
+        description: undefined,
+        basePrice: undefined,
+        unit: undefined,
+        volumeMl: undefined,
+        alcoholPct: undefined,
+        sku: undefined,
+        erpRef: undefined,
+        imageUrl: undefined,
+      });
+    }
+  }, [open, isEdit, form]);
 
   useEffect(() => {
     if (product && isEdit) {
@@ -69,37 +94,42 @@ export function ProductFormPage() {
   }, [product, isEdit, form]);
 
   const onSubmit = (data: FormData) => {
-    const onSuccess = () => {
-      toast.success(isEdit ? "Το προϊόν ενημερώθηκε" : "Το προϊόν δημιουργήθηκε");
-      void navigate({ to: productsPath });
-    };
-    if (isEdit) {
-      updateMutation.mutate({ id, data: data as UpdateProductInput }, { onSuccess });
+    if (productId) {
+      updateMutation.mutate(
+        { id: productId, data: data as UpdateProductInput },
+        {
+          onSuccess: () => {
+            toast.success("Το προϊόν ενημερώθηκε");
+            onClose();
+          },
+        },
+      );
     } else {
-      createMutation.mutate(data as CreateProductInput, { onSuccess });
+      createMutation.mutate(data, {
+        onSuccess: () => {
+          toast.success("Το προϊόν δημιουργήθηκε");
+          onClose();
+        },
+      });
     }
   };
-
-  if (isEdit && productLoading) {
-    return (
-      <div className="flex justify-center py-12">
-        <Spinner />
-      </div>
-    );
-  }
 
   const isPending = createMutation.isPending || updateMutation.isPending;
 
   return (
-    <div className="space-y-6">
-      <h1 className="text-2xl font-bold tracking-tight">
-        {isEdit ? "Επεξεργασία Προϊόντος" : "Νέο Προϊόν"}
-      </h1>
+    <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
+      <DialogContent className="sm:max-w-2xl">
+        <DialogHeader>
+          <DialogTitle>{isEdit ? "Επεξεργασία Προϊόντος" : "Νέο Προϊόν"}</DialogTitle>
+        </DialogHeader>
 
-      <Card className="max-w-2xl">
-        <CardContent className="p-6">
+        {isEdit && productLoading ? (
+          <div className="flex justify-center py-8">
+            <Spinner />
+          </div>
+        ) : (
           <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <FormField
                   control={form.control}
@@ -188,7 +218,13 @@ export function ProductFormPage() {
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Μονάδα</FormLabel>
-                      <Select onValueChange={field.onChange} value={field.value}>
+                      <Select
+                        items={(Object.entries(UNIT_LABELS) as [string, string][]).map(
+                          ([value, label]) => ({ value, label }),
+                        )}
+                        onValueChange={field.onChange}
+                        value={field.value ?? ""}
+                      >
                         <FormControl>
                           <SelectTrigger className="w-full">
                             <SelectValue />
@@ -315,23 +351,19 @@ export function ProductFormPage() {
                 </p>
               )}
 
-              <div className="flex flex-col gap-2 sm:flex-row">
+              <DialogFooter>
+                <Button type="button" variant="ghost" onClick={onClose}>
+                  Ακύρωση
+                </Button>
                 <Button type="submit" disabled={isPending}>
                   {isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                   {isEdit ? "Αποθήκευση" : "Δημιουργία"}
                 </Button>
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => navigate({ to: productsPath })}
-                >
-                  Ακύρωση
-                </Button>
-              </div>
+              </DialogFooter>
             </form>
           </Form>
-        </CardContent>
-      </Card>
-    </div>
+        )}
+      </DialogContent>
+    </Dialog>
   );
 }

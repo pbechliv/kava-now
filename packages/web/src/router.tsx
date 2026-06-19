@@ -63,10 +63,6 @@ const ProductsPage = lazyRouteComponent(
   () => import("./pages/admin/products-page"),
   "ProductsPage",
 );
-const ProductFormPage = lazyRouteComponent(
-  () => import("./pages/admin/product-form-page"),
-  "ProductFormPage",
-);
 const ProductsImportPage = lazyRouteComponent(
   () => import("./pages/admin/products-import-page"),
   "ProductsImportPage",
@@ -287,20 +283,10 @@ const productsRoute = createRoute({
   component: ProductsPage,
   validateSearch: adminProductsSearchSchema,
 });
-const productsNewRoute = createRoute({
-  getParentRoute: () => tenantAdminRoute,
-  path: "products/new",
-  component: ProductFormPage,
-});
 const productsImportRoute = createRoute({
   getParentRoute: () => tenantAdminRoute,
   path: "products/import",
   component: ProductsImportPage,
-});
-const productDetailRoute = createRoute({
-  getParentRoute: () => tenantAdminRoute,
-  path: "products/$id",
-  component: ProductFormPage,
 });
 const categoriesRoute = createRoute({
   getParentRoute: () => tenantAdminRoute,
@@ -412,9 +398,7 @@ const routeTree = rootRoute.addChildren([
       tenantAdminIndexRoute,
       dashboardRoute,
       productsRoute,
-      productsNewRoute,
       productsImportRoute,
-      productDetailRoute,
       categoriesRoute,
       customersRoute,
       customerUsersRoute,
