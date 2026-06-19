@@ -42,6 +42,7 @@ export function OrderStatusCard({ order }: { order: AdminOrderDetail }) {
         ) : (
           <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
             <Select
+              items={allowedNext.map((s) => ({ value: s, label: <OrderStatusBadge status={s} /> }))}
               value={selectedStatus || undefined}
               onValueChange={(v) => setSelectedStatus(v as OrderStatus)}
             >

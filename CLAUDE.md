@@ -224,7 +224,7 @@ Fulfillment status transition rules live in `ORDER_STATUS_TRANSITIONS` ([package
 
 ### Environment
 
-- Node >= 24 (`.node-version`: `24.15.0`). `.node-version` is the only Node pin — read by `vp env`, nodenv, asdf, fnm, and nvm-as-fallback.
+- Node >= 24 (`.node-version`: `24.16.0`). `.node-version` is the only Node pin — read by `vp env`, nodenv, asdf, fnm, and nvm-as-fallback.
 - pnpm > 11 (declared via `packageManager` in root [package.json](package.json); corepack-managed)
 - Config in [packages/api/src/config.ts](packages/api/src/config.ts); env loaded by [packages/api/src/load-env.ts](packages/api/src/load-env.ts) from the repo-root `.env`
 - [.env.example](.env.example) documents `DATABASE_URL`, `APP_ORIGIN`, `BETTER_AUTH_SECRET`, `SMTP_*`, `RESEND_*`, `API_PORT`, `SUPERADMIN_*`, `DEMO_CUSTOMER_*`

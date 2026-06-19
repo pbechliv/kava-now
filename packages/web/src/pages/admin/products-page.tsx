@@ -198,6 +198,10 @@ export function ProductsPage() {
       >
         <FilterField label="Κατηγορία">
           <Select
+            items={[
+              { value: "all", label: "Όλες οι κατηγορίες" },
+              ...(categories ?? []).map((cat) => ({ value: cat.id, label: cat.name })),
+            ]}
             value={categoryFilter || "all"}
             onValueChange={(v) => setFilters({ categoryId: v && v !== "all" ? v : undefined })}
           >
