@@ -1,11 +1,9 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useTenantApi, useTenantSlug } from "./use-tenant-api";
-import type { InviteStaffUserInput, AdminUserListItem, UsersListResponse } from "@kava-now/shared";
+import type { InviteStaffUserInput, UsersListResponse } from "@kava-now/shared";
 
 export type InviteUserInput = InviteStaffUserInput;
 
-// Local alias for the historical name used by the users page.
-export type TenantUser = AdminUserListItem;
 type UsersResponse = UsersListResponse;
 
 export function useUsers() {

@@ -30,12 +30,3 @@ export function useUpdateCustomerBrandPricing(customerId: string) {
     },
   });
 }
-
-export function useBrands() {
-  const slug = useTenantSlug();
-  const tApi = useTenantApi();
-  return useQuery({
-    queryKey: ["admin", slug, "brands"],
-    queryFn: () => tApi.get<string[]>("/admin/customers/brands"),
-  });
-}
