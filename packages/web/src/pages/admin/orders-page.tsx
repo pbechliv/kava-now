@@ -38,6 +38,14 @@ const STATUS_TABS: { label: string; value: OrderStatus | "all" }[] = [
   { label: "Ακυρ. από πελάτη", value: "cancelled_by_customer" },
 ];
 
+// Base UI's <Select.Value> needs this value→label map to render the selected
+// label in the trigger; without `items` it falls back to the raw value ("all").
+const ERP_FILTER_ITEMS = [
+  { value: "all", label: "Όλες" },
+  { value: "pending", label: ERP_STATUS_LABELS.pending },
+  { value: "transmitted", label: ERP_STATUS_LABELS.transmitted },
+];
+
 export function OrdersPage() {
   const { search, setFilters } = useFilterSearch<AdminOrdersSearch>();
 
@@ -103,6 +111,7 @@ export function OrdersPage() {
         <FilterField label="ERP" className="md:w-48">
           <Select
             value={erpFilter}
+            items={ERP_FILTER_ITEMS}
             onValueChange={(v) =>
               setFilters({ erpStatus: v === "all" ? undefined : (v as ErpStatus) })
             }
