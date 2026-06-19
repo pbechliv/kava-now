@@ -45,14 +45,14 @@ function buildLinesTsv(order: AdminOrderDetail): string {
 function ItemBadges({ item }: { item: AdminOrderItem }) {
   if (item.status === "cancelled") {
     return (
-      <Badge variant="muted" className="text-[10px]">
+      <Badge variant="muted" size="sm">
         Ακυρωμένο
       </Badge>
     );
   }
   if (item.originalQuantity == null) {
     return (
-      <Badge variant="secondary" className="text-[10px]">
+      <Badge variant="secondary" size="sm">
         Προστέθηκε
       </Badge>
     );

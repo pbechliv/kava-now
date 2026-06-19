@@ -6,7 +6,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
+import { Alert } from "@/components/ui/alert";
+import { ImportStatusBadge } from "@/components/admin/import-status-badge";
 import {
   Select,
   SelectContent,
@@ -275,9 +276,9 @@ export function ProductsImportPage() {
           )}
 
           {parseError && (
-            <p className="mt-4 rounded-lg border border-destructive/50 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+            <Alert variant="destructive" className="mt-4">
               {parseError}
-            </p>
+            </Alert>
           )}
 
           {parsed && !parsing && (
@@ -350,7 +351,7 @@ export function ProductsImportPage() {
             </Button>
           </div>
           {!mappingComplete && (
-            <p className="mt-3 text-xs text-amber-700 dark:text-amber-400">
+            <p className="mt-3 text-xs text-warning">
               Συνδέστε τα πεδία Όνομα, Μάρκα και Τιμή για να συνεχίσετε.
             </p>
           )}
@@ -400,7 +401,7 @@ export function ProductsImportPage() {
                     <TableRow key={i}>
                       <TableCell className="text-muted-foreground">{i + 1}</TableCell>
                       <TableCell>
-                        <StatusBadge status={status} />
+                        <ImportStatusBadge status={status} />
                         {r.error && <p className="mt-1 text-xs text-destructive">{r.error}</p>}
                       </TableCell>
                       <TableCell>{r.row?.name ?? r.raw[mapping.name ?? ""] ?? "-"}</TableCell>
@@ -429,9 +430,9 @@ export function ProductsImportPage() {
           )}
 
           {importMutation.error && (
-            <p className="mt-4 rounded-lg border border-destructive/50 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+            <Alert variant="destructive" className="mt-4">
               {importMutation.error.message}
-            </p>
+            </Alert>
           )}
 
           <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -479,10 +480,4 @@ function Stepper({ current }: { current: Step }) {
       })}
     </ol>
   );
-}
-
-function StatusBadge({ status }: { status: "new" | "update" | "error" }) {
-  if (status === "new") return <Badge variant="success">Νέο</Badge>;
-  if (status === "update") return <Badge variant="info">Ενημέρωση</Badge>;
-  return <Badge variant="destructive">Σφάλμα</Badge>;
 }

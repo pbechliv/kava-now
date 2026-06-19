@@ -13,7 +13,7 @@ import {
 import { useAuth } from "@/lib/hooks/use-auth";
 import { useDeleteConfirmation } from "@/lib/hooks/use-delete-confirmation";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
+import { InvitationStatusBadge } from "@/components/admin/invitation-status-badge";
 import { ResponsiveTable, type ResponsiveTableColumn } from "@/components/ui/responsive-table";
 import { Spinner } from "@/components/spinner";
 import { ConfirmDialog } from "@/components/confirm-dialog";
@@ -93,11 +93,7 @@ export function UsersPage() {
         <>
           {u.name}
           {u.id === me?.id && <span className="ml-2 text-xs text-muted-foreground">(εσείς)</span>}
-          {!u.emailVerified && (
-            <Badge variant="warning" className="ml-2">
-              Εκκρεμεί
-            </Badge>
-          )}
+          {!u.emailVerified && <InvitationStatusBadge className="ml-2" />}
         </>
       ),
     },
@@ -154,11 +150,7 @@ export function UsersPage() {
                 {u.id === me?.id && (
                   <span className="ml-2 text-xs text-muted-foreground">(εσείς)</span>
                 )}
-                {!u.emailVerified && (
-                  <Badge variant="warning" className="ml-2">
-                    Εκκρεμεί
-                  </Badge>
-                )}
+                {!u.emailVerified && <InvitationStatusBadge className="ml-2" />}
               </div>
               <div className="text-sm text-muted-foreground">{u.email}</div>
               <div className="text-sm text-muted-foreground">

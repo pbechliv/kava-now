@@ -4,10 +4,11 @@ import { toast } from "sonner";
 import { useTenantSlug } from "@/lib/hooks/use-tenant-api";
 import { useDebouncedValue } from "@/lib/hooks/use-debounced-value";
 import { useFilterSearch } from "@/lib/hooks/use-filter-search";
-import { Pencil, Trash2, X } from "lucide-react";
+import { Pencil, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { SearchInput } from "@/components/ui/search-input";
 import { FilterBar, FilterField } from "@/components/ui/filter-bar";
+import { Alert } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import {
   Select,
@@ -132,9 +133,8 @@ export function ProductsPage() {
             <Pencil className="h-4 w-4" />
           </Button>
           <Button
-            variant="ghost"
+            variant="ghost-destructive"
             size="icon"
-            className="text-destructive hover:bg-destructive/10 hover:text-destructive"
             onClick={() => del.request({ id: p.id, name: p.name })}
             aria-label="Διαγραφή"
           >
@@ -161,7 +161,7 @@ export function ProductsPage() {
       </div>
 
       {bannerResult && (
-        <div className="flex items-start justify-between gap-3 rounded-lg border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-800 dark:border-green-900 dark:bg-green-950 dark:text-green-200">
+        <Alert variant="success" onDismiss={() => setBannerResult(null)}>
           <div>
             Η εισαγωγή ολοκληρώθηκε: <span className="font-semibold">{bannerResult.inserted}</span>{" "}
             νέα προϊόντα, <span className="font-semibold">{bannerResult.updated}</span> ενημερώθηκαν
@@ -174,15 +174,7 @@ export function ProductsPage() {
             )}
             .
           </div>
-          <button
-            type="button"
-            onClick={() => setBannerResult(null)}
-            className="shrink-0 text-green-700 hover:text-green-900"
-            aria-label="Κλείσιμο"
-          >
-            <X className="h-4 w-4" />
-          </button>
-        </div>
+        </Alert>
       )}
 
       <FilterBar
@@ -272,9 +264,8 @@ export function ProductsPage() {
                       <Pencil className="h-4 w-4" />
                     </Button>
                     <Button
-                      variant="ghost"
+                      variant="ghost-destructive"
                       size="icon"
-                      className="text-destructive hover:bg-destructive/10 hover:text-destructive"
                       onClick={() => del.request({ id: product.id, name: product.name })}
                       aria-label="Διαγραφή"
                     >

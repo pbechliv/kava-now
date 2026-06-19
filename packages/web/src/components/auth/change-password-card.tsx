@@ -124,7 +124,7 @@ function ChangePasswordForm({ hasPassword }: { hasPassword: boolean }) {
               </p>
             )}
             {mutation.isSuccess && (
-              <p className="text-sm text-green-600">Ο κωδικός άλλαξε επιτυχώς</p>
+              <p className="text-sm text-success">Ο κωδικός άλλαξε επιτυχώς</p>
             )}
           </CardContent>
         </Card>

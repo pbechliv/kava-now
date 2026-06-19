@@ -105,7 +105,7 @@ export function ProfilePage() {
               </div>
               {profileError && <p className="text-sm text-destructive">{profileError}</p>}
               {updateProfile.isSuccess && (
-                <p className="text-sm text-green-600">Τα στοιχεία αποθηκεύτηκαν</p>
+                <p className="text-sm text-success">Τα στοιχεία αποθηκεύτηκαν</p>
               )}
               <div className="flex justify-end">
                 <Button type="submit" disabled={updateProfile.isPending}>

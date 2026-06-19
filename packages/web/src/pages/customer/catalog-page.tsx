@@ -13,7 +13,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { MobileList, MobileListItem } from "@/components/ui/mobile-list";
-import { cn } from "@/lib/utils";
+import { Chip } from "@/components/ui/chip";
 import { useDebouncedValue } from "@/lib/hooks/use-debounced-value";
 import { useFilterSearch } from "@/lib/hooks/use-filter-search";
 import { ErrorBanner } from "@/components/error-banner";
@@ -82,18 +82,17 @@ export function CatalogPage() {
       />
 
       <div className="-mx-1 flex gap-2 overflow-x-auto px-1 pb-1 [-ms-overflow-style:none] [scrollbar-width:none] md:flex-wrap md:overflow-visible md:pb-0 [&::-webkit-scrollbar]:hidden">
-        <CategoryChip
-          label="Όλα"
-          active={selectedCategory === ""}
-          onClick={() => setSelectedCategory("")}
-        />
+        <Chip active={selectedCategory === ""} onClick={() => setSelectedCategory("")}>
+          Όλα
+        </Chip>
         {categories.map((cat) => (
-          <CategoryChip
+          <Chip
             key={cat.id}
-            label={cat.name}
             active={selectedCategory === cat.id}
             onClick={() => setSelectedCategory(selectedCategory === cat.id ? "" : cat.id)}
-          />
+          >
+            {cat.name}
+          </Chip>
         ))}
       </div>
       {categoriesError && <p className="text-sm text-destructive">Σφάλμα φόρτωσης κατηγοριών</p>}
@@ -230,30 +229,5 @@ export function CatalogPage() {
         </>
       )}
     </div>
-  );
-}
-
-function CategoryChip({
-  label,
-  active,
-  onClick,
-}: {
-  label: string;
-  active: boolean;
-  onClick: () => void;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={cn(
-        "shrink-0 rounded-full px-3 py-1.5 text-sm font-medium transition-colors",
-        active
-          ? "bg-primary text-primary-foreground"
-          : "bg-muted text-muted-foreground hover:bg-muted/80",
-      )}
-    >
-      {label}
-    </button>
   );
 }

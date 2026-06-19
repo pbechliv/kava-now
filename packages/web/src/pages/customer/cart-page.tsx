@@ -143,9 +143,8 @@ export function CartPage() {
                   <TableCell>
                     <Button
                       type="button"
-                      variant="ghost"
+                      variant="ghost-destructive"
                       size="icon"
-                      className="text-destructive hover:bg-destructive/10 hover:text-destructive"
                       onClick={() => removeItem(item.product.id)}
                       aria-label="Αφαίρεση"
                     >
@@ -173,9 +172,9 @@ export function CartPage() {
                 </div>
                 <Button
                   type="button"
-                  variant="ghost"
+                  variant="ghost-destructive"
                   size="icon"
-                  className="shrink-0 text-destructive hover:bg-destructive/10 hover:text-destructive"
+                  className="shrink-0"
                   onClick={() => removeItem(item.product.id)}
                   aria-label="Αφαίρεση"
                 >

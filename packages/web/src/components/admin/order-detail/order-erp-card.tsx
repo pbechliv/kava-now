@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { AlertTriangle } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Alert } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { CopyField } from "@/components/copy-field";
@@ -60,19 +61,16 @@ export function OrderErpCard({ order }: { order: AdminOrderDetail }) {
         ) : (
           <div className="space-y-3">
             {hasErpGaps && (
-              <div className="flex gap-2 rounded-md border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800 dark:border-amber-900 dark:bg-amber-950 dark:text-amber-200">
-                <AlertTriangle className="mt-0.5 size-4 shrink-0" />
-                <div className="space-y-1">
-                  <p className="font-medium">Λείπουν κωδικοί ERP</p>
-                  <p>Η παραγγελία μπορεί να διαβιβαστεί, αλλά το παραστατικό ίσως είναι ελλιπές:</p>
-                  <ul className="list-disc space-y-0.5 pl-4">
-                    {customerMissingErpRef && <li>Ο πελάτης δεν έχει κωδικό ERP.</li>}
-                    {linesMissingErpRef.map((item) => (
-                      <li key={item.id}>{item.productName} — χωρίς κωδικό ERP</li>
-                    ))}
-                  </ul>
-                </div>
-              </div>
+              <Alert variant="warning" icon={<AlertTriangle />}>
+                <p className="font-medium">Λείπουν κωδικοί ERP</p>
+                <p>Η παραγγελία μπορεί να διαβιβαστεί, αλλά το παραστατικό ίσως είναι ελλιπές:</p>
+                <ul className="list-disc space-y-0.5 pl-4">
+                  {customerMissingErpRef && <li>Ο πελάτης δεν έχει κωδικό ERP.</li>}
+                  {linesMissingErpRef.map((item) => (
+                    <li key={item.id}>{item.productName} — χωρίς κωδικό ERP</li>
+                  ))}
+                </ul>
+              </Alert>
             )}
             <p className="text-sm text-muted-foreground">
               Όταν καταχωρήσετε το παραστατικό στο Galaxy, καταγράψτε εδώ το MARK που επιστρέφει η
@@ -112,7 +110,7 @@ export function OrderErpCard({ order }: { order: AdminOrderDetail }) {
             είναι μη αναστρέψιμη και κλειδώνει την παραγγελία — δεν θα μπορείτε πλέον να προσθέσετε
             ή να επεξεργαστείτε προϊόντα.
             {hasErpGaps && (
-              <span className="mt-2 block font-medium text-amber-700 dark:text-amber-400">
+              <span className="mt-2 block font-medium text-warning">
                 Προσοχή: {linesMissingErpRef.length > 0 && `${linesMissingErpRef.length} γραμμές `}
                 {linesMissingErpRef.length > 0 && customerMissingErpRef && "και "}
                 {customerMissingErpRef && "ο πελάτης "}

@@ -82,9 +82,8 @@ export function CategoriesPage() {
                           Επεξεργασία
                         </Button>
                         <Button
-                          variant="ghost"
+                          variant="ghost-destructive"
                           size="sm"
-                          className="text-destructive hover:bg-destructive/10 hover:text-destructive"
                           onClick={() => del.request({ id: cat.id, name: cat.name })}
                         >
                           Διαγραφή
@@ -111,9 +110,8 @@ export function CategoriesPage() {
                       Επεξεργασία
                     </Button>
                     <Button
-                      variant="ghost"
+                      variant="ghost-destructive"
                       size="sm"
-                      className="text-destructive hover:bg-destructive/10 hover:text-destructive"
                       onClick={() => del.request({ id: cat.id, name: cat.name })}
                     >
                       Διαγραφή
