@@ -110,7 +110,12 @@ export const IMPORT_TARGET_FIELDS = [
 export type ImportTargetField = (typeof IMPORT_TARGET_FIELDS)[number];
 
 /** A column mapping: product field → source column header. Partial by design. */
-export const importColumnMappingSchema = z.record(z.enum(IMPORT_TARGET_FIELDS), z.string().min(1));
+// z.record over an enum key is *exhaustive* in zod v4 (requires every key);
+// partialRecord allows the subset of fields the user actually mapped.
+export const importColumnMappingSchema = z.partialRecord(
+  z.enum(IMPORT_TARGET_FIELDS),
+  z.string().min(1),
+);
 
 export type ImportColumnMapping = Partial<Record<ImportTargetField, string>>;
 
