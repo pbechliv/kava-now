@@ -298,9 +298,10 @@ productsRouter.post("/import/mappings", async (c) => {
   try {
     const [created] = await db
       .insert(productImportMappings)
-      .values({ tenantId, name, mapping })
+      .values({ tenantId, name, mapping, createdById: getUser(c).id })
       .returning(returning);
-    return c.json(created satisfies PreSerialize<ImportMappingTemplate> | undefined, 201);
+    if (!created) return c.json({ error: "Failed to save mapping" }, 500);
+    return c.json(created satisfies PreSerialize<ImportMappingTemplate>, 201);
   } catch (err) {
     // Lost a race with a concurrent save of the same name — update the winner.
     if (isUniqueViolation(err, UNIQUE_CONSTRAINTS.productImportMappingName)) {
@@ -309,7 +310,9 @@ productsRouter.post("/import/mappings", async (c) => {
         .set({ name, mapping })
         .where(matchByName)
         .returning(returning);
-      return c.json(raced satisfies PreSerialize<ImportMappingTemplate> | undefined);
+      // The winner was deleted between our failed insert and this update.
+      if (!raced) return c.json({ error: "Mapping not found" }, 404);
+      return c.json(raced satisfies PreSerialize<ImportMappingTemplate>);
     }
     throw err;
   }

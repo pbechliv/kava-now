@@ -24,6 +24,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { MobileList, MobileListItem, MobileListField } from "@/components/ui/mobile-list";
 import { Spinner } from "@/components/spinner";
 import { cn } from "@/lib/utils";
 import {
@@ -96,11 +97,12 @@ export function ProductsImportPage() {
   const deleteMapping = useDeleteImportMapping();
 
   const { data: existingProductKeys } = useProductKeys();
+  // Case-sensitive, matching the products (tenant, name, brand) unique index and
+  // the server-side upsert target — so the new/update estimate doesn't mislabel
+  // rows that differ only by case.
   const existingKeys = useMemo(() => {
     if (!existingProductKeys) return new Set<string>();
-    return new Set(
-      existingProductKeys.map((p) => `${p.name.toLowerCase()}|${p.brand.toLowerCase()}`),
-    );
+    return new Set(existingProductKeys.map((p) => `${p.name}|${p.brand}`));
   }, [existingProductKeys]);
 
   const applied: AppliedRow[] = useMemo(
@@ -119,7 +121,7 @@ export function ProductsImportPage() {
         errorRows++;
         continue;
       }
-      const key = `${r.row.name.toLowerCase()}|${r.row.brand.toLowerCase()}`;
+      const key = `${r.row.name}|${r.row.brand}`;
       if (existingKeys.has(key)) updateRows++;
       else newRows++;
     }
@@ -463,9 +465,7 @@ export function ProductsImportPage() {
               </TableHeader>
               <TableBody>
                 {applied.slice(0, showAllRows ? applied.length : PREVIEW_LIMIT).map((r, i) => {
-                  const key = r.row
-                    ? `${r.row.name.toLowerCase()}|${r.row.brand.toLowerCase()}`
-                    : "";
+                  const key = r.row ? `${r.row.name}|${r.row.brand}` : "";
                   const status: "new" | "update" | "error" = !r.row
                     ? "error"
                     : existingKeys.has(key)
@@ -682,7 +682,7 @@ function ImportHistoryCard({ history }: { history: ProductImportHistoryEntry[] }
   return (
     <Card className="p-6">
       <h2 className="text-lg font-semibold">Πρόσφατες εισαγωγές</h2>
-      <div className="mt-4 overflow-x-auto rounded-lg border">
+      <div className="mt-4 hidden overflow-x-auto rounded-lg border md:block">
         <Table>
           <TableHeader>
             <TableRow>
@@ -709,6 +709,22 @@ function ImportHistoryCard({ history }: { history: ProductImportHistoryEntry[] }
             ))}
           </TableBody>
         </Table>
+      </div>
+      <div className="mt-4 rounded-lg border md:hidden">
+        <MobileList>
+          {history.map((h) => (
+            <MobileListItem key={h.id}>
+              <MobileListField label="Ημερομηνία">{formatDateTime(h.createdAt)}</MobileListField>
+              <MobileListField label="Αρχείο">{h.sourceFilename ?? "-"}</MobileListField>
+              <MobileListField label="Χρήστης">
+                {h.createdByName ?? h.createdByEmail ?? "-"}
+              </MobileListField>
+              <MobileListField label="Νέα">{h.inserted}</MobileListField>
+              <MobileListField label="Ενημερώσεις">{h.updated}</MobileListField>
+              <MobileListField label="Κατηγορίες">{h.categoriesCreated}</MobileListField>
+            </MobileListItem>
+          ))}
+        </MobileList>
       </div>
     </Card>
   );
