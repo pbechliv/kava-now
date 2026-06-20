@@ -7,6 +7,9 @@ import type {
   UpdateProductInput,
   ImportProductRow,
   ImportProductsResult,
+  ImportMappingTemplate,
+  SaveImportMappingInput,
+  ProductImportHistoryEntry,
   ProductWithCategoryName,
   ProductNameBrandKey,
   AdminProductsSearch,
@@ -94,17 +97,81 @@ export function useDeleteProduct() {
   });
 }
 
+interface ImportArgs {
+  rows: ImportProductRow[];
+  sourceFilename?: string;
+}
+
+/**
+ * Dry-run: validate + compute the outcome server-side without writing. Powers
+ * the preview's authoritative summary (dedup, conflicts) before committing.
+ */
+export function useImportPreview() {
+  const tApi = useTenantApi();
+  return useMutation({
+    mutationFn: (rows: ImportProductRow[]) =>
+      tApi.post<ImportProductsResult>("/admin/products/import", { rows, dryRun: true }),
+  });
+}
+
 export function useImportProducts() {
   const slug = useTenantSlug();
   const tApi = useTenantApi();
   const qc = useQueryClient();
 
   return useMutation({
-    mutationFn: (rows: ImportProductRow[]) =>
-      tApi.post<ImportProductsResult>("/admin/products/import", { rows }),
+    mutationFn: ({ rows, sourceFilename }: ImportArgs) =>
+      tApi.post<ImportProductsResult>("/admin/products/import", { rows, sourceFilename }),
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: ["admin", slug, "products"] });
       void qc.invalidateQueries({ queryKey: ["admin", slug, "categories"] });
+      void qc.invalidateQueries({ queryKey: ["admin", slug, "product-imports"] });
+    },
+  });
+}
+
+/** Recent committed imports (audit log). */
+export function useProductImportHistory() {
+  const slug = useTenantSlug();
+  const tApi = useTenantApi();
+  return useQuery({
+    queryKey: ["admin", slug, "product-imports", "history"],
+    queryFn: () => tApi.get<ProductImportHistoryEntry[]>("/admin/products/import/history"),
+  });
+}
+
+/** Saved column-mapping templates for this tenant. */
+export function useImportMappingTemplates() {
+  const slug = useTenantSlug();
+  const tApi = useTenantApi();
+  return useQuery({
+    queryKey: ["admin", slug, "import-mappings"],
+    queryFn: () => tApi.get<ImportMappingTemplate[]>("/admin/products/import/mappings"),
+  });
+}
+
+export function useSaveImportMapping() {
+  const slug = useTenantSlug();
+  const tApi = useTenantApi();
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (data: SaveImportMappingInput) =>
+      tApi.post<ImportMappingTemplate>("/admin/products/import/mappings", data),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ["admin", slug, "import-mappings"] });
+    },
+  });
+}
+
+export function useDeleteImportMapping() {
+  const slug = useTenantSlug();
+  const tApi = useTenantApi();
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) =>
+      tApi.delete<{ success: boolean }>(`/admin/products/import/mappings/${id}`),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ["admin", slug, "import-mappings"] });
     },
   });
 }

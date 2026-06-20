@@ -1,18 +1,13 @@
-import { importProductRowSchema, type ImportProductRow } from "@kava-now/shared";
+import {
+  importProductRowSchema,
+  type ImportProductRow,
+  type ImportColumnMapping,
+  type ImportTargetField,
+} from "@kava-now/shared";
 import { parseBool, parseInteger, parsePrice } from "./spreadsheet-parser";
 
-export type TargetField =
-  | "name"
-  | "brand"
-  | "basePrice"
-  | "categoryName"
-  | "description"
-  | "sku"
-  | "unit"
-  | "volumeMl"
-  | "alcoholPct"
-  | "imageUrl"
-  | "active";
+// Re-exported under the historical local name used across the import UI.
+export type TargetField = ImportTargetField;
 
 export const REQUIRED_TARGETS: TargetField[] = ["name", "brand", "basePrice"];
 
@@ -30,7 +25,7 @@ export const TARGET_LABELS: Record<TargetField, string> = {
   active: "Ενεργό",
 };
 
-export type Mapping = Partial<Record<TargetField, string>>;
+export type Mapping = ImportColumnMapping;
 
 const HEADER_HINTS: Record<TargetField, RegExp[]> = {
   name: [
@@ -189,28 +184,4 @@ export function applyMapping(rows: Record<string, string>[], mapping: Mapping): 
     const firstMsg = firstField ? flat[firstField]?.[0] : "Μη έγκυρη γραμμή";
     return { row: null, error: `${firstField ?? ""}: ${firstMsg ?? "σφάλμα"}`.trim(), raw };
   });
-}
-
-const STORAGE_PREFIX = "kavanow:product-import-mapping:";
-// Pre-rename key (the app was briefly called tenant-now) — read-only fallback.
-const LEGACY_STORAGE_PREFIX = "tenant-now:product-import-mapping:";
-
-export function persistMapping(tenantSlug: string, mapping: Mapping): void {
-  try {
-    localStorage.setItem(STORAGE_PREFIX + tenantSlug, JSON.stringify(mapping));
-  } catch {
-    /* localStorage disabled / quota; non-fatal */
-  }
-}
-
-export function loadMapping(tenantSlug: string): Mapping | null {
-  try {
-    const raw =
-      localStorage.getItem(STORAGE_PREFIX + tenantSlug) ??
-      localStorage.getItem(LEGACY_STORAGE_PREFIX + tenantSlug);
-    if (!raw) return null;
-    return JSON.parse(raw) as Mapping;
-  } catch {
-    return null;
-  }
 }

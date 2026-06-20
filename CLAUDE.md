@@ -168,7 +168,7 @@ packages/api/src/routes/
 
 ### Database schema
 
-Drizzle tables ([packages/api/src/db/schema/](packages/api/src/db/schema/)): `tenants`, `users`, `tenant_memberships`, `sessions`, **`accounts`**, **`verifications`** (both required by better-auth), `categories`, `products`, `customer_brand_pricing`, `customers`, `orders`, `order_items`.
+Drizzle tables ([packages/api/src/db/schema/](packages/api/src/db/schema/)): `tenants`, `users`, `tenant_memberships`, `sessions`, **`accounts`**, **`verifications`** (both required by better-auth), `categories`, `products`, `product_import_mappings` (saved import column-mapping templates), `product_imports` (import audit log), `customer_brand_pricing`, `customers`, `orders`, `order_items`.
 
 The `postgres` driver (not `pg`) is used. RLS is enforced at the DB level for tenant-scoped tables (categories, products, customers, customer_brand_pricing, orders, order_items) via the `app.current_tenant_id` session variable set by `tenantMiddleware`. `users` and `tenant_memberships` are global — tenant scoping for those is enforced in application code via `requireRole`.
 
