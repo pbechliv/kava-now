@@ -7,6 +7,8 @@ export * from "./accounts";
 export * from "./verifications";
 export * from "./categories";
 export * from "./products";
+export * from "./product-import-mappings";
+export * from "./product-imports";
 export * from "./customers";
 export * from "./customer-brand-pricing";
 export * from "./customer-assigned-users";

@@ -185,6 +185,13 @@ export function ProductsPage() {
                 κατηγορίες
               </>
             )}
+            {bannerResult.duplicatesInFile > 0 && (
+              <>
+                {" "}
+                · <span className="font-semibold">{bannerResult.duplicatesInFile}</span> διπλές
+                γραμμές συγχωνεύθηκαν
+              </>
+            )}
             .
           </div>
         </Alert>

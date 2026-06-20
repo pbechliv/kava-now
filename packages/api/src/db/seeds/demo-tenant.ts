@@ -12,6 +12,7 @@ import {
   orderItems,
   orders,
   products,
+  productImportMappings,
   users,
 } from "../schema/index.js";
 import { DEMO_PRODUCTS } from "./demo-products.js";
@@ -398,6 +399,21 @@ export async function seedDemoTenant(outerDb: PostgresJsDatabase): Promise<void>
         "Skipping demo customer user in production — superadmin is the only seeded user.",
       );
     }
+
+    // A saved column-mapping template so the import flow has a representative
+    // example out of the box (matches a typical Greek supplier export).
+    await db.insert(productImportMappings).values({
+      tenantId: demoTenant.id,
+      name: "Τιμοκατάλογος προμηθευτή",
+      mapping: {
+        name: "Περιγραφή",
+        brand: "Μάρκα",
+        basePrice: "Τιμή",
+        categoryName: "Κατηγορία",
+        sku: "Κωδικός",
+      },
+      createdById: superadminUser.id,
+    });
 
     await db.insert(customerBrandPricing).values(
       DEMO_BRAND_PRICING.map((bp) => {

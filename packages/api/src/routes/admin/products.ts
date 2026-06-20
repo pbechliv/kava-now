@@ -1,11 +1,14 @@
 import { Hono } from "hono";
-import { eq, and, or, sql } from "drizzle-orm";
+import { eq, and, or, sql, desc } from "drizzle-orm";
 import {
   createProductSchema,
   updateProductSchema,
   importProductsBatchSchema,
+  saveImportMappingSchema,
   adminProductsQuerySchema,
   type ImportProductsResult,
+  type ImportMappingTemplate,
+  type ProductImportHistoryEntry,
   type ProductWithCategoryName,
   type ProductNameBrandKey,
   type PaginatedResponse,
@@ -13,16 +16,27 @@ import {
 } from "@kava-now/shared";
 import { db } from "../../db/connection";
 import { accentInsensitiveLike } from "../../db/search";
-import { products, categories, orderItems } from "../../db/schema/index";
+import {
+  products,
+  categories,
+  orderItems,
+  productImports,
+  productImportMappings,
+  users,
+} from "../../db/schema/index";
 import {
   isUniqueViolation,
   isForeignKeyViolation,
   UNIQUE_CONSTRAINTS,
   FK_CONSTRAINTS,
 } from "../../db/errors";
+import { executeProductImport, ProductErpConflictError } from "../../services/import-products";
 import type { AppEnv } from "../../types";
 import type { PreSerialize } from "../../serialize";
-import { getTenantId } from "../../context";
+import { getTenantId, getUser } from "../../context";
+
+/** Cap the import history list — recent activity, not an unbounded export. */
+const IMPORT_HISTORY_LIMIT = 20;
 
 const DUPLICATE_ERP_REF_RESPONSE = {
   code: API_ERROR_CODES.DUPLICATE_PRODUCT_ERP_REF,
@@ -150,7 +164,10 @@ productsRouter.get("/keys", async (c) => {
 // POST /import — bulk upsert products from a normalized JSON batch.
 // Client (ProductsImportPage) parses CSV/XLSX, maps columns, validates rows
 // with importProductRowSchema, and posts the result here. On conflict
-// (tenantId, name, brand) the existing row is updated.
+// (tenantId, name, brand) the existing row is updated. The core upsert lives in
+// the import-products service so the preview can run it as a dry-run.
+//   - dryRun=true  → run + roll back, returning server-truth counts/conflict.
+//   - dryRun=false → commit, then record the outcome in the import history.
 productsRouter.post("/import", async (c) => {
   const tenantId = getTenantId(c);
   const body = await c.req.json();
@@ -160,168 +177,18 @@ productsRouter.post("/import", async (c) => {
     return c.json({ error: parsed.error.flatten() }, 400);
   }
 
-  const { rows } = parsed.data;
+  const { rows, dryRun, sourceFilename } = parsed.data;
 
-  // Later duplicates of the same (name, brand) win — same outcome as the old
-  // sequential per-row upserts, but mandatory now that rows go in multi-row
-  // statements (ON CONFLICT cannot touch the same row twice per statement).
-  const byKey = new Map<string, (typeof rows)[number]>();
-  for (const row of rows) byKey.set(`${row.name}\u0000${row.brand}`, row);
-  const dedupedRows = [...byKey.values()];
-
-  // EXCLUDED.* so one multi-row statement updates each conflicting row with
-  // its own incoming values.
-  const UPSERT_SET = {
-    categoryId: sql`excluded.category_id`,
-    description: sql`excluded.description`,
-    sku: sql`excluded.sku`,
-    erpRef: sql`excluded.erp_ref`,
-    basePrice: sql`excluded.base_price`,
-    unit: sql`excluded.unit`,
-    volumeMl: sql`excluded.volume_ml`,
-    alcoholPct: sql`excluded.alcohol_pct`,
-    imageUrl: sql`excluded.image_url`,
-    active: sql`excluded.active`,
-  };
-
-  let conflict: { rowIndex: number; erpRef: string | null } | null = null;
-
-  let result: ImportProductsResult;
+  let execution;
   try {
-    result = await db.transaction(async (tx) => {
-      // Reconcile categories by name (case-insensitive match against existing).
-      const existingCategories = await tx
-        .select({ id: categories.id, name: categories.name })
-        .from(categories)
-        .where(eq(categories.tenantId, tenantId));
-
-      const categoryMap = new Map<string, string>(
-        existingCategories.map((cat) => [cat.name.toLowerCase(), cat.id]),
-      );
-
-      const uniqueCategoryNames = [
-        ...new Set(
-          dedupedRows
-            .map((r) => r.categoryName?.trim())
-            .filter((n): n is string => !!n && n.length > 0),
-        ),
-      ];
-
-      let categoriesCreated = 0;
-      for (const catName of uniqueCategoryNames) {
-        if (categoryMap.has(catName.toLowerCase())) continue;
-        // Race-safe get-or-create: a concurrent import/admin may create the
-        // same name — let the unique index arbitrate, then read the winner.
-        const [created] = await tx
-          .insert(categories)
-          .values({ name: catName, tenantId })
-          .onConflictDoNothing()
-          .returning({ id: categories.id });
-        if (created) {
-          categoryMap.set(catName.toLowerCase(), created.id);
-          categoriesCreated++;
-          continue;
-        }
-        const [winner] = await tx
-          .select({ id: categories.id })
-          .from(categories)
-          .where(
-            and(
-              eq(categories.tenantId, tenantId),
-              sql`lower(${categories.name}) = lower(${catName})`,
-            ),
-          )
-          .limit(1);
-        if (!winner) throw new Error(`Category get-or-create failed for "${catName}"`);
-        categoryMap.set(catName.toLowerCase(), winner.id);
-      }
-
-      const values = dedupedRows.map((row) => ({
-        tenantId,
-        name: row.name,
-        brand: row.brand,
-        categoryId: row.categoryName
-          ? (categoryMap.get(row.categoryName.trim().toLowerCase()) ?? null)
-          : null,
-        description: row.description ?? null,
-        sku: row.sku ?? null,
-        erpRef: row.erpRef ?? null,
-        basePrice: String(row.basePrice),
-        unit: row.unit ?? "bottle",
-        volumeMl: row.volumeMl ?? null,
-        alcoholPct: row.alcoholPct != null ? String(row.alcoholPct) : null,
-        imageUrl: row.imageUrl ?? null,
-        active: row.active ?? true,
-      }));
-
-      let inserted = 0;
-      let updated = 0;
-
-      // Multi-row chunks: ~13 params/row, 500 rows stays far under the 65535
-      // bind-parameter limit and turns 5000 round-trips into 10.
-      const CHUNK = 500;
-      for (let offset = 0; offset < values.length; offset += CHUNK) {
-        const chunk = values.slice(offset, offset + CHUNK);
-        try {
-          // Savepoint so the row-locating fallback below still has a live
-          // transaction to work with after a failed chunk.
-          const res = await tx.transaction((sp) =>
-            sp
-              .insert(products)
-              .values(chunk)
-              .onConflictDoUpdate({
-                target: [products.tenantId, products.name, products.brand],
-                set: UPSERT_SET,
-              })
-              .returning({ wasInserted: sql<boolean>`(xmax = 0)` }),
-          );
-          for (const r of res) {
-            if (r.wasInserted) inserted++;
-            else updated++;
-          }
-        } catch (err) {
-          if (!isUniqueViolation(err, UNIQUE_CONSTRAINTS.productErpRef)) throw err;
-          // Replay the failed chunk row-by-row in savepoints to locate the
-          // offending row for a useful 409 instead of an opaque 500.
-          for (let i = 0; i < chunk.length; i++) {
-            const row = chunk[i];
-            if (!row) continue;
-            try {
-              await tx.transaction(async (sp) => {
-                await sp
-                  .insert(products)
-                  .values(row)
-                  .onConflictDoUpdate({
-                    target: [products.tenantId, products.name, products.brand],
-                    set: UPSERT_SET,
-                  });
-              });
-            } catch (rowErr) {
-              if (isUniqueViolation(rowErr, UNIQUE_CONSTRAINTS.productErpRef)) {
-                conflict = { rowIndex: offset + i, erpRef: row.erpRef };
-              }
-              throw rowErr; // abort the whole import — it is all-or-nothing
-            }
-          }
-          throw err;
-        }
-      }
-
-      return {
-        inserted,
-        updated,
-        categoriesCreated,
-        total: rows.length,
-      } satisfies ImportProductsResult;
-    });
+    execution = await executeProductImport({ tenantId, rows, dryRun });
   } catch (err) {
-    if (conflict !== null && isUniqueViolation(err, UNIQUE_CONSTRAINTS.productErpRef)) {
-      const located = conflict as { rowIndex: number; erpRef: string | null };
+    if (err instanceof ProductErpConflictError) {
       return c.json(
         {
           code: API_ERROR_CODES.DUPLICATE_PRODUCT_ERP_REF,
-          error: `Duplicate ERP reference "${located.erpRef ?? ""}" (row ${located.rowIndex + 1}) — nothing was imported`,
-          rowIndex: located.rowIndex,
+          error: `Duplicate ERP reference "${err.conflict.erpRef ?? ""}" (row ${err.conflict.rowIndex + 1}) — nothing was imported`,
+          rowIndex: err.conflict.rowIndex,
         },
         409,
       );
@@ -329,7 +196,135 @@ productsRouter.post("/import", async (c) => {
     throw err;
   }
 
+  // Record committed imports for the audit log. Non-fatal: the import already
+  // succeeded, so a logging failure must not turn it into an error response.
+  if (!dryRun) {
+    try {
+      await db.insert(productImports).values({
+        tenantId,
+        createdById: getUser(c).id,
+        sourceFilename: sourceFilename ?? null,
+        total: execution.total,
+        inserted: execution.inserted,
+        updated: execution.updated,
+        categoriesCreated: execution.categoriesCreated,
+        duplicatesInFile: execution.duplicatesInFile,
+      });
+    } catch (err) {
+      console.error("Failed to record product import history:", err);
+    }
+  }
+
+  const result: ImportProductsResult = { ...execution, dryRun };
   return c.json(result);
+});
+
+// GET /import/history — recent committed imports (audit log) for this tenant.
+// Registered before /:id so "import" is never captured as a product id.
+productsRouter.get("/import/history", async (c) => {
+  const tenantId = getTenantId(c);
+  const rows = await db
+    .select({
+      id: productImports.id,
+      sourceFilename: productImports.sourceFilename,
+      total: productImports.total,
+      inserted: productImports.inserted,
+      updated: productImports.updated,
+      categoriesCreated: productImports.categoriesCreated,
+      duplicatesInFile: productImports.duplicatesInFile,
+      createdAt: productImports.createdAt,
+      createdByName: users.name,
+      createdByEmail: users.email,
+    })
+    .from(productImports)
+    .leftJoin(users, eq(productImports.createdById, users.id))
+    .where(eq(productImports.tenantId, tenantId))
+    .orderBy(desc(productImports.createdAt))
+    .limit(IMPORT_HISTORY_LIMIT);
+  return c.json(rows satisfies PreSerialize<ProductImportHistoryEntry>[]);
+});
+
+// GET /import/mappings — saved column-mapping templates for this tenant.
+productsRouter.get("/import/mappings", async (c) => {
+  const tenantId = getTenantId(c);
+  const rows = await db
+    .select({
+      id: productImportMappings.id,
+      name: productImportMappings.name,
+      mapping: productImportMappings.mapping,
+      createdAt: productImportMappings.createdAt,
+      updatedAt: productImportMappings.updatedAt,
+    })
+    .from(productImportMappings)
+    .where(eq(productImportMappings.tenantId, tenantId))
+    .orderBy(productImportMappings.name);
+  return c.json(rows satisfies PreSerialize<ImportMappingTemplate>[]);
+});
+
+// POST /import/mappings — save (create or overwrite by name) a mapping template.
+productsRouter.post("/import/mappings", async (c) => {
+  const tenantId = getTenantId(c);
+  const body = await c.req.json();
+  const parsed = saveImportMappingSchema.safeParse(body);
+  if (!parsed.success) {
+    return c.json({ error: parsed.error.flatten().fieldErrors }, 400);
+  }
+
+  const { name, mapping } = parsed.data;
+  const returning = {
+    id: productImportMappings.id,
+    name: productImportMappings.name,
+    mapping: productImportMappings.mapping,
+    createdAt: productImportMappings.createdAt,
+    updatedAt: productImportMappings.updatedAt,
+  };
+  // Save = upsert by case-insensitive name. The unique index is on an
+  // expression (lower(name)), which Drizzle can't target via onConflict, so
+  // update-first, then insert when nothing matched.
+  const matchByName = and(
+    eq(productImportMappings.tenantId, tenantId),
+    sql`lower(${productImportMappings.name}) = lower(${name})`,
+  );
+
+  const [updated] = await db
+    .update(productImportMappings)
+    .set({ name, mapping })
+    .where(matchByName)
+    .returning(returning);
+  if (updated) {
+    return c.json(updated satisfies PreSerialize<ImportMappingTemplate>);
+  }
+
+  try {
+    const [created] = await db
+      .insert(productImportMappings)
+      .values({ tenantId, name, mapping })
+      .returning(returning);
+    return c.json(created satisfies PreSerialize<ImportMappingTemplate> | undefined, 201);
+  } catch (err) {
+    // Lost a race with a concurrent save of the same name — update the winner.
+    if (isUniqueViolation(err, UNIQUE_CONSTRAINTS.productImportMappingName)) {
+      const [raced] = await db
+        .update(productImportMappings)
+        .set({ name, mapping })
+        .where(matchByName)
+        .returning(returning);
+      return c.json(raced satisfies PreSerialize<ImportMappingTemplate> | undefined);
+    }
+    throw err;
+  }
+});
+
+// DELETE /import/mappings/:id — remove a saved mapping template.
+productsRouter.delete("/import/mappings/:id", async (c) => {
+  const tenantId = getTenantId(c);
+  const id = c.req.param("id");
+  const [deleted] = await db
+    .delete(productImportMappings)
+    .where(and(eq(productImportMappings.id, id), eq(productImportMappings.tenantId, tenantId)))
+    .returning({ id: productImportMappings.id });
+  if (!deleted) return c.json({ error: "Mapping not found" }, 404);
+  return c.json({ success: true });
 });
 
 // POST / — create product
