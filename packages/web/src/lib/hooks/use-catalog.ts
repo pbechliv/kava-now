@@ -4,6 +4,7 @@ import { withQuery } from "../utils";
 import type {
   CatalogProduct,
   CatalogCategoryChip,
+  CatalogPriceResolution,
   CatalogSearch,
   PaginatedResponse,
 } from "@kava-now/shared";
@@ -32,5 +33,23 @@ export function useCatalog(filters?: CatalogFilters) {
     queryKey: ["customer", slug, "catalog", filters],
     queryFn: () => tApi.get<PaginatedResponse<CatalogProduct>>(path),
     placeholderData: keepPreviousData,
+  });
+}
+
+/**
+ * Resolve the *current* price + availability for the cart's products, so the
+ * cart can reconcile its persisted (possibly stale) prices against server truth
+ * before checkout. Keyed by the sorted unique ids — quantity edits don't refetch.
+ */
+export function useResolveCartPrices(productIds: string[]) {
+  const slug = useTenantSlug();
+  const tApi = useTenantApi();
+  const ids = [...new Set(productIds)].sort();
+
+  return useQuery({
+    queryKey: ["customer", slug, "cart-resolve", ids],
+    queryFn: () =>
+      tApi.post<CatalogPriceResolution[]>("/customer/catalog/resolve", { productIds: ids }),
+    enabled: ids.length > 0,
   });
 }

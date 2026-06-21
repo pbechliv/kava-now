@@ -95,17 +95,20 @@ ordersRouter.post("/", async (c) => {
 
   const productMap = new Map(activeProducts.map((p) => [p.id, p]));
 
-  // Check all requested products exist and are active
-  for (const item of items) {
-    if (!productMap.has(item.productId)) {
-      return c.json(
-        {
-          code: API_ERROR_CODES.PRODUCT_NOT_AVAILABLE,
-          error: `Product ${item.productId} is not available`,
-        },
-        400,
-      );
-    }
+  // Check all requested products exist and are active. Report every offending
+  // id (not just the first) so the cart can flag each unavailable line by name.
+  const unavailableProductIds = items
+    .filter((item) => !productMap.has(item.productId))
+    .map((item) => item.productId);
+  if (unavailableProductIds.length > 0) {
+    return c.json(
+      {
+        code: API_ERROR_CODES.PRODUCT_NOT_AVAILABLE,
+        error: `Products not available: ${unavailableProductIds.join(", ")}`,
+        unavailableProductIds,
+      },
+      400,
+    );
   }
 
   // Get customer info and brand pricing

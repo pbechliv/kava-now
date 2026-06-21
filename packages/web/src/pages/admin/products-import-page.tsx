@@ -63,6 +63,7 @@ const TARGET_ORDER: TargetField[] = [
   "categoryName",
   "description",
   "sku",
+  "erpRef",
   "unit",
   "volumeMl",
   "alcoholPct",

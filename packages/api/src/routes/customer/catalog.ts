@@ -1,9 +1,11 @@
 import { Hono } from "hono";
-import { eq, and, or, sql, asc } from "drizzle-orm";
+import { eq, and, or, sql, asc, inArray } from "drizzle-orm";
 import {
   catalogQuerySchema,
+  resolveCatalogPricesSchema,
   type CatalogProduct,
   type CatalogCategoryChip,
+  type CatalogPriceResolution,
   type PaginatedResponse,
 } from "@kava-now/shared";
 import { db } from "../../db/connection";
@@ -137,6 +139,56 @@ catalogRouter.get("/", requireCustomerProfile, async (c) => {
 
   const body: PaginatedResponse<CatalogProduct> = { data, total, page, pageSize };
   return c.json(body);
+});
+
+// POST /resolve — current price + availability for a set of product ids. The
+// cart persists per-customer resolved prices in localStorage; this lets it
+// reconcile against server truth before checkout (prices change, products get
+// deactivated) instead of confirming a total the server won't honor.
+catalogRouter.post("/resolve", requireCustomerProfile, async (c) => {
+  const tenantId = getTenantId(c);
+  const customerId = getCustomerId(c);
+
+  const body = await c.req.json();
+  const parsed = resolveCatalogPricesSchema.safeParse(body);
+  if (!parsed.success) {
+    return c.json({ error: parsed.error.flatten().fieldErrors }, 400);
+  }
+  const { productIds } = parsed.data;
+
+  const brandPricing = await db
+    .select({ brand: customerBrandPricing.brand, discountPct: customerBrandPricing.discountPct })
+    .from(customerBrandPricing)
+    .where(
+      and(
+        eq(customerBrandPricing.customerId, customerId),
+        eq(customerBrandPricing.tenantId, tenantId),
+      ),
+    );
+  const brandDiscountMap = new Map(brandPricing.map((bp) => [bp.brand, bp.discountPct]));
+
+  const rows = await db
+    .select({
+      id: products.id,
+      brand: products.brand,
+      basePrice: products.basePrice,
+      active: products.active,
+    })
+    .from(products)
+    .where(and(eq(products.tenantId, tenantId), inArray(products.id, productIds)));
+  const found = new Map(rows.map((r) => [r.id, r]));
+
+  // One entry per requested id, preserving order. Missing or inactive → unavailable.
+  const result: CatalogPriceResolution[] = productIds.map((id) => {
+    const product = found.get(id);
+    if (!product || !product.active) return { id, available: false, resolvedPrice: null };
+    return {
+      id,
+      available: true,
+      resolvedPrice: resolvePrice(product.basePrice, brandDiscountMap.get(product.brand) ?? null),
+    };
+  });
+  return c.json(result);
 });
 
 export { catalogRouter };

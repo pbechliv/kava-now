@@ -18,6 +18,7 @@ export const TARGET_LABELS: Record<TargetField, string> = {
   categoryName: "Κατηγορία",
   description: "Περιγραφή",
   sku: "SKU",
+  erpRef: "Κωδικός ERP",
   unit: "Μονάδα",
   volumeMl: "Όγκος (ml)",
   alcoholPct: "Αλκοόλ (%)",
@@ -41,6 +42,9 @@ const HEADER_HINTS: Record<TargetField, RegExp[]> = {
   categoryName: [/^κατηγορία$/i, /^category$/i, /^group$/i, /^ομάδα$/i],
   description: [/^περιγραφή$/i, /^description$/i, /^σχόλια$/i],
   sku: [/^sku$/i, /^κωδικός$/i, /^code$/i, /^κωδ/i, /^barcode$/i],
+  // Matched before `sku` in suggestMapping so "Κωδικός ERP" / "ERP Code" land
+  // here, not on the generic code patterns above.
+  erpRef: [/^erp/i, /^κωδικός erp/i, /^κωδ\.?\s*erp/i],
   unit: [/^μονάδα/i, /^unit$/i, /^uom$/i],
   volumeMl: [/^όγκος/i, /^volume$/i, /(^|\s)ml\.?$/i, /^περιεκτικότητα/i],
   // No bare /%$/: it claimed any "...%" column (e.g. "Έκπτωση %").
@@ -60,6 +64,8 @@ export function suggestMapping(columns: string[]): Mapping {
     "brand",
     "basePrice",
     "categoryName",
+    // erpRef before sku: "Κωδικός ERP" must not be claimed by sku's /^κωδ/.
+    "erpRef",
     "sku",
     "unit",
     "volumeMl",
@@ -146,6 +152,9 @@ export function applyMapping(rows: Record<string, string>[], mapping: Mapping): 
 
     const sku = getStr("sku");
     if (sku != null) candidate.sku = sku;
+
+    const erpRef = getStr("erpRef");
+    if (erpRef != null) candidate.erpRef = erpRef;
 
     const unitRaw = getStr("unit");
     if (unitRaw != null) {

@@ -18,7 +18,7 @@ The repo uses **[Vite+](https://viteplus.dev)** (`vp` CLI, installed under `~/.v
 
 The repo-root `vite.config.ts` is **only** for `vp fmt`/`vp lint` configuration. Per-package builds live in `packages/api/vite.config.ts` and `packages/web/vite.config.ts` (both `import { defineConfig } from "vite-plus"`). Do **not** run `vp build` from the repo root — it has no entry. Use `pnpm build` or run inside a workspace.
 
-Oxlint configuration (`ignorePatterns`, `options` — no custom `rules` currently) lives in the root [vite.config.ts](vite.config.ts) `lint` block. Oxfmt **ignore patterns** live in the same file's `fmt.ignorePatterns` block (excluding `**/dist/**`, `**/drizzle/meta/**`, lock/min files). No separate `.oxlintrc.json` or `.oxfmtignore` — Vite+ reads everything from `vite.config.ts`.
+Oxlint configuration (`ignorePatterns`, `options`, and a single custom rule — `typescript/no-non-null-assertion: "error"`) lives in the root [vite.config.ts](vite.config.ts) `lint` block. Oxfmt **ignore patterns** live in the same file's `fmt.ignorePatterns` block (excluding `**/dist/**`, `**/drizzle/meta/**`, lock/min files). No separate `.oxlintrc.json` or `.oxfmtignore` — Vite+ reads everything from `vite.config.ts`.
 
 ## Commands
 
@@ -65,8 +65,11 @@ pnpm lint            # vp lint (oxlint) across packages/
 pnpm fmt             # vp fmt (oxfmt) auto-format
 pnpm fmt:check       # vp fmt --check
 pnpm typecheck       # tsc --noEmit across packages (pnpm -r)
+pnpm test            # vitest across packages (pnpm -r)
 vp check             # Combined lint + fmt + typecheck (Vite+'s validation loop). Add --fix to auto-fix.
 ```
+
+Some API suites (RLS, push subscriptions) are integration tests gated on `RLS_TEST_DATABASE_URL` and skip when it's unset.
 
 ### Code conventions
 
@@ -104,7 +107,9 @@ API mirrors this:
 
 `requireCustomerProfile` ([packages/api/src/middleware/require-customer-profile.ts](packages/api/src/middleware/require-customer-profile.ts)) guards customer routes whose handlers need a linked `customers` row: it 400s with `CUSTOMER_PROFILE_MISSING` when `membership.customerId` is null and otherwise exposes it as `c.get("customerId")`. Applied router-wide on `/customer/orders` and `/customer/profile`, and per-route on the catalog list (`/customer/catalog/categories` deliberately stays outside it).
 
-`AppEnv` context variables ([packages/api/src/types.ts](packages/api/src/types.ts)): `tenant`, `tenantId`, `user`, `session`, `membership`, `customerId`.
+`AppEnv` context variables ([packages/api/src/types.ts](packages/api/src/types.ts)): `tenant`, `tenantId`, `user`, `session`, `membership`, `customerId`. Read them via the [context.ts](packages/api/src/context.ts) helpers: `getUser`, `getTenant`, `getTenantId`, `getMembership`, `getCustomerId`.
+
+Other middleware in [packages/api/src/middleware/](packages/api/src/middleware/): `auth.ts` (`authMiddleware` — global session resolution), `require-auth.ts` (`requireAuth` — 401 if no user), `require-superadmin.ts` (`requireSuperAdmin`), `rate-limit.ts` (`signInRateLimit`, `forgotPasswordRateLimit`), and `sentry-context.ts` (`sentryContextMiddleware` — tags the Sentry scope with tenant + user).
 
 ### Users + memberships (many-to-many)
 
@@ -122,6 +127,7 @@ Auth instance in [packages/api/src/auth/index.ts](packages/api/src/auth/index.ts
 - `emailAndPassword` enabled (no verification required)
 - `sendResetPassword` callback dispatches via the local email service; if the redirect URL contains `/welcome`, the "invite" copy is used (otherwise the "reset" copy)
 - `user.additionalFields`: `isSuperAdmin` only
+- `socialProviders.google` is registered **only when `config.google.enabled`** (Google OAuth env vars present). It stays invite-only: `disableSignUp` plus a `signIn.before` hook reject Google logins for emails without an existing `users` row. `account.accountLinking` trusts the `google` provider so a Google sign-in links to the pre-created (password-less) invite user
 - Single canonical origin (`config.appOrigin`) for `baseURL` and `trustedOrigins`. No cross-subdomain cookies — host-only cookies on one origin
 - **Invite-only**: `databaseHooks.user.create.before` throws on any signup attempt. The only legitimate path to a new `users` row is the invite flow ([invite-user.ts](packages/api/src/services/invite-user.ts)), which inserts via Drizzle directly. Seed scripts ([seed.ts](packages/api/src/db/seed.ts), [demo-tenant.ts](packages/api/src/db/seeds/demo-tenant.ts)) do the same — direct `users` + `accounts` inserts using `hashPassword` from `better-auth/crypto`. **Do not call `auth.api.signUpEmail`** anywhere; it will be rejected by the hook.
 
@@ -129,15 +135,20 @@ Auth instance in [packages/api/src/auth/index.ts](packages/api/src/auth/index.ts
 
 1. Logger + CORS + default context middleware
 2. `authMiddleware` (`auth.api.getSession({ headers })` populates `user`/`session` globally)
-3. Custom `/api/auth` routes (`/me`, `PATCH /me`, `/set-password`) — registered **before** the better-auth catch-all so they match first
-4. Rate limits on `/api/auth/sign-in/*`, `/api/auth/sign-in`, `/api/auth/request-password-reset`
-5. better-auth catch-all: `app.on(["POST","GET"], "/api/auth/*", c => auth.handler(c.req.raw))`
-6. `/api/superadmin`
-7. Tenant subrouter mounted at `/api/k/:slug` — runs `tenantMiddleware`, then routes `/admin`, `/customer`, `/tenant`
+3. `sentryContextMiddleware` (tags the Sentry scope with the resolved user; re-run inside the tenant subrouter once tenant/membership resolve)
+4. Custom `/api/auth` routes (`/me`, `PATCH /me`, `/set-password`, `/push/*`) — registered **before** the better-auth catch-all so they match first
+5. Rate limits on `/api/auth/sign-in/*`, `/api/auth/request-password-reset`
+6. better-auth catch-all: `app.on(["POST","GET"], "/api/auth/*", c => auth.handler(c.req.raw))`
+7. `/api/superadmin`
+8. Tenant subrouter mounted at `/api/k/:slug` — runs `tenantMiddleware` (then re-runs `sentryContextMiddleware`), then routes `/admin`, `/customer`, `/tenant`
+
+`GET /api/health` does a guarded `select 1` (2s timeout) and reports `ok`/`degraded`. `app.onError` maps malformed-input Postgres SQLSTATEs and JSON `SyntaxError`s to 400s and reports 500s/5xx `HTTPException`s to Sentry.
 
 `/api/auth/me` returns `{ user: { id, email, name, isSuperAdmin, hasPassword }, memberships: [{ tenantId, tenantSlug, tenantName, role, customerId, invitedBy }] }`. `hasPassword` is derived from the presence of a credential row in `accounts`. `PATCH /api/auth/me` updates `name` and/or `email` with a uniqueness check.
 
 `POST /api/auth/set-password` is a thin wrapper around `auth.api.setPassword` (better-auth's API is server-only).
+
+[routes/auth.ts](packages/api/src/routes/auth.ts) also serves the Web Push endpoints: `GET /api/auth/push/public-key` (returns the VAPID public key, or `null` when push is disabled), `POST /api/auth/push/subscribe` (upserts a `push_subscriptions` row, keyed on `endpoint`), and `POST /api/auth/push/unsubscribe`. All no-op gracefully when `config.push.enabled` is false.
 
 ### Invite flow
 
@@ -147,6 +158,10 @@ Auth instance in [packages/api/src/auth/index.ts](packages/api/src/auth/index.ts
 - If new: create the user (no password), insert the membership, send a set-password invite via [SetPasswordEmail.tsx](packages/api/src/emails/SetPasswordEmail.tsx) with `redirectTo = ${config.appOrigin}/k/${slug}/welcome`.
 
 `InviteConflict` fires when the user already has a membership in this tenant. Email send failures are non-fatal — the membership is persisted regardless.
+
+### Notifications (email + Web Push)
+
+New orders notify the staff/owner users responsible for that customer. Recipients come from `customer_assigned_users` (plus anyone opted into all-order notifications), and each recipient gets both an email and — for every registered `push_subscriptions` endpoint — a Web Push message. Push is gated on `config.push.enabled` (VAPID env vars present) and degrades to email-only when disabled. The web side registers/unregisters device endpoints through [lib/push.ts](packages/web/src/lib/push.ts) against the `/api/auth/push/*` endpoints.
 
 ### Superadmin
 
@@ -168,9 +183,9 @@ packages/api/src/routes/
 
 ### Database schema
 
-Drizzle tables ([packages/api/src/db/schema/](packages/api/src/db/schema/)): `tenants`, `users`, `tenant_memberships`, `sessions`, **`accounts`**, **`verifications`** (both required by better-auth), `categories`, `products`, `product_import_mappings` (saved import column-mapping templates), `product_imports` (import audit log), `customer_brand_pricing`, `customers`, `orders`, `order_items`.
+Drizzle tables ([packages/api/src/db/schema/](packages/api/src/db/schema/)): `tenants`, `users`, `tenant_memberships`, `sessions`, **`accounts`**, **`verifications`** (both required by better-auth), `categories`, `products`, `product_import_mappings` (saved import column-mapping templates), `product_imports` (import audit log), `customer_brand_pricing`, `customers`, `customer_assigned_users` (staff/owner users responsible for a customer — order-notification recipients; not the customer's own login users), `orders`, `order_items`, `push_subscriptions` (Web Push device endpoints).
 
-The `postgres` driver (not `pg`) is used. RLS is enforced at the DB level for tenant-scoped tables (categories, products, customers, customer_brand_pricing, orders, order_items) via the `app.current_tenant_id` session variable set by `tenantMiddleware`. `users` and `tenant_memberships` are global — tenant scoping for those is enforced in application code via `requireRole`.
+The `postgres` driver (not `pg`) is used. RLS is enforced at the DB level for tenant-scoped tables (categories, products, customers, customer_brand_pricing, customer_assigned_users, orders, order_items) via the `app.current_tenant_id` session variable set by `tenantMiddleware`. `users`, `tenant_memberships`, and `push_subscriptions` are global (no RLS) — a push subscription belongs to a person, not a tenant; for the others tenant scoping is enforced in application code via `requireRole`. `customer_assigned_users` denormalizes `tenant_id` (DB-verified by a composite FK back to `customers`) so its RLS policy and direct queries scope by tenant without joining through `customers`.
 
 **`order_items` has no `tenant_id` column** — its RLS policy scopes indirectly through the parent order (`order_id IN (SELECT id FROM orders WHERE tenant_id = ...)`). Application queries against `order_items` must always join/filter through `orders`; there is no column to filter on directly.
 
@@ -201,15 +216,15 @@ Fulfillment status transition rules live in `ORDER_STATUS_TRANSITIONS` ([package
 
 **Routing type safety** (the reason for code-based routing): `router.tsx` ends with a `declare module "@tanstack/react-router"` block registering `interface Register { router }` — this type-checks every statically-written `<Link to>` / `navigate({ to })` against the route tree. Index redirects use typed `redirect({ to, params })` in `beforeLoad`. Typed search params come from `validateSearch` (zod) on the routes (`token` on reset-password/welcome, `erpStatus` on admin orders); read them with `useSearch({ strict: false })`. Custom history state (`from` for deep-link return, `importResult` for the import flow) is typed via the same block's `interface HistoryState`.
 
-**Route conventions**: layouts/guards stay component-based — a route's `component` wraps `RequireAuth` + `RequireRole` around the layout, which renders `<Outlet />`. Pages lazy-load via `lazyRouteComponent(() => import(...), "Export")` (preserves the per-area code split; auth pages + layouts are eager). Shared code that runs across many routes (guards, `useAuth`, `useTenantApi`) reads params with `useParams({ strict: false })` (slug/id optional). Tenant-slug and data-driven paths (sidebar nav arrays) that can't be statically typed are passed through `href()` from [lib/utils.ts](packages/web/src/lib/utils.ts), which marks a runtime-built path as a plain `string` for the `to` prop.
+**Route conventions**: layouts/guards stay component-based — a route's `component` wraps `RequireAuth` + `RequireRole` around the layout, which renders `<Outlet />`. Pages lazy-load via `lazyRouteComponent(() => import(...), "Export")` (preserves the per-area code split; auth pages + layouts are eager). Shared code that runs across many routes (guards, `useAuth`, `useTenantApi`) reads params with `useParams({ strict: false })` (slug/id optional). Tenant-slug and data-driven paths (sidebar nav arrays) that can't be statically typed are built into a `const` annotated as `string` (e.g. `const to: string = \`${base}/${item.path}\``) before being passed to the `to` prop — the explicit `string` annotation opts that path out of the route-literal type-check.
 
-[packages/web/src/lib/auth-client.ts](packages/web/src/lib/auth-client.ts): `createAuthClient` from `better-auth/react` with `baseURL: window.location.origin`. Requests flow through Vite's `/api` proxy. **Do not hand-roll fetches to `/api/auth` routes** — use the better-auth client.
+[packages/web/src/lib/auth-client.ts](packages/web/src/lib/auth-client.ts): `createAuthClient` from `better-auth/react` with `baseURL: window.location.origin`. Requests flow through Vite's `/api` proxy. **Do not hand-roll fetches to `/api/auth` routes** — use the better-auth client. "Continue with Google" goes through [use-google-sign-in.ts](packages/web/src/lib/hooks/use-google-sign-in.ts) (shown only when the provider is configured server-side).
 
 [useAuth](packages/web/src/lib/hooks/use-auth.ts) wraps `/api/auth/me` and exposes `{ user, memberships, currentMembership, tenant, isAuthenticated }`. `currentMembership` is the membership matching the current URL `:slug` (if any).
 
 [useTenantApi](packages/web/src/lib/hooks/use-tenant-api.ts) is a small wrapper around `api` that prefixes all paths with `/api/k/<slug>` (slug from `useParams`). All admin/customer-scoped data hooks use it.
 
-[TenantSwitcher](packages/web/src/components/TenantSwitcher.tsx) is a shared dropdown section embedded in all three layouts' user menus. Shows the user's other memberships (and an "Admin" link if they're a superadmin not currently on `/admin/*`).
+[TenantSwitcher](packages/web/src/components/tenant-switcher.tsx) is a shared dropdown section embedded in all three layouts' user menus. Shows the user's other memberships (and an "Admin" link if they're a superadmin not currently on `/admin/*`).
 
 `RequireAuth` / `RequireRole` guards live in [packages/web/src/components/guards/](packages/web/src/components/guards/). `RequireRole` accepts `["superadmin", "owner", "staff", "customer"]` and reads role from `currentMembership` (superadmin bypasses).
 
@@ -227,6 +242,6 @@ Fulfillment status transition rules live in `ORDER_STATUS_TRANSITIONS` ([package
 - Node >= 24 (`.node-version`: `24.16.0`). `.node-version` is the only Node pin — read by `vp env`, nodenv, asdf, fnm, and nvm-as-fallback.
 - pnpm > 11 (declared via `packageManager` in root [package.json](package.json); corepack-managed)
 - Config in [packages/api/src/config.ts](packages/api/src/config.ts); env loaded by [packages/api/src/load-env.ts](packages/api/src/load-env.ts) from the repo-root `.env`
-- [.env.example](.env.example) documents `DATABASE_URL`, `APP_ORIGIN`, `BETTER_AUTH_SECRET`, `SMTP_*`, `RESEND_*`, `API_PORT`, `SUPERADMIN_*`, `DEMO_CUSTOMER_*`
+- [.env.example](.env.example) documents `DATABASE_URL`, `APP_ORIGIN`, `BETTER_AUTH_SECRET`, `SMTP_*`, `RESEND_*`, `API_PORT`, `SUPERADMIN_*`, `DEMO_CUSTOMER_*`, plus the optional integrations: `SENTRY_DSN_API` / `SENTRY_DSN_WEB` / `SENTRY_ENVIRONMENT` / `SENTRY_RELEASE` (error reporting), `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` ("Continue with Google"), and `VAPID_PUBLIC_KEY` / `VAPID_PRIVATE_KEY` / `VAPID_SUBJECT` (Web Push). Each integration self-disables when its vars are absent
 - Env is validated through Zod at boot ([config.ts](packages/api/src/config.ts)): dev falls back to local defaults; production refuses to start if `BETTER_AUTH_SECRET`, `APP_ORIGIN`, or the database URL are missing or left at dev defaults
 - Both [packages/api/vite.config.ts](packages/api/vite.config.ts) and [packages/web/vite.config.ts](packages/web/vite.config.ts) call `process.loadEnvFile(...)` pointing at the root `.env` — there is no per-package env file

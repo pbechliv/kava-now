@@ -25,6 +25,8 @@ const CODE_MESSAGES: Record<ApiErrorCode, string> = {
   [API_ERROR_CODES.ORDER_INVALID_STATUS]: "Μη έγκυρη μετάβαση κατάστασης",
   [API_ERROR_CODES.ORDER_CANCELLATION_NOT_REQUESTED]:
     "Η παραγγελία δεν έχει εκκρεμές αίτημα ακύρωσης",
+  [API_ERROR_CODES.ORDER_REQUIRES_ACTIVE_ITEM]:
+    "Δεν μπορείτε να ακυρώσετε την τελευταία ενεργή γραμμή — ακυρώστε ολόκληρη την παραγγελία",
   [API_ERROR_CODES.PRODUCT_NOT_AVAILABLE]: "Το προϊόν δεν είναι διαθέσιμο",
   [API_ERROR_CODES.REPLACEMENT_PRODUCT_NOT_AVAILABLE]:
     "Το προϊόν αντικατάστασης δεν είναι διαθέσιμο",
