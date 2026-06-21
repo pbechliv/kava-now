@@ -162,6 +162,65 @@ suite("customer orders (server-side pricing + customer scoping)", () => {
     expect(Number(body.items[0].unitPrice)).toBe(2.01);
   });
 
+  it("catalog/resolve returns the customer's current price and availability", async () => {
+    const res = await api(must(cookies.a), "/catalog/resolve", {
+      method: "POST",
+      body: JSON.stringify({ productIds: [productId] }),
+    });
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body).toHaveLength(1);
+    expect(body[0]).toMatchObject({ id: productId, available: true });
+    expect(body[0].resolvedPrice).toBe(1.01); // customer A: 2.01 @ 50%
+  });
+
+  it("catalog/resolve flags a deactivated product as unavailable", async () => {
+    const goneId = await runWithTenant(tenantId, async () => {
+      const [p] = await db
+        .insert(schema.products)
+        .values({
+          tenantId,
+          name: `Resolve Gone ${suffix}`,
+          brand: "TBrand",
+          basePrice: "9.00",
+          active: false,
+        })
+        .returning({ id: schema.products.id });
+      return must(p).id;
+    });
+    const res = await api(must(cookies.a), "/catalog/resolve", {
+      method: "POST",
+      body: JSON.stringify({ productIds: [goneId] }),
+    });
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body[0]).toEqual({ id: goneId, available: false, resolvedPrice: null });
+  });
+
+  it("placing an order with an unavailable product reports the offending ids", async () => {
+    const goneId = await runWithTenant(tenantId, async () => {
+      const [p] = await db
+        .insert(schema.products)
+        .values({
+          tenantId,
+          name: `Order Gone ${suffix}`,
+          brand: "TBrand",
+          basePrice: "9.00",
+          active: false,
+        })
+        .returning({ id: schema.products.id });
+      return must(p).id;
+    });
+    const res = await api(must(cookies.a), "/orders", {
+      method: "POST",
+      body: JSON.stringify({ items: [{ productId: goneId, quantity: 1 }] }),
+    });
+    expect(res.status).toBe(400);
+    const body = await res.json();
+    expect(body.code).toBe("PRODUCT_NOT_AVAILABLE");
+    expect(body.unavailableProductIds).toEqual([goneId]);
+  });
+
   it("customers cannot read each other's orders (membership.customerId scoping)", async () => {
     const created = await api(must(cookies.a), "/orders", {
       method: "POST",

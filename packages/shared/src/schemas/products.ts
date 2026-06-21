@@ -67,6 +67,21 @@ export const importProductsBatchSchema = z.object({
 export type ImportProductRow = z.infer<typeof importProductRowSchema>;
 export type ImportProductsBatch = z.infer<typeof importProductsBatchSchema>;
 
+/** Max cart size for the price/availability resolve endpoint. */
+export const CART_RESOLVE_LIMIT = 200;
+
+/**
+ * Cart reconciliation: the persisted cart carries per-customer resolved prices
+ * in localStorage, so before checkout the cart asks the server for the *current*
+ * price + availability of its product ids (prices change, products get
+ * deactivated) instead of charging a total the customer never saw.
+ */
+export const resolveCatalogPricesSchema = z.object({
+  productIds: z.array(z.string().uuid()).min(1, "Δεν δόθηκαν προϊόντα").max(CART_RESOLVE_LIMIT),
+});
+
+export type ResolveCatalogPricesInput = z.infer<typeof resolveCatalogPricesSchema>;
+
 /** An incoming row whose erpRef collides with a different existing product. */
 export interface ImportErpConflict {
   /** Zero-based index into the submitted rows. */

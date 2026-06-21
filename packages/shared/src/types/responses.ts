@@ -132,6 +132,14 @@ export interface CatalogCategoryChip {
   sortOrder: number;
 }
 
+/** Current price + availability for one cart product (the /catalog/resolve response). */
+export interface CatalogPriceResolution {
+  id: string;
+  available: boolean;
+  /** Current customer-resolved price; null when the product is unavailable. */
+  resolvedPrice: number | null;
+}
+
 // ---- Customer brand pricing ----
 
 export interface CustomerBrandPrice {
