@@ -470,6 +470,31 @@ async function resolveProductPriceForOrder(
   return { product, unitPrice };
 }
 
+// Find the existing active line for a product within an order (optionally
+// excluding one item — used by replace, which must not match the line it's
+// about to cancel). Lets add/replace merge into an existing line instead of
+// producing a duplicate line for the same product.
+async function findActiveLineForProduct(
+  tx: DbOrTx,
+  orderId: string,
+  productId: string,
+  excludeItemId?: string,
+) {
+  const conditions = [
+    eq(orderItems.orderId, orderId),
+    eq(orderItems.productId, productId),
+    eq(orderItems.status, "active"),
+  ];
+  if (excludeItemId) conditions.push(ne(orderItems.id, excludeItemId));
+
+  const [line] = await tx
+    .select()
+    .from(orderItems)
+    .where(and(...conditions))
+    .limit(1);
+  return line ?? null;
+}
+
 // Lock the order row (FOR UPDATE) and run the mutability guard. Must be
 // called inside a transaction so the lock holds for the mutation.
 async function lockOrderForMutation(tx: DbOrTx, tenantId: string, id: string) {
@@ -528,6 +553,20 @@ ordersRouter.post("/:id/items", async (c) => {
       } satisfies MutationFailure;
     }
 
+    // Merge into the existing active line for this product rather than adding a
+    // duplicate line (which would split the same product across two ERP lines).
+    // Quantity is bumped; the existing line keeps its price (same as a qty edit).
+    const existingLine = await findActiveLineForProduct(tx, id, resolved.product.id);
+    if (existingLine) {
+      const [merged] = await tx
+        .update(orderItems)
+        .set({ quantity: existingLine.quantity + parsed.data.quantity })
+        .where(eq(orderItems.id, existingLine.id))
+        .returning();
+      await tx.update(orders).set({ updatedAt: new Date() }).where(eq(orders.id, id));
+      return { ok: true as const, item: merged, created: false };
+    }
+
     const [item] = await tx
       .insert(orderItems)
       .values({
@@ -540,11 +579,11 @@ ordersRouter.post("/:id/items", async (c) => {
       })
       .returning();
     await tx.update(orders).set({ updatedAt: new Date() }).where(eq(orders.id, id));
-    return { ok: true as const, item };
+    return { ok: true as const, item, created: true };
   });
 
   if (!result.ok) return c.json(result.body, result.status);
-  return c.json(result.item, 201);
+  return c.json(result.item, result.created ? 201 : 200);
 });
 
 // PATCH /:id/items/:itemId — adjust quantity on an active line item
@@ -628,6 +667,24 @@ ordersRouter.post("/:id/items/:itemId/cancel", async (c) => {
       } satisfies MutationFailure;
     }
 
+    // An order must always keep at least one active line — a zero-line order
+    // would carry a €0 total yet still be transmittable to the ERP. The whole
+    // order is cancelled via its status, not by cancelling its last line.
+    const [activeCount] = await tx
+      .select({ n: sql<number>`count(*)::int` })
+      .from(orderItems)
+      .where(and(eq(orderItems.orderId, id), eq(orderItems.status, "active")));
+    if ((activeCount?.n ?? 0) <= 1) {
+      return {
+        ok: false,
+        status: 409,
+        body: {
+          code: API_ERROR_CODES.ORDER_REQUIRES_ACTIVE_ITEM,
+          error: "Cannot cancel the last active item; cancel the whole order instead",
+        },
+      } satisfies MutationFailure;
+    }
+
     const [cancelled] = await tx
       .update(orderItems)
       .set({ status: "cancelled" })
@@ -696,6 +753,25 @@ ordersRouter.post("/:id/items/:itemId/replace", async (c) => {
       } satisfies MutationFailure;
     }
 
+    // If the replacement product already has an active line (other than the one
+    // being replaced), merge into it instead of creating a duplicate line. The
+    // replaced line still links to the surviving line via replacedByItemId, so
+    // the replacement chain renders the same either way.
+    const existingLine = await findActiveLineForProduct(tx, id, resolved.product.id, itemId);
+    if (existingLine) {
+      const [merged] = await tx
+        .update(orderItems)
+        .set({ quantity: existingLine.quantity + parsed.data.quantity })
+        .where(eq(orderItems.id, existingLine.id))
+        .returning();
+      await tx
+        .update(orderItems)
+        .set({ status: "cancelled", replacedByItemId: existingLine.id })
+        .where(eq(orderItems.id, itemId));
+      await tx.update(orders).set({ updatedAt: new Date() }).where(eq(orders.id, id));
+      return { ok: true as const, newItem: merged, created: false };
+    }
+
     const [newItem] = await tx
       .insert(orderItems)
       .values({
@@ -717,11 +793,11 @@ ordersRouter.post("/:id/items/:itemId/replace", async (c) => {
 
     await tx.update(orders).set({ updatedAt: new Date() }).where(eq(orders.id, id));
 
-    return { ok: true as const, newItem };
+    return { ok: true as const, newItem, created: true };
   });
 
   if (!result.ok) return c.json(result.body, result.status);
-  return c.json(result.newItem, 201);
+  return c.json(result.newItem, result.created ? 201 : 200);
 });
 
 export { ordersRouter };

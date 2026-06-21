@@ -122,11 +122,14 @@ function ItemActionsMenu({
   onEditQty,
   onReplace,
   onCancelLine,
+  disableCancel,
 }: {
   className?: string;
   onEditQty: () => void;
   onReplace: () => void;
   onCancelLine: () => void;
+  /** The last active line can't be cancelled — cancel the whole order instead. */
+  disableCancel?: boolean;
 }) {
   return (
     <DropdownMenu>
@@ -140,7 +143,7 @@ function ItemActionsMenu({
       <DropdownMenuContent align="end">
         <DropdownMenuItem onClick={onEditQty}>Επεξεργασία ποσότητας</DropdownMenuItem>
         <DropdownMenuItem onClick={onReplace}>Αντικατάσταση...</DropdownMenuItem>
-        <DropdownMenuItem variant="destructive" onClick={onCancelLine}>
+        <DropdownMenuItem variant="destructive" onClick={onCancelLine} disabled={disableCancel}>
           Ακύρωση γραμμής
         </DropdownMenuItem>
       </DropdownMenuContent>
@@ -161,6 +164,9 @@ export function OrderItemsSection({ order }: { order: AdminOrderDetail }) {
   const isTransmitted = order.erpStatus === "transmitted";
   const isMutableStatus = order.status === "pending" || order.status === "confirmed";
   const canEditItems = isMutableStatus && !isTransmitted && !showOriginal;
+  // An order must keep ≥1 active line; the last one can't be cancelled here
+  // (cancel the whole order via its status instead). Mirrors the API guard.
+  const isLastActiveLine = order.items.filter((i) => i.status === "active").length <= 1;
   const originalItems = order.items.filter((i) => i.originalQuantity != null);
   // Accumulate in integer cents — float drift across many lines otherwise.
   const originalTotal =
@@ -374,6 +380,7 @@ export function OrderItemsSection({ order }: { order: AdminOrderDetail }) {
                               onEditQty={() => beginEditQty(item)}
                               onReplace={() => setReplaceTarget(item)}
                               onCancelLine={() => setCancelTarget(item)}
+                              disableCancel={isLastActiveLine}
                             />
                           )}
                         </TableCell>
@@ -467,6 +474,7 @@ export function OrderItemsSection({ order }: { order: AdminOrderDetail }) {
                             onEditQty={() => beginEditQty(item)}
                             onReplace={() => setReplaceTarget(item)}
                             onCancelLine={() => setCancelTarget(item)}
+                            disableCancel={isLastActiveLine}
                           />
                         )}
                       </div>

@@ -205,6 +205,61 @@ suite("admin order mutations (HTTP, hard lock + soft-cancel totals)", () => {
     expect(detail.total).toBe(4 * 7.5 + 3 * 5); // replacement + untouched P2
   });
 
+  it("cannot cancel the last active line (would leave a zero-line order)", async () => {
+    const { orderId, itemIds } = await createOrder();
+
+    // Cancelling one of two active lines is fine — one still remains.
+    const first = await api(`/orders/${orderId}/items/${itemIds[0]}/cancel`, { method: "POST" });
+    expect(first.status).toBe(200);
+
+    // Cancelling the only remaining active line is blocked.
+    const last = await api(`/orders/${orderId}/items/${itemIds[1]}/cancel`, { method: "POST" });
+    expect(last.status).toBe(409);
+    expect((await last.json()).code).toBe("ORDER_REQUIRES_ACTIVE_ITEM");
+
+    // The line is untouched — still active, total intact.
+    const detail = await (await api(`/orders/${orderId}`)).json();
+    const stillActive = detail.items.find((i: { id: string }) => i.id === itemIds[1]);
+    expect(stillActive.status).toBe("active");
+    expect(detail.total).toBe(3 * 5); // 3 × P2
+  });
+
+  it("adding a product already on the order merges into the existing line", async () => {
+    const { orderId } = await createOrder();
+
+    const add = await api(`/orders/${orderId}/items`, {
+      method: "POST",
+      body: JSON.stringify({ productId: p1, quantity: 4 }),
+    });
+    expect(add.status).toBe(200); // merged (200), not a new line (201)
+
+    const detail = await (await api(`/orders/${orderId}`)).json();
+    expect(detail.items).toHaveLength(2); // no duplicate P1 line
+    const p1Line = detail.items.find((i: { productId: string }) => i.productId === p1);
+    expect(p1Line.quantity).toBe(6); // 2 + 4
+    expect(detail.total).toBe(6 * 10 + 3 * 5); // 75
+  });
+
+  it("replacing into a product already on the order merges into that line", async () => {
+    const { orderId, itemIds } = await createOrder();
+
+    // Replace the P2 line with P1 — which already has an active line.
+    const replace = await api(`/orders/${orderId}/items/${itemIds[1]}/replace`, {
+      method: "POST",
+      body: JSON.stringify({ productId: p1, quantity: 1 }),
+    });
+    expect(replace.status).toBe(200); // merged into the existing P1 line, not a new one
+    expect((await replace.json()).id).toBe(itemIds[0]); // surviving P1 line
+
+    const detail = await (await api(`/orders/${orderId}`)).json();
+    const p2Line = detail.items.find((i: { id: string }) => i.id === itemIds[1]);
+    expect(p2Line.status).toBe("cancelled");
+    expect(p2Line.replacedByItemId).toBe(itemIds[0]); // links to the surviving line
+    const p1Line = detail.items.find((i: { id: string }) => i.id === itemIds[0]);
+    expect(p1Line.quantity).toBe(3); // 2 + 1
+    expect(detail.total).toBe(3 * 10); // only P1 active now
+  });
+
   it("ERP transmission is one-shot and hard-locks all item mutations", async () => {
     const { orderId, itemIds } = await createOrder();
 
