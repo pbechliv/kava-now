@@ -100,6 +100,7 @@ export const IMPORT_TARGET_FIELDS = [
   "categoryName",
   "description",
   "sku",
+  "erpRef",
   "unit",
   "volumeMl",
   "alcoholPct",

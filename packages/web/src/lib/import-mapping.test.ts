@@ -20,6 +20,12 @@ describe("suggestMapping", () => {
     const values = Object.values(result);
     expect(new Set(values).size).toBe(values.length);
   });
+
+  it("routes 'Κωδικός ERP' to erpRef and plain 'Κωδικός' to sku", () => {
+    const result = suggestMapping(["Όνομα", "Μάρκα", "Τιμή", "Κωδικός", "Κωδικός ERP"]);
+    expect(result.erpRef).toBe("Κωδικός ERP");
+    expect(result.sku).toBe("Κωδικός");
+  });
 });
 
 describe("applyMapping", () => {
@@ -70,6 +76,18 @@ describe("applyMapping", () => {
       unit: "U",
     });
     expect(applied[0]?.row?.unit).toBe("case");
+  });
+
+  it("maps an erpRef column through to the row", () => {
+    const rows = [{ Name: "X", Brand: "Y", Price: "10", "Κωδικός ERP": "GX-4521" }];
+    const applied = applyMapping(rows, {
+      name: "Name",
+      brand: "Brand",
+      basePrice: "Price",
+      erpRef: "Κωδικός ERP",
+    });
+    expect(applied[0]?.error).toBeNull();
+    expect(applied[0]?.row?.erpRef).toBe("GX-4521");
   });
 
   it("coerces Greek booleans for active", () => {
