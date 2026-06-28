@@ -21,46 +21,15 @@ updates:
       prefix: chore
       include: scope
     groups:
-      react:
+      # One grouped PR for all npm updates. On 2026-06-24 several concurrent
+      # lockfile-touching PRs auto-merged without rebasing onto each other, so
+      # Git text-merged their overlapping pnpm-lock.yaml regions into duplicate
+      # keys and broke every deploy. One PR = one lockfile change = no
+      # concurrent-merge interaction. Branch protection (strict status checks)
+      # is the backstop if a single grouped PR is ever itself malformed.
+      npm-all:
         patterns:
-          - react
-          - react-dom
-          - react-router
-          - "@types/react"
-          - "@types/react-dom"
-      tanstack:
-        patterns:
-          - "@tanstack/*"
-      tailwind:
-        patterns:
-          - tailwindcss
-          - "@tailwindcss/*"
-      drizzle:
-        patterns:
-          - drizzle-orm
-          - drizzle-kit
-      better-auth:
-        patterns:
-          - better-auth
-      hono:
-        patterns:
-          - hono
-          - "@hono/*"
-      vite-plus:
-        patterns:
-          - vite-plus
-          - "@voidzero-dev/*"
-      nodemailer:
-        patterns:
-          - nodemailer
-          - "@types/nodemailer"
-      types:
-        patterns:
-          - "@types/*"
-        exclude-patterns:
-          - "@types/react"
-          - "@types/react-dom"
-          - "@types/nodemailer"
+          - "*"
 
   - package-ecosystem: docker
     directory: /
