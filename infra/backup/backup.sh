@@ -10,7 +10,8 @@ set -euo pipefail
 cd /srv/kavanow
 
 BACKUP_DIR=/srv/kavanow/backups
-KEEP_DAYS=14
+KEEP_DAYS=14       # nightly logical backups — the disaster-recovery window
+KEEP_PREMIGRATE=5  # pre-migrate dumps are short-lived deploy rollback nets
 mkdir -p "$BACKUP_DIR"
 
 compose() { docker compose --env-file .env.production "$@"; }
@@ -42,6 +43,12 @@ mv "$out.partial" "$out"
 
 # Prune old dumps and stale partials. The daily Hetzner VM snapshot picks up
 # whatever lives in BACKUP_DIR, so retention here also bounds snapshot growth.
+#
+# Every push to main writes a pre-migrate-* dump, so on busy dependency-bump
+# days those pile up fast — cap them by COUNT (keep the most recent
+# KEEP_PREMIGRATE). The age sweep below is the absolute ceiling for every label.
+ls -1t "$BACKUP_DIR"/kavanow-pre-migrate-*.dump 2>/dev/null \
+  | tail -n +"$((KEEP_PREMIGRATE + 1))" | xargs -r rm -f || true
 find "$BACKUP_DIR" -name 'kavanow-*.dump' -mtime +"$KEEP_DAYS" -delete
 find "$BACKUP_DIR" -name '*.partial' -mmin +120 -delete
 
