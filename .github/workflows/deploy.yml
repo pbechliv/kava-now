@@ -131,7 +131,13 @@ jobs:
           # Persist the deployed tag so migrate.yml and manual compose
           # commands on the VM act on the RUNNING version, not :latest (#70).
           sed -i "s/^IMAGE_TAG=.*/IMAGE_TAG=$IMAGE_TAG/" .env.production
-          docker image prune -f
+          # Reclaim disk. `prune -f` alone only drops DANGLING (untagged) images;
+          # ours are SHA-tagged, so without -a they accumulate forever and fill
+          # the VM disk — which took postgres + the API down on 2026-06-28.
+          # -a drops every image no running container uses; the `until` filter
+          # keeps the last week of builds for fast rollback. Running images
+          # (api/caddy/postgres) are never touched regardless of the filter.
+          docker image prune -af --filter 'until=168h'
           EOF
 
   smoke:
