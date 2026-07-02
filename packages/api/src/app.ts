@@ -3,6 +3,8 @@ import { sql as dsql } from "drizzle-orm";
 import { cors } from "hono/cors";
 import { logger } from "hono/logger";
 import { HTTPException } from "hono/http-exception";
+import type { ContentfulStatusCode } from "hono/utils/http-status";
+import { APIError as BetterAuthAPIError } from "better-auth/api";
 import * as Sentry from "@sentry/node";
 import { config } from "./config";
 import { db } from "./db/connection";
@@ -54,6 +56,9 @@ app.route("/api/auth", authRoutes);
 // Rate limits on auth endpoints exposed to unauthenticated traffic.
 app.use("/api/auth/sign-in/*", signInRateLimit);
 app.use("/api/auth/request-password-reset", forgotPasswordRateLimit);
+// better-auth also serves the legacy alias of the same endpoint — an
+// unthrottled alias would make the limiter above pointless.
+app.use("/api/auth/forget-password", forgotPasswordRateLimit);
 
 // better-auth handler — owns /api/auth/{sign-in, sign-out, sign-up,
 // get-session, forget-password, reset-password, etc.}
@@ -115,6 +120,16 @@ app.onError((err, c) => {
       Sentry.captureException(err);
     }
     return err.getResponse();
+  }
+  // Server-side better-auth calls (auth.api.*, e.g. set-password on an
+  // account that already has one) reject with APIErrors carrying a proper
+  // status — surface that status instead of degrading it to a 500.
+  if (err instanceof BetterAuthAPIError) {
+    if (err.statusCode >= 500) {
+      Sentry.captureException(err);
+    }
+    const status = err.statusCode as ContentfulStatusCode;
+    return c.json({ error: err.body?.message ?? err.message }, status);
   }
   if (isPgInvalidInput(err)) {
     return c.json({ error: "Invalid parameter format" }, 400);

@@ -1,3 +1,4 @@
+import { validationError } from "../../validation";
 import { Hono } from "hono";
 import { eq, and } from "drizzle-orm";
 import {
@@ -8,7 +9,7 @@ import {
 import { db } from "../../db/connection";
 import { tenants, tenantMemberships } from "../../db/schema/index";
 import type { AppEnv } from "../../types";
-import { getTenant, getTenantId } from "../../context";
+import { getTenant, getTenantId, getUser } from "../../context";
 
 const settingsRouter = new Hono<AppEnv>();
 
@@ -34,7 +35,7 @@ settingsRouter.put("/", async (c) => {
   const parsed = updateTenantSettingsSchema.safeParse(body);
 
   if (!parsed.success) {
-    return c.json({ error: parsed.error.flatten().fieldErrors }, 400);
+    return validationError(c, parsed.error);
   }
 
   const [updated] = await db
@@ -62,16 +63,13 @@ settingsRouter.put("/", async (c) => {
 // PATCH /notification-preference — self-service: the current user opts in/out
 // of receiving every order's notification in this tenant.
 settingsRouter.patch("/notification-preference", async (c) => {
-  const tenantId = c.get("tenantId");
-  const user = c.get("user");
-  if (!tenantId || !user) {
-    return c.json({ error: "Unauthorized" }, 401);
-  }
+  const tenantId = getTenantId(c);
+  const user = getUser(c);
   const body = await c.req.json();
   const parsed = updateNotificationPreferenceSchema.safeParse(body);
 
   if (!parsed.success) {
-    return c.json({ error: parsed.error.flatten().fieldErrors }, 400);
+    return validationError(c, parsed.error);
   }
 
   const [updated] = await db

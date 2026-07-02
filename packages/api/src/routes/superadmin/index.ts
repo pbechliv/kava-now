@@ -1,3 +1,4 @@
+import { validationError } from "../../validation";
 import { Hono } from "hono";
 import { and, eq, inArray, notExists, sql } from "drizzle-orm";
 import {
@@ -7,6 +8,7 @@ import {
   type SuperAdminTenantListItem,
   type CreateTenantResponse,
   type PaginatedResponse,
+  type SuccessResponse,
 } from "@kava-now/shared";
 import { db } from "../../db/connection";
 import { accounts, tenantMemberships, tenants, users } from "../../db/schema/index";
@@ -35,7 +37,7 @@ superadmin.get("/tenants", async (c) => {
     pageSize: c.req.query("pageSize"),
   });
   if (!pagination.success) {
-    return c.json({ error: pagination.error.flatten().fieldErrors }, 400);
+    return validationError(c, pagination.error);
   }
   const { page, pageSize } = pagination.data;
 
@@ -70,7 +72,7 @@ superadmin.post("/tenants", async (c) => {
   const parsed = registerSchema.safeParse(body);
 
   if (!parsed.success) {
-    return c.json({ error: parsed.error.flatten().fieldErrors }, 400);
+    return validationError(c, parsed.error);
   }
 
   const { name, slug, email, password } = parsed.data;
@@ -160,7 +162,7 @@ superadmin.delete("/tenants/:id", async (c) => {
     );
   }
 
-  return c.json({ success: true });
+  return c.json({ success: true } satisfies SuccessResponse);
 });
 
 export { superadmin as superadminRoutes };

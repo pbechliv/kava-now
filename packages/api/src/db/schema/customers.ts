@@ -1,4 +1,4 @@
-import { pgTable, uuid, text, timestamp, uniqueIndex } from "drizzle-orm/pg-core";
+import { pgTable, uuid, text, timestamp, uniqueIndex, index } from "drizzle-orm/pg-core";
 import { sql } from "drizzle-orm";
 import { tenants } from "./tenants";
 
@@ -27,6 +27,9 @@ export const customers = pgTable(
       .$onUpdate(() => new Date()),
   },
   (table) => [
+    // Tenant-wide scans (admin list, RLS predicate). The erp_ref index below
+    // is partial, so the planner can't use it for general tenant filtering.
+    index("customers_tenant_idx").on(table.tenantId),
     uniqueIndex("customers_tenant_erp_ref_idx")
       .on(table.tenantId, table.erpRef)
       .where(sql`${table.erpRef} is not null`),

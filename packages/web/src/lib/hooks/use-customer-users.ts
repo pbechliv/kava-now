@@ -1,6 +1,10 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useTenantApi, useTenantSlug } from "./use-tenant-api";
-import type { InviteCustomerUserInput, CustomerLinkedUsersResponse } from "@kava-now/shared";
+import type {
+  InviteCustomerUserInput,
+  CustomerLinkedUsersResponse,
+  SuccessResponse,
+} from "@kava-now/shared";
 
 export type { InviteCustomerUserInput };
 
@@ -22,7 +26,7 @@ export function useInviteCustomerUser(customerId: string) {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (input: InviteCustomerUserInput) =>
-      tApi.post<{ success: boolean }>(`/admin/customers/${customerId}/users/invite`, input),
+      tApi.post<SuccessResponse>(`/admin/customers/${customerId}/users/invite`, input),
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: ["admin", slug, "customer-users", customerId] });
     },
@@ -33,8 +37,6 @@ export function useResendCustomerUserInvite(customerId: string) {
   const tApi = useTenantApi();
   return useMutation({
     mutationFn: (userId: string) =>
-      tApi.post<{ success: boolean }>(
-        `/admin/customers/${customerId}/users/${userId}/resend-invite`,
-      ),
+      tApi.post<SuccessResponse>(`/admin/customers/${customerId}/users/${userId}/resend-invite`),
   });
 }

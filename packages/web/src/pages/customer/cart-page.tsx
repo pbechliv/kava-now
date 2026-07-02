@@ -189,6 +189,7 @@ export function CartPage() {
                           size="icon"
                           className="h-8 w-8"
                           onClick={() => updateQuantity(item.product.id, item.quantity - 1)}
+                          aria-label="Μείωση"
                         >
                           -
                         </Button>
@@ -197,7 +198,7 @@ export function CartPage() {
                           min={1}
                           value={item.quantity}
                           onChange={(e) =>
-                            updateQuantity(item.product.id, parseInt(e.target.value) || 1)
+                            updateQuantity(item.product.id, Math.round(Number(e.target.value)) || 1)
                           }
                           className="h-8 w-14 text-center"
                         />
@@ -207,6 +208,7 @@ export function CartPage() {
                           size="icon"
                           className="h-8 w-8"
                           onClick={() => updateQuantity(item.product.id, item.quantity + 1)}
+                          aria-label="Αύξηση"
                         >
                           +
                         </Button>
@@ -282,6 +284,7 @@ export function CartPage() {
                       size="icon"
                       className="h-8 w-8"
                       onClick={() => updateQuantity(item.product.id, item.quantity - 1)}
+                      aria-label="Μείωση"
                     >
                       -
                     </Button>
@@ -290,7 +293,7 @@ export function CartPage() {
                       min={1}
                       value={item.quantity}
                       onChange={(e) =>
-                        updateQuantity(item.product.id, parseInt(e.target.value) || 1)
+                        updateQuantity(item.product.id, Math.round(Number(e.target.value)) || 1)
                       }
                       className="h-8 w-14 text-center"
                     />
@@ -300,6 +303,7 @@ export function CartPage() {
                       size="icon"
                       className="h-8 w-8"
                       onClick={() => updateQuantity(item.product.id, item.quantity + 1)}
+                      aria-label="Αύξηση"
                     >
                       +
                     </Button>

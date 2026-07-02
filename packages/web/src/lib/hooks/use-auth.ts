@@ -3,7 +3,13 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useParams } from "@tanstack/react-router";
 import * as Sentry from "@sentry/react";
 import { api, ApiError } from "../api";
-import type { TenantMembership, AuthUser, AuthMeResponse, UpdateMeInput } from "@kava-now/shared";
+import type {
+  TenantMembership,
+  AuthUser,
+  AuthMeResponse,
+  SuccessResponse,
+  UpdateMeInput,
+} from "@kava-now/shared";
 
 export type { AuthUser, AuthMeResponse, UpdateMeInput };
 
@@ -91,7 +97,7 @@ export function useAuth() {
 export function useUpdateMe() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (input: UpdateMeInput) => api.patch<{ success: boolean }>("/api/auth/me", input),
+    mutationFn: (input: UpdateMeInput) => api.patch<SuccessResponse>("/api/auth/me", input),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ["auth"] });
     },

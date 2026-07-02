@@ -49,6 +49,7 @@ export const API_ERROR_CODES = {
 
   // Misc
   NO_UPDATE_FIELDS: "NO_UPDATE_FIELDS",
+  VALIDATION_ERROR: "VALIDATION_ERROR",
 } as const;
 
 export type ApiErrorCode = (typeof API_ERROR_CODES)[keyof typeof API_ERROR_CODES];
@@ -58,4 +59,12 @@ export interface ApiErrorBody {
   code?: ApiErrorCode;
   /** English description for logs / developer tooling. */
   error: string;
+  /**
+   * Zod per-field messages on VALIDATION_ERROR responses. The messages come
+   * from the shared schemas (already localized), so the frontend renders them
+   * directly instead of translating.
+   */
+  fields?: Record<string, string[] | undefined>;
+  /** Zod form-level (`.refine`) messages on VALIDATION_ERROR responses. */
+  formErrors?: string[];
 }

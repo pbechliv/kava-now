@@ -7,6 +7,8 @@ export class ApiError extends Error {
     public status: number,
     message: string,
     public code?: ApiErrorCode,
+    /** Per-field messages from VALIDATION_ERROR responses (already localized). */
+    public fields?: Record<string, string[] | undefined>,
   ) {
     super(message);
     this.name = "ApiError";
@@ -81,9 +83,18 @@ async function request<T>(
     const code = data.code;
     const englishFallback =
       typeof data.error === "string" ? data.error : (data.message ?? res.statusText);
+    // Validation responses carry the schema messages themselves (localized in
+    // the shared schemas) — prefer them over the generic per-code translation.
+    const fieldMessages = [
+      ...(data.formErrors ?? []),
+      ...Object.values(data.fields ?? {}).flatMap((msgs) => msgs ?? []),
+    ];
     const message =
-      translateApiErrorCode(code) ?? translateApiErrorStatus(res.status) ?? englishFallback;
-    throw new ApiError(res.status, message, code);
+      (fieldMessages.length > 0 ? fieldMessages.join(" · ") : undefined) ??
+      translateApiErrorCode(code) ??
+      translateApiErrorStatus(res.status) ??
+      englishFallback;
+    throw new ApiError(res.status, message, code, data.fields);
   }
 
   // Handle 204 No Content

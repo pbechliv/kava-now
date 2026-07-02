@@ -245,3 +245,22 @@ export interface CreateTenantResponse {
   slug: string;
   hasPassword: boolean;
 }
+
+// ---- Mutations ----
+
+/**
+ * Body returned by mutation endpoints with nothing else to report. Handlers
+ * `satisfies` this so the API and the web hooks type the same shape.
+ */
+export interface SuccessResponse {
+  success: true;
+}
+
+/**
+ * DELETE /admin/products/:id — `product` is present when the delete was
+ * downgraded to a soft-delete (deactivation) because order items reference it.
+ */
+export interface DeleteProductResponse {
+  success: true;
+  product?: Product;
+}

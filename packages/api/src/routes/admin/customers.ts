@@ -1,3 +1,4 @@
+import { validationError } from "../../validation";
 import { Hono } from "hono";
 import { eq, and, or, ne, inArray, sql } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
@@ -12,6 +13,7 @@ import {
   type CustomerLinkedUsersResponse,
   type PaginatedResponse,
   API_ERROR_CODES,
+  type SuccessResponse,
 } from "@kava-now/shared";
 import { db } from "../../db/connection";
 import { accentInsensitiveLike } from "../../db/search";
@@ -84,7 +86,7 @@ customersRouter.get("/", async (c) => {
 
   const parsed = adminCustomersQuerySchema.safeParse(c.req.query());
   if (!parsed.success) {
-    return c.json({ error: parsed.error.flatten().fieldErrors }, 400);
+    return validationError(c, parsed.error);
   }
   const { search, page, pageSize } = parsed.data;
 
@@ -147,7 +149,7 @@ customersRouter.post("/", async (c) => {
   const parsed = createCustomerSchema.safeParse(body);
 
   if (!parsed.success) {
-    return c.json({ error: parsed.error.flatten().fieldErrors }, 400);
+    return validationError(c, parsed.error);
   }
 
   const { assignedUserIds, ...customerData } = parsed.data;
@@ -268,7 +270,7 @@ customersRouter.put("/:id", async (c) => {
   const parsed = updateCustomerSchema.safeParse(body);
 
   if (!parsed.success) {
-    return c.json({ error: parsed.error.flatten().fieldErrors }, 400);
+    return validationError(c, parsed.error);
   }
 
   const { assignedUserIds, ...customerData } = parsed.data;
@@ -363,7 +365,7 @@ customersRouter.delete("/:id", async (c) => {
       return c.json({ error: "Customer not found" }, 404);
     }
 
-    return c.json({ success: true });
+    return c.json({ success: true } satisfies SuccessResponse);
   } catch (err) {
     if (isForeignKeyViolation(err, FK_CONSTRAINTS.orderCustomer)) {
       return c.json(
@@ -423,7 +425,7 @@ customersRouter.put("/:id/brand-pricing", async (c) => {
   const parsed = updateCustomerBrandPricingSchema.safeParse(body);
 
   if (!parsed.success) {
-    return c.json({ error: parsed.error.flatten().fieldErrors }, 400);
+    return validationError(c, parsed.error);
   }
 
   const [customer] = await db
@@ -454,7 +456,7 @@ customersRouter.put("/:id/brand-pricing", async (c) => {
     );
   }
 
-  return c.json({ success: true });
+  return c.json({ success: true } satisfies SuccessResponse);
 });
 
 // GET /:id/users — list users linked to a customer in this tenant
@@ -505,7 +507,7 @@ customersRouter.post("/:customerId/users/:userId/resend-invite", async (c) => {
   if (!result.ok) {
     return c.json({ code: result.code, error: result.error }, result.status);
   }
-  return c.json({ success: true });
+  return c.json({ success: true } satisfies SuccessResponse);
 });
 
 // POST /:id/users/invite — add another user account to an existing customer
@@ -517,7 +519,7 @@ customersRouter.post("/:id/users/invite", async (c) => {
   const parsed = inviteCustomerUserSchema.safeParse(body);
 
   if (!parsed.success) {
-    return c.json({ error: parsed.error.flatten().fieldErrors }, 400);
+    return validationError(c, parsed.error);
   }
 
   const [customer] = await db
@@ -547,7 +549,7 @@ customersRouter.post("/:id/users/invite", async (c) => {
     throw err;
   }
 
-  return c.json({ success: true });
+  return c.json({ success: true } satisfies SuccessResponse);
 });
 
 export { customersRouter };

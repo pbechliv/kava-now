@@ -1,7 +1,13 @@
+import { validationError } from "../../validation";
 import { Hono } from "hono";
 import { eq, and, ne, sql } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
-import { API_ERROR_CODES, inviteStaffUserSchema, type UsersListResponse } from "@kava-now/shared";
+import {
+  API_ERROR_CODES,
+  inviteStaffUserSchema,
+  type SuccessResponse,
+  type UsersListResponse,
+} from "@kava-now/shared";
 import { db } from "../../db/connection";
 import { accounts, tenantMemberships, users } from "../../db/schema/index";
 import {
@@ -50,7 +56,7 @@ usersRouter.post("/invite", async (c) => {
   const parsed = inviteStaffUserSchema.safeParse(body);
 
   if (!parsed.success) {
-    return c.json({ error: parsed.error.flatten().fieldErrors }, 400);
+    return validationError(c, parsed.error);
   }
 
   try {
@@ -69,7 +75,7 @@ usersRouter.post("/invite", async (c) => {
     throw err;
   }
 
-  return c.json({ success: true });
+  return c.json({ success: true } satisfies SuccessResponse);
 });
 
 // POST /:id/resend-invite — re-issue the set-password invite for a pending user
@@ -83,7 +89,7 @@ usersRouter.post("/:id/resend-invite", async (c) => {
   if (!result.ok) {
     return c.json({ code: result.code, error: result.error }, result.status);
   }
-  return c.json({ success: true });
+  return c.json({ success: true } satisfies SuccessResponse);
 });
 
 // POST /:id/promote-to-owner — promote a staff member to owner
@@ -110,7 +116,7 @@ usersRouter.post("/:id/promote-to-owner", async (c) => {
     return c.json({ error: "User not found" }, 404);
   }
   if (target.role === "owner") {
-    return c.json({ success: true });
+    return c.json({ success: true } satisfies SuccessResponse);
   }
   if (target.role !== "staff") {
     return c.json(
@@ -127,7 +133,7 @@ usersRouter.post("/:id/promote-to-owner", async (c) => {
     .set({ role: "owner" })
     .where(and(eq(tenantMemberships.userId, id), eq(tenantMemberships.tenantId, tenantId)));
 
-  return c.json({ success: true });
+  return c.json({ success: true } satisfies SuccessResponse);
 });
 
 // POST /:id/demote-to-staff — demote an owner back to staff (inverse of promote)
@@ -154,7 +160,7 @@ usersRouter.post("/:id/demote-to-staff", async (c) => {
     return c.json({ error: "User not found" }, 404);
   }
   if (target.role === "staff") {
-    return c.json({ success: true });
+    return c.json({ success: true } satisfies SuccessResponse);
   }
   if (target.role !== "owner") {
     return c.json({ error: "Only owners can be demoted to staff" }, 400);
@@ -186,7 +192,7 @@ usersRouter.post("/:id/demote-to-staff", async (c) => {
     .set({ role: "staff" })
     .where(and(eq(tenantMemberships.userId, id), eq(tenantMemberships.tenantId, tenantId)));
 
-  return c.json({ success: true });
+  return c.json({ success: true } satisfies SuccessResponse);
 });
 
 // DELETE /:id — remove a user's membership in this tenant
@@ -277,7 +283,7 @@ usersRouter.delete("/:id", async (c) => {
     }
   }
 
-  return c.json({ success: true });
+  return c.json({ success: true } satisfies SuccessResponse);
 });
 
 export { usersRouter };
