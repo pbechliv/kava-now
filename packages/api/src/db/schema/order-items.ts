@@ -5,8 +5,10 @@ import {
   integer,
   numeric,
   index,
+  check,
   type AnyPgColumn,
 } from "drizzle-orm/pg-core";
+import { sql } from "drizzle-orm";
 import { orders } from "./orders";
 import { products } from "./products";
 import { orderItemStatusEnum } from "./enums";
@@ -44,5 +46,12 @@ export const orderItems = pgTable(
     index("order_items_product_idx").on(table.productId),
     // SET NULL in the replacement chain scans this FK.
     index("order_items_replaced_by_idx").on(table.replacedByItemId),
+    // Quantities are physical amounts feeding money totals — the app validates
+    // (shared orders schemas), the DB backstops.
+    check("order_items_quantity_check", sql`${table.quantity} > 0`),
+    check(
+      "order_items_original_quantity_check",
+      sql`${table.originalQuantity} is null or ${table.originalQuantity} > 0`,
+    ),
   ],
 );

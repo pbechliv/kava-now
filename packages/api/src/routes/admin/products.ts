@@ -1,3 +1,4 @@
+import { validationError } from "../../validation";
 import { Hono } from "hono";
 import { eq, and, or, sql, desc } from "drizzle-orm";
 import {
@@ -13,6 +14,8 @@ import {
   type ProductNameBrandKey,
   type PaginatedResponse,
   API_ERROR_CODES,
+  type DeleteProductResponse,
+  type SuccessResponse,
 } from "@kava-now/shared";
 import { db } from "../../db/connection";
 import { accentInsensitiveLike } from "../../db/search";
@@ -82,7 +85,7 @@ productsRouter.get("/", async (c) => {
 
   const parsed = adminProductsQuerySchema.safeParse(c.req.query());
   if (!parsed.success) {
-    return c.json({ error: parsed.error.flatten().fieldErrors }, 400);
+    return validationError(c, parsed.error);
   }
   const { categoryId, search, active, page, pageSize } = parsed.data;
 
@@ -267,7 +270,7 @@ productsRouter.post("/import/mappings", async (c) => {
   const body = await c.req.json();
   const parsed = saveImportMappingSchema.safeParse(body);
   if (!parsed.success) {
-    return c.json({ error: parsed.error.flatten().fieldErrors }, 400);
+    return validationError(c, parsed.error);
   }
 
   const { name, mapping } = parsed.data;
@@ -327,7 +330,7 @@ productsRouter.delete("/import/mappings/:id", async (c) => {
     .where(and(eq(productImportMappings.id, id), eq(productImportMappings.tenantId, tenantId)))
     .returning({ id: productImportMappings.id });
   if (!deleted) return c.json({ error: "Mapping not found" }, 404);
-  return c.json({ success: true });
+  return c.json({ success: true } satisfies SuccessResponse);
 });
 
 // POST / — create product
@@ -337,7 +340,7 @@ productsRouter.post("/", async (c) => {
   const parsed = createProductSchema.safeParse(body);
 
   if (!parsed.success) {
-    return c.json({ error: parsed.error.flatten().fieldErrors }, 400);
+    return validationError(c, parsed.error);
   }
 
   if (parsed.data.categoryId && !(await categoryInTenant(tenantId, parsed.data.categoryId))) {
@@ -410,7 +413,7 @@ productsRouter.put("/:id", async (c) => {
   const parsed = updateProductSchema.safeParse(body);
 
   if (!parsed.success) {
-    return c.json({ error: parsed.error.flatten().fieldErrors }, 400);
+    return validationError(c, parsed.error);
   }
 
   if (parsed.data.categoryId && !(await categoryInTenant(tenantId, parsed.data.categoryId))) {
@@ -465,7 +468,7 @@ productsRouter.delete("/:id", async (c) => {
       return c.json({ error: "Product not found" }, 404);
     }
 
-    return c.json({ success: true, product });
+    return c.json({ success: true, product } satisfies PreSerialize<DeleteProductResponse>);
   };
 
   // Check if product has order items (friendly path; the no-action FK is the
@@ -485,7 +488,9 @@ productsRouter.delete("/:id", async (c) => {
     // FK is INITIALLY DEFERRED (so tenant-purge cascades pass) — force the
     // check to fire now, where it's catchable, instead of at COMMIT.
     const [deleted] = await db.transaction(async (tx) => {
-      await tx.execute(sql`set constraints "order_items_product_id_products_id_fk" immediate`);
+      await tx.execute(
+        sql`set constraints ${sql.identifier(FK_CONSTRAINTS.orderItemProduct)} immediate`,
+      );
       return tx
         .delete(products)
         .where(and(eq(products.id, id), eq(products.tenantId, tenantId)))
@@ -496,7 +501,7 @@ productsRouter.delete("/:id", async (c) => {
       return c.json({ error: "Product not found" }, 404);
     }
 
-    return c.json({ success: true });
+    return c.json({ success: true } satisfies SuccessResponse);
   } catch (err) {
     if (isForeignKeyViolation(err, FK_CONSTRAINTS.orderItemProduct)) {
       // Lost the race: an order item appeared since the check — soft-delete.

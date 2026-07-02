@@ -1,3 +1,4 @@
+import { validationError } from "../validation";
 import { Hono } from "hono";
 import { eq, ne, and } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
@@ -7,6 +8,7 @@ import {
   normalizeEmail,
   updateMeSchema,
   type AuthMeResponse,
+  type SuccessResponse,
 } from "@kava-now/shared";
 import { db } from "../db/connection";
 import { config } from "../config";
@@ -36,13 +38,13 @@ auth.post("/set-password", requireAuth, async (c) => {
   const body = await c.req.json();
   const parsed = setPasswordSchema.safeParse(body);
   if (!parsed.success) {
-    return c.json({ error: parsed.error.flatten().fieldErrors }, 400);
+    return validationError(c, parsed.error);
   }
   await betterAuth.api.setPassword({
     body: { newPassword: parsed.data.newPassword },
     headers: c.req.raw.headers,
   });
-  return c.json({ success: true });
+  return c.json({ success: true } satisfies SuccessResponse);
 });
 
 auth.get("/me", requireAuth, async (c) => {
@@ -103,7 +105,7 @@ auth.patch("/me", requireAuth, async (c) => {
   const parsed = updateMeSchema.safeParse(body);
 
   if (!parsed.success) {
-    return c.json({ error: parsed.error.flatten().fieldErrors }, 400);
+    return validationError(c, parsed.error);
   }
   if (!parsed.data.name && !parsed.data.email) {
     return c.json(
@@ -167,7 +169,7 @@ auth.patch("/me", requireAuth, async (c) => {
   }
 
   if (Object.keys(updateData).length === 0) {
-    return c.json({ success: true });
+    return c.json({ success: true } satisfies SuccessResponse);
   }
 
   try {
@@ -179,7 +181,7 @@ auth.patch("/me", requireAuth, async (c) => {
     throw err;
   }
 
-  return c.json({ success: true });
+  return c.json({ success: true } satisfies SuccessResponse);
 });
 
 // --- Web Push (#28) ---
@@ -201,7 +203,7 @@ auth.post("/push/subscribe", requireAuth, async (c) => {
   }
   const parsed = pushSubscribeSchema.safeParse(await c.req.json());
   if (!parsed.success) {
-    return c.json({ error: parsed.error.flatten().fieldErrors }, 400);
+    return validationError(c, parsed.error);
   }
   const user = getUser(c);
 
@@ -225,13 +227,13 @@ auth.post("/push/subscribe", requireAuth, async (c) => {
       },
     });
 
-  return c.json({ success: true });
+  return c.json({ success: true } satisfies SuccessResponse);
 });
 
 auth.post("/push/unsubscribe", requireAuth, async (c) => {
   const parsed = z.object({ endpoint: z.url() }).safeParse(await c.req.json());
   if (!parsed.success) {
-    return c.json({ error: parsed.error.flatten().fieldErrors }, 400);
+    return validationError(c, parsed.error);
   }
   const user = getUser(c);
   await db
@@ -242,7 +244,7 @@ auth.post("/push/unsubscribe", requireAuth, async (c) => {
         eq(pushSubscriptions.userId, user.id),
       ),
     );
-  return c.json({ success: true });
+  return c.json({ success: true } satisfies SuccessResponse);
 });
 
 export { auth as authRoutes };

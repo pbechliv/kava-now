@@ -57,6 +57,9 @@ const CODE_MESSAGES: Record<ApiErrorCode, string> = {
   [API_ERROR_CODES.ORDER_EMPTY]: "Η παραγγελία δεν περιέχει προϊόντα",
 
   [API_ERROR_CODES.NO_UPDATE_FIELDS]: "Δεν δόθηκαν πεδία για ενημέρωση",
+  // Fallback only — validation responses normally carry their own per-field
+  // messages, which the api client prefers over this generic one.
+  [API_ERROR_CODES.VALIDATION_ERROR]: "Μη έγκυρα στοιχεία — ελέγξτε τη φόρμα",
 };
 
 /**

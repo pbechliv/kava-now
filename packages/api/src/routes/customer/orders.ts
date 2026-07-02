@@ -1,3 +1,4 @@
+import { validationError } from "../../validation";
 import { Hono } from "hono";
 import { eq, and, desc, sql, inArray } from "drizzle-orm";
 import {
@@ -69,7 +70,7 @@ ordersRouter.post("/", async (c) => {
   const parsed = createOrderSchema.safeParse(body);
 
   if (!parsed.success) {
-    return c.json({ error: parsed.error.flatten().fieldErrors }, 400);
+    return validationError(c, parsed.error);
   }
 
   const { items, notes } = parsed.data;
@@ -193,7 +194,7 @@ ordersRouter.get("/", async (c) => {
     pageSize: c.req.query("pageSize"),
   });
   if (!pagination.success) {
-    return c.json({ error: pagination.error.flatten().fieldErrors }, 400);
+    return validationError(c, pagination.error);
   }
   const { page, pageSize } = pagination.data;
 

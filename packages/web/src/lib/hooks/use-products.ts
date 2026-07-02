@@ -14,6 +14,8 @@ import type {
   ProductNameBrandKey,
   AdminProductsSearch,
   PaginatedResponse,
+  SuccessResponse,
+  DeleteProductResponse,
 } from "@kava-now/shared";
 
 type ProductWithCategory = ProductWithCategoryName;
@@ -89,8 +91,7 @@ export function useDeleteProduct() {
   return useMutation({
     // `product` is present when the API soft-deleted (deactivated) instead —
     // the product is referenced by order history.
-    mutationFn: (id: string) =>
-      tApi.delete<{ success: boolean; product?: Product }>(`/admin/products/${id}`),
+    mutationFn: (id: string) => tApi.delete<DeleteProductResponse>(`/admin/products/${id}`),
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: ["admin", slug, "products"] });
     },
@@ -169,7 +170,7 @@ export function useDeleteImportMapping() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (id: string) =>
-      tApi.delete<{ success: boolean }>(`/admin/products/import/mappings/${id}`),
+      tApi.delete<SuccessResponse>(`/admin/products/import/mappings/${id}`),
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: ["admin", slug, "import-mappings"] });
     },

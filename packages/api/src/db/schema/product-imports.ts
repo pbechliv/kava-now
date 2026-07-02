@@ -1,4 +1,5 @@
-import { pgTable, uuid, text, integer, timestamp, index } from "drizzle-orm/pg-core";
+import { pgTable, uuid, text, integer, timestamp, index, check } from "drizzle-orm/pg-core";
+import { sql } from "drizzle-orm";
 import { tenants } from "./tenants";
 import { users } from "./users";
 
@@ -24,5 +25,12 @@ export const productImports = pgTable(
     duplicatesInFile: integer("duplicates_in_file").notNull(),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
-  (table) => [index("product_imports_tenant_created_idx").on(table.tenantId, table.createdAt)],
+  (table) => [
+    index("product_imports_tenant_created_idx").on(table.tenantId, table.createdAt),
+    // Outcome counts are audit data — negative values are meaningless.
+    check(
+      "product_imports_counts_check",
+      sql`${table.total} >= 0 and ${table.inserted} >= 0 and ${table.updated} >= 0 and ${table.categoriesCreated} >= 0 and ${table.duplicatesInFile} >= 0`,
+    ),
+  ],
 );

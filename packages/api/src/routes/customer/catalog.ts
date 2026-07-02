@@ -1,3 +1,4 @@
+import { validationError } from "../../validation";
 import { Hono } from "hono";
 import { eq, and, or, sql, asc, inArray } from "drizzle-orm";
 import {
@@ -76,7 +77,7 @@ catalogRouter.get("/", requireCustomerProfile, async (c) => {
 
   const parsed = catalogQuerySchema.safeParse(c.req.query());
   if (!parsed.success) {
-    return c.json({ error: parsed.error.flatten().fieldErrors }, 400);
+    return validationError(c, parsed.error);
   }
   const { categoryId, search, page, pageSize } = parsed.data;
 
@@ -152,7 +153,7 @@ catalogRouter.post("/resolve", requireCustomerProfile, async (c) => {
   const body = await c.req.json();
   const parsed = resolveCatalogPricesSchema.safeParse(body);
   if (!parsed.success) {
-    return c.json({ error: parsed.error.flatten().fieldErrors }, 400);
+    return validationError(c, parsed.error);
   }
   const { productIds } = parsed.data;
 

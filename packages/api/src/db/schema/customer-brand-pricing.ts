@@ -7,7 +7,9 @@ import {
   primaryKey,
   index,
   foreignKey,
+  check,
 } from "drizzle-orm/pg-core";
+import { sql } from "drizzle-orm";
 import { tenants } from "./tenants";
 import { customers } from "./customers";
 
@@ -37,5 +39,11 @@ export const customerBrandPricing = pgTable(
       columns: [table.customerId, table.tenantId],
       foreignColumns: [customers.id, customers.tenantId],
     }).onDelete("cascade"),
+    // A discount outside 0–100 miscomputes every price for that customer/brand —
+    // same bounds as the shared schema, enforced at the DB as the backstop.
+    check(
+      "customer_brand_pricing_discount_pct_check",
+      sql`${table.discountPct} >= 0 and ${table.discountPct} <= 100`,
+    ),
   ],
 );

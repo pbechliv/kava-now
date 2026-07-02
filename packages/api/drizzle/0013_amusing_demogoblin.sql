@@ -1,0 +1,5 @@
+CREATE INDEX "customers_tenant_idx" ON "customers" USING btree ("tenant_id");--> statement-breakpoint
+ALTER TABLE "product_imports" ADD CONSTRAINT "product_imports_counts_check" CHECK ("product_imports"."total" >= 0 and "product_imports"."inserted" >= 0 and "product_imports"."updated" >= 0 and "product_imports"."categories_created" >= 0 and "product_imports"."duplicates_in_file" >= 0);--> statement-breakpoint
+ALTER TABLE "customer_brand_pricing" ADD CONSTRAINT "customer_brand_pricing_discount_pct_check" CHECK ("customer_brand_pricing"."discount_pct" >= 0 and "customer_brand_pricing"."discount_pct" <= 100);--> statement-breakpoint
+ALTER TABLE "order_items" ADD CONSTRAINT "order_items_quantity_check" CHECK ("order_items"."quantity" > 0);--> statement-breakpoint
+ALTER TABLE "order_items" ADD CONSTRAINT "order_items_original_quantity_check" CHECK ("order_items"."original_quantity" is null or "order_items"."original_quantity" > 0);

@@ -1,3 +1,4 @@
+import { validationError } from "../../validation";
 import { Hono } from "hono";
 import { eq, and, sql, asc } from "drizzle-orm";
 import {
@@ -5,6 +6,7 @@ import {
   updateCategorySchema,
   type CategoryWithParentName,
   API_ERROR_CODES,
+  type SuccessResponse,
 } from "@kava-now/shared";
 import { db } from "../../db/connection";
 import { categories, products } from "../../db/schema/index";
@@ -88,7 +90,7 @@ categoriesRouter.post("/", async (c) => {
   const parsed = createCategorySchema.safeParse(body);
 
   if (!parsed.success) {
-    return c.json({ error: parsed.error.flatten().fieldErrors }, 400);
+    return validationError(c, parsed.error);
   }
 
   if (parsed.data.parentId && !(await categoryExistsInTenant(tenantId, parsed.data.parentId))) {
@@ -122,7 +124,7 @@ categoriesRouter.put("/:id", async (c) => {
   const parsed = updateCategorySchema.safeParse(body);
 
   if (!parsed.success) {
-    return c.json({ error: parsed.error.flatten().fieldErrors }, 400);
+    return validationError(c, parsed.error);
   }
 
   if (parsed.data.parentId) {
@@ -202,7 +204,7 @@ categoriesRouter.delete("/:id", async (c) => {
     return c.json({ error: "Category not found" }, 404);
   }
 
-  return c.json({ success: true });
+  return c.json({ success: true } satisfies SuccessResponse);
 });
 
 export { categoriesRouter };

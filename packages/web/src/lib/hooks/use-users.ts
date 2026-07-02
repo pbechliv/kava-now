@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useTenantApi, useTenantSlug } from "./use-tenant-api";
-import type { InviteStaffUserInput, UsersListResponse } from "@kava-now/shared";
+import type { InviteStaffUserInput, SuccessResponse, UsersListResponse } from "@kava-now/shared";
 
 export type InviteUserInput = InviteStaffUserInput;
 
@@ -21,7 +21,7 @@ export function useInviteUser() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (input: InviteUserInput) =>
-      tApi.post<{ success: boolean }>("/admin/users/invite", input),
+      tApi.post<SuccessResponse>("/admin/users/invite", input),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ["admin", slug, "users"] });
     },
@@ -44,7 +44,7 @@ export function useDeleteUser() {
 export function useResendInvite() {
   const tApi = useTenantApi();
   return useMutation({
-    mutationFn: (id: string) => tApi.post<{ success: boolean }>(`/admin/users/${id}/resend-invite`),
+    mutationFn: (id: string) => tApi.post<SuccessResponse>(`/admin/users/${id}/resend-invite`),
   });
 }
 
@@ -53,8 +53,7 @@ export function usePromoteToOwner() {
   const tApi = useTenantApi();
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (id: string) =>
-      tApi.post<{ success: boolean }>(`/admin/users/${id}/promote-to-owner`),
+    mutationFn: (id: string) => tApi.post<SuccessResponse>(`/admin/users/${id}/promote-to-owner`),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ["admin", slug, "users"] });
     },
@@ -66,8 +65,7 @@ export function useDemoteToStaff() {
   const tApi = useTenantApi();
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (id: string) =>
-      tApi.post<{ success: boolean }>(`/admin/users/${id}/demote-to-staff`),
+    mutationFn: (id: string) => tApi.post<SuccessResponse>(`/admin/users/${id}/demote-to-staff`),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ["admin", slug, "users"] });
     },

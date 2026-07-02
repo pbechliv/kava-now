@@ -1,3 +1,4 @@
+import { validationError } from "../../validation";
 import { Hono } from "hono";
 import { eq, ne, and, sql, gte, lte, desc } from "drizzle-orm";
 import { afterTenantCommit, db } from "../../db/connection";
@@ -66,7 +67,7 @@ ordersRouter.get("/", async (c) => {
 
   const parsed = adminOrdersQuerySchema.safeParse(c.req.query());
   if (!parsed.success) {
-    return c.json({ error: parsed.error.flatten().fieldErrors }, 400);
+    return validationError(c, parsed.error);
   }
   const { status, erpStatus, customerId, dateFrom, dateTo, page, pageSize } = parsed.data;
 
@@ -210,7 +211,7 @@ ordersRouter.put("/:id/status", async (c) => {
   const body = await c.req.json();
   const parsedStatus = updateOrderStatusSchema.safeParse(body);
   if (!parsedStatus.success) {
-    return c.json({ error: parsedStatus.error.flatten().fieldErrors }, 400);
+    return validationError(c, parsedStatus.error);
   }
   const newStatus: OrderStatus = parsedStatus.data.status;
 
@@ -274,7 +275,7 @@ ordersRouter.patch("/:id/internal-notes", async (c) => {
   const body = await c.req.json();
   const parsed = updateOrderInternalNotesSchema.safeParse(body);
   if (!parsed.success) {
-    return c.json({ error: parsed.error.flatten().fieldErrors }, 400);
+    return validationError(c, parsed.error);
   }
 
   const trimmed = parsed.data.internalNotes?.trim();
@@ -302,7 +303,7 @@ ordersRouter.post("/:id/cancellation-request", async (c) => {
   const body = await c.req.json();
   const parsed = resolveCancellationRequestSchema.safeParse(body);
   if (!parsed.success) {
-    return c.json({ error: parsed.error.flatten().fieldErrors }, 400);
+    return validationError(c, parsed.error);
   }
   const { decision } = parsed.data;
 
@@ -367,7 +368,7 @@ ordersRouter.patch("/:id/erp", async (c) => {
   const parsed = markOrderTransmittedSchema.safeParse(body);
 
   if (!parsed.success) {
-    return c.json({ error: parsed.error.flatten().fieldErrors }, 400);
+    return validationError(c, parsed.error);
   }
 
   const [existing] = await db
@@ -532,7 +533,7 @@ ordersRouter.post("/:id/items", async (c) => {
   const body = await c.req.json();
   const parsed = addOrderItemSchema.safeParse(body);
   if (!parsed.success) {
-    return c.json({ error: parsed.error.flatten().fieldErrors }, 400);
+    return validationError(c, parsed.error);
   }
 
   const result = await db.transaction(async (tx) => {
@@ -594,7 +595,7 @@ ordersRouter.patch("/:id/items/:itemId", async (c) => {
   const body = await c.req.json();
   const parsed = updateOrderItemSchema.safeParse(body);
   if (!parsed.success) {
-    return c.json({ error: parsed.error.flatten().fieldErrors }, 400);
+    return validationError(c, parsed.error);
   }
 
   const result = await db.transaction(async (tx) => {
@@ -706,7 +707,7 @@ ordersRouter.post("/:id/items/:itemId/replace", async (c) => {
   const body = await c.req.json();
   const parsed = replaceOrderItemSchema.safeParse(body);
   if (!parsed.success) {
-    return c.json({ error: parsed.error.flatten().fieldErrors }, 400);
+    return validationError(c, parsed.error);
   }
 
   const result = await db.transaction(async (tx) => {
