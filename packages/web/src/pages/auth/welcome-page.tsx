@@ -15,13 +15,16 @@ import { Separator } from "@/components/ui/separator";
 const googleEnabled = !!import.meta.env.VITE_GOOGLE_CLIENT_ID;
 
 export function WelcomePage() {
-  const { token = "" } = useSearch({ strict: false });
+  const { token = "", email = "", error: linkError = "" } = useSearch({ strict: false });
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { slug } = useParams({ strict: false });
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
   const [error, setError] = useState("");
+  // Set when better-auth rejects the token at submit time (valid at click, then
+  // expired/consumed while the invitee sat on the form).
+  const [tokenRejected, setTokenRejected] = useState(false);
 
   const loginPath = slug ? `/k/${slug}/login` : "/login";
   const homePath = slug ? `/k/${slug}` : "/";
@@ -37,32 +40,102 @@ export function WelcomePage() {
   const mutation = useMutation({
     mutationFn: async (newPassword: string) => {
       const { error: authError } = await authClient.resetPassword({ newPassword, token });
-      if (authError) throw new Error(authError.message ?? "Σφάλμα");
+      if (authError) {
+        // better-auth returns BAD_REQUEST / "Invalid token" when the token is
+        // expired or already consumed. Surface the re-request path rather than
+        // the raw English message.
+        const isTokenError =
+          authError.code === "INVALID_TOKEN" || /invalid token/i.test(authError.message ?? "");
+        if (isTokenError) {
+          const expired = new Error("INVALID_TOKEN");
+          expired.name = "InvalidToken";
+          throw expired;
+        }
+        throw new Error(authError.message ?? "Σφάλμα");
+      }
+      // better-auth's resetPassword creates no session. The invite link carries
+      // the email, so sign the invitee in transparently instead of bouncing
+      // them to the login form. If the email is absent (older links) or sign-in
+      // fails, fall back to the "password set — please sign in" screen.
+      if (email) {
+        const { error: signInError } = await authClient.signIn.email({
+          email,
+          password: newPassword,
+        });
+        if (!signInError) return { signedIn: true };
+      }
+      return { signedIn: false };
     },
-    onSuccess: async () => {
+    onSuccess: async (result) => {
       await queryClient.invalidateQueries({ queryKey: ["auth"] });
+      if (result.signedIn) {
+        // HomePage resolves the correct role-based landing page.
+        void navigate({ to: homePath, replace: true });
+      }
+    },
+    onError: (err) => {
+      if (err instanceof Error && err.name === "InvalidToken") {
+        setTokenRejected(true);
+      }
     },
   });
 
   const googleSignIn = useGoogleSignIn();
 
-  if (!token) {
+  const reRequestLink = slug ? (
+    <Link
+      to="/k/$slug/auth/forgot-password"
+      params={{ slug }}
+      search={{ email }}
+      className="mt-4 inline-block text-sm font-medium text-primary hover:underline"
+    >
+      Ζητήστε νέο σύνδεσμο
+    </Link>
+  ) : (
+    <Link
+      to="/auth/forgot-password"
+      search={{ email }}
+      className="mt-4 inline-block text-sm font-medium text-primary hover:underline"
+    >
+      Ζητήστε νέο σύνδεσμο
+    </Link>
+  );
+
+  // The invite link is unusable: no token, better-auth flagged it at click
+  // (?error=…), or it was rejected on submit. Offer a fresh link instead of a
+  // dead end.
+  if (!token || linkError || tokenRejected) {
     return (
       <div className="text-center">
-        <h2 className="text-lg font-semibold">Μη έγκυρος σύνδεσμος</h2>
+        <h2 className="text-lg font-semibold">Ο σύνδεσμος δεν είναι πλέον έγκυρος</h2>
         <p className="mt-2 text-sm text-muted-foreground">
-          Ο σύνδεσμος πρόσκλησης δεν είναι έγκυρος ή έληξε.
+          Ο σύνδεσμος πρόσκλησης έληξε ή έχει ήδη χρησιμοποιηθεί. Ζητήστε νέο σύνδεσμο για να
+          ολοκληρώσετε την εγγραφή σας.
         </p>
-        <Link
-          to={loginPath}
-          className="mt-4 inline-block text-sm font-medium text-primary hover:underline"
-        >
-          Επιστροφή στη σύνδεση
-        </Link>
+        <div className="mt-4 flex flex-col items-center gap-1">
+          {reRequestLink}
+          <Link
+            to={loginPath}
+            className="inline-block text-sm font-medium text-muted-foreground hover:underline"
+          >
+            Επιστροφή στη σύνδεση
+          </Link>
+        </div>
       </div>
     );
   }
 
+  // Auto-login succeeded — we're navigating to the home page; show a brief
+  // spinner instead of flashing the success screen.
+  if (mutation.isSuccess && mutation.data.signedIn) {
+    return (
+      <div className="flex justify-center py-12">
+        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
+
+  // Password set but not auto-signed-in (no email on the link / sign-in failed).
   if (mutation.isSuccess) {
     return (
       <div className="text-center">
@@ -70,9 +143,11 @@ export function WelcomePage() {
           <CheckCircle2 className="h-6 w-6 text-primary" />
         </div>
         <h2 className="text-lg font-semibold">Ο κωδικός ορίστηκε</h2>
-        <p className="mt-2 text-sm text-muted-foreground">Ο λογαριασμός σας είναι έτοιμος.</p>
-        <Button className="mt-6" onClick={() => void navigate({ to: homePath, replace: true })}>
-          Συνέχεια
+        <p className="mt-2 text-sm text-muted-foreground">
+          Ο λογαριασμός σας είναι έτοιμος — συνδεθείτε για να συνεχίσετε.
+        </p>
+        <Button className="mt-6" onClick={() => void navigate({ to: loginPath, replace: true })}>
+          Σύνδεση
         </Button>
       </div>
     );

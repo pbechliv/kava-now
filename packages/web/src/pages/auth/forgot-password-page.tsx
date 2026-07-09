@@ -2,7 +2,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { forgotPasswordSchema, type ForgotPasswordInput } from "@kava-now/shared";
 import { useMutation } from "@tanstack/react-query";
-import { Link, useParams } from "@tanstack/react-router";
+import { Link, useParams, useSearch } from "@tanstack/react-router";
 import { Loader2, MailCheck } from "lucide-react";
 import { authClient } from "@/lib/auth-client";
 import { Button } from "@/components/ui/button";
@@ -18,10 +18,11 @@ import {
 
 export function ForgotPasswordPage() {
   const { slug } = useParams({ strict: false });
+  const { email: prefillEmail = "" } = useSearch({ strict: false });
 
   const form = useForm<ForgotPasswordInput>({
     resolver: zodResolver(forgotPasswordSchema),
-    defaultValues: { email: "" },
+    defaultValues: { email: prefillEmail },
   });
 
   const resetPath = slug ? `/k/${slug}/auth/reset-password` : "/auth/reset-password";

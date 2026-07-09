@@ -3,6 +3,13 @@ import { z } from "zod";
 
 const isDev = process.env.NODE_ENV !== "production";
 
+// Invites and password resets share better-auth's single reset-token expiry.
+// 72h keeps invite onboarding forgiving (the old 1h default routinely expired
+// before invitees clicked) without leaving genuine reset links valid a whole
+// week. Exported so the email copy's "expires in N hours" line reads from the
+// same source and can't drift from the real value (#165).
+export const AUTH_RESET_TOKEN_EXPIRES_IN_HOURS = 72;
+
 const DEV_DEFAULTS = {
   databaseUrl: "postgresql://postgres:postgres@localhost:5432/kavanow",
   // db:migrate provisions the NOSUPERUSER role with password = role name in
