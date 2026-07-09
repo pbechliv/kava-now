@@ -4,6 +4,7 @@
   "license": "AGPL-3.0-or-later",
   "type": "module",
   "scripts": {
+    "wt": "bash tools/git/wt/wt.sh",
     "dev": "pnpm services:up && pnpm --parallel --filter @kava-now/api --filter @kava-now/web dev",
     "dev:api": "pnpm services:up && pnpm --filter @kava-now/api dev",
     "dev:web": "pnpm --filter @kava-now/web dev",

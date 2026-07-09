@@ -14,7 +14,9 @@ services:
   postgres:
     image: postgres:18-alpine
     ports:
-      - "127.0.0.1:5432:5432"
+      # Host port is overridable so git worktrees can run isolated stacks in parallel
+      # (see tools/git/wt). Defaults to 5432 for the primary worktree.
+      - "127.0.0.1:${POSTGRES_PORT:-5432}:5432"
     environment:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
@@ -32,8 +34,8 @@ services:
   mailpit:
     image: axllent/mailpit:latest
     ports:
-      - "127.0.0.1:1025:1025" # SMTP
-      - "127.0.0.1:8025:8025" # Web UI
+      - "127.0.0.1:${MAILPIT_SMTP_PORT:-1025}:1025" # SMTP
+      - "127.0.0.1:${MAILPIT_UI_PORT:-8025}:8025" # Web UI
     environment:
       MP_SMTP_AUTH_ACCEPT_ANY: 1
       MP_SMTP_AUTH_ALLOW_INSECURE: 1

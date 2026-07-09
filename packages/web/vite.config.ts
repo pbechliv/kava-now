@@ -65,7 +65,9 @@ export default defineConfig({
     "import.meta.env.VITE_GOOGLE_CLIENT_ID": JSON.stringify(googleClientId),
   },
   server: {
-    port: 3200,
+    // WEB_PORT lets git worktrees run isolated dev servers in parallel (see
+    // tools/git/wt). Defaults to 3200 for the primary worktree.
+    port: Number(process.env.WEB_PORT) || 3200,
     strictPort: true,
     proxy: {
       "/api": {

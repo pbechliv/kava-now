@@ -13,7 +13,6 @@ postgres-data/
 infra/secrets/
 
 # IDE
-.vscode/
 .idea/
 *.swp
 *.swo
