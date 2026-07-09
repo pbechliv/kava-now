@@ -1,7 +1,7 @@
 import nodemailer from "nodemailer";
 import { Resend } from "resend";
 import { render } from "@react-email/render";
-import { config } from "../config";
+import { AUTH_RESET_TOKEN_EXPIRES_IN_HOURS, config } from "../config";
 import {
   SetPasswordEmail,
   subject as setPasswordSubject,
@@ -60,7 +60,14 @@ export async function sendPasswordSet(
   tenantName: string,
   mode: SetPasswordMode,
 ): Promise<void> {
-  const html = await render(SetPasswordEmail({ link, tenantName, mode }));
+  const html = await render(
+    SetPasswordEmail({
+      link,
+      tenantName,
+      mode,
+      expiresInHours: AUTH_RESET_TOKEN_EXPIRES_IN_HOURS,
+    }),
+  );
   await deliver({ to: email, subject: setPasswordSubject({ tenantName, mode }), html });
 }
 

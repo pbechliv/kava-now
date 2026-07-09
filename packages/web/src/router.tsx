@@ -52,6 +52,21 @@ const tokenSearchSchema = z.object({
   token: z.string().optional().catch(""),
 });
 
+// Welcome (invite) carries the email for post-set-password auto-login, and an
+// `error` param better-auth appends when the invite token is expired/invalid
+// at click time (#165).
+const welcomeSearchSchema = z.object({
+  token: z.string().optional().catch(""),
+  email: z.string().optional().catch(""),
+  error: z.string().optional().catch(""),
+});
+
+// Forgot-password can be reached with a prefilled email (e.g. the "request a
+// new link" CTA on an expired invite).
+const emailSearchSchema = z.object({
+  email: z.string().optional().catch(""),
+});
+
 // Pages load lazily per route (#59): a customer on a phone must not download
 // the superadmin + admin areas (and papaparse) just to see the catalog.
 // `lazyRouteComponent` adapts the pages' named exports and wires preloading.
@@ -168,6 +183,7 @@ const loginRoute = createRoute({
 const forgotPasswordRoute = createRoute({
   getParentRoute: () => authLayoutRoute,
   path: "/auth/forgot-password",
+  validateSearch: emailSearchSchema,
   component: ForgotPasswordPage,
 });
 const resetPasswordRoute = createRoute({
@@ -236,6 +252,7 @@ const tenantLoginRoute = createRoute({
 const tenantForgotPasswordRoute = createRoute({
   getParentRoute: () => tenantAuthLayoutRoute,
   path: "auth/forgot-password",
+  validateSearch: emailSearchSchema,
   component: ForgotPasswordPage,
 });
 const tenantResetPasswordRoute = createRoute({
@@ -247,7 +264,7 @@ const tenantResetPasswordRoute = createRoute({
 const welcomeRoute = createRoute({
   getParentRoute: () => tenantAuthLayoutRoute,
   path: "welcome",
-  validateSearch: tokenSearchSchema,
+  validateSearch: welcomeSearchSchema,
   component: WelcomePage,
 });
 
