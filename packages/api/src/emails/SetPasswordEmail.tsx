@@ -38,7 +38,12 @@ const button = {
 };
 const muted = { color: "#6b7280", fontSize: "12px", lineHeight: "18px", margin: "24px 0 0" };
 
-export function SetPasswordEmail({ link, tenantName, mode, expiresInHours }: SetPasswordEmailProps) {
+export function SetPasswordEmail({
+  link,
+  tenantName,
+  mode,
+  expiresInHours,
+}: SetPasswordEmailProps) {
   const isInvite = mode === "invite";
   const previewText = isInvite
     ? `Καλώς ήρθατε στο ${tenantName}. Ορίστε τον κωδικό σας.`
