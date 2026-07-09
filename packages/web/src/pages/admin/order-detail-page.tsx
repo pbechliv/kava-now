@@ -1,6 +1,8 @@
 import { useParams, Link } from "@tanstack/react-router";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, Copy, MapPin } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { copyToClipboard } from "@/lib/copy";
 import { Spinner } from "@/components/spinner";
 import { OrderStatusBadge } from "@/components/order-status-badge";
 import { ErpStatusBadge } from "@/components/admin/erp-status-badge";
@@ -67,6 +69,34 @@ export function OrderDetailPage() {
             {order.customerEmail && (
               <p className="text-sm text-muted-foreground">{order.customerEmail}</p>
             )}
+            {/* Delivery address — where to ship. Highlighted and kept distinct
+                from the billing address in OrderBillingCard below. */}
+            <div className="mt-3 flex items-start justify-between gap-2 rounded-md border bg-muted/40 p-2.5">
+              <div className="flex min-w-0 items-start gap-2">
+                <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
+                <div className="min-w-0">
+                  <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                    Διεύθυνση παράδοσης
+                  </p>
+                  <p className="mt-0.5 break-words text-sm">{order.customerAddress ?? "—"}</p>
+                </div>
+              </div>
+              {order.customerAddress && (
+                <Button
+                  type="button"
+                  size="icon"
+                  variant="ghost"
+                  className="h-7 w-7 shrink-0"
+                  onClick={() =>
+                    order.customerAddress &&
+                    copyToClipboard(order.customerAddress, "Αντιγραφή διεύθυνσης παράδοσης")
+                  }
+                  aria-label="Αντιγραφή διεύθυνσης παράδοσης"
+                >
+                  <Copy className="h-3.5 w-3.5" />
+                </Button>
+              )}
+            </div>
           </CardContent>
         </Card>
 
