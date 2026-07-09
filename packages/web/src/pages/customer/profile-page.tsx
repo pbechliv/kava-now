@@ -6,6 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { ChangePasswordCard } from "@/components/auth/change-password-card";
+import { PushNotificationsCard } from "@/components/push-notifications-card";
 import { ErrorBanner } from "@/components/error-banner";
 import { Spinner } from "@/components/spinner";
 import { useProfile, useUpdateProfile } from "@/lib/hooks/use-profile";
@@ -116,6 +117,8 @@ export function ProfilePage() {
             </form>
           </CardContent>
         </Card>
+
+        <PushNotificationsCard />
 
         <ChangePasswordCard />
       </div>
