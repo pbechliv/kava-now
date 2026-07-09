@@ -359,6 +359,49 @@ suite("admin order mutations (HTTP, hard lock + soft-cancel totals)", () => {
     expect(detail.erpMark).toBeNull();
   });
 
+  it("owner can correct a transmitted MARK; the correction is recorded", async () => {
+    const { orderId } = await createOrder();
+
+    const transmit = await api(`/orders/${orderId}/erp`, {
+      method: "PATCH",
+      body: JSON.stringify({ mark: "400001234567890" }),
+    });
+    expect(transmit.status).toBe(200);
+
+    const correct = await api(`/orders/${orderId}/erp/mark`, {
+      method: "PATCH",
+      body: JSON.stringify({ mark: "400009999999999", reason: "τυπογραφικό λάθος στο MARK" }),
+    });
+    expect(correct.status).toBe(200);
+
+    const detail = await (await api(`/orders/${orderId}`)).json();
+    expect(detail.erpMark).toBe("400009999999999");
+    expect(detail.erpStatus).toBe("transmitted");
+    expect(detail.erpMarkCorrectionReason).toBe("τυπογραφικό λάθος στο MARK");
+    expect(detail.erpMarkCorrectedAt).not.toBeNull();
+    expect(detail.erpMarkCorrectedByEmail).toBe(ownerEmail);
+    // The original transmission audit survives the correction.
+    expect(detail.erpTransmittedAt).not.toBeNull();
+
+    // A correction with no reason is rejected at the boundary.
+    const noReason = await api(`/orders/${orderId}/erp/mark`, {
+      method: "PATCH",
+      body: JSON.stringify({ mark: "400008888888888", reason: "   " }),
+    });
+    expect(noReason.status).toBe(400);
+  });
+
+  it("cannot correct the MARK of a not-yet-transmitted order → 409", async () => {
+    const { orderId } = await createOrder();
+
+    const res = await api(`/orders/${orderId}/erp/mark`, {
+      method: "PATCH",
+      body: JSON.stringify({ mark: "400001234567890", reason: "no-op" }),
+    });
+    expect(res.status).toBe(409);
+    expect((await res.json()).code).toBe("ORDER_NOT_TRANSMITTED");
+  });
+
   it("filters the orders list by erpStatus", async () => {
     const { orderId: transmitted } = await createOrder();
     const { orderId: pending } = await createOrder();

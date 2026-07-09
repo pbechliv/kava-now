@@ -31,14 +31,24 @@ export const orders = pgTable(
     erpTransmittedBy: uuid("erp_transmitted_by").references(() => users.id, {
       onDelete: "set null",
     }),
+    // A transmitted MARK is otherwise hard-locked; these record a privileged
+    // (owner/superadmin) correction of a mistyped MARK — who/when/why. NULL
+    // until a correction happens. The original erpTransmittedAt/By are left
+    // intact so the initial transmission audit survives the correction.
+    erpMarkCorrectedAt: timestamp("erp_mark_corrected_at", { withTimezone: true }),
+    erpMarkCorrectedBy: uuid("erp_mark_corrected_by").references(() => users.id, {
+      onDelete: "set null",
+    }),
+    erpMarkCorrectionReason: text("erp_mark_correction_reason"),
   },
   (table) => [
     // Orders list / dashboard scan by tenant, newest first.
     index("orders_tenant_created_idx").on(table.tenantId, table.createdAt),
     // Customer order history.
     index("orders_customer_idx").on(table.customerId),
-    // SET NULL on user deletion scans this FK.
+    // SET NULL on user deletion scans these FKs.
     index("orders_erp_transmitted_by_idx").on(table.erpTransmittedBy),
+    index("orders_erp_mark_corrected_by_idx").on(table.erpMarkCorrectedBy),
     // Composite: the customer must belong to the same tenant as the order.
     // NO ACTION, and made DEFERRABLE INITIALLY DEFERRED by hand in the
     // migration (the schema API can't express it): tenant deletion cascades

@@ -61,6 +61,11 @@ export interface AdminOrderDetailResponse {
   erpTransmittedBy: string | null;
   erpTransmittedByName: string | null;
   erpTransmittedByEmail: string | null;
+  erpMarkCorrectedAt: string | null;
+  erpMarkCorrectedBy: string | null;
+  erpMarkCorrectedByName: string | null;
+  erpMarkCorrectedByEmail: string | null;
+  erpMarkCorrectionReason: string | null;
   items: AdminOrderItemWithProduct[];
   total: number;
 }
