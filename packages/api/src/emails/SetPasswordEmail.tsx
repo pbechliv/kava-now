@@ -1,14 +1,4 @@
-import {
-  Body,
-  Button,
-  Container,
-  Head,
-  Heading,
-  Html,
-  Preview,
-  Section,
-  Text,
-} from "react-email";
+import { Body, Button, Container, Head, Heading, Html, Preview, Section, Text } from "react-email";
 
 export type SetPasswordMode = "invite" | "reset";
 
