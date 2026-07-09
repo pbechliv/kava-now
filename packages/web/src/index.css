@@ -222,4 +222,23 @@
   [role="button"]:not([aria-disabled="true"]) {
     cursor: pointer;
   }
+  /* iOS Safari gives date/time inputs a fixed native intrinsic width and
+     ignores width:100% / flex-shrink, so they overflow their container.
+     Resetting the native appearance makes them honor the sizing again.
+     Scoped to iOS Safari (@supports -webkit-touch-callout) so desktop
+     Chrome — which already renders these correctly — keeps its native
+     calendar-picker affordance. */
+  @supports (-webkit-touch-callout: none) {
+    input[type="date"],
+    input[type="datetime-local"],
+    input[type="time"],
+    input[type="month"],
+    input[type="week"] {
+      -webkit-appearance: none;
+      appearance: none;
+    }
+    input[type="date"]::-webkit-date-and-time-value {
+      text-align: left;
+    }
+  }
 }
