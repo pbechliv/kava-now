@@ -4,8 +4,8 @@
   "license": "AGPL-3.0-or-later",
   "type": "module",
   "scripts": {
-    "dev": "pnpm --parallel --filter @kava-now/api --filter @kava-now/web dev",
-    "dev:api": "pnpm --filter @kava-now/api dev",
+    "dev": "pnpm services:up && pnpm --parallel --filter @kava-now/api --filter @kava-now/web dev",
+    "dev:api": "pnpm services:up && pnpm --filter @kava-now/api dev",
     "dev:web": "pnpm --filter @kava-now/web dev",
     "build": "pnpm --filter @kava-now/shared --if-present build && pnpm --parallel --filter @kava-now/api --filter @kava-now/web build",
     "lint": "vp lint packages/",
@@ -13,10 +13,12 @@
     "fmt:check": "vp fmt --check packages/",
     "typecheck": "pnpm -r typecheck",
     "test": "pnpm -r --if-present test",
-    "db:migrate": "pnpm --filter @kava-now/api db:migrate",
-    "db:seed": "pnpm --filter @kava-now/api db:seed",
+    "services:up": "bash scripts/dev-services.sh",
+    "services:down": "docker compose -f docker-compose.dev.yml down",
+    "db:migrate": "pnpm services:up && pnpm --filter @kava-now/api db:migrate",
+    "db:seed": "pnpm services:up && pnpm --filter @kava-now/api db:seed",
     "db:generate": "pnpm --filter @kava-now/api db:generate",
-    "db:reset": "pnpm --filter @kava-now/api db:reset",
+    "db:reset": "pnpm services:up && pnpm --filter @kava-now/api db:reset",
     "db:reseed": "pnpm db:reset && pnpm db:migrate && pnpm db:seed"
   },
   "devDependencies": {
