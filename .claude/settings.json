@@ -6,6 +6,10 @@
         "hooks": [
           {
             "type": "command",
+            "command": "cd \"$CLAUDE_PROJECT_DIR\" && pnpm -s fmt 2>&1 | tail -n 20 || true"
+          },
+          {
+            "type": "command",
             "command": "cd \"$CLAUDE_PROJECT_DIR\" && pnpm -s lint 2>&1 | tail -n 60 || true"
           }
         ]
