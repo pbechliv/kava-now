@@ -1,6 +1,7 @@
 import { validationError } from "../../validation";
 import { Hono } from "hono";
 import { eq, ne, and, sql, gte, lte, desc } from "drizzle-orm";
+import { alias } from "drizzle-orm/pg-core";
 import { afterTenantCommit, db } from "../../db/connection";
 import {
   orders,
@@ -14,10 +15,11 @@ import { resolvePrice } from "../../services/pricing";
 import { customerUserRecipients, sendPushToUsers } from "../../services/push";
 import type { AppEnv } from "../../types";
 import type { PreSerialize } from "../../serialize";
-import { getTenant, getTenantId, getUser } from "../../context";
+import { getMembership, getTenant, getTenantId, getUser } from "../../context";
 import {
   adminOrdersQuerySchema,
   markOrderTransmittedSchema,
+  correctOrderMarkSchema,
   updateOrderStatusSchema,
   updateOrderInternalNotesSchema,
   resolveCancellationRequestSchema,
@@ -36,6 +38,10 @@ import {
 } from "@kava-now/shared";
 
 const ordersRouter = new Hono<AppEnv>();
+
+// Second users join for the order detail: the user who corrected the MARK,
+// distinct from erpTransmittedBy (which uses the base `users` alias).
+const correctedByUser = alias(users, "corrected_by_user");
 
 type MutableGuard = { ok: true } | { ok: false; code: ApiErrorCode; error: string };
 
@@ -161,10 +167,16 @@ ordersRouter.get("/:id", async (c) => {
       erpTransmittedBy: orders.erpTransmittedBy,
       erpTransmittedByName: users.name,
       erpTransmittedByEmail: users.email,
+      erpMarkCorrectedAt: orders.erpMarkCorrectedAt,
+      erpMarkCorrectedBy: orders.erpMarkCorrectedBy,
+      erpMarkCorrectedByName: correctedByUser.name,
+      erpMarkCorrectedByEmail: correctedByUser.email,
+      erpMarkCorrectionReason: orders.erpMarkCorrectionReason,
     })
     .from(orders)
     .leftJoin(customers, eq(orders.customerId, customers.id))
     .leftJoin(users, eq(orders.erpTransmittedBy, users.id))
+    .leftJoin(correctedByUser, eq(orders.erpMarkCorrectedBy, correctedByUser.id))
     .where(and(eq(orders.id, id), eq(orders.tenantId, tenantId)))
     .limit(1);
 
@@ -418,6 +430,64 @@ ordersRouter.patch("/:id/erp", async (c) => {
       {
         code: API_ERROR_CODES.ORDER_ALREADY_TRANSMITTED,
         error: "Order already transmitted to ERP",
+      },
+      409,
+    );
+  }
+
+  return c.json(updated);
+});
+
+// PATCH /:id/erp/mark — privileged correction of an already-transmitted MARK.
+// The initial transmission is one-shot and hard-locks the order, so a mistyped
+// MARK is otherwise permanent; this is the only way to fix it. Owner-only
+// (superadmins carry a synthetic owner membership) — staff can't correct a
+// fiscal identifier. The reason is recorded for audit.
+ordersRouter.patch("/:id/erp/mark", async (c) => {
+  const tenantId = getTenantId(c);
+  const user = getUser(c);
+  const id = c.req.param("id");
+
+  if (getMembership(c).role !== "owner") {
+    return c.json({ error: "Only an owner can correct a transmitted MARK" }, 403);
+  }
+
+  const body = await c.req.json();
+  const parsed = correctOrderMarkSchema.safeParse(body);
+  if (!parsed.success) {
+    return validationError(c, parsed.error);
+  }
+
+  // The erp_status='transmitted' guard lives in the WHERE: there's nothing to
+  // correct on a not-yet-transmitted order, and this keeps it race-safe against
+  // the initial transmit.
+  const [updated] = await db
+    .update(orders)
+    .set({
+      erpMark: parsed.data.mark,
+      erpMarkCorrectedAt: new Date(),
+      erpMarkCorrectedBy: user.id,
+      erpMarkCorrectionReason: parsed.data.reason,
+    })
+    .where(
+      and(eq(orders.id, id), eq(orders.tenantId, tenantId), eq(orders.erpStatus, "transmitted")),
+    )
+    .returning();
+
+  if (!updated) {
+    // Distinguish a missing order from one that simply hasn't been transmitted.
+    const [existing] = await db
+      .select({ id: orders.id })
+      .from(orders)
+      .where(and(eq(orders.id, id), eq(orders.tenantId, tenantId)))
+      .limit(1);
+    if (!existing) {
+      return c.json({ error: "Order not found" }, 404);
+    }
+    return c.json(
+      {
+        code: API_ERROR_CODES.ORDER_NOT_TRANSMITTED,
+        error: "Only a transmitted order's MARK can be corrected",
       },
       409,
     );

@@ -83,6 +83,23 @@ export function useMarkOrderTransmitted() {
   });
 }
 
+// Owner/superadmin-only correction of an already-transmitted MARK (a mistyped
+// MARK is otherwise permanently locked). The reason is mandatory (audit trail).
+export function useCorrectOrderMark() {
+  const slug = useTenantSlug();
+  const tApi = useTenantApi();
+  const qc = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ id, mark, reason }: { id: string; mark: string; reason: string }) =>
+      tApi.patch(`/admin/orders/${id}/erp/mark`, { mark, reason }),
+    onSuccess: (_data, { id }) => {
+      void qc.invalidateQueries({ queryKey: ["admin", slug, "orders", id] });
+      void qc.invalidateQueries({ queryKey: ["admin", slug, "orders"] });
+    },
+  });
+}
+
 function useInvalidateOrder(orderId: string) {
   const slug = useTenantSlug();
   const qc = useQueryClient();

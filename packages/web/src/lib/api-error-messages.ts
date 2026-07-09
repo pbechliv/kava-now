@@ -21,6 +21,8 @@ const CODE_MESSAGES: Record<ApiErrorCode, string> = {
   [API_ERROR_CODES.ORDER_LOCKED_BY_ERP]:
     "Η παραγγελία έχει ήδη διαβιβαστεί στο ERP και δεν μπορεί να τροποποιηθεί",
   [API_ERROR_CODES.ORDER_ALREADY_TRANSMITTED]: "Η παραγγελία έχει ήδη διαβιβαστεί",
+  [API_ERROR_CODES.ORDER_NOT_TRANSMITTED]:
+    "Μόνο διαβιβασμένη παραγγελία μπορεί να έχει διόρθωση MARK",
   [API_ERROR_CODES.ORDER_ITEM_CANCELLED]: "Το προϊόν έχει ακυρωθεί",
   [API_ERROR_CODES.ORDER_INVALID_STATUS]: "Μη έγκυρη μετάβαση κατάστασης",
   [API_ERROR_CODES.ORDER_CANCELLATION_NOT_REQUESTED]:
