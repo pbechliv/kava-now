@@ -1,4 +1,13 @@
-import { pgTable, uuid, text, timestamp, index, foreignKey } from "drizzle-orm/pg-core";
+import {
+  pgTable,
+  uuid,
+  text,
+  integer,
+  timestamp,
+  index,
+  uniqueIndex,
+  foreignKey,
+} from "drizzle-orm/pg-core";
 import { erpStatusEnum, orderStatusEnum } from "./enums";
 import { tenants } from "./tenants";
 import { customers } from "./customers";
@@ -15,6 +24,11 @@ export const orders = pgTable(
     // because orders are financial/audit history — deleting a customer must
     // never destroy them.
     customerId: uuid("customer_id").notNull(),
+    // Human-friendly per-tenant sequential order number (#161), shown in all
+    // lists/details/notifications instead of the UUID. Allocated from the
+    // tenant's `orderCounter` inside the order-creation transaction; unique
+    // per tenant (see the unique index below).
+    orderNumber: integer("order_number").notNull(),
     status: orderStatusEnum("status").notNull().default("pending"),
     // Customer-authored comment, set at order creation. Visible to the customer.
     notes: text("notes"),
@@ -44,6 +58,8 @@ export const orders = pgTable(
   (table) => [
     // Orders list / dashboard scan by tenant, newest first.
     index("orders_tenant_created_idx").on(table.tenantId, table.createdAt),
+    // Per-tenant sequential order number — unique within a tenant.
+    uniqueIndex("orders_tenant_number_idx").on(table.tenantId, table.orderNumber),
     // Customer order history.
     index("orders_customer_idx").on(table.customerId),
     // SET NULL on user deletion scans these FKs.

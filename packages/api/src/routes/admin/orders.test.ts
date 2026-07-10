@@ -65,6 +65,7 @@ suite("admin order mutations (HTTP, hard lock + soft-cancel totals)", () => {
   let p1 = ""; // 10.00
   let p2 = ""; // 5.00
   let p3 = ""; // 7.50 (replacement target)
+  let orderSeq = 0; // per-tenant sequential order number for direct inserts
 
   const api = (path: string, init?: Omit<RequestInit, "headers">) =>
     app.request(`/api/k/${slug}/admin${path}`, {
@@ -77,7 +78,7 @@ suite("admin order mutations (HTTP, hard lock + soft-cancel totals)", () => {
     return runWithTenant(tenantId, async () => {
       const [order] = await db
         .insert(schema.orders)
-        .values({ tenantId, customerId })
+        .values({ tenantId, customerId, orderNumber: ++orderSeq })
         .returning({ id: schema.orders.id });
       const items = await db
         .insert(schema.orderItems)

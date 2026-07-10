@@ -29,6 +29,28 @@ const ordersRouter = new Hono<AppEnv>();
 
 ordersRouter.use("*", requireCustomerProfile);
 
+// The order-creation transaction handle (a savepoint of the surrounding tenant
+// transaction). Used by allocateOrderNumber so the counter bump lives in the
+// same unit of work as the INSERT.
+type OrderTx = Parameters<Parameters<typeof db.transaction>[0]>[0];
+
+// Allocate the next per-tenant sequential order number (#161). Bumps the
+// tenant's counter with a row-locked `UPDATE ... RETURNING` inside the caller's
+// order-creation transaction: concurrent creations for the same tenant
+// serialize on that row (no duplicate numbers), and a rollback reverts the
+// counter (no gap). Raw SQL — not db.update — so it doesn't touch
+// tenants.updatedAt.
+async function allocateOrderNumber(tx: OrderTx, tenantId: string): Promise<number> {
+  const rows = await tx.execute<{ order_counter: number }>(
+    sql`update tenants set order_counter = order_counter + 1 where id = ${tenantId} returning order_counter`,
+  );
+  const next = rows[0]?.order_counter;
+  if (typeof next !== "number") {
+    throw new Error(`Failed to allocate order number for tenant ${tenantId}`);
+  }
+  return next;
+}
+
 // Post-commit push (no email — order emails were removed; email is now only for
 // user management) to the customer's assigned users and anyone opted into
 // all-order notifications (#28). Recipients are resolved NOW — inside the
@@ -39,7 +61,7 @@ async function queueOrderPlacedNotifications(
   tenant: { id: string; slug: string },
   customer: { id: string; name: string },
   result: {
-    order: { id: string };
+    order: { id: string; orderNumber: number };
     items: { id: string }[];
   },
   actingUserId: string | undefined,
@@ -51,7 +73,7 @@ async function queueOrderPlacedNotifications(
   return afterTenantCommit(async () => {
     try {
       await sendPushToUsers(recipientIds, {
-        title: "Νέα παραγγελία",
+        title: `Νέα παραγγελία #${result.order.orderNumber}`,
         body: `${customer.name} — ${result.items.length} είδη`,
         url: `/k/${tenant.slug}/admin/orders/${result.order.id}`,
       });
@@ -144,11 +166,13 @@ ordersRouter.post("/", async (c) => {
 
   // Create order + items in transaction
   const result = await db.transaction(async (tx) => {
+    const orderNumber = await allocateOrderNumber(tx, tenant.id);
     const [order] = await tx
       .insert(orders)
       .values({
         tenantId: tenant.id,
         customerId,
+        orderNumber,
         notes: notes || null,
       })
       .returning();
@@ -209,6 +233,7 @@ ordersRouter.get("/", async (c) => {
   const rows = await db
     .select({
       id: orders.id,
+      orderNumber: orders.orderNumber,
       status: orders.status,
       notes: orders.notes,
       createdAt: orders.createdAt,
@@ -246,6 +271,7 @@ ordersRouter.get("/:id", async (c) => {
   const [order] = await db
     .select({
       id: orders.id,
+      orderNumber: orders.orderNumber,
       status: orders.status,
       notes: orders.notes,
       createdAt: orders.createdAt,
@@ -373,11 +399,13 @@ ordersRouter.post("/:id/reorder", async (c) => {
 
   // Create new order with re-resolved prices
   const result = await db.transaction(async (tx) => {
+    const orderNumber = await allocateOrderNumber(tx, tenant.id);
     const [newOrder] = await tx
       .insert(orders)
       .values({
         tenantId: tenant.id,
         customerId,
+        orderNumber,
       })
       .returning();
 
@@ -452,7 +480,7 @@ ordersRouter.post("/:id/cancel", async (c) => {
       .update(orders)
       .set({ status: nextStatus })
       .where(and(eq(orders.id, orderId), eq(orders.tenantId, tenantId)))
-      .returning({ id: orders.id, status: orders.status });
+      .returning({ id: orders.id, orderNumber: orders.orderNumber, status: orders.status });
 
     if (!updated) return { kind: "not_found" as const };
 
@@ -494,7 +522,7 @@ ordersRouter.post("/:id/cancel", async (c) => {
       try {
         await sendPushToUsers(result.recipientIds, {
           title: requested ? "Αίτημα ακύρωσης" : "Ακύρωση παραγγελίας",
-          body: `${result.customerName} — #${result.updated.id.slice(0, 8)}`,
+          body: `${result.customerName} — #${result.updated.orderNumber}`,
           url: `/k/${tenant.slug}/admin/orders/${result.updated.id}`,
         });
       } catch (err) {

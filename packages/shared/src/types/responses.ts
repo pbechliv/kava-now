@@ -22,6 +22,7 @@ import type {
 
 export interface AdminOrderListItem {
   id: string;
+  orderNumber: number;
   customerId: string;
   status: OrderStatus;
   notes: string | null;
@@ -41,6 +42,7 @@ export type AdminOrderItemWithProduct = Omit<OrderItem, "orderId"> & {
 
 export interface AdminOrderDetailResponse {
   id: string;
+  orderNumber: number;
   customerId: string;
   status: OrderStatus;
   notes: string | null;
@@ -74,6 +76,7 @@ export interface AdminOrderDetailResponse {
 
 export interface CustomerOrderListItem {
   id: string;
+  orderNumber: number;
   status: OrderStatus;
   notes: string | null;
   createdAt: string;
@@ -85,6 +88,7 @@ export interface CustomerOrderListItem {
 // orderId (implied by the URL).
 export interface CustomerOrderDetailResponse {
   id: string;
+  orderNumber: number;
   status: OrderStatus;
   notes: string | null;
   createdAt: string;
@@ -194,6 +198,7 @@ export interface DashboardStatsResponse {
   totalCustomers: number;
   recentOrders: {
     id: string;
+    orderNumber: number;
     status: OrderStatus;
     createdAt: string;
     customerName: string | null;

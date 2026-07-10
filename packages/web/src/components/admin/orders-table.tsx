@@ -8,6 +8,7 @@ import type { ErpStatus, OrderStatus } from "@kava-now/shared";
 
 export interface OrdersTableOrder {
   id: string;
+  orderNumber: number;
   status: OrderStatus;
   createdAt: string;
   customerName: string | null;
@@ -44,7 +45,7 @@ export function OrdersTable({
           {
             header: "#",
             cellClassName: "font-mono text-xs text-muted-foreground",
-            cell: (order: OrdersTableOrder) => order.id.slice(0, 8),
+            cell: (order: OrdersTableOrder) => `#${order.orderNumber}`,
           },
         ]
       : []),
@@ -120,7 +121,7 @@ export function OrdersTable({
               <div className="text-sm text-muted-foreground">
                 {showId && (
                   <>
-                    <span className="font-mono text-xs">#{order.id.slice(0, 8)}</span> ·{" "}
+                    <span className="font-mono text-xs">#{order.orderNumber}</span> ·{" "}
                   </>
                 )}
                 {formatDate(order.createdAt)} · {order.itemCount} προϊόντα

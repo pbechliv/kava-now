@@ -121,7 +121,7 @@ export function OrderDetailPage() {
 
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">Παραγγελία #{order.id.slice(0, 8)}</h1>
+          <h1 className="text-2xl font-bold tracking-tight">Παραγγελία #{order.orderNumber}</h1>
           <p className="mt-1 text-sm text-muted-foreground">{formatDateLong(order.createdAt)}</p>
         </div>
         <div className="flex flex-wrap items-center gap-3">

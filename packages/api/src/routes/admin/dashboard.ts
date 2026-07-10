@@ -50,6 +50,7 @@ dashboardRouter.get("/stats", async (c) => {
     db
       .select({
         id: orders.id,
+        orderNumber: orders.orderNumber,
         status: orders.status,
         createdAt: orders.createdAt,
         customerName: customers.name,

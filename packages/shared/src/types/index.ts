@@ -82,6 +82,8 @@ export interface Order {
   id: string;
   tenantId: string;
   customerId: string;
+  /** Human-friendly per-tenant sequential number (#161); unique within a tenant. */
+  orderNumber: number;
   status: OrderStatus;
   /** Customer-authored comment, set at creation. Visible to the customer. */
   notes: string | null;
