@@ -109,6 +109,7 @@ ordersRouter.get("/", async (c) => {
   const rows = await db
     .select({
       id: orders.id,
+      orderNumber: orders.orderNumber,
       customerId: orders.customerId,
       status: orders.status,
       notes: orders.notes,
@@ -147,6 +148,7 @@ ordersRouter.get("/:id", async (c) => {
   const [order] = await db
     .select({
       id: orders.id,
+      orderNumber: orders.orderNumber,
       customerId: orders.customerId,
       status: orders.status,
       notes: orders.notes,
@@ -337,6 +339,8 @@ ordersRouter.post("/:id/cancellation-request", async (c) => {
       .where(and(eq(orders.id, id), eq(orders.tenantId, tenantId)))
       .returning();
 
+    if (!updated) return { kind: "not_found" as const };
+
     // Resolve the customer's login users inside the tenant tx; push post-commit.
     const recipientIds = await customerUserRecipients(tenantId, order.customerId, actingUserId);
     return { kind: "ok" as const, updated, recipientIds };
@@ -359,7 +363,7 @@ ordersRouter.post("/:id/cancellation-request", async (c) => {
       try {
         await sendPushToUsers(result.recipientIds, {
           title: approved ? "Η παραγγελία ακυρώθηκε" : "Το αίτημα ακύρωσης απορρίφθηκε",
-          body: `#${id.slice(0, 8)}`,
+          body: `#${result.updated.orderNumber}`,
           url: `/k/${tenant.slug}/orders/${id}`,
         });
       } catch (err) {

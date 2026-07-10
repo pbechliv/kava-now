@@ -45,7 +45,7 @@ export function OrderDetailPage() {
 
       <div>
         <div className="flex flex-wrap items-center gap-3">
-          <h1 className="text-2xl font-bold tracking-tight">Παραγγελία #{order.id.slice(0, 8)}</h1>
+          <h1 className="text-2xl font-bold tracking-tight">Παραγγελία #{order.orderNumber}</h1>
           <OrderStatusBadge status={order.status} />
           <ErpStatusBadge status={order.erpStatus} prefix="ERP: " />
         </div>

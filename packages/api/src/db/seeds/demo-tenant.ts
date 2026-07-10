@@ -429,6 +429,7 @@ export async function seedDemoTenant(outerDb: PostgresJsDatabase): Promise<void>
     );
 
     let transmittedSeq = 0;
+    let orderNumber = 0;
     for (const order of DEMO_ORDERS) {
       const customerId = customerByName.get(order.customerName);
       if (!customerId) throw new Error(`Demo customer missing: ${order.customerName}`);
@@ -437,12 +438,14 @@ export async function seedDemoTenant(outerDb: PostgresJsDatabase): Promise<void>
       // "transmitted" state is visible in the UI without manual setup.
       const isTransmitted = order.status === "delivered";
       if (isTransmitted) transmittedSeq++;
+      orderNumber++;
 
       const [createdOrder] = await db
         .insert(orders)
         .values({
           tenantId: demoTenant.id,
           customerId,
+          orderNumber,
           status: order.status,
           notes: order.notes,
           internalNotes: order.internalNotes ?? null,
@@ -472,6 +475,13 @@ export async function seedDemoTenant(outerDb: PostgresJsDatabase): Promise<void>
         }),
       );
     }
+
+    // Advance the tenant's order counter past the seeded orders so the next
+    // real order continues the sequence (#161).
+    await db
+      .update(tenants)
+      .set({ orderCounter: orderNumber })
+      .where(eq(tenants.id, demoTenant.id));
 
     console.log(
       `Demo tenant seeded: tenant "${DEMO_SLUG}" + ${DEMO_CUSTOMERS.length} customers + ${DEMO_ORDERS.length} orders. ` +

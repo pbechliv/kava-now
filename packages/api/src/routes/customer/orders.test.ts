@@ -162,6 +162,34 @@ suite("customer orders (server-side pricing + customer scoping)", () => {
     expect(Number(body.items[0].unitPrice)).toBe(2.01);
   });
 
+  it("assigns gap-free per-tenant sequential order numbers, surfaced in list + detail (#161)", async () => {
+    const place = async () => {
+      const res = await api(must(cookies.a), "/orders", {
+        method: "POST",
+        body: JSON.stringify({ items: [{ productId, quantity: 1 }] }),
+      });
+      expect(res.status).toBe(201);
+      return (await res.json()) as { order: { id: string; orderNumber: number } };
+    };
+
+    const first = await place();
+    const second = await place();
+
+    // Create response carries the number; strictly consecutive, no gap.
+    expect(Number.isInteger(first.order.orderNumber)).toBe(true);
+    expect(second.order.orderNumber).toBe(first.order.orderNumber + 1);
+
+    // Detail endpoint surfaces it.
+    const detail = await (await api(must(cookies.a), `/orders/${second.order.id}`)).json();
+    expect(detail.orderNumber).toBe(second.order.orderNumber);
+
+    // List endpoint surfaces it — newest first.
+    const list = await (await api(must(cookies.a), "/orders")).json();
+    const numbers = (list.data as { id: string; orderNumber: number }[]).map((o) => o.orderNumber);
+    expect(numbers).toContain(first.order.orderNumber);
+    expect(numbers).toContain(second.order.orderNumber);
+  });
+
   it("catalog/resolve returns the customer's current price and availability", async () => {
     const res = await api(must(cookies.a), "/catalog/resolve", {
       method: "POST",

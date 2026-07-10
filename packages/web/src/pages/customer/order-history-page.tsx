@@ -47,7 +47,7 @@ export function OrderHistoryPage() {
                 <CardContent className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between">
                   <div className="space-y-1">
                     <div className="flex flex-wrap items-center gap-2">
-                      <span className="text-sm font-medium">#{order.id.slice(0, 8)}</span>
+                      <span className="text-sm font-medium">#{order.orderNumber}</span>
                       <OrderStatusBadge status={order.status} />
                     </div>
                     <div className="text-sm text-muted-foreground">
