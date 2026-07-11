@@ -1,6 +1,6 @@
 import { validationError } from "../../validation";
 import { Hono } from "hono";
-import { eq, ne, and, sql, gte, lte, desc } from "drizzle-orm";
+import { eq, ne, and, sql, gte, lte, desc, notInArray } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
 import { afterTenantCommit, db } from "../../db/connection";
 import {
@@ -24,6 +24,7 @@ import {
   updateOrderInternalNotesSchema,
   resolveCancellationRequestSchema,
   ORDER_STATUS_TRANSITIONS,
+  ERP_UNTRANSMITTABLE_STATUSES,
   addOrderItemSchema,
   updateOrderItemSchema,
   replaceOrderItemSchema,
@@ -84,6 +85,12 @@ ordersRouter.get("/", async (c) => {
   }
   if (erpStatus) {
     conditions.push(eq(orders.erpStatus, erpStatus));
+    // A cancelled (or cancellation-pending) order can never be transmitted, so
+    // it is not really "pending ERP" — exclude it from the pending-ERP list so
+    // it matches the dashboard KPI, which does the same (#162).
+    if (erpStatus === "pending") {
+      conditions.push(notInArray(orders.status, ERP_UNTRANSMITTABLE_STATUSES));
+    }
   }
   if (customerId) {
     conditions.push(eq(orders.customerId, customerId));
@@ -153,6 +160,8 @@ ordersRouter.get("/:id", async (c) => {
       status: orders.status,
       notes: orders.notes,
       internalNotes: orders.internalNotes,
+      requestedDeliveryDate: orders.requestedDeliveryDate,
+      poReference: orders.poReference,
       createdAt: orders.createdAt,
       customerName: customers.name,
       customerEmail: customers.email,

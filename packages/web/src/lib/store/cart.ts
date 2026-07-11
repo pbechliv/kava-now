@@ -13,6 +13,7 @@ export interface CartItem {
 interface CartState {
   items: Record<string, CartItem>;
   addItem: (product: CatalogProduct, quantity: number) => void;
+  loadItems: (items: CartItem[]) => void;
   removeItem: (productId: string) => void;
   updateQuantity: (productId: string, quantity: number) => void;
   updatePrices: (prices: Record<string, number>) => void;
@@ -74,6 +75,19 @@ export const useCartStore = create<CartState>()(
             },
           };
         }),
+
+      // Replace the whole cart with a given set of lines — used by reorder to
+      // load a past order as "same as last week", ready to edit/submit (#172).
+      // Quantities are clamped to the per-line cap, same as addItem/updateQuantity.
+      loadItems: (items) =>
+        set(() => ({
+          items: Object.fromEntries(
+            items.map((item) => [
+              item.product.id,
+              { product: item.product, quantity: Math.min(MAX_ORDER_QUANTITY, item.quantity) },
+            ]),
+          ),
+        })),
 
       removeItem: (productId) =>
         set((state) => {

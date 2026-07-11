@@ -46,6 +46,24 @@ describe("cart store tenant scoping (C3)", () => {
     expect(localStorage.getItem("kavanow-cart-beta")).toBeTruthy();
   });
 
+  it("loadItems replaces the whole cart (reorder) and clamps to the line cap", () => {
+    const store = useCartStore.getState();
+    // A stray item that must NOT survive a reorder-load.
+    store.addItem(product("stale", 9), 4);
+
+    store.loadItems([
+      { product: product("p1", 5), quantity: 2 },
+      { product: product("p2", 3), quantity: 999_999 },
+    ]);
+
+    const items = useCartStore.getState().items;
+    expect(items.stale).toBeUndefined();
+    expect(items.p1?.quantity).toBe(2);
+    // Clamped to MAX_ORDER_QUANTITY (9999).
+    expect(items.p2?.quantity).toBe(9999);
+    expect(useCartStore.getState().totalItems()).toBe(9999 + 2);
+  });
+
   it("logout forgets every cart — the next user never inherits items or prices", async () => {
     // User A leaves carts in two tenants on this machine.
     await activateCartForSlug("alpha");

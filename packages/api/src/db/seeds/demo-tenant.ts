@@ -144,6 +144,10 @@ interface DemoOrder {
   status: OrderStatus;
   notes: string | null;
   internalNotes?: string | null;
+  // Structured B2B checkout metadata (#175) — set on a couple of demo orders so
+  // the admin detail shows a delivery date / PO reference out of the box.
+  requestedDeliveryDate?: string | null;
+  poReference?: string | null;
   items: DemoOrderItem[];
 }
 
@@ -174,6 +178,8 @@ const DEMO_ORDERS: DemoOrder[] = [
     status: "shipped",
     notes: "Αναμένεται παράδοση αύριο 09:00",
     internalNotes: "Ο οδηγός να καλέσει 10' πριν — δύσκολη πρόσβαση φορτηγού.",
+    requestedDeliveryDate: "2026-07-15",
+    poReference: "PO-2026-0442",
     items: [
       { productName: "Coca-Cola", brand: "Coca-Cola", quantity: 96 },
       { productName: "Coca-Cola Zero", brand: "Coca-Cola", quantity: 48 },
@@ -186,6 +192,8 @@ const DEMO_ORDERS: DemoOrder[] = [
     status: "confirmed",
     notes: "Φόρτωση Παρασκευή",
     internalNotes: "Εκκρεμεί εξόφληση προηγούμενου τιμολογίου — έλεγχος πριν την αποστολή.",
+    requestedDeliveryDate: "2026-07-17",
+    poReference: "ΕΝΤ-5591",
     items: [
       { productName: "Septem Μέρες", brand: "Septem", quantity: 36 },
       { productName: "Άλφα", brand: "Athenian Brewery", quantity: 48 },
@@ -449,6 +457,8 @@ export async function seedDemoTenant(outerDb: PostgresJsDatabase): Promise<void>
           status: order.status,
           notes: order.notes,
           internalNotes: order.internalNotes ?? null,
+          requestedDeliveryDate: order.requestedDeliveryDate ?? null,
+          poReference: order.poReference ?? null,
           erpStatus: isTransmitted ? "transmitted" : "pending",
           erpMark: isTransmitted ? `4000${String(transmittedSeq).padStart(4, "0")}` : null,
           erpTransmittedAt: isTransmitted ? new Date() : null,

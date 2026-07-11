@@ -50,6 +50,11 @@ export const createOrderSchema = z.object({
     .min(1, "Η παραγγελία πρέπει να περιέχει τουλάχιστον ένα προϊόν")
     .max(200, "Έως 200 γραμμές ανά παραγγελία"),
   notes: z.string().max(2000).optional(),
+  // Structured B2B checkout fields (#175): a requested delivery date and the
+  // customer's own PO reference, so "deliver Thursday before 11:00" and the PO
+  // number aren't buried in the free-text note. Both optional.
+  requestedDeliveryDate: z.iso.date().optional(),
+  poReference: z.string().trim().max(100, "Έως 100 χαρακτήρες").optional(),
 });
 
 export type CreateOrderInput = z.infer<typeof createOrderSchema>;

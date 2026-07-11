@@ -4,6 +4,7 @@ import { toast } from "sonner";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
+import { UnsavedChangesGuard } from "@/components/unsaved-changes-guard";
 import { useUpdateOrderInternalNotes, type AdminOrderDetail } from "@/lib/hooks/use-admin-orders";
 
 // Staff/owner-only note. Never reaches the customer-facing endpoints, so it is
@@ -23,6 +24,7 @@ export function OrderInternalNotesCard({ order }: { order: AdminOrderDetail }) {
 
   return (
     <Card>
+      <UnsavedChangesGuard when={dirty} />
       <CardHeader>
         <CardTitle className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
           <Lock className="size-3.5" />

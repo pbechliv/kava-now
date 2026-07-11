@@ -32,7 +32,15 @@ export function CartPage() {
   const slug = useTenantSlug();
   const base = `/k/${slug}`;
   const [notes, setNotes] = useState("");
+  const [deliveryDate, setDeliveryDate] = useState("");
+  const [poReference, setPoReference] = useState("");
   const [confirming, setConfirming] = useState(false);
+
+  // Local YYYY-MM-DD floor for the delivery-date picker — no past dates.
+  const todayIso = useMemo(() => {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+  }, []);
 
   const items = useCartStore((s) => s.items);
   const updateQuantity = useCartStore((s) => s.updateQuantity);
@@ -125,6 +133,8 @@ export function CartPage() {
           quantity: item.quantity,
         })),
         notes: notes || undefined,
+        requestedDeliveryDate: deliveryDate || undefined,
+        poReference: poReference.trim() || undefined,
       },
       {
         onSuccess: () => {
@@ -387,6 +397,30 @@ export function CartPage() {
           })}
         </MobileList>
       </Card>
+
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+        <div className="space-y-2">
+          <Label htmlFor="delivery-date">Επιθυμητή ημ. παράδοσης</Label>
+          <Input
+            id="delivery-date"
+            type="date"
+            value={deliveryDate}
+            min={todayIso}
+            onChange={(e) => setDeliveryDate(e.target.value)}
+          />
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="po-reference">Αρ. παραγγελίας (PO)</Label>
+          <Input
+            id="po-reference"
+            type="text"
+            maxLength={100}
+            value={poReference}
+            onChange={(e) => setPoReference(e.target.value)}
+            placeholder="Προαιρετικός κωδικός παραγγελίας σας"
+          />
+        </div>
+      </div>
 
       <div className="space-y-2">
         <Label htmlFor="order-notes">Σχόλιο παραγγελίας</Label>
