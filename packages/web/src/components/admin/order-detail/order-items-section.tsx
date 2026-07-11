@@ -30,6 +30,14 @@ import {
 } from "@/lib/hooks/use-admin-orders";
 import { copyToClipboard } from "@/lib/copy";
 import { formatMoney } from "@/lib/format";
+import { MAX_ORDER_QUANTITY } from "@kava-now/shared";
+
+// The editor keeps the draft as a string so clearing the field while retyping
+// doesn't snap back to a coerced number; validity is checked at save time.
+function parseQty(value: string): number | null {
+  const qty = Number(value);
+  return Number.isInteger(qty) && qty >= 1 && qty <= MAX_ORDER_QUANTITY ? qty : null;
+}
 
 function buildLinesTsv(order: AdminOrderDetail): string {
   return order.items
@@ -92,9 +100,9 @@ function QtyEditor({
   onSave,
   onCancel,
 }: {
-  value: number;
+  value: string;
   pending: boolean;
-  onChange: (qty: number) => void;
+  onChange: (qty: string) => void;
   onSave: () => void;
   onCancel: () => void;
 }) {
@@ -103,11 +111,17 @@ function QtyEditor({
       <Input
         type="number"
         min={1}
+        max={MAX_ORDER_QUANTITY}
         value={value}
-        onChange={(e) => onChange(Math.max(1, Number(e.target.value)))}
+        onChange={(e) => onChange(e.target.value)}
         className="h-8 w-20 text-center"
       />
-      <Button size="sm" variant="default" disabled={pending} onClick={onSave}>
+      <Button
+        size="sm"
+        variant="default"
+        disabled={pending || parseQty(value) == null}
+        onClick={onSave}
+      >
         {pending ? <Loader2 className="h-3 w-3 animate-spin" /> : "OK"}
       </Button>
       <Button size="sm" variant="ghost" aria-label="Ακύρωση επεξεργασίας" onClick={onCancel}>
@@ -155,7 +169,7 @@ export function OrderItemsSection({ order }: { order: AdminOrderDetail }) {
   const updateItem = useUpdateOrderItem(order.id);
   const cancelItem = useCancelOrderItem(order.id);
   const [editingItemId, setEditingItemId] = useState<string | null>(null);
-  const [editingQty, setEditingQty] = useState<number>(1);
+  const [editingQty, setEditingQty] = useState<string>("1");
   const [replaceTarget, setReplaceTarget] = useState<AdminOrderItem | null>(null);
   const [cancelTarget, setCancelTarget] = useState<AdminOrderItem | null>(null);
   const [showAdd, setShowAdd] = useState(false);
@@ -190,14 +204,12 @@ export function OrderItemsSection({ order }: { order: AdminOrderDetail }) {
 
   const beginEditQty = (item: AdminOrderItem) => {
     setEditingItemId(item.id);
-    setEditingQty(item.quantity);
+    setEditingQty(String(item.quantity));
   };
   const saveEditQty = (itemId: string) => {
-    if (editingQty < 1) return;
-    updateItem.mutate(
-      { itemId, quantity: editingQty },
-      { onSuccess: () => setEditingItemId(null) },
-    );
+    const quantity = parseQty(editingQty);
+    if (quantity == null) return;
+    updateItem.mutate({ itemId, quantity }, { onSuccess: () => setEditingItemId(null) });
   };
 
   const confirmCancel = () => {

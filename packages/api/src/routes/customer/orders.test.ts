@@ -350,4 +350,34 @@ suite("customer orders (server-side pricing + customer scoping)", () => {
     const detail = await (await api(must(cookies.a), `/orders/${orderId}`)).json();
     expect(detail.status).toBe("pending");
   });
+
+  it("withdraws a pending cancellation request back to confirmed (#176)", async () => {
+    const orderId = await createOrderA();
+    await setStatus(orderId, "cancellation_requested");
+    const res = await api(must(cookies.a), `/orders/${orderId}/withdraw-cancellation`, {
+      method: "POST",
+    });
+    expect(res.status).toBe(200);
+    expect((await res.json()).status).toBe("confirmed");
+  });
+
+  it("refuses to withdraw when no cancellation request is pending", async () => {
+    const orderId = await createOrderA();
+    const res = await api(must(cookies.a), `/orders/${orderId}/withdraw-cancellation`, {
+      method: "POST",
+    });
+    expect(res.status).toBe(409);
+    expect((await res.json()).code).toBe("ORDER_CANCELLATION_NOT_REQUESTED");
+  });
+
+  it("cannot withdraw another customer's cancellation request — 404, untouched", async () => {
+    const orderId = await createOrderA();
+    await setStatus(orderId, "cancellation_requested");
+    const foreign = await api(must(cookies.b), `/orders/${orderId}/withdraw-cancellation`, {
+      method: "POST",
+    });
+    expect(foreign.status).toBe(404);
+    const detail = await (await api(must(cookies.a), `/orders/${orderId}`)).json();
+    expect(detail.status).toBe("cancellation_requested");
+  });
 });

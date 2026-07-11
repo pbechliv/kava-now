@@ -5,6 +5,7 @@ import { useMutation } from "@tanstack/react-query";
 import { Link, useParams, useSearch } from "@tanstack/react-router";
 import { Loader2, MailCheck } from "lucide-react";
 import { authClient } from "@/lib/auth-client";
+import { authErrorMessage } from "@/lib/auth-errors";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -34,7 +35,11 @@ export function ForgotPasswordPage() {
         email: data.email,
         redirectTo: resetPath,
       });
-      if (error) throw new Error(error.message ?? "Σφάλμα");
+      if (error) {
+        throw new Error(
+          authErrorMessage(error, "Η αποστολή του συνδέσμου απέτυχε — δοκιμάστε ξανά"),
+        );
+      }
     },
   });
 

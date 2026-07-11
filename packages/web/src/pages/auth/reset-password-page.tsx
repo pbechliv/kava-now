@@ -5,6 +5,7 @@ import { useMutation } from "@tanstack/react-query";
 import { Link, useParams, useSearch } from "@tanstack/react-router";
 import { CheckCircle2, Loader2 } from "lucide-react";
 import { authClient } from "@/lib/auth-client";
+import { authErrorMessage } from "@/lib/auth-errors";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -33,7 +34,9 @@ export function ResetPasswordPage() {
         newPassword: data.password,
         token: data.token,
       });
-      if (error) throw new Error(error.message ?? "Σφάλμα");
+      if (error) {
+        throw new Error(authErrorMessage(error, "Η αλλαγή κωδικού απέτυχε — δοκιμάστε ξανά"));
+      }
     },
   });
 

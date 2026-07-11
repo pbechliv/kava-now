@@ -74,7 +74,7 @@ const googleClientId = import.meta.env.VITE_GOOGLE_CLIENT_ID;
 
 const tree = (
   <>
-    <Sentry.ErrorBoundary fallback={<div>Something went wrong. Please refresh.</div>}>
+    <Sentry.ErrorBoundary fallback={<div>Κάτι πήγε στραβά. Ανανεώστε τη σελίδα.</div>}>
       <App />
     </Sentry.ErrorBoundary>
     {/* Outside the boundary: an "update in progress" overlay must survive a

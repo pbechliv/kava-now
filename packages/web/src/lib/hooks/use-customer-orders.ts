@@ -81,3 +81,21 @@ export function useCancelOrder(orderId: string) {
     },
   });
 }
+
+// Withdraw a pending cancellation request — the order returns to confirmed.
+export function useWithdrawCancellation(orderId: string) {
+  const slug = useTenantSlug();
+  const tApi = useTenantApi();
+  const qc = useQueryClient();
+
+  return useMutation({
+    mutationFn: () =>
+      tApi.post<{ id: string; status: OrderStatus }>(
+        `/customer/orders/${orderId}/withdraw-cancellation`,
+      ),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ["customer", slug, "orders"] });
+      void qc.invalidateQueries({ queryKey: ["customer", slug, "orders", orderId] });
+    },
+  });
+}

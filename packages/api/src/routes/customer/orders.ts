@@ -534,4 +534,78 @@ ordersRouter.post("/:id/cancel", async (c) => {
   return c.json(result.updated);
 });
 
+// POST /:id/withdraw-cancellation — customer takes back a pending cancellation
+// request (#176). Only cancellation_requested qualifies; the request can only
+// have come from a confirmed order, so the order returns to confirmed. Staff
+// are notified so they don't act on a request that no longer exists.
+ordersRouter.post("/:id/withdraw-cancellation", async (c) => {
+  const tenant = getTenant(c);
+  const tenantId = tenant.id;
+  const customerId = getCustomerId(c);
+  const orderId = c.req.param("id");
+  const actingUserId = c.get("user")?.id;
+
+  const result = await db.transaction(async (tx) => {
+    const [order] = await tx
+      .select({ id: orders.id, status: orders.status })
+      .from(orders)
+      .where(
+        and(
+          eq(orders.id, orderId),
+          eq(orders.tenantId, tenantId),
+          eq(orders.customerId, customerId),
+        ),
+      )
+      .limit(1)
+      .for("update");
+
+    if (!order) return { kind: "not_found" as const };
+    if (order.status !== "cancellation_requested") return { kind: "not_requested" as const };
+
+    const [updated] = await tx
+      .update(orders)
+      .set({ status: "confirmed" })
+      .where(and(eq(orders.id, orderId), eq(orders.tenantId, tenantId)))
+      .returning({ id: orders.id, orderNumber: orders.orderNumber, status: orders.status });
+
+    if (!updated) return { kind: "not_found" as const };
+
+    const [customer] = await tx
+      .select({ name: customers.name })
+      .from(customers)
+      .where(and(eq(customers.id, customerId), eq(customers.tenantId, tenantId)))
+      .limit(1);
+    const recipientIds = await orderNotificationRecipients(tenantId, customerId, actingUserId);
+
+    return { kind: "ok" as const, updated, recipientIds, customerName: customer?.name ?? "" };
+  });
+
+  if (result.kind === "not_found") return c.json({ error: "Order not found" }, 404);
+  if (result.kind === "not_requested") {
+    return c.json(
+      {
+        code: API_ERROR_CODES.ORDER_CANCELLATION_NOT_REQUESTED,
+        error: "Order has no pending cancellation request",
+      },
+      409,
+    );
+  }
+
+  if (result.recipientIds.length > 0) {
+    await afterTenantCommit(async () => {
+      try {
+        await sendPushToUsers(result.recipientIds, {
+          title: "Ανάκληση αιτήματος ακύρωσης",
+          body: `${result.customerName} — #${result.updated.orderNumber}`,
+          url: `/k/${tenant.slug}/admin/orders/${result.updated.id}`,
+        });
+      } catch (err) {
+        console.error("[push] cancellation-withdrawal push failed:", err);
+      }
+    });
+  }
+
+  return c.json(result.updated);
+});
+
 export { ordersRouter };

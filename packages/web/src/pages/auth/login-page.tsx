@@ -1,7 +1,7 @@
 import { useForm } from "react-hook-form";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { loginSchema, type LoginInput } from "@kava-now/shared";
+import { loginSchema, ROLE_LABELS, type LoginInput } from "@kava-now/shared";
 import { Link, Navigate, useLocation, useNavigate, useParams } from "@tanstack/react-router";
 import { Loader2 } from "lucide-react";
 import { AuthUnavailable } from "@/components/auth-unavailable";
@@ -99,7 +99,7 @@ export function LoginPage() {
                   onClick={() => void navigate({ to: membershipHome(m) })}
                 >
                   <span>{m.tenantName}</span>
-                  <span className="text-xs text-muted-foreground">{m.role}</span>
+                  <span className="text-xs text-muted-foreground">{ROLE_LABELS[m.role]}</span>
                 </Button>
               </li>
             ))}

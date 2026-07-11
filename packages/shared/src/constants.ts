@@ -3,6 +3,10 @@ import type { OrderStatus, MembershipRole, ProductUnit, ErpStatus } from "./type
 /** Rows per page for all paginated list views — one value for API + web. */
 export const DEFAULT_PAGE_SIZE = 50;
 
+/** Max quantity per order line — enforced by the API schemas and mirrored by
+ * the web's steppers/inputs so the cap is visible before submit. */
+export const MAX_ORDER_QUANTITY = 9999;
+
 export const ORDER_STATUS_LABELS: Record<OrderStatus, string> = {
   pending: "Σε αναμονή",
   confirmed: "Επιβεβαιωμένη",
