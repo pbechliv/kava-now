@@ -78,7 +78,10 @@ export function CustomerBrandPricingPage() {
   ];
 
   const handleSave = () => {
-    const payload = assignments.map((a) => ({ brand: a.brand, discountPct: toNumber(a.discountPct) }));
+    const payload = assignments.map((a) => ({
+      brand: a.brand,
+      discountPct: toNumber(a.discountPct),
+    }));
     updateMutation.mutate(
       { assignments: payload },
       {
