@@ -1,8 +1,8 @@
 import { Hono } from "hono";
-import { eq, and, sql, gte } from "drizzle-orm";
+import { eq, and, sql, gte, notInArray } from "drizzle-orm";
 import { db } from "../../db/connection";
 import { orders, orderItems, customers } from "../../db/schema/index";
-import type { DashboardStatsResponse } from "@kava-now/shared";
+import { ERP_UNTRANSMITTABLE_STATUSES, type DashboardStatsResponse } from "@kava-now/shared";
 import type { AppEnv } from "../../types";
 import type { PreSerialize } from "../../serialize";
 import { getTenantId } from "../../context";
@@ -38,7 +38,16 @@ dashboardRouter.get("/stats", async (c) => {
     db
       .select({ count: sql<number>`count(*)::int` })
       .from(orders)
-      .where(and(eq(orders.tenantId, tenantId), eq(orders.erpStatus, "pending"))),
+      // Cancelled / cancellation-pending orders are blocked from ERP
+      // transmission, so they must not inflate the pending-ERP compliance KPI
+      // (#162) — the pending-ERP orders list applies the same exclusion.
+      .where(
+        and(
+          eq(orders.tenantId, tenantId),
+          eq(orders.erpStatus, "pending"),
+          notInArray(orders.status, ERP_UNTRANSMITTABLE_STATUSES),
+        ),
+      ),
     db
       .select({ count: sql<number>`count(*)::int` })
       .from(orders)

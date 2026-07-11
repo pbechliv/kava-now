@@ -7,6 +7,7 @@ import type {
   CreateOrderResponse,
   CustomerOrderListItem,
   CustomerOrderDetailResponse,
+  ReorderPreviewResponse,
   PageOnlySearch,
   PaginatedResponse,
 } from "@kava-now/shared";
@@ -52,16 +53,15 @@ export function useCreateOrder() {
   });
 }
 
+// Reorder no longer places an order (#172): it fetches a cart-ready preview of
+// the past order's still-available lines (re-resolved prices) plus the names of
+// any dropped ones. The caller loads `items` into the cart and reviews before
+// submitting — so there's nothing to invalidate here.
 export function useReorder(orderId: string) {
-  const slug = useTenantSlug();
   const tApi = useTenantApi();
-  const qc = useQueryClient();
 
   return useMutation({
-    mutationFn: () => tApi.post<CreateOrderResponse>(`/customer/orders/${orderId}/reorder`),
-    onSuccess: () => {
-      void qc.invalidateQueries({ queryKey: ["customer", slug, "orders"] });
-    },
+    mutationFn: () => tApi.get<ReorderPreviewResponse>(`/customer/orders/${orderId}/reorder`),
   });
 }
 

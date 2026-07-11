@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { ResponsiveTable, type ResponsiveTableColumn } from "@/components/ui/responsive-table";
 import { Spinner } from "@/components/spinner";
 import { EmptyState } from "@/components/empty-state";
+import { UnsavedChangesGuard } from "@/components/unsaved-changes-guard";
 import { useCustomer } from "@/lib/hooks/use-customers";
 import {
   useCustomerBrandPricing,
@@ -26,6 +27,10 @@ export function CustomerBrandPricingPage() {
   const updateMutation = useUpdateCustomerBrandPricing(id ?? "");
 
   const [assignments, setAssignments] = useState<LocalAssignment[]>([]);
+  // Last-saved discounts (brand → numeric %), the baseline the dirty check
+  // compares against. Seeded from the server rows and refreshed on save, so a
+  // successful save clears the dirty state without waiting for a refetch (#174).
+  const [baseline, setBaseline] = useState<Record<string, number>>({});
 
   useEffect(() => {
     if (rows) {
@@ -35,6 +40,7 @@ export function CustomerBrandPricingPage() {
           discountPct: r.discountPct > 0 ? String(r.discountPct) : "",
         })),
       );
+      setBaseline(Object.fromEntries(rows.map((r) => [r.brand, r.discountPct])));
     }
   }, [rows]);
 
@@ -43,6 +49,12 @@ export function CustomerBrandPricingPage() {
       prev.map((a) => (a.brand === brand ? { ...a, discountPct: value } : a)),
     );
   };
+
+  const toNumber = (value: string) => (value ? Number(value) : 0);
+
+  // Any line whose edited discount differs from the last-saved value. "" and
+  // "0" both normalize to 0, so clearing a zero field isn't flagged as a change.
+  const dirty = assignments.some((a) => toNumber(a.discountPct) !== (baseline[a.brand] ?? 0));
 
   const columns: ResponsiveTableColumn<LocalAssignment>[] = [
     { header: "Μάρκα", cellClassName: "font-medium", cell: (a) => a.brand },
@@ -66,19 +78,21 @@ export function CustomerBrandPricingPage() {
   ];
 
   const handleSave = () => {
+    const payload = assignments.map((a) => ({ brand: a.brand, discountPct: toNumber(a.discountPct) }));
     updateMutation.mutate(
+      { assignments: payload },
       {
-        assignments: assignments.map((a) => ({
-          brand: a.brand,
-          discountPct: a.discountPct ? Number(a.discountPct) : 0,
-        })),
+        onSuccess: () => {
+          toast.success("Η τιμολόγηση αποθηκεύτηκε");
+          setBaseline(Object.fromEntries(payload.map((p) => [p.brand, p.discountPct])));
+        },
       },
-      { onSuccess: () => toast.success("Η τιμολόγηση αποθηκεύτηκε") },
     );
   };
 
   return (
     <div className="space-y-6">
+      <UnsavedChangesGuard when={dirty} />
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Τιμολόγηση Πελάτη</h1>
@@ -88,7 +102,7 @@ export function CustomerBrandPricingPage() {
           <Button variant="outline" onClick={() => navigate({ to: `/k/${slug}/admin/customers` })}>
             Πίσω
           </Button>
-          <Button onClick={handleSave} disabled={updateMutation.isPending}>
+          <Button onClick={handleSave} disabled={!dirty || updateMutation.isPending}>
             {updateMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
             Αποθήκευση
           </Button>

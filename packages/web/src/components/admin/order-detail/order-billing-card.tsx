@@ -15,6 +15,7 @@ function buildBillingBlock(order: AdminOrderDetail): string {
     order.customerBillingAddress && `Διεύθυνση χρέωσης: ${order.customerBillingAddress}`,
     order.customerPhone && `Τηλέφωνο: ${order.customerPhone}`,
     order.customerEmail && `Email: ${order.customerEmail}`,
+    order.poReference && `Αρ. παραγγελίας (PO): ${order.poReference}`,
   ].filter(Boolean);
   return lines.join("\n");
 }
@@ -46,6 +47,8 @@ export function OrderBillingCard({ order }: { order: AdminOrderDetail }) {
           <CopyField label="Διεύθυνση χρέωσης" value={order.customerBillingAddress} />
           <CopyField label="Τηλέφωνο" value={order.customerPhone} />
           <CopyField label="Email" value={order.customerEmail} />
+          {/* Customer's own PO reference, set at checkout (#175). */}
+          <CopyField label="Αρ. παραγγελίας (PO)" value={order.poReference} />
         </div>
       </CardContent>
     </Card>

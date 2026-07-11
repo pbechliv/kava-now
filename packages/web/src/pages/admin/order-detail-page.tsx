@@ -14,7 +14,7 @@ import { OrderCancellationCard } from "@/components/admin/order-detail/order-can
 import { OrderInternalNotesCard } from "@/components/admin/order-detail/order-internal-notes-card";
 import { useAdminOrder } from "@/lib/hooks/use-admin-orders";
 import { useTenantSlug } from "@/lib/hooks/use-tenant-api";
-import { formatDateTime } from "@/lib/format";
+import { formatDate, formatDateTime } from "@/lib/format";
 
 export function OrderDetailPage() {
   const { id } = useParams({ strict: false });
@@ -97,6 +97,13 @@ export function OrderDetailPage() {
                 </Button>
               )}
             </div>
+            {/* Customer-requested delivery date, set at checkout (#175). */}
+            {order.requestedDeliveryDate && (
+              <p className="mt-3 text-sm">
+                <span className="text-muted-foreground">Επιθυμητή ημ. παράδοσης: </span>
+                <span className="font-medium">{formatDate(order.requestedDeliveryDate)}</span>
+              </p>
+            )}
           </CardContent>
         </Card>
 

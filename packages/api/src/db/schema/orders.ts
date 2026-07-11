@@ -4,6 +4,7 @@ import {
   text,
   integer,
   timestamp,
+  date,
   index,
   uniqueIndex,
   foreignKey,
@@ -34,6 +35,11 @@ export const orders = pgTable(
     notes: text("notes"),
     // Staff/owner-only note. NEVER returned by any customer-facing endpoint.
     internalNotes: text("internal_notes"),
+    // Structured B2B checkout metadata (#175). requestedDeliveryDate is a plain
+    // calendar date (no time/tz) — "deliver Thursday", not an instant. Both are
+    // customer-set at checkout and visible on the admin order detail.
+    requestedDeliveryDate: date("requested_delivery_date"),
+    poReference: text("po_reference"),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true })
       .notNull()

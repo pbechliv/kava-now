@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Link, useParams, useNavigate } from "@tanstack/react-router";
 import { ArrowLeft, Loader2 } from "lucide-react";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
@@ -25,8 +26,9 @@ import {
   useWithdrawCancellation,
 } from "@/lib/hooks/use-customer-orders";
 import { useTenantSlug } from "@/lib/hooks/use-tenant-api";
-import { formatMoney, formatDateLong } from "@/lib/format";
-import type { CustomerOrderDetailResponse } from "@kava-now/shared";
+import { useCartStore } from "@/lib/store/cart";
+import { formatMoney, formatDate, formatDateLong } from "@/lib/format";
+import type { CustomerOrderDetailResponse, ReorderPreviewResponse } from "@kava-now/shared";
 
 type CustomerOrderItem = CustomerOrderDetailResponse["items"][number];
 
@@ -58,11 +60,34 @@ export function OrderDetailPage() {
   const cancel = useCancelOrder(id || "");
   const withdrawCancellation = useWithdrawCancellation(id || "");
   const [showCancel, setShowCancel] = useState(false);
+  const loadCart = useCartStore((s) => s.loadItems);
+  const cartCount = useCartStore((s) => Object.keys(s.items).length);
+  // Reorder preview held back for confirmation when the cart already has items
+  // (loading would replace them) — null when no confirmation is pending.
+  const [pendingReorder, setPendingReorder] = useState<ReorderPreviewResponse | null>(null);
+
+  // Load the re-resolved lines into the cart, tell the customer about any lines
+  // dropped as unavailable, and send them to the cart to review and submit.
+  const applyReorder = (data: ReorderPreviewResponse) => {
+    loadCart(data.items);
+    setPendingReorder(null);
+    if (data.dropped.length > 0) {
+      const names = data.dropped.map((d) => d.productName).join(", ");
+      toast.warning(
+        data.dropped.length === 1
+          ? `Το «${names}» δεν είναι πλέον διαθέσιμο και δεν προστέθηκε στο καλάθι.`
+          : `${data.dropped.length} προϊόντα δεν είναι πλέον διαθέσιμα και δεν προστέθηκαν: ${names}`,
+      );
+    }
+    void navigate({ to: "/k/$slug/cart", params: { slug } });
+  };
 
   const handleReorder = () => {
     reorder.mutate(undefined, {
       onSuccess: (data) => {
-        void navigate({ to: "/k/$slug/orders/$id", params: { slug, id: data.order.id } });
+        // A non-empty cart would be wiped by loading — confirm first.
+        if (cartCount > 0) setPendingReorder(data);
+        else applyReorder(data);
       },
     });
   };
@@ -144,7 +169,7 @@ export function OrderDetailPage() {
           )}
           <Button onClick={handleReorder} disabled={reorder.isPending}>
             {reorder.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-            {reorder.isPending ? "Δημιουργία..." : "Επαναπαραγγελία"}
+            {reorder.isPending ? "Φόρτωση..." : "Επαναπαραγγελία"}
           </Button>
         </div>
       </div>
@@ -309,12 +334,38 @@ export function OrderDetailPage() {
         </div>
       </Card>
 
+      {(order.requestedDeliveryDate || order.poReference) && (
+        <Card className="space-y-2 p-4">
+          {order.requestedDeliveryDate && (
+            <div className="text-sm">
+              <span className="text-muted-foreground">Επιθυμητή ημ. παράδοσης: </span>
+              <span className="font-medium">{formatDate(order.requestedDeliveryDate)}</span>
+            </div>
+          )}
+          {order.poReference && (
+            <div className="text-sm">
+              <span className="text-muted-foreground">Αρ. παραγγελίας (PO): </span>
+              <span className="font-medium">{order.poReference}</span>
+            </div>
+          )}
+        </Card>
+      )}
+
       {order.notes && (
         <Card className="p-4">
           <h3 className="text-sm font-medium">Σημειώσεις</h3>
           <p className="mt-1 text-sm text-muted-foreground">{order.notes}</p>
         </Card>
       )}
+
+      <ConfirmDialog
+        open={pendingReorder !== null}
+        title="Αντικατάσταση καλαθιού"
+        description="Το καλάθι σας περιέχει ήδη προϊόντα. Η επαναπαραγγελία θα τα αντικαταστήσει με τα προϊόντα αυτής της παραγγελίας."
+        confirmLabel="Αντικατάσταση"
+        onConfirm={() => pendingReorder && applyReorder(pendingReorder)}
+        onClose={() => setPendingReorder(null)}
+      />
 
       <ConfirmDialog
         open={showCancel}

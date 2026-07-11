@@ -89,6 +89,10 @@ export interface Order {
   notes: string | null;
   /** Staff/owner-only note. Never exposed through customer-facing endpoints. */
   internalNotes: string | null;
+  /** Customer-requested delivery date (YYYY-MM-DD), set at checkout (#175). */
+  requestedDeliveryDate: string | null;
+  /** Customer's own purchase-order reference, set at checkout (#175). */
+  poReference: string | null;
   createdAt: string;
   updatedAt: string;
   erpStatus: ErpStatus;

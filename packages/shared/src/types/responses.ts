@@ -47,6 +47,8 @@ export interface AdminOrderDetailResponse {
   status: OrderStatus;
   notes: string | null;
   internalNotes: string | null;
+  requestedDeliveryDate: string | null;
+  poReference: string | null;
   createdAt: string;
   customerName: string | null;
   customerEmail: string | null;
@@ -91,6 +93,8 @@ export interface CustomerOrderDetailResponse {
   orderNumber: number;
   status: OrderStatus;
   notes: string | null;
+  requestedDeliveryDate: string | null;
+  poReference: string | null;
   createdAt: string;
   items: Omit<OrderItem, "orderId">[];
 }
@@ -98,6 +102,29 @@ export interface CustomerOrderDetailResponse {
 export interface CreateOrderResponse {
   order: Order;
   items: OrderItem[];
+}
+
+// ---- Reorder (customer) ----
+
+/**
+ * A reorder-preview line: a currently-available product (full catalog shape, so
+ * the cart can render + reconcile it) plus the quantity from the original order.
+ */
+export interface ReorderPreviewItem {
+  product: CatalogProduct;
+  quantity: number;
+}
+
+/**
+ * Response of GET /customer/orders/:id/reorder (#172). Reorder no longer places
+ * an order; it re-resolves the original order's active lines against current
+ * catalog + pricing so the client can load them into the cart. `dropped` names
+ * the lines that are no longer available (deactivated/removed products) so the
+ * customer is told what was left out instead of it vanishing silently.
+ */
+export interface ReorderPreviewResponse {
+  items: ReorderPreviewItem[];
+  dropped: { productName: string }[];
 }
 
 // ---- Products ----

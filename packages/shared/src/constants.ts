@@ -52,3 +52,15 @@ export const ORDER_STATUS_TRANSITIONS: Record<OrderStatus, OrderStatus[]> = {
   cancellation_requested: [],
   cancelled_by_customer: [],
 };
+
+/**
+ * Fulfillment statuses that can never be transmitted to the ERP — a cancelled
+ * (or cancellation-pending) order is blocked from transmission, so it must not
+ * count toward the "pending ERP" compliance KPI or appear in its filtered list
+ * (#162). The ERP-transmit guard in the API rejects exactly these statuses.
+ */
+export const ERP_UNTRANSMITTABLE_STATUSES: OrderStatus[] = [
+  "cancelled",
+  "cancelled_by_customer",
+  "cancellation_requested",
+];
