@@ -3,9 +3,14 @@
 
 const LOCALE = "el-GR";
 
-/** "12.50 €" with a non-breaking space; accepts the API's numeric strings. */
+const moneyFormat = new Intl.NumberFormat(LOCALE, {
+  style: "currency",
+  currency: "EUR",
+});
+
+/** "1.234,50 €" with a non-breaking space; accepts the API's numeric strings. */
 export function formatMoney(value: string | number): string {
-  return `${Number(value).toFixed(2)} €`;
+  return moneyFormat.format(Number(value));
 }
 
 /** "12/6/2026" */
