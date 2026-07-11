@@ -1,4 +1,4 @@
-import type { OrderStatus, MembershipRole, ProductUnit, ErpStatus } from "./types";
+import type { OrderStatus, MembershipRole, ProductUnit, ErpStatus, OrderOrigin } from "./types";
 
 /** Rows per page for all paginated list views — one value for API + web. */
 export const DEFAULT_PAGE_SIZE = 50;
@@ -32,6 +32,11 @@ export const UNIT_LABELS: Record<ProductUnit, string> = {
 export const ERP_STATUS_LABELS: Record<ErpStatus, string> = {
   pending: "Εκκρεμεί",
   transmitted: "Διαβιβασμένη",
+};
+
+export const ORDER_ORIGIN_LABELS: Record<OrderOrigin, string> = {
+  portal: "Πύλη πελάτη",
+  phone: "Τηλέφωνο / Κατάστημα",
 };
 
 /**

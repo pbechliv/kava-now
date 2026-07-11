@@ -1,10 +1,11 @@
 import { Link, useNavigate } from "@tanstack/react-router";
 import { OrderStatusBadge } from "@/components/order-status-badge";
 import { ErpStatusBadge } from "@/components/admin/erp-status-badge";
+import { OrderOriginBadge } from "@/components/admin/order-origin-badge";
 import { ResponsiveTable, type ResponsiveTableColumn } from "@/components/ui/responsive-table";
 import { useTenantSlug } from "@/lib/hooks/use-tenant-api";
 import { formatMoney, formatDate } from "@/lib/format";
-import type { ErpStatus, OrderStatus } from "@kava-now/shared";
+import type { ErpStatus, OrderOrigin, OrderStatus } from "@kava-now/shared";
 
 export interface OrdersTableOrder {
   id: string;
@@ -16,6 +17,8 @@ export interface OrdersTableOrder {
   total: number;
   // Only the full admin orders list surfaces ERP status.
   erpStatus?: ErpStatus;
+  // Intake channel (#159). Absent on the compact dashboard variant.
+  origin?: OrderOrigin;
 }
 
 interface OrdersTableProps {
@@ -73,7 +76,12 @@ export function OrdersTable({
     },
     {
       header: "Κατάσταση",
-      cell: (order) => <OrderStatusBadge status={order.status} />,
+      cell: (order) => (
+        <div className="flex flex-wrap items-center gap-1.5">
+          <OrderStatusBadge status={order.status} />
+          {order.origin === "phone" && <OrderOriginBadge origin="phone" size="sm" />}
+        </div>
+      ),
     },
     ...(showErp
       ? [
@@ -131,6 +139,7 @@ export function OrdersTable({
           </div>
           <div className="flex flex-wrap items-center gap-2">
             <OrderStatusBadge status={order.status} />
+            {order.origin === "phone" && <OrderOriginBadge origin="phone" size="sm" />}
             {showErp && order.erpStatus && <ErpStatusBadge status={order.erpStatus} />}
           </div>
         </>

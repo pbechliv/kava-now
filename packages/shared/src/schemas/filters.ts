@@ -56,11 +56,19 @@ export const catalogFiltersSchema = z.object({
   categoryId: optionalUuid,
 });
 
+// Admin catalog browsing for the staff-created-order flow (#159): the same
+// catalog filters, but prices resolve against an explicit `customerId` (staff
+// have no customer profile of their own), so it's required here.
+export const adminCatalogFiltersSchema = catalogFiltersSchema.extend({
+  customerId: z.uuid(),
+});
+
 /** Merged filters + pagination schemas the API handlers validate against. */
 export const adminOrdersQuerySchema = adminOrdersFiltersSchema.merge(paginationQuerySchema);
 export const adminProductsQuerySchema = adminProductsFiltersSchema.merge(paginationQuerySchema);
 export const adminCustomersQuerySchema = adminCustomersFiltersSchema.merge(paginationQuerySchema);
 export const catalogQuerySchema = catalogFiltersSchema.merge(paginationQuerySchema);
+export const adminCatalogQuerySchema = adminCatalogFiltersSchema.merge(paginationQuerySchema);
 
 // =========================================================================
 // Web (tolerant) — TanStack Router `validateSearch`. Every field `.catch`es to

@@ -59,6 +59,18 @@ export const createOrderSchema = z.object({
 
 export type CreateOrderInput = z.infer<typeof createOrderSchema>;
 
+/**
+ * Body of POST /admin/orders (#159) — staff create an order on a customer's
+ * behalf (phone / in-person). Same shape as the customer checkout plus the
+ * target `customerId`. `origin` is set server-side to `phone` (portal orders
+ * are the customer's own), so it's deliberately not part of this input.
+ */
+export const adminCreateOrderSchema = createOrderSchema.extend({
+  customerId: z.string().uuid(),
+});
+
+export type AdminCreateOrderInput = z.infer<typeof adminCreateOrderSchema>;
+
 // The AADE MARK is a numeric string. Copy-paste from AADE/Galaxy commonly
 // carries stray whitespace, so we strip all whitespace before validating that
 // only digits remain. Length stays permissive on purpose — the exact AADE

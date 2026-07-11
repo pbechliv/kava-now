@@ -23,6 +23,7 @@ import {
 } from "../../db/schema/index";
 import { requireCustomerProfile } from "../../middleware/require-customer-profile";
 import { resolvePrice } from "../../services/pricing";
+import { allocateOrderNumber } from "../../services/orders";
 import { sendPushToUsers, orderNotificationRecipients } from "../../services/push";
 import type { AppEnv } from "../../types";
 import type { PreSerialize } from "../../serialize";
@@ -31,28 +32,6 @@ import { getCustomerId, getTenant, getTenantId } from "../../context";
 const ordersRouter = new Hono<AppEnv>();
 
 ordersRouter.use("*", requireCustomerProfile);
-
-// The order-creation transaction handle (a savepoint of the surrounding tenant
-// transaction). Used by allocateOrderNumber so the counter bump lives in the
-// same unit of work as the INSERT.
-type OrderTx = Parameters<Parameters<typeof db.transaction>[0]>[0];
-
-// Allocate the next per-tenant sequential order number (#161). Bumps the
-// tenant's counter with a row-locked `UPDATE ... RETURNING` inside the caller's
-// order-creation transaction: concurrent creations for the same tenant
-// serialize on that row (no duplicate numbers), and a rollback reverts the
-// counter (no gap). Raw SQL — not db.update — so it doesn't touch
-// tenants.updatedAt.
-async function allocateOrderNumber(tx: OrderTx, tenantId: string): Promise<number> {
-  const rows = await tx.execute<{ order_counter: number }>(
-    sql`update tenants set order_counter = order_counter + 1 where id = ${tenantId} returning order_counter`,
-  );
-  const next = rows[0]?.order_counter;
-  if (typeof next !== "number") {
-    throw new Error(`Failed to allocate order number for tenant ${tenantId}`);
-  }
-  return next;
-}
 
 // Post-commit push (no email — order emails were removed; email is now only for
 // user management) to the customer's assigned users and anyone opted into

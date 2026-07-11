@@ -9,7 +9,7 @@ import {
   uniqueIndex,
   foreignKey,
 } from "drizzle-orm/pg-core";
-import { erpStatusEnum, orderStatusEnum } from "./enums";
+import { erpStatusEnum, orderOriginEnum, orderStatusEnum } from "./enums";
 import { tenants } from "./tenants";
 import { customers } from "./customers";
 import { users } from "./users";
@@ -31,6 +31,10 @@ export const orders = pgTable(
     // per tenant (see the unique index below).
     orderNumber: integer("order_number").notNull(),
     status: orderStatusEnum("status").notNull().default("pending"),
+    // Intake channel (#159): `portal` (customer self-service) or `phone` (staff
+    // created it on the customer's behalf). Defaults to `portal` so existing
+    // rows and customer-portal orders need no explicit value.
+    origin: orderOriginEnum("origin").notNull().default("portal"),
     // Customer-authored comment, set at order creation. Visible to the customer.
     notes: text("notes"),
     // Staff/owner-only note. NEVER returned by any customer-facing endpoint.

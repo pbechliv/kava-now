@@ -133,6 +133,8 @@ type OrderStatus =
   | "cancellation_requested"
   | "cancelled_by_customer";
 
+type OrderOrigin = "portal" | "phone";
+
 interface DemoOrderItem {
   productName: string;
   brand: string;
@@ -142,6 +144,8 @@ interface DemoOrderItem {
 interface DemoOrder {
   customerName: DemoCustomerName;
   status: OrderStatus;
+  // Intake channel (#159); defaults to portal when omitted.
+  origin?: OrderOrigin;
   notes: string | null;
   internalNotes?: string | null;
   // Structured B2B checkout metadata (#175) — set on a couple of demo orders so
@@ -190,6 +194,8 @@ const DEMO_ORDERS: DemoOrder[] = [
   {
     customerName: "Μπαρ Στοά Μύλος",
     status: "confirmed",
+    // Staff took this one by phone (#159) — shows the origin badge out of the box.
+    origin: "phone",
     notes: "Φόρτωση Παρασκευή",
     internalNotes: "Εκκρεμεί εξόφληση προηγούμενου τιμολογίου — έλεγχος πριν την αποστολή.",
     requestedDeliveryDate: "2026-07-17",
@@ -455,6 +461,7 @@ export async function seedDemoTenant(outerDb: PostgresJsDatabase): Promise<void>
           customerId,
           orderNumber,
           status: order.status,
+          origin: order.origin ?? "portal",
           notes: order.notes,
           internalNotes: order.internalNotes ?? null,
           requestedDeliveryDate: order.requestedDeliveryDate ?? null,
