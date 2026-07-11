@@ -95,6 +95,12 @@ export function CustomerBrandPricingPage() {
         </div>
       </div>
 
+      {/* Next to the Save button, not below the (possibly long) table — an
+          error at the bottom of the page is invisible when saving from the top. */}
+      {updateMutation.error && (
+        <p className="text-sm text-destructive">{updateMutation.error.message}</p>
+      )}
+
       {isLoading ? (
         <div className="flex justify-center py-12">
           <Spinner />
@@ -127,10 +133,6 @@ export function CustomerBrandPricingPage() {
             </div>
           )}
         />
-      )}
-
-      {updateMutation.error && (
-        <p className="text-sm text-destructive">{updateMutation.error.message}</p>
       )}
     </div>
   );

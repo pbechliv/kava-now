@@ -10,10 +10,12 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { ScrollFade } from "@/components/ui/scroll-fade";
 import { Spinner } from "@/components/spinner";
 import { EmptyState } from "@/components/empty-state";
 import { PaginationControls } from "@/components/pagination-controls";
 import { useAdminOrders } from "@/lib/hooks/use-admin-orders";
+import { useCustomer } from "@/lib/hooks/use-customers";
 import { OrdersTable } from "@/components/admin/orders-table";
 import {
   CustomerPickerCombobox,
@@ -50,10 +52,14 @@ export function OrdersPage() {
   const { search, setFilters } = useFilterSearch<AdminOrdersSearch>();
 
   // Only `customerId` lives in the URL; the picker needs the name to render its
-  // label, so we keep that display value locally (the URL stays the source of
-  // truth for filtering — after a reload the list is still filtered even if the
-  // label resets to its placeholder).
+  // label, so we keep that display value locally. After a reload the local value
+  // is gone but the URL still filters — fetch the customer so the combobox shows
+  // who the list is filtered by instead of its placeholder (#176).
   const [customerDisplay, setCustomerDisplay] = useState<CustomerPickerValue | null>(null);
+  const { data: urlCustomer } = useCustomer(customerDisplay ? undefined : search.customerId);
+  const selectedCustomer =
+    customerDisplay ??
+    (search.customerId && urlCustomer ? { id: urlCustomer.id, name: urlCustomer.name } : null);
 
   const statusFilter = search.status ?? "all";
   const erpFilter = search.erpStatus ?? "all";
@@ -82,13 +88,15 @@ export function OrdersPage() {
         value={statusFilter}
         onValueChange={(v) => setFilters({ status: v === "all" ? undefined : (v as OrderStatus) })}
       >
-        <TabsList className="flex h-auto w-full justify-start gap-1 overflow-x-auto p-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-          {STATUS_TABS.map((tab) => (
-            <TabsTrigger key={tab.value} value={tab.value} className="flex-none">
-              {tab.label}
-            </TabsTrigger>
-          ))}
-        </TabsList>
+        <ScrollFade>
+          <TabsList className="flex h-auto w-max min-w-full justify-start gap-1 p-1">
+            {STATUS_TABS.map((tab) => (
+              <TabsTrigger key={tab.value} value={tab.value} className="flex-none">
+                {tab.label}
+              </TabsTrigger>
+            ))}
+          </TabsList>
+        </ScrollFade>
       </Tabs>
 
       <FilterBar
@@ -128,7 +136,7 @@ export function OrdersPage() {
         </FilterField>
         <FilterField label="Πελάτης" className="md:w-64">
           <CustomerPickerCombobox
-            selected={customerDisplay}
+            selected={selectedCustomer}
             onSelect={(c) => {
               setCustomerDisplay(c);
               setFilters({ customerId: c?.id });

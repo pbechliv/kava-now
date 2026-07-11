@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "@tanstack/react-router";
 import { toast } from "sonner";
 import { useTenantSlug } from "@/lib/hooks/use-tenant-api";
@@ -105,6 +105,16 @@ export function ProductsImportPage() {
     if (!existingProductKeys) return new Set<string>();
     return new Set(existingProductKeys.map((p) => `${p.name}|${p.brand}`));
   }, [existingProductKeys]);
+
+  // The wizard state (parsed file, mapping, preview) lives in memory only — a
+  // reload or accidental tab close would silently drop all of it, so ask the
+  // browser to confirm while a parsed file is loaded (#176).
+  useEffect(() => {
+    if (!parsed) return;
+    const warn = (e: BeforeUnloadEvent) => e.preventDefault();
+    window.addEventListener("beforeunload", warn);
+    return () => window.removeEventListener("beforeunload", warn);
+  }, [parsed]);
 
   const applied: AppliedRow[] = useMemo(
     () => (parsed ? applyMapping(parsed.rows, mapping) : []),
@@ -360,6 +370,11 @@ export function ProductsImportPage() {
               </div>
             )}
           </Card>
+
+          <SavedTemplatesCard
+            templates={templates ?? []}
+            onDelete={(id) => deleteMapping.mutate(id)}
+          />
 
           <ImportHistoryCard history={history ?? []} />
         </>
@@ -675,6 +690,42 @@ function MappingTemplates({
         </div>
       </div>
     </div>
+  );
+}
+
+// Template management outside the wizard — previously the only way to delete a
+// saved mapping was to start an import and reach the map step (#176).
+function SavedTemplatesCard({
+  templates,
+  onDelete,
+}: {
+  templates: ImportMappingTemplate[];
+  onDelete: (id: string) => void;
+}) {
+  if (templates.length === 0) return null;
+  return (
+    <Card className="p-6">
+      <h2 className="text-lg font-semibold">Αποθηκευμένες αντιστοιχίσεις</h2>
+      <p className="mt-1 text-sm text-muted-foreground">
+        Φορτώνονται στο βήμα της αντιστοίχισης — από εδώ μπορείτε να τις διαγράψετε χωρίς να
+        ξεκινήσετε εισαγωγή.
+      </p>
+      <ul className="mt-4 divide-y rounded-lg border">
+        {templates.map((t) => (
+          <li key={t.id} className="flex items-center justify-between gap-3 px-4 py-2">
+            <span className="text-sm font-medium">{t.name}</span>
+            <Button
+              variant="ghost-destructive"
+              size="icon"
+              aria-label={`Διαγραφή «${t.name}»`}
+              onClick={() => onDelete(t.id)}
+            >
+              <Trash2 className="h-4 w-4" />
+            </Button>
+          </li>
+        ))}
+      </ul>
+    </Card>
   );
 }
 

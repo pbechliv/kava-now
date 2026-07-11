@@ -19,9 +19,10 @@ import { useFilterSearch } from "@/lib/hooks/use-filter-search";
 import { ErrorBanner } from "@/components/error-banner";
 import { Spinner } from "@/components/spinner";
 import { PaginationControls } from "@/components/pagination-controls";
+import { EmptyState } from "@/components/empty-state";
 import { useCatalog, useCatalogCategories } from "@/lib/hooks/use-catalog";
 import { useCartStore } from "@/lib/store/cart";
-import { UNIT_LABELS, type CatalogSearch } from "@kava-now/shared";
+import { MAX_ORDER_QUANTITY, UNIT_LABELS, type CatalogSearch } from "@kava-now/shared";
 import type { CatalogProduct } from "@/lib/store/cart";
 import { PAGE_SIZE } from "@/lib/constants";
 import { formatMoney } from "@/lib/format";
@@ -61,7 +62,16 @@ export function CatalogPage() {
   const getQty = (productId: string) => quantities[productId] ?? 1;
 
   const setQty = (productId: string, qty: number) => {
-    setQuantities((prev) => ({ ...prev, [productId]: Math.max(1, qty) }));
+    setQuantities((prev) => ({
+      ...prev,
+      [productId]: Math.min(MAX_ORDER_QUANTITY, Math.max(1, qty)),
+    }));
+  };
+
+  const hasActiveFilters = !!(urlSearch.search || urlSearch.categoryId);
+  const clearFilters = () => {
+    setSearch("");
+    setFilters({ search: undefined, categoryId: undefined });
   };
 
   const handleAdd = (product: CatalogProduct) => {
@@ -104,7 +114,16 @@ export function CatalogPage() {
       ) : error ? (
         <ErrorBanner message={error.message} />
       ) : products.length === 0 ? (
-        <div className="text-center text-sm text-muted-foreground">Δεν βρέθηκαν προϊόντα.</div>
+        hasActiveFilters ? (
+          <EmptyState
+            message="Δεν βρέθηκαν προϊόντα"
+            description="Δοκιμάστε διαφορετική αναζήτηση ή κατηγορία."
+            actionLabel="Καθαρισμός αναζήτησης και φίλτρων"
+            onAction={clearFilters}
+          />
+        ) : (
+          <EmptyState message="Δεν υπάρχουν προϊόντα στον κατάλογο" />
+        )
       ) : (
         <>
           <Card className="overflow-hidden">
@@ -113,7 +132,7 @@ export function CatalogPage() {
                 <TableHeader>
                   <TableRow>
                     <TableHead>Όνομα</TableHead>
-                    <TableHead>Brand</TableHead>
+                    <TableHead>Μάρκα</TableHead>
                     <TableHead>Κατηγορία</TableHead>
                     <TableHead>Μονάδα</TableHead>
                     <TableHead className="text-right">Τιμή</TableHead>

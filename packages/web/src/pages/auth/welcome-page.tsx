@@ -5,6 +5,7 @@ import { useQuery } from "@tanstack/react-query";
 import { CheckCircle2, Loader2 } from "lucide-react";
 import { GoogleSignInButton } from "@/components/auth/google-sign-in-button";
 import { authClient } from "@/lib/auth-client";
+import { authErrorMessage } from "@/lib/auth-errors";
 import { useGoogleSignIn } from "@/lib/hooks/use-google-sign-in";
 import { api } from "@/lib/api";
 import { Button } from "@/components/ui/button";
@@ -51,7 +52,7 @@ export function WelcomePage() {
           expired.name = "InvalidToken";
           throw expired;
         }
-        throw new Error(authError.message ?? "Σφάλμα");
+        throw new Error(authErrorMessage(authError, "Ο ορισμός κωδικού απέτυχε — δοκιμάστε ξανά"));
       }
       // better-auth's resetPassword creates no session. The invite link carries
       // the email, so sign the invitee in transparently instead of bouncing

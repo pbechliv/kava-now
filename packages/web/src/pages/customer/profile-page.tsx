@@ -93,7 +93,11 @@ export function ProfilePage() {
                 <Input
                   id="profile-phone"
                   value={phone}
-                  onChange={(e) => setPhone(e.target.value)}
+                  onChange={(e) => {
+                    setPhone(e.target.value);
+                    // Editing again invalidates the "saved" confirmation.
+                    if (updateProfile.isSuccess) updateProfile.reset();
+                  }}
                 />
               </div>
               <div className="space-y-2">
@@ -101,7 +105,10 @@ export function ProfilePage() {
                 <Input
                   id="profile-address"
                   value={address}
-                  onChange={(e) => setAddress(e.target.value)}
+                  onChange={(e) => {
+                    setAddress(e.target.value);
+                    if (updateProfile.isSuccess) updateProfile.reset();
+                  }}
                 />
               </div>
               {profileError && <p className="text-sm text-destructive">{profileError}</p>}

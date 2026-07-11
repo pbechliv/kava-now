@@ -18,7 +18,12 @@ import { MobileList, MobileListItem } from "@/components/ui/mobile-list";
 import { ErrorBanner } from "@/components/error-banner";
 import { Spinner } from "@/components/spinner";
 import { OrderStatusBadge } from "@/components/order-status-badge";
-import { useCustomerOrder, useReorder, useCancelOrder } from "@/lib/hooks/use-customer-orders";
+import {
+  useCustomerOrder,
+  useReorder,
+  useCancelOrder,
+  useWithdrawCancellation,
+} from "@/lib/hooks/use-customer-orders";
 import { useTenantSlug } from "@/lib/hooks/use-tenant-api";
 import { formatMoney, formatDateLong } from "@/lib/format";
 import type { CustomerOrderDetailResponse } from "@kava-now/shared";
@@ -51,6 +56,7 @@ export function OrderDetailPage() {
   const { data: order, isLoading, error } = useCustomerOrder(id);
   const reorder = useReorder(id || "");
   const cancel = useCancelOrder(id || "");
+  const withdrawCancellation = useWithdrawCancellation(id || "");
   const [showCancel, setShowCancel] = useState(false);
 
   const handleReorder = () => {
@@ -145,9 +151,22 @@ export function OrderDetailPage() {
 
       {isRequested && (
         <Card className="border-warning/40 bg-warning/10 p-4">
-          <p className="text-sm">
-            Το αίτημα ακύρωσης εκκρεμεί — αναμένεται έγκριση από το κατάστημα.
-          </p>
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <p className="text-sm">
+              Το αίτημα ακύρωσης εκκρεμεί — αναμένεται έγκριση από το κατάστημα.
+            </p>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="shrink-0 self-start sm:self-auto"
+              onClick={() => withdrawCancellation.mutate()}
+              disabled={withdrawCancellation.isPending}
+            >
+              {withdrawCancellation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Ανάκληση αιτήματος
+            </Button>
+          </div>
         </Card>
       )}
 

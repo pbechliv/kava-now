@@ -1,4 +1,11 @@
 import { z } from "zod";
+import { MAX_ORDER_QUANTITY } from "../constants";
+
+const orderQuantitySchema = z
+  .number()
+  .int()
+  .positive()
+  .max(MAX_ORDER_QUANTITY, `Μέγιστη ποσότητα ${MAX_ORDER_QUANTITY}`);
 
 export const ORDER_STATUSES = [
   "pending",
@@ -37,7 +44,7 @@ export const createOrderSchema = z.object({
     .array(
       z.object({
         productId: z.string().uuid(),
-        quantity: z.number().int().positive().max(9999, "Μέγιστη ποσότητα 9999"),
+        quantity: orderQuantitySchema,
       }),
     )
     .min(1, "Η παραγγελία πρέπει να περιέχει τουλάχιστον ένα προϊόν")
@@ -88,20 +95,20 @@ export type CorrectOrderMarkInput = z.infer<typeof correctOrderMarkSchema>;
 
 export const addOrderItemSchema = z.object({
   productId: z.string().uuid(),
-  quantity: z.number().int().positive(),
+  quantity: orderQuantitySchema,
 });
 
 export type AddOrderItemInput = z.infer<typeof addOrderItemSchema>;
 
 export const updateOrderItemSchema = z.object({
-  quantity: z.number().int().positive(),
+  quantity: orderQuantitySchema,
 });
 
 export type UpdateOrderItemInput = z.infer<typeof updateOrderItemSchema>;
 
 export const replaceOrderItemSchema = z.object({
   productId: z.string().uuid(),
-  quantity: z.number().int().positive(),
+  quantity: orderQuantitySchema,
 });
 
 export type ReplaceOrderItemInput = z.infer<typeof replaceOrderItemSchema>;

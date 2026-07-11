@@ -1,6 +1,6 @@
 import { create } from "zustand";
 import { persist, createJSONStorage } from "zustand/middleware";
-import type { CatalogProduct } from "@kava-now/shared";
+import { MAX_ORDER_QUANTITY, type CatalogProduct } from "@kava-now/shared";
 
 // Re-exported so cart consumers keep importing it from the store.
 export type { CatalogProduct };
@@ -15,6 +15,7 @@ interface CartState {
   addItem: (product: CatalogProduct, quantity: number) => void;
   removeItem: (productId: string) => void;
   updateQuantity: (productId: string, quantity: number) => void;
+  updatePrices: (prices: Record<string, number>) => void;
   clearCart: () => void;
   totalItems: () => number;
   totalPrice: () => number;
@@ -65,7 +66,10 @@ export const useCartStore = create<CartState>()(
               ...state.items,
               [product.id]: {
                 product,
-                quantity: existing ? existing.quantity + quantity : quantity,
+                quantity: Math.min(
+                  MAX_ORDER_QUANTITY,
+                  existing ? existing.quantity + quantity : quantity,
+                ),
               },
             },
           };
@@ -88,9 +92,22 @@ export const useCartStore = create<CartState>()(
           return {
             items: {
               ...state.items,
-              [productId]: { ...item, quantity },
+              [productId]: { ...item, quantity: Math.min(MAX_ORDER_QUANTITY, quantity) },
             },
           };
+        }),
+
+      // Accept server-resolved prices into the persisted snapshot — the cart's
+      // "price changed" state clears once the customer acknowledges the update.
+      updatePrices: (prices) =>
+        set((state) => {
+          const items = { ...state.items };
+          for (const [productId, price] of Object.entries(prices)) {
+            const item = items[productId];
+            if (!item || item.product.resolvedPrice === price) continue;
+            items[productId] = { ...item, product: { ...item.product, resolvedPrice: price } };
+          }
+          return { items };
         }),
 
       clearCart: () => set({ items: {} }),
