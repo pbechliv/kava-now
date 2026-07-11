@@ -6,6 +6,8 @@ import type {
   AdminOrderDetailResponse,
   AdminOrderItemWithProduct,
   AdminOrdersSearch,
+  AdminCreateOrderInput,
+  CreateOrderResponse,
   OrderStatus,
   PaginatedResponse,
 } from "@kava-now/shared";
@@ -37,6 +39,23 @@ export function useAdminOrder(id: string | undefined) {
     queryKey: ["admin", slug, "orders", id],
     queryFn: () => tApi.get<AdminOrderDetail>(`/admin/orders/${id}`),
     enabled: !!id,
+  });
+}
+
+// Staff create an order on a customer's behalf (#159). Invalidates the orders
+// list + dashboard so the new order and its KPI impact show immediately.
+export function useAdminCreateOrder() {
+  const slug = useTenantSlug();
+  const tApi = useTenantApi();
+  const qc = useQueryClient();
+
+  return useMutation({
+    mutationFn: (input: AdminCreateOrderInput) =>
+      tApi.post<CreateOrderResponse>("/admin/orders", input),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ["admin", slug, "orders"] });
+      void qc.invalidateQueries({ queryKey: ["admin", slug, "dashboard"] });
+    },
   });
 }
 

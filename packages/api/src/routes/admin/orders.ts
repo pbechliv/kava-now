@@ -1,6 +1,6 @@
 import { validationError } from "../../validation";
 import { Hono } from "hono";
-import { eq, ne, and, sql, gte, lte, desc, notInArray } from "drizzle-orm";
+import { eq, ne, and, sql, gte, lte, desc, notInArray, inArray } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
 import { afterTenantCommit, db } from "../../db/connection";
 import {
@@ -12,12 +12,18 @@ import {
   customerBrandPricing,
 } from "../../db/schema/index";
 import { resolvePrice } from "../../services/pricing";
-import { customerUserRecipients, sendPushToUsers } from "../../services/push";
+import { allocateOrderNumber } from "../../services/orders";
+import {
+  customerUserRecipients,
+  orderNotificationRecipients,
+  sendPushToUsers,
+} from "../../services/push";
 import type { AppEnv } from "../../types";
 import type { PreSerialize } from "../../serialize";
 import { getMembership, getTenant, getTenantId, getUser } from "../../context";
 import {
   adminOrdersQuerySchema,
+  adminCreateOrderSchema,
   markOrderTransmittedSchema,
   correctOrderMarkSchema,
   updateOrderStatusSchema,
@@ -35,6 +41,7 @@ import {
   type AdminOrderListItem,
   type AdminOrderItemWithProduct,
   type AdminOrderDetailResponse,
+  type CreateOrderResponse,
   type PaginatedResponse,
 } from "@kava-now/shared";
 
@@ -67,6 +74,148 @@ export function assertOrderMutable(order: {
   }
   return { ok: true };
 }
+
+// POST / — staff create an order on a customer's behalf (#159). Phone/in-person
+// orders never touch the customer portal, so without this they can't enter the
+// system at all. Prices are resolved server-side from the target customer's
+// brand pricing (never trusted from the client), the order is stamped
+// origin='manual', and — since staff took it directly with the customer — it
+// starts 'confirmed' rather than 'pending'. Mirrors the customer checkout
+// (routes/customer/orders.ts) otherwise.
+ordersRouter.post("/", async (c) => {
+  const tenant = getTenant(c);
+  const actingUserId = getUser(c).id;
+
+  const body = await c.req.json();
+  const parsed = adminCreateOrderSchema.safeParse(body);
+  if (!parsed.success) {
+    return validationError(c, parsed.error);
+  }
+
+  const { customerId, items, notes, requestedDeliveryDate, poReference } = parsed.data;
+  const productIds = items.map((i) => i.productId);
+
+  // Target customer must belong to this tenant (defense-in-depth on top of RLS).
+  const [customer] = await db
+    .select({ id: customers.id, name: customers.name })
+    .from(customers)
+    .where(and(eq(customers.id, customerId), eq(customers.tenantId, tenant.id)))
+    .limit(1);
+
+  if (!customer) {
+    return c.json({ error: "Customer not found" }, 404);
+  }
+
+  // Verify all products exist and are active; report every offending id so the
+  // builder can flag each unavailable line by name.
+  const activeProducts = await db
+    .select({
+      id: products.id,
+      basePrice: products.basePrice,
+      name: products.name,
+      brand: products.brand,
+    })
+    .from(products)
+    .where(
+      and(
+        eq(products.tenantId, tenant.id),
+        eq(products.active, true),
+        inArray(products.id, productIds),
+      ),
+    );
+  const productMap = new Map(activeProducts.map((p) => [p.id, p]));
+
+  const unavailableProductIds = items
+    .filter((item) => !productMap.has(item.productId))
+    .map((item) => item.productId);
+  if (unavailableProductIds.length > 0) {
+    return c.json(
+      {
+        code: API_ERROR_CODES.PRODUCT_NOT_AVAILABLE,
+        error: `Products not available: ${unavailableProductIds.join(", ")}`,
+        unavailableProductIds,
+      },
+      400,
+    );
+  }
+
+  const brandPricing = await db
+    .select({
+      brand: customerBrandPricing.brand,
+      discountPct: customerBrandPricing.discountPct,
+    })
+    .from(customerBrandPricing)
+    .where(
+      and(
+        eq(customerBrandPricing.customerId, customerId),
+        eq(customerBrandPricing.tenantId, tenant.id),
+      ),
+    );
+  const brandDiscountMap = new Map(brandPricing.map((bp) => [bp.brand, bp.discountPct]));
+
+  const result = await db.transaction(async (tx) => {
+    const orderNumber = await allocateOrderNumber(tx, tenant.id);
+    const [order] = await tx
+      .insert(orders)
+      .values({
+        tenantId: tenant.id,
+        customerId,
+        orderNumber,
+        origin: "manual",
+        status: "confirmed",
+        notes: notes || null,
+        requestedDeliveryDate: requestedDeliveryDate || null,
+        poReference: poReference || null,
+      })
+      .returning();
+
+    if (!order) throw new Error("Failed to create order");
+
+    const itemValues = items.map((item) => {
+      const product = productMap.get(item.productId);
+      if (!product) throw new Error(`Product ${item.productId} is not available`);
+      const unitPrice = resolvePrice(
+        product.basePrice,
+        brandDiscountMap.get(product.brand) ?? null,
+      );
+      return {
+        orderId: order.id,
+        productId: item.productId,
+        quantity: item.quantity,
+        originalQuantity: item.quantity,
+        unitPrice: String(unitPrice),
+        productName: product.name,
+      };
+    });
+
+    const createdItems = await tx.insert(orderItems).values(itemValues).returning();
+
+    // Resolve notification recipients inside the tenant tx (customer_assigned_users
+    // is RLS-scoped); exclude the staff member who created the order.
+    const recipientIds = await orderNotificationRecipients(tenant.id, customerId, actingUserId);
+    return { order, items: createdItems, recipientIds };
+  });
+
+  if (result.recipientIds.length > 0) {
+    await afterTenantCommit(async () => {
+      try {
+        await sendPushToUsers(result.recipientIds, {
+          title: `Νέα παραγγελία #${result.order.orderNumber}`,
+          body: `${customer.name} — ${result.items.length} είδη`,
+          url: `/k/${tenant.slug}/admin/orders/${result.order.id}`,
+        });
+      } catch (err) {
+        console.error("[push] admin-created order push failed:", err);
+      }
+    });
+  }
+
+  const responseBody = {
+    order: result.order,
+    items: result.items,
+  } satisfies PreSerialize<CreateOrderResponse>;
+  return c.json(responseBody, 201);
+});
 
 // GET / — list orders with filters
 ordersRouter.get("/", async (c) => {
@@ -119,6 +268,7 @@ ordersRouter.get("/", async (c) => {
       orderNumber: orders.orderNumber,
       customerId: orders.customerId,
       status: orders.status,
+      origin: orders.origin,
       notes: orders.notes,
       createdAt: orders.createdAt,
       customerName: customers.name,
@@ -158,6 +308,7 @@ ordersRouter.get("/:id", async (c) => {
       orderNumber: orders.orderNumber,
       customerId: orders.customerId,
       status: orders.status,
+      origin: orders.origin,
       notes: orders.notes,
       internalNotes: orders.internalNotes,
       requestedDeliveryDate: orders.requestedDeliveryDate,

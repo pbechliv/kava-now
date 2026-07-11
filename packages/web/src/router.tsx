@@ -100,6 +100,10 @@ const CustomerBrandPricingPage = lazyRouteComponent(
 );
 const UsersPage = lazyRouteComponent(() => import("./pages/admin/users-page"), "UsersPage");
 const OrdersPage = lazyRouteComponent(() => import("./pages/admin/orders-page"), "OrdersPage");
+const NewOrderPage = lazyRouteComponent(
+  () => import("./pages/admin/new-order-page"),
+  "NewOrderPage",
+);
 const AdminOrderDetailPage = lazyRouteComponent(
   () => import("./pages/admin/order-detail-page"),
   "OrderDetailPage",
@@ -337,6 +341,11 @@ const ordersRoute = createRoute({
   validateSearch: adminOrdersSearchSchema,
   component: OrdersPage,
 });
+const newOrderRoute = createRoute({
+  getParentRoute: () => tenantAdminRoute,
+  path: "orders/new",
+  component: NewOrderPage,
+});
 const orderDetailRoute = createRoute({
   getParentRoute: () => tenantAdminRoute,
   path: "orders/$id",
@@ -422,6 +431,7 @@ const routeTree = rootRoute.addChildren([
       customerBrandPricingRoute,
       usersRoute,
       ordersRoute,
+      newOrderRoute,
       orderDetailRoute,
       manageRoute,
       settingsRoute,

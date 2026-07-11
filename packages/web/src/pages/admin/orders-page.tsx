@@ -1,6 +1,11 @@
 import { useState } from "react";
+import { Link } from "@tanstack/react-router";
+import { Plus } from "lucide-react";
 import { useFilterSearch } from "@/lib/hooks/use-filter-search";
+import { buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { useTenantSlug } from "@/lib/hooks/use-tenant-api";
+import { cn } from "@/lib/utils";
 import { FilterBar, FilterField } from "@/components/ui/filter-bar";
 import {
   Select,
@@ -49,6 +54,7 @@ const ERP_FILTER_ITEMS = [
 ];
 
 export function OrdersPage() {
+  const slug = useTenantSlug();
   const { search, setFilters } = useFilterSearch<AdminOrdersSearch>();
 
   // Only `customerId` lives in the URL; the picker needs the name to render its
@@ -82,7 +88,16 @@ export function OrdersPage() {
 
   return (
     <div className="space-y-6">
-      <h1 className="text-2xl font-bold tracking-tight">Παραγγελίες</h1>
+      <div className="flex items-center justify-between gap-4">
+        <h1 className="text-2xl font-bold tracking-tight">Παραγγελίες</h1>
+        <Link
+          to="/k/$slug/admin/orders/new"
+          params={{ slug }}
+          className={cn(buttonVariants(), "shrink-0")}
+        >
+          <Plus className="h-4 w-4" /> Νέα παραγγελία
+        </Link>
+      </div>
 
       <Tabs
         value={statusFilter}

@@ -14,6 +14,8 @@ export type OrderStatus =
 export type ProductUnit = "bottle" | "case" | "keg";
 export type ErpStatus = "pending" | "transmitted";
 export type OrderItemStatus = "active" | "cancelled";
+/** Intake channel of an order (#159): customer self-service vs staff-entered. */
+export type OrderOrigin = "portal" | "manual";
 
 /**
  * A user's membership in a single tenant. One row per (userId, tenantId).
@@ -85,6 +87,8 @@ export interface Order {
   /** Human-friendly per-tenant sequential number (#161); unique within a tenant. */
   orderNumber: number;
   status: OrderStatus;
+  /** Intake channel (#159): `portal` (customer) or `phone` (staff-entered). */
+  origin: OrderOrigin;
   /** Customer-authored comment, set at creation. Visible to the customer. */
   notes: string | null;
   /** Staff/owner-only note. Never exposed through customer-facing endpoints. */

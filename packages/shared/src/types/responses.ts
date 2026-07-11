@@ -12,6 +12,7 @@ import type {
   Order,
   OrderItem,
   OrderStatus,
+  OrderOrigin,
   ErpStatus,
   ProductUnit,
   Product,
@@ -25,6 +26,7 @@ export interface AdminOrderListItem {
   orderNumber: number;
   customerId: string;
   status: OrderStatus;
+  origin: OrderOrigin;
   notes: string | null;
   createdAt: string;
   customerName: string | null;
@@ -45,6 +47,7 @@ export interface AdminOrderDetailResponse {
   orderNumber: number;
   customerId: string;
   status: OrderStatus;
+  origin: OrderOrigin;
   notes: string | null;
   internalNotes: string | null;
   requestedDeliveryDate: string | null;

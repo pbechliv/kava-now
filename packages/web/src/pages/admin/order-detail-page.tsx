@@ -6,6 +6,7 @@ import { copyToClipboard } from "@/lib/copy";
 import { Spinner } from "@/components/spinner";
 import { OrderStatusBadge } from "@/components/order-status-badge";
 import { ErpStatusBadge } from "@/components/admin/erp-status-badge";
+import { OrderOriginBadge } from "@/components/admin/order-origin-badge";
 import { OrderStatusCard } from "@/components/admin/order-detail/order-status-card";
 import { OrderBillingCard } from "@/components/admin/order-detail/order-billing-card";
 import { OrderItemsSection } from "@/components/admin/order-detail/order-items-section";
@@ -48,6 +49,7 @@ export function OrderDetailPage() {
           <h1 className="text-2xl font-bold tracking-tight">Παραγγελία #{order.orderNumber}</h1>
           <OrderStatusBadge status={order.status} />
           <ErpStatusBadge status={order.erpStatus} prefix="ERP: " />
+          <OrderOriginBadge origin={order.origin} />
         </div>
         <p className="mt-1 text-sm text-muted-foreground">{formatDateTime(order.createdAt)}</p>
       </div>
