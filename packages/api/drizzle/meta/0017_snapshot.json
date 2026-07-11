@@ -1,5 +1,5 @@
 {
-  "id": "7749aae4-be0c-4c10-9ec8-4e78706e5911",
+  "id": "c95cb1e4-af96-4503-8b06-e6112f790ce7",
   "prevId": "d6d66e2a-1a81-4e76-bb32-1a4403cc9a13",
   "version": "7",
   "dialect": "postgresql",
@@ -2194,7 +2194,7 @@
       "schema": "public",
       "values": [
         "portal",
-        "phone"
+        "manual"
       ]
     },
     "public.order_status": {

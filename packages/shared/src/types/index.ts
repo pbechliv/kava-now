@@ -15,7 +15,7 @@ export type ProductUnit = "bottle" | "case" | "keg";
 export type ErpStatus = "pending" | "transmitted";
 export type OrderItemStatus = "active" | "cancelled";
 /** Intake channel of an order (#159): customer self-service vs staff-entered. */
-export type OrderOrigin = "portal" | "phone";
+export type OrderOrigin = "portal" | "manual";
 
 /**
  * A user's membership in a single tenant. One row per (userId, tenantId).

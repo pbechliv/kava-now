@@ -133,7 +133,7 @@ type OrderStatus =
   | "cancellation_requested"
   | "cancelled_by_customer";
 
-type OrderOrigin = "portal" | "phone";
+type OrderOrigin = "portal" | "manual";
 
 interface DemoOrderItem {
   productName: string;
@@ -195,7 +195,7 @@ const DEMO_ORDERS: DemoOrder[] = [
     customerName: "Μπαρ Στοά Μύλος",
     status: "confirmed",
     // Staff took this one by phone (#159) — shows the origin badge out of the box.
-    origin: "phone",
+    origin: "manual",
     notes: "Φόρτωση Παρασκευή",
     internalNotes: "Εκκρεμεί εξόφληση προηγούμενου τιμολογίου — έλεγχος πριν την αποστολή.",
     requestedDeliveryDate: "2026-07-17",

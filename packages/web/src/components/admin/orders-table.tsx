@@ -79,7 +79,7 @@ export function OrdersTable({
       cell: (order) => (
         <div className="flex flex-wrap items-center gap-1.5">
           <OrderStatusBadge status={order.status} />
-          {order.origin === "phone" && <OrderOriginBadge origin="phone" size="sm" />}
+          {order.origin === "manual" && <OrderOriginBadge origin="manual" size="sm" />}
         </div>
       ),
     },
@@ -139,7 +139,7 @@ export function OrdersTable({
           </div>
           <div className="flex flex-wrap items-center gap-2">
             <OrderStatusBadge status={order.status} />
-            {order.origin === "phone" && <OrderOriginBadge origin="phone" size="sm" />}
+            {order.origin === "manual" && <OrderOriginBadge origin="manual" size="sm" />}
             {showErp && order.erpStatus && <ErpStatusBadge status={order.erpStatus} />}
           </div>
         </>

@@ -79,7 +79,7 @@ export function assertOrderMutable(order: {
 // orders never touch the customer portal, so without this they can't enter the
 // system at all. Prices are resolved server-side from the target customer's
 // brand pricing (never trusted from the client), the order is stamped
-// origin='phone', and — since staff took it directly with the customer — it
+// origin='manual', and — since staff took it directly with the customer — it
 // starts 'confirmed' rather than 'pending'. Mirrors the customer checkout
 // (routes/customer/orders.ts) otherwise.
 ordersRouter.post("/", async (c) => {
@@ -161,7 +161,7 @@ ordersRouter.post("/", async (c) => {
         tenantId: tenant.id,
         customerId,
         orderNumber,
-        origin: "phone",
+        origin: "manual",
         status: "confirmed",
         notes: notes || null,
         requestedDeliveryDate: requestedDeliveryDate || null,

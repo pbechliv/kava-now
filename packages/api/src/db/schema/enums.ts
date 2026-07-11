@@ -23,7 +23,7 @@ export const erpStatusEnum = pgEnum("erp_status", ["pending", "transmitted"]);
 export const orderItemStatusEnum = pgEnum("order_item_status", ["active", "cancelled"]);
 
 // Where an order came from: `portal` = the customer placed it themselves through
-// their portal; `phone` = staff created it on the customer's behalf (phone or
-// in-person intake). Defaults to `portal` — every pre-existing order is a portal
-// order (#159).
-export const orderOriginEnum = pgEnum("order_origin", ["portal", "phone"]);
+// their portal; `manual` = staff created it on the customer's behalf (phone,
+// walk-in, or any in-person intake). Defaults to `portal` — every pre-existing
+// order is a portal order (#159).
+export const orderOriginEnum = pgEnum("order_origin", ["portal", "manual"]);

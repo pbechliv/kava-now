@@ -31,7 +31,7 @@ export const orders = pgTable(
     // per tenant (see the unique index below).
     orderNumber: integer("order_number").notNull(),
     status: orderStatusEnum("status").notNull().default("pending"),
-    // Intake channel (#159): `portal` (customer self-service) or `phone` (staff
+    // Intake channel (#159): `portal` (customer self-service) or `manual` (staff
     // created it on the customer's behalf). Defaults to `portal` so existing
     // rows and customer-portal orders need no explicit value.
     origin: orderOriginEnum("origin").notNull().default("portal"),

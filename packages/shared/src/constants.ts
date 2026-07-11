@@ -36,7 +36,7 @@ export const ERP_STATUS_LABELS: Record<ErpStatus, string> = {
 
 export const ORDER_ORIGIN_LABELS: Record<OrderOrigin, string> = {
   portal: "Πύλη πελάτη",
-  phone: "Τηλέφωνο / Κατάστημα",
+  manual: "Χειροκίνητη",
 };
 
 /**

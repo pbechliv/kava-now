@@ -62,7 +62,7 @@ export type CreateOrderInput = z.infer<typeof createOrderSchema>;
 /**
  * Body of POST /admin/orders (#159) — staff create an order on a customer's
  * behalf (phone / in-person). Same shape as the customer checkout plus the
- * target `customerId`. `origin` is set server-side to `phone` (portal orders
+ * target `customerId`. `origin` is set server-side to `manual` (portal orders
  * are the customer's own), so it's deliberately not part of this input.
  */
 export const adminCreateOrderSchema = createOrderSchema.extend({
