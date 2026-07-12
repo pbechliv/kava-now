@@ -3,7 +3,7 @@ import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { APIError } from "better-auth/api";
 import { db } from "../db/connection";
 import { users, sessions, accounts, verifications } from "../db/schema/index";
-import { config } from "../config";
+import { AUTH_RESET_TOKEN_EXPIRES_IN_HOURS, config } from "../config";
 import { sendPasswordSet } from "../services/email";
 
 export const auth = betterAuth({
@@ -24,6 +24,8 @@ export const auth = betterAuth({
   emailAndPassword: {
     enabled: true,
     requireEmailVerification: false,
+    // Applies to both invite and password-reset links (they share this token).
+    resetPasswordTokenExpiresIn: AUTH_RESET_TOKEN_EXPIRES_IN_HOURS * 60 * 60,
     sendResetPassword: async ({ user, url }) => {
       // Invites land users on /welcome; password resets on /auth/reset-password.
       // The redirectTo is embedded URL-encoded in `url`'s callbackURL param.

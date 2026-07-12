@@ -1,0 +1,9 @@
+{
+    "cSpell.words": [
+        "Passwordless",
+        "Mailpit",
+        "oxfmt",
+        "oxlint"
+    ],
+    "js/ts.tsdk.path": "node_modules/typescript/lib"
+}

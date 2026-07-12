@@ -24,7 +24,7 @@ import { useCartStore, type CartItem } from "@/lib/store/cart";
 import { useResolveCartPrices } from "@/lib/hooks/use-catalog";
 import { useCreateOrder } from "@/lib/hooks/use-customer-orders";
 import { ApiError } from "@/lib/api";
-import { API_ERROR_CODES, UNIT_LABELS } from "@kava-now/shared";
+import { API_ERROR_CODES, MAX_ORDER_QUANTITY, UNIT_LABELS } from "@kava-now/shared";
 import { formatMoney } from "@/lib/format";
 
 export function CartPage() {
@@ -32,11 +32,21 @@ export function CartPage() {
   const slug = useTenantSlug();
   const base = `/k/${slug}`;
   const [notes, setNotes] = useState("");
+  const [deliveryDate, setDeliveryDate] = useState("");
+  const [poReference, setPoReference] = useState("");
   const [confirming, setConfirming] = useState(false);
+
+  // Local YYYY-MM-DD floor for the delivery-date picker — no past dates.
+  const todayIso = useMemo(() => {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+  }, []);
 
   const items = useCartStore((s) => s.items);
   const updateQuantity = useCartStore((s) => s.updateQuantity);
   const removeItem = useCartStore((s) => s.removeItem);
+  const addItem = useCartStore((s) => s.addItem);
+  const updatePrices = useCartStore((s) => s.updatePrices);
 
   const createOrder = useCreateOrder();
 
@@ -68,6 +78,40 @@ export function CartPage() {
 
   const hasUnavailable = cartItems.some((i) => resMap.get(i.product.id)?.available === false);
   const hasPriceChange = cartItems.some((i) => lineInfo(i).priceChanged);
+
+  // Removal always offers an undo — a mis-tap on the minus button at qty 1 (or
+  // the trash icon) would otherwise silently delete the line (#176).
+  const removeWithUndo = (item: CartItem) => {
+    removeItem(item.product.id);
+    toast(`Το «${item.product.name}» αφαιρέθηκε από το καλάθι`, {
+      action: {
+        label: "Αναίρεση",
+        onClick: () => addItem(item.product, item.quantity),
+      },
+    });
+  };
+
+  const decreaseQuantity = (item: CartItem) => {
+    if (item.quantity <= 1) removeWithUndo(item);
+    else updateQuantity(item.product.id, item.quantity - 1);
+  };
+
+  const removeUnavailable = () => {
+    for (const item of cartItems) {
+      if (resMap.get(item.product.id)?.available === false) removeItem(item.product.id);
+    }
+  };
+
+  // Fold the server-resolved prices into the persisted cart snapshot, so the
+  // "prices updated" alert clears once acknowledged instead of persisting
+  // until remove + re-add.
+  const acceptNewPrices = () => {
+    const prices: Record<string, number> = {};
+    for (const r of resolutions ?? []) {
+      if (r.available && r.resolvedPrice != null) prices[r.id] = r.resolvedPrice;
+    }
+    updatePrices(prices);
+  };
   // Total from server-resolved prices, skipping unavailable lines — what the
   // server will actually charge, not the stale snapshot.
   const reconciledTotal = cartItems.reduce((sum, item) => {
@@ -89,6 +133,8 @@ export function CartPage() {
           quantity: item.quantity,
         })),
         notes: notes || undefined,
+        requestedDeliveryDate: deliveryDate || undefined,
+        poReference: poReference.trim() || undefined,
       },
       {
         onSuccess: () => {
@@ -126,14 +172,40 @@ export function CartPage() {
 
       {hasUnavailable && (
         <Alert variant="destructive">
-          Κάποια προϊόντα δεν είναι πλέον διαθέσιμα και δεν προσμετρώνται στο σύνολο. Αφαιρέστε τα
-          για να ολοκληρώσετε την παραγγελία.
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+            <span>
+              Κάποια προϊόντα δεν είναι πλέον διαθέσιμα και δεν προσμετρώνται στο σύνολο. Αφαιρέστε
+              τα για να ολοκληρώσετε την παραγγελία.
+            </span>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="shrink-0 self-start sm:self-auto"
+              onClick={removeUnavailable}
+            >
+              Αφαίρεση μη διαθέσιμων
+            </Button>
+          </div>
         </Alert>
       )}
       {!hasUnavailable && hasPriceChange && (
         <Alert>
-          Οι τιμές ορισμένων προϊόντων ενημερώθηκαν από το κατάστημα. Ελέγξτε το νέο σύνολο πριν την
-          υποβολή.
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+            <span>
+              Οι τιμές ορισμένων προϊόντων ενημερώθηκαν από το κατάστημα. Ελέγξτε το νέο σύνολο πριν
+              την υποβολή.
+            </span>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="shrink-0 self-start sm:self-auto"
+              onClick={acceptNewPrices}
+            >
+              ΟΚ, αποδοχή νέων τιμών
+            </Button>
+          </div>
         </Alert>
       )}
 
@@ -188,7 +260,7 @@ export function CartPage() {
                           variant="ghost"
                           size="icon"
                           className="h-8 w-8"
-                          onClick={() => updateQuantity(item.product.id, item.quantity - 1)}
+                          onClick={() => decreaseQuantity(item)}
                           aria-label="Μείωση"
                         >
                           -
@@ -196,9 +268,13 @@ export function CartPage() {
                         <Input
                           type="number"
                           min={1}
+                          max={MAX_ORDER_QUANTITY}
                           value={item.quantity}
                           onChange={(e) =>
-                            updateQuantity(item.product.id, Math.round(Number(e.target.value)) || 1)
+                            updateQuantity(
+                              item.product.id,
+                              Math.min(MAX_ORDER_QUANTITY, Math.round(Number(e.target.value)) || 1),
+                            )
                           }
                           className="h-8 w-14 text-center"
                         />
@@ -222,7 +298,7 @@ export function CartPage() {
                         type="button"
                         variant="ghost-destructive"
                         size="icon"
-                        onClick={() => removeItem(item.product.id)}
+                        onClick={() => removeWithUndo(item)}
                         aria-label="Αφαίρεση"
                       >
                         <Trash2 className="h-4 w-4" />
@@ -270,7 +346,7 @@ export function CartPage() {
                     variant="ghost-destructive"
                     size="icon"
                     className="shrink-0"
-                    onClick={() => removeItem(item.product.id)}
+                    onClick={() => removeWithUndo(item)}
                     aria-label="Αφαίρεση"
                   >
                     <Trash2 className="h-4 w-4" />
@@ -283,7 +359,7 @@ export function CartPage() {
                       variant="ghost"
                       size="icon"
                       className="h-8 w-8"
-                      onClick={() => updateQuantity(item.product.id, item.quantity - 1)}
+                      onClick={() => decreaseQuantity(item)}
                       aria-label="Μείωση"
                     >
                       -
@@ -291,9 +367,13 @@ export function CartPage() {
                     <Input
                       type="number"
                       min={1}
+                      max={MAX_ORDER_QUANTITY}
                       value={item.quantity}
                       onChange={(e) =>
-                        updateQuantity(item.product.id, Math.round(Number(e.target.value)) || 1)
+                        updateQuantity(
+                          item.product.id,
+                          Math.min(MAX_ORDER_QUANTITY, Math.round(Number(e.target.value)) || 1),
+                        )
                       }
                       className="h-8 w-14 text-center"
                     />
@@ -317,6 +397,30 @@ export function CartPage() {
           })}
         </MobileList>
       </Card>
+
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+        <div className="space-y-2">
+          <Label htmlFor="delivery-date">Επιθυμητή ημ. παράδοσης</Label>
+          <Input
+            id="delivery-date"
+            type="date"
+            value={deliveryDate}
+            min={todayIso}
+            onChange={(e) => setDeliveryDate(e.target.value)}
+          />
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="po-reference">Αρ. παραγγελίας (PO)</Label>
+          <Input
+            id="po-reference"
+            type="text"
+            maxLength={100}
+            value={poReference}
+            onChange={(e) => setPoReference(e.target.value)}
+            placeholder="Προαιρετικός κωδικός παραγγελίας σας"
+          />
+        </div>
+      </div>
 
       <div className="space-y-2">
         <Label htmlFor="order-notes">Σχόλιο παραγγελίας</Label>
@@ -356,6 +460,11 @@ export function CartPage() {
             </Button>
           </div>
         </div>
+        {confirming && !createOrder.isPending && (
+          <p className="mt-3 text-sm text-muted-foreground sm:text-right">
+            Ελέγξτε το σύνολο και πατήστε «Επιβεβαίωση Παραγγελίας» για να καταχωρηθεί η παραγγελία.
+          </p>
+        )}
       </Card>
 
       {createOrder.isError && (

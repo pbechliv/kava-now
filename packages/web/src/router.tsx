@@ -13,6 +13,7 @@ import {
   adminProductsSearchSchema,
   adminCustomersSearchSchema,
   catalogSearchSchema,
+  customerOrdersSearchSchema,
   pageOnlySearchSchema,
   type ImportProductsResult,
 } from "@kava-now/shared";
@@ -52,6 +53,21 @@ const tokenSearchSchema = z.object({
   token: z.string().optional().catch(""),
 });
 
+// Welcome (invite) carries the email for post-set-password auto-login, and an
+// `error` param better-auth appends when the invite token is expired/invalid
+// at click time (#165).
+const welcomeSearchSchema = z.object({
+  token: z.string().optional().catch(""),
+  email: z.string().optional().catch(""),
+  error: z.string().optional().catch(""),
+});
+
+// Forgot-password can be reached with a prefilled email (e.g. the "request a
+// new link" CTA on an expired invite).
+const emailSearchSchema = z.object({
+  email: z.string().optional().catch(""),
+});
+
 // Pages load lazily per route (#59): a customer on a phone must not download
 // the superadmin + admin areas (and papaparse) just to see the catalog.
 // `lazyRouteComponent` adapts the pages' named exports and wires preloading.
@@ -85,6 +101,10 @@ const CustomerBrandPricingPage = lazyRouteComponent(
 );
 const UsersPage = lazyRouteComponent(() => import("./pages/admin/users-page"), "UsersPage");
 const OrdersPage = lazyRouteComponent(() => import("./pages/admin/orders-page"), "OrdersPage");
+const NewOrderPage = lazyRouteComponent(
+  () => import("./pages/admin/new-order-page"),
+  "NewOrderPage",
+);
 const AdminOrderDetailPage = lazyRouteComponent(
   () => import("./pages/admin/order-detail-page"),
   "OrderDetailPage",
@@ -168,6 +188,7 @@ const loginRoute = createRoute({
 const forgotPasswordRoute = createRoute({
   getParentRoute: () => authLayoutRoute,
   path: "/auth/forgot-password",
+  validateSearch: emailSearchSchema,
   component: ForgotPasswordPage,
 });
 const resetPasswordRoute = createRoute({
@@ -236,6 +257,7 @@ const tenantLoginRoute = createRoute({
 const tenantForgotPasswordRoute = createRoute({
   getParentRoute: () => tenantAuthLayoutRoute,
   path: "auth/forgot-password",
+  validateSearch: emailSearchSchema,
   component: ForgotPasswordPage,
 });
 const tenantResetPasswordRoute = createRoute({
@@ -247,7 +269,7 @@ const tenantResetPasswordRoute = createRoute({
 const welcomeRoute = createRoute({
   getParentRoute: () => tenantAuthLayoutRoute,
   path: "welcome",
-  validateSearch: tokenSearchSchema,
+  validateSearch: welcomeSearchSchema,
   component: WelcomePage,
 });
 
@@ -292,6 +314,7 @@ const categoriesRoute = createRoute({
   getParentRoute: () => tenantAdminRoute,
   path: "categories",
   component: CategoriesPage,
+  validateSearch: pageOnlySearchSchema,
 });
 const customersRoute = createRoute({
   getParentRoute: () => tenantAdminRoute,
@@ -303,6 +326,7 @@ const customerUsersRoute = createRoute({
   getParentRoute: () => tenantAdminRoute,
   path: "customers/$id/users",
   component: CustomerUsersPage,
+  validateSearch: pageOnlySearchSchema,
 });
 const customerBrandPricingRoute = createRoute({
   getParentRoute: () => tenantAdminRoute,
@@ -313,12 +337,18 @@ const usersRoute = createRoute({
   getParentRoute: () => tenantAdminRoute,
   path: "users",
   component: UsersPage,
+  validateSearch: pageOnlySearchSchema,
 });
 const ordersRoute = createRoute({
   getParentRoute: () => tenantAdminRoute,
   path: "orders",
   validateSearch: adminOrdersSearchSchema,
   component: OrdersPage,
+});
+const newOrderRoute = createRoute({
+  getParentRoute: () => tenantAdminRoute,
+  path: "orders/new",
+  component: NewOrderPage,
 });
 const orderDetailRoute = createRoute({
   getParentRoute: () => tenantAdminRoute,
@@ -365,7 +395,7 @@ const customerOrdersRoute = createRoute({
   getParentRoute: () => tenantCustomerLayoutRoute,
   path: "orders",
   component: OrderHistoryPage,
-  validateSearch: pageOnlySearchSchema,
+  validateSearch: customerOrdersSearchSchema,
 });
 const customerOrderDetailRoute = createRoute({
   getParentRoute: () => tenantCustomerLayoutRoute,
@@ -405,6 +435,7 @@ const routeTree = rootRoute.addChildren([
       customerBrandPricingRoute,
       usersRoute,
       ordersRoute,
+      newOrderRoute,
       orderDetailRoute,
       manageRoute,
       settingsRoute,

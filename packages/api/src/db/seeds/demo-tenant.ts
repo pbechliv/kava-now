@@ -133,6 +133,8 @@ type OrderStatus =
   | "cancellation_requested"
   | "cancelled_by_customer";
 
+type OrderOrigin = "portal" | "manual";
+
 interface DemoOrderItem {
   productName: string;
   brand: string;
@@ -142,8 +144,14 @@ interface DemoOrderItem {
 interface DemoOrder {
   customerName: DemoCustomerName;
   status: OrderStatus;
+  // Intake channel (#159); defaults to portal when omitted.
+  origin?: OrderOrigin;
   notes: string | null;
   internalNotes?: string | null;
+  // Structured B2B checkout metadata (#175) — set on a couple of demo orders so
+  // the admin detail shows a delivery date / PO reference out of the box.
+  requestedDeliveryDate?: string | null;
+  poReference?: string | null;
   items: DemoOrderItem[];
 }
 
@@ -174,6 +182,8 @@ const DEMO_ORDERS: DemoOrder[] = [
     status: "shipped",
     notes: "Αναμένεται παράδοση αύριο 09:00",
     internalNotes: "Ο οδηγός να καλέσει 10' πριν — δύσκολη πρόσβαση φορτηγού.",
+    requestedDeliveryDate: "2026-07-15",
+    poReference: "PO-2026-0442",
     items: [
       { productName: "Coca-Cola", brand: "Coca-Cola", quantity: 96 },
       { productName: "Coca-Cola Zero", brand: "Coca-Cola", quantity: 48 },
@@ -184,8 +194,12 @@ const DEMO_ORDERS: DemoOrder[] = [
   {
     customerName: "Μπαρ Στοά Μύλος",
     status: "confirmed",
+    // Staff took this one by phone (#159) — shows the origin badge out of the box.
+    origin: "manual",
     notes: "Φόρτωση Παρασκευή",
     internalNotes: "Εκκρεμεί εξόφληση προηγούμενου τιμολογίου — έλεγχος πριν την αποστολή.",
+    requestedDeliveryDate: "2026-07-17",
+    poReference: "ΕΝΤ-5591",
     items: [
       { productName: "Septem Μέρες", brand: "Septem", quantity: 36 },
       { productName: "Άλφα", brand: "Athenian Brewery", quantity: 48 },
@@ -429,6 +443,7 @@ export async function seedDemoTenant(outerDb: PostgresJsDatabase): Promise<void>
     );
 
     let transmittedSeq = 0;
+    let orderNumber = 0;
     for (const order of DEMO_ORDERS) {
       const customerId = customerByName.get(order.customerName);
       if (!customerId) throw new Error(`Demo customer missing: ${order.customerName}`);
@@ -437,15 +452,20 @@ export async function seedDemoTenant(outerDb: PostgresJsDatabase): Promise<void>
       // "transmitted" state is visible in the UI without manual setup.
       const isTransmitted = order.status === "delivered";
       if (isTransmitted) transmittedSeq++;
+      orderNumber++;
 
       const [createdOrder] = await db
         .insert(orders)
         .values({
           tenantId: demoTenant.id,
           customerId,
+          orderNumber,
           status: order.status,
+          origin: order.origin ?? "portal",
           notes: order.notes,
           internalNotes: order.internalNotes ?? null,
+          requestedDeliveryDate: order.requestedDeliveryDate ?? null,
+          poReference: order.poReference ?? null,
           erpStatus: isTransmitted ? "transmitted" : "pending",
           erpMark: isTransmitted ? `4000${String(transmittedSeq).padStart(4, "0")}` : null,
           erpTransmittedAt: isTransmitted ? new Date() : null,
@@ -472,6 +492,13 @@ export async function seedDemoTenant(outerDb: PostgresJsDatabase): Promise<void>
         }),
       );
     }
+
+    // Advance the tenant's order counter past the seeded orders so the next
+    // real order continues the sequence (#161).
+    await db
+      .update(tenants)
+      .set({ orderCounter: orderNumber })
+      .where(eq(tenants.id, demoTenant.id));
 
     console.log(
       `Demo tenant seeded: tenant "${DEMO_SLUG}" + ${DEMO_CUSTOMERS.length} customers + ${DEMO_ORDERS.length} orders. ` +

@@ -135,6 +135,9 @@ export function CustomerLayout() {
             variant="ghost"
             size="sm"
             className="relative gap-2 max-md:hidden"
+            // Renders as an <a> (Link), not a native <button> — tell Base UI so
+            // it wires up button semantics on the anchor instead of warning.
+            nativeButton={false}
             render={
               <Link to="/k/$slug/cart" params={{ slug }} aria-label="Καλάθι">
                 <ShoppingCart className="h-5 w-5" />

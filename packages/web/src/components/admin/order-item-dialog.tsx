@@ -11,6 +11,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { useAddOrderItem, useReplaceOrderItem } from "@/lib/hooks/use-admin-orders";
+import { MAX_ORDER_QUANTITY } from "@kava-now/shared";
 import { ProductPickerCombobox, type ProductPickerValue } from "./product-picker-combobox";
 
 type Props = {
@@ -91,8 +92,11 @@ export function OrderItemDialog(props: Props) {
                 id="item-qty"
                 type="number"
                 min={1}
+                max={MAX_ORDER_QUANTITY}
                 value={quantity}
-                onChange={(e) => setQuantity(Math.max(1, Number(e.target.value)))}
+                onChange={(e) =>
+                  setQuantity(Math.min(MAX_ORDER_QUANTITY, Math.max(1, Number(e.target.value))))
+                }
                 className="w-32"
               />
             </div>

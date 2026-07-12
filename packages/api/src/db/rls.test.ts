@@ -92,7 +92,7 @@ suite("RLS tenant isolation", () => {
         .returning({ id: customers.id });
       const [order] = await db
         .insert(orders)
-        .values({ tenantId: tenantA, customerId: must(cust).id })
+        .values({ tenantId: tenantA, customerId: must(cust).id, orderNumber: 1 })
         .returning({ id: orders.id });
       const [prod] = await db.select({ id: products.id }).from(products).limit(1);
       const [item] = await db

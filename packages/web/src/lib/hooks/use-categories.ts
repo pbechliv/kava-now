@@ -1,20 +1,42 @@
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient, keepPreviousData } from "@tanstack/react-query";
 import { useTenantApi, useTenantSlug } from "./use-tenant-api";
+import { withQuery } from "../utils";
 import type {
   Category,
   CreateCategoryInput,
   UpdateCategoryInput,
   CategoryWithParentName,
+  PageOnlySearch,
+  PaginatedResponse,
 } from "@kava-now/shared";
 
 type CategoryWithParent = CategoryWithParentName;
 
-export function useCategories() {
+type CategoryFilters = PageOnlySearch & { search?: string; pageSize?: number };
+
+// Paginated categories — the admin list view (page/pageSize) and the category
+// picker combobox (server-side `search`) both read from here. No fetch-all
+// variant exists; every consumer paginates.
+export function useCategoriesList(filters?: CategoryFilters) {
+  const slug = useTenantSlug();
+  const tApi = useTenantApi();
+  const path = withQuery("/admin/categories", filters);
+  return useQuery({
+    queryKey: ["admin", slug, "categories", "list", filters],
+    queryFn: () => tApi.get<PaginatedResponse<CategoryWithParent>>(path),
+    placeholderData: keepPreviousData,
+  });
+}
+
+// One category by id — lets the picker resolve a selected id back to its label
+// (e.g. a bookmarked products filter) without loading the whole list.
+export function useCategory(id: string | undefined) {
   const slug = useTenantSlug();
   const tApi = useTenantApi();
   return useQuery({
-    queryKey: ["admin", slug, "categories"],
-    queryFn: () => tApi.get<CategoryWithParent[]>("/admin/categories"),
+    queryKey: ["admin", slug, "categories", id],
+    queryFn: () => tApi.get<CategoryWithParent>(`/admin/categories/${id}`),
+    enabled: !!id,
   });
 }
 

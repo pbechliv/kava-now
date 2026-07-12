@@ -2,6 +2,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useLocation, useNavigate, useParams } from "@tanstack/react-router";
 import { api } from "../api";
 import { authClient } from "../auth-client";
+import { authErrorMessage } from "../auth-errors";
 import { getUserHomePath, returnPathFromState } from "../auth-home";
 import type { LoginInput } from "@kava-now/shared";
 import type { AuthMeResponse } from "./use-auth";
@@ -20,7 +21,7 @@ export function useLogin() {
         email: data.email,
         password: data.password,
       });
-      if (error) throw new Error(error.message ?? "Λάθος email ή κωδικός");
+      if (error) throw new Error(authErrorMessage(error, "Λάθος email ή κωδικός"));
     },
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ["auth"] });

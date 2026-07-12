@@ -170,7 +170,11 @@ export async function sendInviteSetPassword(
   email: string,
   tenantSlug: string,
 ): Promise<void> {
-  const redirectTo = `${config.appOrigin}/k/${tenantSlug}/welcome`;
+  // Carry the email on the welcome link so the page can auto-sign-in the
+  // invitee after they set their password (better-auth's resetPassword creates
+  // no session). better-auth URL-encodes the whole redirectTo and merges the
+  // token via `new URL`, so the extra query param survives intact (#165).
+  const redirectTo = `${config.appOrigin}/k/${tenantSlug}/welcome?email=${encodeURIComponent(email)}`;
 
   await auth.api.requestPasswordReset({
     body: { email, redirectTo },

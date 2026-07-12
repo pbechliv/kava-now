@@ -1,6 +1,13 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { Link } from "@tanstack/react-router";
+import { Plus } from "lucide-react";
 import { useFilterSearch } from "@/lib/hooks/use-filter-search";
+import { useDebouncedValue } from "@/lib/hooks/use-debounced-value";
+import { buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { SearchInput } from "@/components/ui/search-input";
+import { useTenantSlug } from "@/lib/hooks/use-tenant-api";
+import { cn } from "@/lib/utils";
 import { FilterBar, FilterField } from "@/components/ui/filter-bar";
 import {
   Select,
@@ -10,10 +17,12 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { ScrollFade } from "@/components/ui/scroll-fade";
 import { Spinner } from "@/components/spinner";
 import { EmptyState } from "@/components/empty-state";
 import { PaginationControls } from "@/components/pagination-controls";
 import { useAdminOrders } from "@/lib/hooks/use-admin-orders";
+import { useCustomer } from "@/lib/hooks/use-customers";
 import { OrdersTable } from "@/components/admin/orders-table";
 import {
   CustomerPickerCombobox,
@@ -47,13 +56,18 @@ const ERP_FILTER_ITEMS = [
 ];
 
 export function OrdersPage() {
+  const slug = useTenantSlug();
   const { search, setFilters } = useFilterSearch<AdminOrdersSearch>();
 
   // Only `customerId` lives in the URL; the picker needs the name to render its
-  // label, so we keep that display value locally (the URL stays the source of
-  // truth for filtering — after a reload the list is still filtered even if the
-  // label resets to its placeholder).
+  // label, so we keep that display value locally. After a reload the local value
+  // is gone but the URL still filters — fetch the customer so the combobox shows
+  // who the list is filtered by instead of its placeholder (#176).
   const [customerDisplay, setCustomerDisplay] = useState<CustomerPickerValue | null>(null);
+  const { data: urlCustomer } = useCustomer(customerDisplay ? undefined : search.customerId);
+  const selectedCustomer =
+    customerDisplay ??
+    (search.customerId && urlCustomer ? { id: urlCustomer.id, name: urlCustomer.name } : null);
 
   const statusFilter = search.status ?? "all";
   const erpFilter = search.erpStatus ?? "all";
@@ -61,12 +75,22 @@ export function OrdersPage() {
   const dateTo = search.dateTo ?? "";
   const page = search.page ?? 1;
 
+  // Local mirror of the search box for responsive typing; debounced into the URL.
+  const [searchText, setSearchText] = useState(search.search ?? "");
+  const debouncedSearch = useDebouncedValue(searchText);
+  useEffect(() => {
+    if (debouncedSearch !== (search.search ?? "")) {
+      setFilters({ search: debouncedSearch || undefined });
+    }
+  }, [debouncedSearch, search.search, setFilters]);
+
   const { data, isLoading } = useAdminOrders({
     status: search.status,
     erpStatus: search.erpStatus,
     customerId: search.customerId,
     dateFrom: search.dateFrom,
     dateTo: search.dateTo,
+    search: search.search,
     page,
     pageSize: PAGE_SIZE,
   });
@@ -76,22 +100,40 @@ export function OrdersPage() {
 
   return (
     <div className="space-y-6">
-      <h1 className="text-2xl font-bold tracking-tight">Παραγγελίες</h1>
+      <div className="flex items-center justify-between gap-4">
+        <h1 className="text-2xl font-bold tracking-tight">Παραγγελίες</h1>
+        <Link
+          to="/k/$slug/admin/orders/new"
+          params={{ slug }}
+          className={cn(buttonVariants(), "shrink-0")}
+        >
+          <Plus className="h-4 w-4" /> Νέα παραγγελία
+        </Link>
+      </div>
 
       <Tabs
         value={statusFilter}
         onValueChange={(v) => setFilters({ status: v === "all" ? undefined : (v as OrderStatus) })}
       >
-        <TabsList className="flex h-auto w-full justify-start gap-1 overflow-x-auto p-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-          {STATUS_TABS.map((tab) => (
-            <TabsTrigger key={tab.value} value={tab.value} className="flex-none">
-              {tab.label}
-            </TabsTrigger>
-          ))}
-        </TabsList>
+        <ScrollFade>
+          <TabsList className="flex h-auto w-max min-w-full justify-start gap-1 p-1">
+            {STATUS_TABS.map((tab) => (
+              <TabsTrigger key={tab.value} value={tab.value} className="flex-none">
+                {tab.label}
+              </TabsTrigger>
+            ))}
+          </TabsList>
+        </ScrollFade>
       </Tabs>
 
       <FilterBar
+        search={
+          <SearchInput
+            placeholder="Αναζήτηση με προϊόν ή σημείωση..."
+            value={searchText}
+            onValueChange={setSearchText}
+          />
+        }
         activeCount={
           (search.customerId ? 1 : 0) +
           (dateFrom ? 1 : 0) +
@@ -128,7 +170,7 @@ export function OrdersPage() {
         </FilterField>
         <FilterField label="Πελάτης" className="md:w-64">
           <CustomerPickerCombobox
-            selected={customerDisplay}
+            selected={selectedCustomer}
             onSelect={(c) => {
               setCustomerDisplay(c);
               setFilters({ customerId: c?.id });

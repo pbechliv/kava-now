@@ -6,6 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { ChangePasswordCard } from "@/components/auth/change-password-card";
+import { PushNotificationsCard } from "@/components/push-notifications-card";
 import { ErrorBanner } from "@/components/error-banner";
 import { Spinner } from "@/components/spinner";
 import { useProfile, useUpdateProfile } from "@/lib/hooks/use-profile";
@@ -92,7 +93,11 @@ export function ProfilePage() {
                 <Input
                   id="profile-phone"
                   value={phone}
-                  onChange={(e) => setPhone(e.target.value)}
+                  onChange={(e) => {
+                    setPhone(e.target.value);
+                    // Editing again invalidates the "saved" confirmation.
+                    if (updateProfile.isSuccess) updateProfile.reset();
+                  }}
                 />
               </div>
               <div className="space-y-2">
@@ -100,7 +105,10 @@ export function ProfilePage() {
                 <Input
                   id="profile-address"
                   value={address}
-                  onChange={(e) => setAddress(e.target.value)}
+                  onChange={(e) => {
+                    setAddress(e.target.value);
+                    if (updateProfile.isSuccess) updateProfile.reset();
+                  }}
                 />
               </div>
               {profileError && <p className="text-sm text-destructive">{profileError}</p>}
@@ -116,6 +124,8 @@ export function ProfilePage() {
             </form>
           </CardContent>
         </Card>
+
+        <PushNotificationsCard />
 
         <ChangePasswordCard />
       </div>

@@ -10,7 +10,10 @@ import { paginationQuerySchema } from "./pagination";
 
 // --- shared field primitives ---
 const ERP_STATUS_VALUES = ["pending", "transmitted"] as const;
-const ACTIVE_VALUES = ["true", "false"] as const;
+// Three-way active filter. Absent (the default) means "active only" — the
+// products list hides deactivated products unless the user opts in (#170).
+// "all" shows both; "inactive" shows only deactivated.
+export const PRODUCT_ACTIVE_VALUES = ["active", "inactive", "all"] as const;
 
 // Empty string (HTML form / cleared URL param) counts as absent.
 const optionalUuid = z
@@ -39,15 +42,29 @@ export const adminOrdersFiltersSchema = z.object({
   customerId: optionalUuid,
   dateFrom: optionalIsoDate,
   dateTo: optionalIsoDate,
+  // Free-text search across the order's note and its line-item product names.
+  search: optionalSearch,
+});
+
+// Customer order history filters (#178): status + date range. No customer/erp
+// filter — the list is already scoped to the one signed-in customer.
+export const customerOrdersFiltersSchema = z.object({
+  status: z.enum(ORDER_STATUSES).optional().catch(undefined),
+  dateFrom: optionalIsoDate,
+  dateTo: optionalIsoDate,
 });
 
 export const adminProductsFiltersSchema = z.object({
   search: optionalSearch,
   categoryId: optionalUuid,
-  active: z.enum(ACTIVE_VALUES).optional().catch(undefined),
+  active: z.enum(PRODUCT_ACTIVE_VALUES).optional().catch(undefined),
 });
 
 export const adminCustomersFiltersSchema = z.object({
+  search: optionalSearch,
+});
+
+export const adminCategoriesFiltersSchema = z.object({
   search: optionalSearch,
 });
 
@@ -56,11 +73,21 @@ export const catalogFiltersSchema = z.object({
   categoryId: optionalUuid,
 });
 
+// Admin catalog browsing for the staff-created-order flow (#159): the same
+// catalog filters, but prices resolve against an explicit `customerId` (staff
+// have no customer profile of their own), so it's required here.
+export const adminCatalogFiltersSchema = catalogFiltersSchema.extend({
+  customerId: z.uuid(),
+});
+
 /** Merged filters + pagination schemas the API handlers validate against. */
 export const adminOrdersQuerySchema = adminOrdersFiltersSchema.merge(paginationQuerySchema);
+export const customerOrdersQuerySchema = customerOrdersFiltersSchema.merge(paginationQuerySchema);
 export const adminProductsQuerySchema = adminProductsFiltersSchema.merge(paginationQuerySchema);
 export const adminCustomersQuerySchema = adminCustomersFiltersSchema.merge(paginationQuerySchema);
+export const adminCategoriesQuerySchema = adminCategoriesFiltersSchema.merge(paginationQuerySchema);
 export const catalogQuerySchema = catalogFiltersSchema.merge(paginationQuerySchema);
+export const adminCatalogQuerySchema = adminCatalogFiltersSchema.merge(paginationQuerySchema);
 
 // =========================================================================
 // Web (tolerant) — TanStack Router `validateSearch`. Every field `.catch`es to
@@ -77,13 +104,21 @@ export const adminOrdersSearchSchema = z.object({
   customerId: z.string().optional().catch(undefined),
   dateFrom: z.string().optional().catch(undefined),
   dateTo: z.string().optional().catch(undefined),
+  search: z.string().optional().catch(undefined),
+  page: pageSearchField,
+});
+
+export const customerOrdersSearchSchema = z.object({
+  status: z.enum(ORDER_STATUSES).optional().catch(undefined),
+  dateFrom: z.string().optional().catch(undefined),
+  dateTo: z.string().optional().catch(undefined),
   page: pageSearchField,
 });
 
 export const adminProductsSearchSchema = z.object({
   search: z.string().optional().catch(undefined),
   categoryId: z.string().optional().catch(undefined),
-  active: z.enum(ACTIVE_VALUES).optional().catch(undefined),
+  active: z.enum(PRODUCT_ACTIVE_VALUES).optional().catch(undefined),
   page: pageSearchField,
 });
 
@@ -103,7 +138,9 @@ export const pageOnlySearchSchema = z.object({
 });
 
 export type AdminOrdersSearch = z.infer<typeof adminOrdersSearchSchema>;
+export type CustomerOrdersSearch = z.infer<typeof customerOrdersSearchSchema>;
 export type AdminProductsSearch = z.infer<typeof adminProductsSearchSchema>;
+export type ProductActiveFilter = (typeof PRODUCT_ACTIVE_VALUES)[number];
 export type AdminCustomersSearch = z.infer<typeof adminCustomersSearchSchema>;
 export type CatalogSearch = z.infer<typeof catalogSearchSchema>;
 export type PageOnlySearch = z.infer<typeof pageOnlySearchSchema>;

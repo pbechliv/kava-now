@@ -1,13 +1,15 @@
 import { validationError } from "../../validation";
 import { Hono } from "hono";
-import { eq, and, desc, sql, inArray } from "drizzle-orm";
+import { eq, and, desc, sql, inArray, gte, lte } from "drizzle-orm";
 import {
   createOrderSchema,
-  paginationQuerySchema,
+  customerOrdersQuerySchema,
   API_ERROR_CODES,
   type CustomerOrderListItem,
   type CustomerOrderDetailResponse,
   type CreateOrderResponse,
+  type ReorderPreviewItem,
+  type ReorderPreviewResponse,
   type PaginatedResponse,
 } from "@kava-now/shared";
 import { afterTenantCommit, db } from "../../db/connection";
@@ -15,11 +17,13 @@ import {
   orders,
   orderItems,
   products,
+  categories,
   customers,
   customerBrandPricing,
 } from "../../db/schema/index";
 import { requireCustomerProfile } from "../../middleware/require-customer-profile";
 import { resolvePrice } from "../../services/pricing";
+import { allocateOrderNumber } from "../../services/orders";
 import { sendPushToUsers, orderNotificationRecipients } from "../../services/push";
 import type { AppEnv } from "../../types";
 import type { PreSerialize } from "../../serialize";
@@ -39,7 +43,7 @@ async function queueOrderPlacedNotifications(
   tenant: { id: string; slug: string },
   customer: { id: string; name: string },
   result: {
-    order: { id: string };
+    order: { id: string; orderNumber: number };
     items: { id: string }[];
   },
   actingUserId: string | undefined,
@@ -51,7 +55,7 @@ async function queueOrderPlacedNotifications(
   return afterTenantCommit(async () => {
     try {
       await sendPushToUsers(recipientIds, {
-        title: "Νέα παραγγελία",
+        title: `Νέα παραγγελία #${result.order.orderNumber}`,
         body: `${customer.name} — ${result.items.length} είδη`,
         url: `/k/${tenant.slug}/admin/orders/${result.order.id}`,
       });
@@ -73,7 +77,7 @@ ordersRouter.post("/", async (c) => {
     return validationError(c, parsed.error);
   }
 
-  const { items, notes } = parsed.data;
+  const { items, notes, requestedDeliveryDate, poReference } = parsed.data;
   const productIds = items.map((i) => i.productId);
 
   // Verify all products are active. Explicit tenantId filters here (and
@@ -144,12 +148,16 @@ ordersRouter.post("/", async (c) => {
 
   // Create order + items in transaction
   const result = await db.transaction(async (tx) => {
+    const orderNumber = await allocateOrderNumber(tx, tenant.id);
     const [order] = await tx
       .insert(orders)
       .values({
         tenantId: tenant.id,
         customerId,
+        orderNumber,
         notes: notes || null,
+        requestedDeliveryDate: requestedDeliveryDate || null,
+        poReference: poReference || null,
       })
       .returning();
 
@@ -189,16 +197,27 @@ ordersRouter.get("/", async (c) => {
   const tenantId = getTenantId(c);
   const customerId = getCustomerId(c);
 
-  const pagination = paginationQuerySchema.safeParse({
-    page: c.req.query("page"),
-    pageSize: c.req.query("pageSize"),
-  });
-  if (!pagination.success) {
-    return validationError(c, pagination.error);
+  const parsed = customerOrdersQuerySchema.safeParse(c.req.query());
+  if (!parsed.success) {
+    return validationError(c, parsed.error);
   }
-  const { page, pageSize } = pagination.data;
+  const { status, dateFrom, dateTo, page, pageSize } = parsed.data;
 
-  const whereClause = and(eq(orders.tenantId, tenantId), eq(orders.customerId, customerId));
+  const conditions = [eq(orders.tenantId, tenantId), eq(orders.customerId, customerId)];
+  if (status) {
+    conditions.push(eq(orders.status, status));
+  }
+  if (dateFrom) {
+    conditions.push(gte(orders.createdAt, new Date(dateFrom)));
+  }
+  if (dateTo) {
+    // Include the entire dateTo day (mirrors the admin orders list).
+    const endDate = new Date(dateTo);
+    endDate.setDate(endDate.getDate() + 1);
+    conditions.push(lte(orders.createdAt, endDate));
+  }
+
+  const whereClause = and(...conditions);
 
   const [countRow] = await db
     .select({ total: sql<number>`count(*)::int` })
@@ -209,6 +228,7 @@ ordersRouter.get("/", async (c) => {
   const rows = await db
     .select({
       id: orders.id,
+      orderNumber: orders.orderNumber,
       status: orders.status,
       notes: orders.notes,
       createdAt: orders.createdAt,
@@ -246,8 +266,11 @@ ordersRouter.get("/:id", async (c) => {
   const [order] = await db
     .select({
       id: orders.id,
+      orderNumber: orders.orderNumber,
       status: orders.status,
       notes: orders.notes,
+      requestedDeliveryDate: orders.requestedDeliveryDate,
+      poReference: orders.poReference,
       createdAt: orders.createdAt,
     })
     .from(orders)
@@ -278,22 +301,22 @@ ordersRouter.get("/:id", async (c) => {
   return c.json(body);
 });
 
-// POST /:id/reorder — clone items from referenced order into a new order
-ordersRouter.post("/:id/reorder", async (c) => {
-  const tenant = getTenant(c);
+// GET /:id/reorder — re-resolve a past order's active lines against the current
+// catalog + pricing and return them as a cart-ready preview (#172). It does NOT
+// place an order: the customer loads these into the cart, reviews (edit "same as
+// last week minus the kegs", see what's no longer available), and submits
+// normally. Dropped lines (deactivated/removed products) are named, not silently
+// discarded as the old instant-reorder did.
+ordersRouter.get("/:id/reorder", async (c) => {
+  const tenantId = getTenantId(c);
   const customerId = getCustomerId(c);
   const orderId = c.req.param("id");
 
-  // Get original order
   const [originalOrder] = await db
-    .select()
+    .select({ id: orders.id })
     .from(orders)
     .where(
-      and(
-        eq(orders.id, orderId),
-        eq(orders.tenantId, tenant.id),
-        eq(orders.customerId, customerId),
-      ),
+      and(eq(orders.id, orderId), eq(orders.tenantId, tenantId), eq(orders.customerId, customerId)),
     )
     .limit(1);
 
@@ -301,8 +324,12 @@ ordersRouter.post("/:id/reorder", async (c) => {
     return c.json({ error: "Order not found" }, 404);
   }
 
-  // Get original items
-  const originalItems = await db.select().from(orderItems).where(eq(orderItems.orderId, orderId));
+  // Active lines only, in their original order — cancelled/replaced lines never
+  // reappear in a reorder.
+  const originalItems = await db
+    .select()
+    .from(orderItems)
+    .where(and(eq(orderItems.orderId, orderId), eq(orderItems.status, "active")));
 
   if (originalItems.length === 0) {
     return c.json({ code: API_ERROR_CODES.ORDER_EMPTY, error: "Order has no items" }, 400);
@@ -310,34 +337,28 @@ ordersRouter.post("/:id/reorder", async (c) => {
 
   const productIds = originalItems.map((i) => i.productId);
 
-  // Get current product data
-  const activeProducts = await db
+  // Full catalog shape for each product, so the client can drop these straight
+  // into the cart (which stores CatalogProduct). categoryName via left join.
+  const catalogRows = await db
     .select({
       id: products.id,
-      basePrice: products.basePrice,
       name: products.name,
       brand: products.brand,
+      description: products.description,
+      imageUrl: products.imageUrl,
+      unit: products.unit,
+      volumeMl: products.volumeMl,
+      alcoholPct: products.alcoholPct,
+      categoryId: products.categoryId,
+      categoryName: categories.name,
+      basePrice: products.basePrice,
       active: products.active,
     })
     .from(products)
-    .where(and(eq(products.tenantId, tenant.id), inArray(products.id, productIds)));
+    .leftJoin(categories, eq(products.categoryId, categories.id))
+    .where(and(eq(products.tenantId, tenantId), inArray(products.id, productIds)));
 
-  const productMap = new Map(activeProducts.map((p) => [p.id, p]));
-
-  // Get customer info and brand pricing
-  const [customer] = await db
-    .select({
-      id: customers.id,
-      name: customers.name,
-      email: customers.email,
-    })
-    .from(customers)
-    .where(and(eq(customers.id, customerId), eq(customers.tenantId, tenant.id)))
-    .limit(1);
-
-  if (!customer) {
-    return c.json({ error: "Customer not found" }, 404);
-  }
+  const productMap = new Map(catalogRows.map((p) => [p.id, p]));
 
   const brandPricing = await db
     .select({
@@ -348,20 +369,41 @@ ordersRouter.post("/:id/reorder", async (c) => {
     .where(
       and(
         eq(customerBrandPricing.customerId, customerId),
-        eq(customerBrandPricing.tenantId, tenant.id),
+        eq(customerBrandPricing.tenantId, tenantId),
       ),
     );
 
   const brandDiscountMap = new Map(brandPricing.map((bp) => [bp.brand, bp.discountPct]));
 
-  // Skip cancelled items and products no longer available
-  const validItems = originalItems.filter((item) => {
-    if (item.status !== "active") return false;
-    const product = productMap.get(item.productId);
-    return product && product.active;
-  });
+  const items: ReorderPreviewItem[] = [];
+  const dropped: { productName: string }[] = [];
 
-  if (validItems.length === 0) {
+  for (const item of originalItems) {
+    const product = productMap.get(item.productId);
+    if (!product || !product.active) {
+      // Use the line's historical name — the product row may be gone/renamed.
+      dropped.push({ productName: item.productName });
+      continue;
+    }
+    items.push({
+      product: {
+        id: product.id,
+        name: product.name,
+        brand: product.brand,
+        description: product.description,
+        imageUrl: product.imageUrl,
+        unit: product.unit,
+        volumeMl: product.volumeMl,
+        alcoholPct: product.alcoholPct,
+        categoryId: product.categoryId,
+        categoryName: product.categoryName,
+        resolvedPrice: resolvePrice(product.basePrice, brandDiscountMap.get(product.brand) ?? null),
+      },
+      quantity: item.quantity,
+    });
+  }
+
+  if (items.length === 0) {
     return c.json(
       {
         code: API_ERROR_CODES.ORIGINAL_ITEMS_UNAVAILABLE,
@@ -371,45 +413,8 @@ ordersRouter.post("/:id/reorder", async (c) => {
     );
   }
 
-  // Create new order with re-resolved prices
-  const result = await db.transaction(async (tx) => {
-    const [newOrder] = await tx
-      .insert(orders)
-      .values({
-        tenantId: tenant.id,
-        customerId,
-      })
-      .returning();
-
-    if (!newOrder) throw new Error("Failed to create order");
-
-    const itemValues = validItems.map((item) => {
-      const product = productMap.get(item.productId);
-      if (!product) throw new Error(`Product ${item.productId} is not available`);
-      const unitPrice = resolvePrice(
-        product.basePrice,
-        brandDiscountMap.get(product.brand) ?? null,
-      );
-
-      return {
-        orderId: newOrder.id,
-        productId: item.productId,
-        quantity: item.quantity,
-        originalQuantity: item.quantity,
-        unitPrice: String(unitPrice),
-        productName: product.name,
-      };
-    });
-
-    const createdItems = await tx.insert(orderItems).values(itemValues).returning();
-
-    return { order: newOrder, items: createdItems };
-  });
-
-  await queueOrderPlacedNotifications(tenant, customer, result, c.get("user")?.id);
-
-  const responseBody = result satisfies PreSerialize<CreateOrderResponse>;
-  return c.json(responseBody, 201);
+  const body = { items, dropped } satisfies PreSerialize<ReorderPreviewResponse>;
+  return c.json(body);
 });
 
 // POST /:id/cancel — customer cancels their own order.
@@ -452,7 +457,7 @@ ordersRouter.post("/:id/cancel", async (c) => {
       .update(orders)
       .set({ status: nextStatus })
       .where(and(eq(orders.id, orderId), eq(orders.tenantId, tenantId)))
-      .returning({ id: orders.id, status: orders.status });
+      .returning({ id: orders.id, orderNumber: orders.orderNumber, status: orders.status });
 
     if (!updated) return { kind: "not_found" as const };
 
@@ -494,11 +499,85 @@ ordersRouter.post("/:id/cancel", async (c) => {
       try {
         await sendPushToUsers(result.recipientIds, {
           title: requested ? "Αίτημα ακύρωσης" : "Ακύρωση παραγγελίας",
-          body: `${result.customerName} — #${result.updated.id.slice(0, 8)}`,
+          body: `${result.customerName} — #${result.updated.orderNumber}`,
           url: `/k/${tenant.slug}/admin/orders/${result.updated.id}`,
         });
       } catch (err) {
         console.error("[push] order-cancel push failed:", err);
+      }
+    });
+  }
+
+  return c.json(result.updated);
+});
+
+// POST /:id/withdraw-cancellation — customer takes back a pending cancellation
+// request (#176). Only cancellation_requested qualifies; the request can only
+// have come from a confirmed order, so the order returns to confirmed. Staff
+// are notified so they don't act on a request that no longer exists.
+ordersRouter.post("/:id/withdraw-cancellation", async (c) => {
+  const tenant = getTenant(c);
+  const tenantId = tenant.id;
+  const customerId = getCustomerId(c);
+  const orderId = c.req.param("id");
+  const actingUserId = c.get("user")?.id;
+
+  const result = await db.transaction(async (tx) => {
+    const [order] = await tx
+      .select({ id: orders.id, status: orders.status })
+      .from(orders)
+      .where(
+        and(
+          eq(orders.id, orderId),
+          eq(orders.tenantId, tenantId),
+          eq(orders.customerId, customerId),
+        ),
+      )
+      .limit(1)
+      .for("update");
+
+    if (!order) return { kind: "not_found" as const };
+    if (order.status !== "cancellation_requested") return { kind: "not_requested" as const };
+
+    const [updated] = await tx
+      .update(orders)
+      .set({ status: "confirmed" })
+      .where(and(eq(orders.id, orderId), eq(orders.tenantId, tenantId)))
+      .returning({ id: orders.id, orderNumber: orders.orderNumber, status: orders.status });
+
+    if (!updated) return { kind: "not_found" as const };
+
+    const [customer] = await tx
+      .select({ name: customers.name })
+      .from(customers)
+      .where(and(eq(customers.id, customerId), eq(customers.tenantId, tenantId)))
+      .limit(1);
+    const recipientIds = await orderNotificationRecipients(tenantId, customerId, actingUserId);
+
+    return { kind: "ok" as const, updated, recipientIds, customerName: customer?.name ?? "" };
+  });
+
+  if (result.kind === "not_found") return c.json({ error: "Order not found" }, 404);
+  if (result.kind === "not_requested") {
+    return c.json(
+      {
+        code: API_ERROR_CODES.ORDER_CANCELLATION_NOT_REQUESTED,
+        error: "Order has no pending cancellation request",
+      },
+      409,
+    );
+  }
+
+  if (result.recipientIds.length > 0) {
+    await afterTenantCommit(async () => {
+      try {
+        await sendPushToUsers(result.recipientIds, {
+          title: "Ανάκληση αιτήματος ακύρωσης",
+          body: `${result.customerName} — #${result.updated.orderNumber}`,
+          url: `/k/${tenant.slug}/admin/orders/${result.updated.id}`,
+        });
+      } catch (err) {
+        console.error("[push] cancellation-withdrawal push failed:", err);
       }
     });
   }

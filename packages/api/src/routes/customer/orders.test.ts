@@ -39,6 +39,7 @@ suite("customer orders (server-side pricing + customer scoping)", () => {
 
   let tenantId = "";
   let productId = "";
+  let custAId = "";
   const cookies: Record<string, string> = {};
 
   const api = (cookie: string, path: string, init?: Omit<RequestInit, "headers">) =>
@@ -105,7 +106,7 @@ suite("customer orders (server-side pricing + customer scoping)", () => {
     });
     tenantId = created.tenantId;
 
-    const customerAId = await provisionCustomerUser(custAEmail, "Customer A");
+    custAId = await provisionCustomerUser(custAEmail, "Customer A");
     await provisionCustomerUser(custBEmail, "Customer B");
 
     // Product priced to hit the float-rounding regression (2.01 at 50% must
@@ -118,7 +119,7 @@ suite("customer orders (server-side pricing + customer scoping)", () => {
       productId = must(p).id;
       await db.insert(schema.customerBrandPricing).values({
         tenantId,
-        customerId: customerAId,
+        customerId: custAId,
         brand: "TBrand",
         discountPct: "50.00",
       });
@@ -160,6 +161,72 @@ suite("customer orders (server-side pricing + customer scoping)", () => {
     expect(res.status).toBe(201);
     const body = await res.json();
     expect(Number(body.items[0].unitPrice)).toBe(2.01);
+  });
+
+  it("assigns gap-free per-tenant sequential order numbers, surfaced in list + detail (#161)", async () => {
+    const place = async () => {
+      const res = await api(must(cookies.a), "/orders", {
+        method: "POST",
+        body: JSON.stringify({ items: [{ productId, quantity: 1 }] }),
+      });
+      expect(res.status).toBe(201);
+      return (await res.json()) as { order: { id: string; orderNumber: number } };
+    };
+
+    const first = await place();
+    const second = await place();
+
+    // Create response carries the number; strictly consecutive, no gap.
+    expect(Number.isInteger(first.order.orderNumber)).toBe(true);
+    expect(second.order.orderNumber).toBe(first.order.orderNumber + 1);
+
+    // Detail endpoint surfaces it.
+    const detail = await (await api(must(cookies.a), `/orders/${second.order.id}`)).json();
+    expect(detail.orderNumber).toBe(second.order.orderNumber);
+
+    // List endpoint surfaces it — newest first.
+    const list = await (await api(must(cookies.a), "/orders")).json();
+    const numbers = (list.data as { id: string; orderNumber: number }[]).map((o) => o.orderNumber);
+    expect(numbers).toContain(first.order.orderNumber);
+    expect(numbers).toContain(second.order.orderNumber);
+  });
+
+  it("filters order history by status and date range (#178)", async () => {
+    // A delivered order dated in the distant past — isolates it from the other
+    // orders this customer placed above (all pending, dated today).
+    const pastOrderId = await runWithTenant(tenantId, async () => {
+      const [order] = await db
+        .insert(schema.orders)
+        .values({
+          tenantId,
+          customerId: custAId,
+          orderNumber: 90001,
+          status: "delivered",
+          createdAt: new Date("2020-06-15T12:00:00Z"),
+        })
+        .returning({ id: schema.orders.id });
+      const oid = must(order).id;
+      await db
+        .insert(schema.orderItems)
+        .values({ orderId: oid, productId, quantity: 1, unitPrice: "1.01", productName: "Gin" });
+      return oid;
+    });
+
+    const ids = async (query: string) => {
+      const list = await (await api(must(cookies.a), `/orders${query}`)).json();
+      return new Set((list.data as { id: string }[]).map((r) => r.id));
+    };
+
+    // Status: the delivered order matches; a status it isn't excludes it.
+    expect((await ids("?status=delivered")).has(pastOrderId)).toBe(true);
+    expect((await ids("?status=pending")).has(pastOrderId)).toBe(false);
+
+    // Date range: 2020 window includes it; a 2019 window excludes it.
+    expect((await ids("?dateFrom=2020-01-01&dateTo=2020-12-31")).has(pastOrderId)).toBe(true);
+    expect((await ids("?dateFrom=2019-01-01&dateTo=2019-12-31")).has(pastOrderId)).toBe(false);
+
+    // Garbage date is rejected at the boundary, not surfaced as a 500 (#55).
+    expect((await api(must(cookies.a), "/orders?dateFrom=garbage")).status).toBe(400);
   });
 
   it("catalog/resolve returns the customer's current price and availability", async () => {
@@ -321,5 +388,35 @@ suite("customer orders (server-side pricing + customer scoping)", () => {
     expect(foreign.status).toBe(404);
     const detail = await (await api(must(cookies.a), `/orders/${orderId}`)).json();
     expect(detail.status).toBe("pending");
+  });
+
+  it("withdraws a pending cancellation request back to confirmed (#176)", async () => {
+    const orderId = await createOrderA();
+    await setStatus(orderId, "cancellation_requested");
+    const res = await api(must(cookies.a), `/orders/${orderId}/withdraw-cancellation`, {
+      method: "POST",
+    });
+    expect(res.status).toBe(200);
+    expect((await res.json()).status).toBe("confirmed");
+  });
+
+  it("refuses to withdraw when no cancellation request is pending", async () => {
+    const orderId = await createOrderA();
+    const res = await api(must(cookies.a), `/orders/${orderId}/withdraw-cancellation`, {
+      method: "POST",
+    });
+    expect(res.status).toBe(409);
+    expect((await res.json()).code).toBe("ORDER_CANCELLATION_NOT_REQUESTED");
+  });
+
+  it("cannot withdraw another customer's cancellation request — 404, untouched", async () => {
+    const orderId = await createOrderA();
+    await setStatus(orderId, "cancellation_requested");
+    const foreign = await api(must(cookies.b), `/orders/${orderId}/withdraw-cancellation`, {
+      method: "POST",
+    });
+    expect(foreign.status).toBe(404);
+    const detail = await (await api(must(cookies.a), `/orders/${orderId}`)).json();
+    expect(detail.status).toBe("cancellation_requested");
   });
 });

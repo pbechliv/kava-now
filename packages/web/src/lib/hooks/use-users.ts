@@ -1,17 +1,26 @@
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient, keepPreviousData } from "@tanstack/react-query";
 import { useTenantApi, useTenantSlug } from "./use-tenant-api";
-import type { InviteStaffUserInput, SuccessResponse, UsersListResponse } from "@kava-now/shared";
+import { withQuery } from "../utils";
+import type {
+  InviteStaffUserInput,
+  SuccessResponse,
+  AdminUserListItem,
+  PageOnlySearch,
+  PaginatedResponse,
+} from "@kava-now/shared";
 
 export type InviteUserInput = InviteStaffUserInput;
 
-type UsersResponse = UsersListResponse;
+type UsersFilters = PageOnlySearch & { pageSize?: number };
 
-export function useUsers() {
+export function useUsers(filters?: UsersFilters) {
   const slug = useTenantSlug();
   const tApi = useTenantApi();
+  const path = withQuery("/admin/users", filters);
   return useQuery({
-    queryKey: ["admin", slug, "users"],
-    queryFn: () => tApi.get<UsersResponse>("/admin/users"),
+    queryKey: ["admin", slug, "users", filters],
+    queryFn: () => tApi.get<PaginatedResponse<AdminUserListItem>>(path),
+    placeholderData: keepPreviousData,
   });
 }
 

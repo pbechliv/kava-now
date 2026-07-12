@@ -1,14 +1,4 @@
-import {
-  Body,
-  Button,
-  Container,
-  Head,
-  Heading,
-  Html,
-  Preview,
-  Section,
-  Text,
-} from "@react-email/components";
+import { Body, Button, Container, Head, Heading, Html, Preview, Section, Text } from "react-email";
 
 export type SetPasswordMode = "invite" | "reset";
 
@@ -16,6 +6,7 @@ interface SetPasswordEmailProps {
   link: string;
   tenantName: string;
   mode: SetPasswordMode;
+  expiresInHours: number;
 }
 
 const main = {
@@ -47,7 +38,12 @@ const button = {
 };
 const muted = { color: "#6b7280", fontSize: "12px", lineHeight: "18px", margin: "24px 0 0" };
 
-export function SetPasswordEmail({ link, tenantName, mode }: SetPasswordEmailProps) {
+export function SetPasswordEmail({
+  link,
+  tenantName,
+  mode,
+  expiresInHours,
+}: SetPasswordEmailProps) {
   const isInvite = mode === "invite";
   const previewText = isInvite
     ? `Καλώς ήρθατε στο ${tenantName}. Ορίστε τον κωδικό σας.`
@@ -74,7 +70,9 @@ export function SetPasswordEmail({ link, tenantName, mode }: SetPasswordEmailPro
               {cta}
             </Button>
           </Section>
-          <Text style={muted}>Ο σύνδεσμος λήγει σε 1 ώρα. {footer}</Text>
+          <Text style={muted}>
+            Ο σύνδεσμος λήγει σε {expiresInHours} ώρες. {footer}
+          </Text>
         </Container>
       </Body>
     </Html>
@@ -96,4 +94,5 @@ SetPasswordEmail.PreviewProps = {
   link: "https://kavanow.gr/k/demo/welcome?token=preview",
   tenantName: "Demo Λογαριασμός",
   mode: "invite",
+  expiresInHours: 72,
 } satisfies SetPasswordEmailProps;

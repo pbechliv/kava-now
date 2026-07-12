@@ -10,21 +10,48 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { OrderStatusBadge } from "@/components/order-status-badge";
+import { ConfirmDialog } from "@/components/confirm-dialog";
 import { useUpdateOrderStatus, type AdminOrderDetail } from "@/lib/hooks/use-admin-orders";
-import { ORDER_STATUS_TRANSITIONS, type OrderStatus } from "@kava-now/shared";
+import { ORDER_STATUS_LABELS, ORDER_STATUS_TRANSITIONS, type OrderStatus } from "@kava-now/shared";
+
+/**
+ * A transition is irreversible when the target status allows no further
+ * transitions (`cancelled`, `delivered`) — a fat-fingered pick there is
+ * unrecoverable, so it goes through a confirm dialog like line-cancel and
+ * ERP-transmit do.
+ */
+function isTerminalStatus(status: OrderStatus): boolean {
+  return (ORDER_STATUS_TRANSITIONS[status] ?? []).length === 0;
+}
 
 export function OrderStatusCard({ order }: { order: AdminOrderDetail }) {
   const updateStatus = useUpdateOrderStatus();
   const [selectedStatus, setSelectedStatus] = useState<OrderStatus | "">("");
+  const [confirmOpen, setConfirmOpen] = useState(false);
 
   const allowedNext = ORDER_STATUS_TRANSITIONS[order.status] ?? [];
 
-  const handleStatusChange = () => {
+  const applyStatusChange = () => {
     if (!selectedStatus) return;
     updateStatus.mutate(
       { id: order.id, status: selectedStatus },
-      { onSuccess: () => setSelectedStatus("") },
+      {
+        onSuccess: () => {
+          setConfirmOpen(false);
+          setSelectedStatus("");
+        },
+      },
     );
+  };
+
+  const handleStatusChange = () => {
+    if (!selectedStatus) return;
+    if (isTerminalStatus(selectedStatus)) {
+      updateStatus.reset();
+      setConfirmOpen(true);
+      return;
+    }
+    applyStatusChange();
   };
 
   return (
@@ -68,6 +95,27 @@ export function OrderStatusCard({ order }: { order: AdminOrderDetail }) {
           </div>
         )}
       </CardContent>
+
+      <ConfirmDialog
+        open={confirmOpen}
+        title="Αλλαγή κατάστασης"
+        description={
+          selectedStatus ? (
+            <>
+              Η κατάσταση της παραγγελίας θα αλλάξει σε{" "}
+              <span className="font-medium text-foreground">
+                {ORDER_STATUS_LABELS[selectedStatus]}
+              </span>
+              . Η ενέργεια είναι μη αναστρέψιμη — δεν θα επιτρέπονται περαιτέρω αλλαγές κατάστασης.
+            </>
+          ) : null
+        }
+        confirmLabel="Αλλαγή Κατάστασης"
+        pending={updateStatus.isPending}
+        error={updateStatus.error?.message}
+        onConfirm={applyStatusChange}
+        onClose={() => setConfirmOpen(false)}
+      />
     </Card>
   );
 }

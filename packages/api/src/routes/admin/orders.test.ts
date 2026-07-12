@@ -65,6 +65,7 @@ suite("admin order mutations (HTTP, hard lock + soft-cancel totals)", () => {
   let p1 = ""; // 10.00
   let p2 = ""; // 5.00
   let p3 = ""; // 7.50 (replacement target)
+  let orderSeq = 0; // per-tenant sequential order number for direct inserts
 
   const api = (path: string, init?: Omit<RequestInit, "headers">) =>
     app.request(`/api/k/${slug}/admin${path}`, {
@@ -77,7 +78,7 @@ suite("admin order mutations (HTTP, hard lock + soft-cancel totals)", () => {
     return runWithTenant(tenantId, async () => {
       const [order] = await db
         .insert(schema.orders)
-        .values({ tenantId, customerId })
+        .values({ tenantId, customerId, orderNumber: ++orderSeq })
         .returning({ id: schema.orders.id });
       const items = await db
         .insert(schema.orderItems)
@@ -359,6 +360,49 @@ suite("admin order mutations (HTTP, hard lock + soft-cancel totals)", () => {
     expect(detail.erpMark).toBeNull();
   });
 
+  it("owner can correct a transmitted MARK; the correction is recorded", async () => {
+    const { orderId } = await createOrder();
+
+    const transmit = await api(`/orders/${orderId}/erp`, {
+      method: "PATCH",
+      body: JSON.stringify({ mark: "400001234567890" }),
+    });
+    expect(transmit.status).toBe(200);
+
+    const correct = await api(`/orders/${orderId}/erp/mark`, {
+      method: "PATCH",
+      body: JSON.stringify({ mark: "400009999999999", reason: "τυπογραφικό λάθος στο MARK" }),
+    });
+    expect(correct.status).toBe(200);
+
+    const detail = await (await api(`/orders/${orderId}`)).json();
+    expect(detail.erpMark).toBe("400009999999999");
+    expect(detail.erpStatus).toBe("transmitted");
+    expect(detail.erpMarkCorrectionReason).toBe("τυπογραφικό λάθος στο MARK");
+    expect(detail.erpMarkCorrectedAt).not.toBeNull();
+    expect(detail.erpMarkCorrectedByEmail).toBe(ownerEmail);
+    // The original transmission audit survives the correction.
+    expect(detail.erpTransmittedAt).not.toBeNull();
+
+    // A correction with no reason is rejected at the boundary.
+    const noReason = await api(`/orders/${orderId}/erp/mark`, {
+      method: "PATCH",
+      body: JSON.stringify({ mark: "400008888888888", reason: "   " }),
+    });
+    expect(noReason.status).toBe(400);
+  });
+
+  it("cannot correct the MARK of a not-yet-transmitted order → 409", async () => {
+    const { orderId } = await createOrder();
+
+    const res = await api(`/orders/${orderId}/erp/mark`, {
+      method: "PATCH",
+      body: JSON.stringify({ mark: "400001234567890", reason: "no-op" }),
+    });
+    expect(res.status).toBe(409);
+    expect((await res.json()).code).toBe("ORDER_NOT_TRANSMITTED");
+  });
+
   it("filters the orders list by erpStatus", async () => {
     const { orderId: transmitted } = await createOrder();
     const { orderId: pending } = await createOrder();
@@ -483,6 +527,46 @@ suite("admin order mutations (HTTP, hard lock + soft-cancel totals)", () => {
     // Garbage customerId filter → 400.
     const filtered = await api(`/orders?customerId=abc`);
     expect(filtered.status).toBe(400);
+  });
+
+  it("free-text search matches the order note and line-item product names, totals stay whole (#178)", async () => {
+    const tag = `find${suffix}`;
+    const orderId = await runWithTenant(tenantId, async () => {
+      const [order] = await db
+        .insert(schema.orders)
+        .values({ tenantId, customerId, orderNumber: ++orderSeq, notes: `note-${tag}` })
+        .returning({ id: schema.orders.id });
+      const oid = must(order).id;
+      await db.insert(schema.orderItems).values([
+        {
+          orderId: oid,
+          productId: p1,
+          quantity: 2,
+          unitPrice: "10.00",
+          productName: `Widget-${tag}`,
+        },
+        { orderId: oid, productId: p2, quantity: 3, unitPrice: "5.00", productName: "Plain" },
+      ]);
+      return oid;
+    });
+
+    const row = async (query: string) => {
+      const list = await (await api(`/orders${query}`)).json();
+      return list.data.find((r: { id: string }) => r.id === orderId);
+    };
+
+    // Match by note — and the total must span BOTH lines (2×10 + 3×5 = 35),
+    // proving the product-name match is an EXISTS subquery, not a join predicate
+    // that would drop the non-matching sibling line from the aggregate.
+    const byNote = await row(`?search=note-${tag}`);
+    expect(byNote).toBeTruthy();
+    expect(byNote.total).toBe(35);
+
+    // Match by a line-item product name.
+    expect(await row(`?search=Widget-${tag}`)).toBeTruthy();
+
+    // No match for an unrelated term.
+    expect(await row(`?search=zzz-${tag}-nope`)).toBeUndefined();
   });
 
   it("customer/product deletion never destroys order history (no-action FK)", async () => {

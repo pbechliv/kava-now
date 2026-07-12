@@ -1,13 +1,15 @@
 import { Link, useNavigate } from "@tanstack/react-router";
 import { OrderStatusBadge } from "@/components/order-status-badge";
 import { ErpStatusBadge } from "@/components/admin/erp-status-badge";
+import { OrderOriginBadge } from "@/components/admin/order-origin-badge";
 import { ResponsiveTable, type ResponsiveTableColumn } from "@/components/ui/responsive-table";
 import { useTenantSlug } from "@/lib/hooks/use-tenant-api";
 import { formatMoney, formatDate } from "@/lib/format";
-import type { ErpStatus, OrderStatus } from "@kava-now/shared";
+import type { ErpStatus, OrderOrigin, OrderStatus } from "@kava-now/shared";
 
 export interface OrdersTableOrder {
   id: string;
+  orderNumber: number;
   status: OrderStatus;
   createdAt: string;
   customerName: string | null;
@@ -15,6 +17,8 @@ export interface OrdersTableOrder {
   total: number;
   // Only the full admin orders list surfaces ERP status.
   erpStatus?: ErpStatus;
+  // Intake channel (#159). Absent on the compact dashboard variant.
+  origin?: OrderOrigin;
 }
 
 interface OrdersTableProps {
@@ -44,7 +48,7 @@ export function OrdersTable({
           {
             header: "#",
             cellClassName: "font-mono text-xs text-muted-foreground",
-            cell: (order: OrdersTableOrder) => order.id.slice(0, 8),
+            cell: (order: OrdersTableOrder) => `#${order.orderNumber}`,
           },
         ]
       : []),
@@ -72,7 +76,12 @@ export function OrdersTable({
     },
     {
       header: "Κατάσταση",
-      cell: (order) => <OrderStatusBadge status={order.status} />,
+      cell: (order) => (
+        <div className="flex flex-wrap items-center gap-1.5">
+          <OrderStatusBadge status={order.status} />
+          {order.origin === "manual" && <OrderOriginBadge origin="manual" size="sm" />}
+        </div>
+      ),
     },
     ...(showErp
       ? [
@@ -120,7 +129,7 @@ export function OrdersTable({
               <div className="text-sm text-muted-foreground">
                 {showId && (
                   <>
-                    <span className="font-mono text-xs">#{order.id.slice(0, 8)}</span> ·{" "}
+                    <span className="font-mono text-xs">#{order.orderNumber}</span> ·{" "}
                   </>
                 )}
                 {formatDate(order.createdAt)} · {order.itemCount} προϊόντα
@@ -130,6 +139,7 @@ export function OrdersTable({
           </div>
           <div className="flex flex-wrap items-center gap-2">
             <OrderStatusBadge status={order.status} />
+            {order.origin === "manual" && <OrderOriginBadge origin="manual" size="sm" />}
             {showErp && order.erpStatus && <ErpStatusBadge status={order.erpStatus} />}
           </div>
         </>

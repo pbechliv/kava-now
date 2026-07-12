@@ -1,9 +1,12 @@
 import { useParams, Link } from "@tanstack/react-router";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, Copy, MapPin } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { copyToClipboard } from "@/lib/copy";
 import { Spinner } from "@/components/spinner";
 import { OrderStatusBadge } from "@/components/order-status-badge";
 import { ErpStatusBadge } from "@/components/admin/erp-status-badge";
+import { OrderOriginBadge } from "@/components/admin/order-origin-badge";
 import { OrderStatusCard } from "@/components/admin/order-detail/order-status-card";
 import { OrderBillingCard } from "@/components/admin/order-detail/order-billing-card";
 import { OrderItemsSection } from "@/components/admin/order-detail/order-items-section";
@@ -12,7 +15,7 @@ import { OrderCancellationCard } from "@/components/admin/order-detail/order-can
 import { OrderInternalNotesCard } from "@/components/admin/order-detail/order-internal-notes-card";
 import { useAdminOrder } from "@/lib/hooks/use-admin-orders";
 import { useTenantSlug } from "@/lib/hooks/use-tenant-api";
-import { formatDateTime } from "@/lib/format";
+import { formatDate, formatDateTime } from "@/lib/format";
 
 export function OrderDetailPage() {
   const { id } = useParams({ strict: false });
@@ -43,9 +46,10 @@ export function OrderDetailPage() {
 
       <div>
         <div className="flex flex-wrap items-center gap-3">
-          <h1 className="text-2xl font-bold tracking-tight">Παραγγελία #{order.id.slice(0, 8)}</h1>
+          <h1 className="text-2xl font-bold tracking-tight">Παραγγελία #{order.orderNumber}</h1>
           <OrderStatusBadge status={order.status} />
           <ErpStatusBadge status={order.erpStatus} prefix="ERP: " />
+          <OrderOriginBadge origin={order.origin} />
         </div>
         <p className="mt-1 text-sm text-muted-foreground">{formatDateTime(order.createdAt)}</p>
       </div>
@@ -66,6 +70,41 @@ export function OrderDetailPage() {
             )}
             {order.customerEmail && (
               <p className="text-sm text-muted-foreground">{order.customerEmail}</p>
+            )}
+            {/* Delivery address — where to ship. Highlighted and kept distinct
+                from the billing address in OrderBillingCard below. */}
+            <div className="mt-3 flex items-start justify-between gap-2 rounded-md border bg-muted/40 p-2.5">
+              <div className="flex min-w-0 items-start gap-2">
+                <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
+                <div className="min-w-0">
+                  <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                    Διεύθυνση παράδοσης
+                  </p>
+                  <p className="mt-0.5 break-words text-sm">{order.customerAddress ?? "—"}</p>
+                </div>
+              </div>
+              {order.customerAddress && (
+                <Button
+                  type="button"
+                  size="icon"
+                  variant="ghost"
+                  className="h-7 w-7 shrink-0"
+                  onClick={() =>
+                    order.customerAddress &&
+                    copyToClipboard(order.customerAddress, "Αντιγραφή διεύθυνσης παράδοσης")
+                  }
+                  aria-label="Αντιγραφή διεύθυνσης παράδοσης"
+                >
+                  <Copy className="h-3.5 w-3.5" />
+                </Button>
+              )}
+            </div>
+            {/* Customer-requested delivery date, set at checkout (#175). */}
+            {order.requestedDeliveryDate && (
+              <p className="mt-3 text-sm">
+                <span className="text-muted-foreground">Επιθυμητή ημ. παράδοσης: </span>
+                <span className="font-medium">{formatDate(order.requestedDeliveryDate)}</span>
+              </p>
             )}
           </CardContent>
         </Card>

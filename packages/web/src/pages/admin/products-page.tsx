@@ -22,15 +22,32 @@ import { Spinner } from "@/components/spinner";
 import { EmptyState } from "@/components/empty-state";
 import { ConfirmDialog } from "@/components/confirm-dialog";
 import { PaginationControls } from "@/components/pagination-controls";
+import {
+  CategoryPickerCombobox,
+  type CategoryPickerValue,
+} from "@/components/admin/category-picker-combobox";
 import { useProducts, useUpdateProduct, useDeleteProduct } from "@/lib/hooks/use-products";
-import { useCategories } from "@/lib/hooks/use-categories";
+import { useCategory } from "@/lib/hooks/use-categories";
 import { useDeleteConfirmation } from "@/lib/hooks/use-delete-confirmation";
 import { ProductFormModal } from "@/components/admin/product-form-modal";
-import { UNIT_LABELS, type AdminProductsSearch, type ImportProductsResult } from "@kava-now/shared";
+import {
+  UNIT_LABELS,
+  type AdminProductsSearch,
+  type ImportProductsResult,
+  type ProductActiveFilter,
+} from "@kava-now/shared";
 import { PAGE_SIZE } from "@/lib/constants";
 import { formatMoney } from "@/lib/format";
 
 type ProductRow = NonNullable<ReturnType<typeof useProducts>["data"]>["data"][number];
+
+// Base UI's <Select.Value> needs this value→label map to render the selected
+// label in the trigger; without `items` it falls back to the raw value.
+const ACTIVE_FILTER_ITEMS: { value: ProductActiveFilter; label: string }[] = [
+  { value: "active", label: "Ενεργά" },
+  { value: "inactive", label: "Ανενεργά" },
+  { value: "all", label: "Όλα" },
+];
 
 export function ProductsPage() {
   const navigate = useNavigate();
@@ -40,9 +57,19 @@ export function ProductsPage() {
   const importResult = location.state.importResult ?? null;
   const { search: urlSearch, setFilters } = useFilterSearch<AdminProductsSearch>();
   const categoryFilter = urlSearch.categoryId ?? "";
+  // Absent = the default "active only" view (#170).
+  const activeFilter: ProductActiveFilter = urlSearch.active ?? "active";
   const page = urlSearch.page ?? 1;
   // Local mirror of the search box for responsive typing; debounced into the URL.
   const [search, setSearch] = useState(urlSearch.search ?? "");
+  // Only `categoryId` lives in the URL; the picker needs the name for its label.
+  // Keep it locally, and after a reload fetch the category by id so the combobox
+  // shows what the list is filtered by instead of the placeholder.
+  const [categoryDisplay, setCategoryDisplay] = useState<CategoryPickerValue | null>(null);
+  const { data: urlCategory } = useCategory(categoryDisplay ? undefined : urlSearch.categoryId);
+  const selectedCategory =
+    categoryDisplay ??
+    (urlSearch.categoryId && urlCategory ? { id: urlCategory.id, name: urlCategory.name } : null);
   const [bannerResult, setBannerResult] = useState<ImportProductsResult | null>(importResult);
   const [modalOpen, setModalOpen] = useState(false);
   const [editProductId, setEditProductId] = useState<string | undefined>(undefined);
@@ -73,12 +100,12 @@ export function ProductsPage() {
   const { data, isLoading } = useProducts({
     search: urlSearch.search,
     categoryId: urlSearch.categoryId,
+    active: urlSearch.active,
     page,
     pageSize: PAGE_SIZE,
   });
   const products = data?.data ?? [];
   const total = data?.total ?? 0;
-  const { data: categories } = useCategories();
   const updateMutation = useUpdateProduct();
   const deleteMutation = useDeleteProduct();
   const del = useDeleteConfirmation(deleteMutation);
@@ -99,6 +126,11 @@ export function ProductsPage() {
   const columns: ResponsiveTableColumn<ProductRow>[] = [
     { header: "Όνομα", cellClassName: "font-medium", cell: (p) => p.name },
     { header: "Brand", cellClassName: "text-muted-foreground", cell: (p) => p.brand ?? "-" },
+    {
+      header: "ERP",
+      cellClassName: "text-muted-foreground font-mono text-xs",
+      cell: (p) => p.erpRef ?? "-",
+    },
     {
       header: "Κατηγορία",
       cellClassName: "text-muted-foreground",
@@ -200,35 +232,44 @@ export function ProductsPage() {
       <FilterBar
         search={
           <SearchInput
-            placeholder="Αναζήτηση με όνομα ή brand..."
+            placeholder="Αναζήτηση με όνομα, brand ή ERP..."
             value={search}
             onValueChange={setSearch}
           />
         }
-        activeCount={categoryFilter ? 1 : 0}
-        onClear={() => setFilters({ categoryId: undefined })}
+        activeCount={(categoryFilter ? 1 : 0) + (activeFilter !== "active" ? 1 : 0)}
+        onClear={() => setFilters({ categoryId: undefined, active: undefined })}
       >
-        <FilterField label="Κατηγορία">
+        <FilterField label="Κατάσταση" className="md:w-44">
           <Select
-            items={[
-              { value: "all", label: "Όλες οι κατηγορίες" },
-              ...(categories ?? []).map((cat) => ({ value: cat.id, label: cat.name })),
-            ]}
-            value={categoryFilter || "all"}
-            onValueChange={(v) => setFilters({ categoryId: v && v !== "all" ? v : undefined })}
+            items={ACTIVE_FILTER_ITEMS}
+            value={activeFilter}
+            onValueChange={(v) =>
+              setFilters({ active: v === "active" ? undefined : (v as ProductActiveFilter) })
+            }
           >
-            <SelectTrigger className="w-full md:w-56" aria-label="Κατηγορία">
-              <SelectValue placeholder="Όλες οι κατηγορίες" />
+            <SelectTrigger className="w-full" aria-label="Κατάσταση">
+              <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">Όλες οι κατηγορίες</SelectItem>
-              {categories?.map((cat) => (
-                <SelectItem key={cat.id} value={cat.id}>
-                  {cat.name}
+              {ACTIVE_FILTER_ITEMS.map((item) => (
+                <SelectItem key={item.value} value={item.value}>
+                  {item.label}
                 </SelectItem>
               ))}
             </SelectContent>
           </Select>
+        </FilterField>
+        <FilterField label="Κατηγορία" className="md:w-56">
+          <CategoryPickerCombobox
+            aria-label="Κατηγορία"
+            placeholder="Όλες οι κατηγορίες"
+            selected={selectedCategory}
+            onSelect={(cat) => {
+              setCategoryDisplay(cat);
+              setFilters({ categoryId: cat?.id });
+            }}
+          />
         </FilterField>
       </FilterBar>
 
@@ -256,6 +297,11 @@ export function ProductsPage() {
                     <div className="text-sm text-muted-foreground">
                       {[product.brand, product.categoryName].filter(Boolean).join(" · ") || "-"}
                     </div>
+                    {product.erpRef && (
+                      <div className="font-mono text-xs text-muted-foreground">
+                        ERP: {product.erpRef}
+                      </div>
+                    )}
                   </div>
                   <button
                     type="button"

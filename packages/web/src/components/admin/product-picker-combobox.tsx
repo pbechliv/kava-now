@@ -44,7 +44,7 @@ export function ProductPickerCombobox({ selected, onSelect, excludeProductId }: 
 
   const { data, isFetching } = useProducts({
     search: debounced || undefined,
-    active: "true",
+    active: "active",
     pageSize: 20,
   });
 
