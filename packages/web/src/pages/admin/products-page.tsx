@@ -22,8 +22,12 @@ import { Spinner } from "@/components/spinner";
 import { EmptyState } from "@/components/empty-state";
 import { ConfirmDialog } from "@/components/confirm-dialog";
 import { PaginationControls } from "@/components/pagination-controls";
+import {
+  CategoryPickerCombobox,
+  type CategoryPickerValue,
+} from "@/components/admin/category-picker-combobox";
 import { useProducts, useUpdateProduct, useDeleteProduct } from "@/lib/hooks/use-products";
-import { useCategories } from "@/lib/hooks/use-categories";
+import { useCategory } from "@/lib/hooks/use-categories";
 import { useDeleteConfirmation } from "@/lib/hooks/use-delete-confirmation";
 import { ProductFormModal } from "@/components/admin/product-form-modal";
 import {
@@ -58,6 +62,14 @@ export function ProductsPage() {
   const page = urlSearch.page ?? 1;
   // Local mirror of the search box for responsive typing; debounced into the URL.
   const [search, setSearch] = useState(urlSearch.search ?? "");
+  // Only `categoryId` lives in the URL; the picker needs the name for its label.
+  // Keep it locally, and after a reload fetch the category by id so the combobox
+  // shows what the list is filtered by instead of the placeholder.
+  const [categoryDisplay, setCategoryDisplay] = useState<CategoryPickerValue | null>(null);
+  const { data: urlCategory } = useCategory(categoryDisplay ? undefined : urlSearch.categoryId);
+  const selectedCategory =
+    categoryDisplay ??
+    (urlSearch.categoryId && urlCategory ? { id: urlCategory.id, name: urlCategory.name } : null);
   const [bannerResult, setBannerResult] = useState<ImportProductsResult | null>(importResult);
   const [modalOpen, setModalOpen] = useState(false);
   const [editProductId, setEditProductId] = useState<string | undefined>(undefined);
@@ -94,7 +106,6 @@ export function ProductsPage() {
   });
   const products = data?.data ?? [];
   const total = data?.total ?? 0;
-  const { data: categories } = useCategories();
   const updateMutation = useUpdateProduct();
   const deleteMutation = useDeleteProduct();
   const del = useDeleteConfirmation(deleteMutation);
@@ -249,27 +260,16 @@ export function ProductsPage() {
             </SelectContent>
           </Select>
         </FilterField>
-        <FilterField label="Κατηγορία">
-          <Select
-            items={[
-              { value: "all", label: "Όλες οι κατηγορίες" },
-              ...(categories ?? []).map((cat) => ({ value: cat.id, label: cat.name })),
-            ]}
-            value={categoryFilter || "all"}
-            onValueChange={(v) => setFilters({ categoryId: v && v !== "all" ? v : undefined })}
-          >
-            <SelectTrigger className="w-full md:w-56" aria-label="Κατηγορία">
-              <SelectValue placeholder="Όλες οι κατηγορίες" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Όλες οι κατηγορίες</SelectItem>
-              {categories?.map((cat) => (
-                <SelectItem key={cat.id} value={cat.id}>
-                  {cat.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+        <FilterField label="Κατηγορία" className="md:w-56">
+          <CategoryPickerCombobox
+            aria-label="Κατηγορία"
+            placeholder="Όλες οι κατηγορίες"
+            selected={selectedCategory}
+            onSelect={(cat) => {
+              setCategoryDisplay(cat);
+              setFilters({ categoryId: cat?.id });
+            }}
+          />
         </FilterField>
       </FilterBar>
 

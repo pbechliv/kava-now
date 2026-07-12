@@ -200,9 +200,9 @@ export interface AdminUserListItem {
   invitedByEmail: string | null;
 }
 
-export interface UsersListResponse {
-  users: AdminUserListItem[];
-}
+// User lists are returned as PaginatedResponse<AdminUserListItem> /
+// PaginatedResponse<CustomerLinkedUser> — see the admin users/customer-users
+// routes.
 
 export interface CustomerLinkedUser {
   id: string;
@@ -212,10 +212,6 @@ export interface CustomerLinkedUser {
   createdAt: string;
   invitedByName: string | null;
   invitedByEmail: string | null;
-}
-
-export interface CustomerLinkedUsersResponse {
-  users: CustomerLinkedUser[];
 }
 
 // ---- Dashboard ----

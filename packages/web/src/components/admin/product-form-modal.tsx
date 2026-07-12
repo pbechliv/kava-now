@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Loader2 } from "lucide-react";
@@ -35,8 +35,11 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Spinner } from "@/components/spinner";
+import {
+  CategoryPickerCombobox,
+  type CategoryPickerValue,
+} from "@/components/admin/category-picker-combobox";
 import { useProduct, useCreateProduct, useUpdateProduct } from "@/lib/hooks/use-products";
-import { useCategories } from "@/lib/hooks/use-categories";
 
 interface Props {
   open: boolean;
@@ -49,9 +52,11 @@ type FormData = CreateProductInput;
 export function ProductFormModal({ open, productId, onClose }: Props) {
   const isEdit = !!productId;
   const { data: product, isLoading: productLoading } = useProduct(isEdit ? productId : undefined);
-  const { data: categories } = useCategories();
   const createMutation = useCreateProduct();
   const updateMutation = useUpdateProduct();
+  // The picker needs the category name for its label; the form field only holds
+  // the id, so mirror the selection here (seeded from the product on edit).
+  const [categorySel, setCategorySel] = useState<CategoryPickerValue | null>(null);
 
   const form = useForm<FormData>({
     resolver: zodResolver(createProductSchema),
@@ -59,6 +64,7 @@ export function ProductFormModal({ open, productId, onClose }: Props) {
 
   useEffect(() => {
     if (open && !isEdit) {
+      setCategorySel(null);
       form.reset({
         name: "",
         brand: "",
@@ -77,6 +83,9 @@ export function ProductFormModal({ open, productId, onClose }: Props) {
 
   useEffect(() => {
     if (product && isEdit) {
+      setCategorySel(
+        product.categoryId ? { id: product.categoryId, name: product.categoryName ?? "" } : null,
+      );
       form.reset({
         name: product.name,
         brand: product.brand,
@@ -163,28 +172,16 @@ export function ProductFormModal({ open, productId, onClose }: Props) {
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Κατηγορία</FormLabel>
-                      <Select
-                        items={[
-                          { value: "none", label: "Χωρίς κατηγορία" },
-                          ...(categories ?? []).map((cat) => ({ value: cat.id, label: cat.name })),
-                        ]}
-                        onValueChange={(v) => field.onChange(v === "none" ? "" : v)}
-                        value={field.value || "none"}
-                      >
-                        <FormControl>
-                          <SelectTrigger className="w-full">
-                            <SelectValue placeholder="Χωρίς κατηγορία" />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          <SelectItem value="none">Χωρίς κατηγορία</SelectItem>
-                          {categories?.map((cat) => (
-                            <SelectItem key={cat.id} value={cat.id}>
-                              {cat.name}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                      <FormControl>
+                        <CategoryPickerCombobox
+                          placeholder="Χωρίς κατηγορία"
+                          selected={categorySel}
+                          onSelect={(cat) => {
+                            setCategorySel(cat);
+                            field.onChange(cat?.id ?? "");
+                          }}
+                        />
+                      </FormControl>
                       <FormMessage />
                     </FormItem>
                   )}

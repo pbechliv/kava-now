@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Link, useParams } from "@tanstack/react-router";
 import { ArrowLeft } from "lucide-react";
 import { toast } from "sonner";
+import type { PageOnlySearch } from "@kava-now/shared";
 import {
   useCustomerUsers,
   useInviteCustomerUser,
@@ -16,17 +17,22 @@ import { InvitationStatusBadge } from "@/components/admin/invitation-status-badg
 import { ResponsiveTable, type ResponsiveTableColumn } from "@/components/ui/responsive-table";
 import { Spinner } from "@/components/spinner";
 import { ConfirmDialog } from "@/components/confirm-dialog";
+import { PaginationControls } from "@/components/pagination-controls";
+import { useFilterSearch } from "@/lib/hooks/use-filter-search";
 import { InviteUserDialog } from "@/components/admin/invite-user-dialog";
 import { UserInviteActions, useResendInviteFeedback } from "@/components/admin/user-invite-actions";
 import { useDeleteConfirmation } from "@/lib/hooks/use-delete-confirmation";
+import { PAGE_SIZE } from "@/lib/constants";
 
-type CustomerUserRow = NonNullable<ReturnType<typeof useCustomerUsers>["data"]>["users"][number];
+type CustomerUserRow = NonNullable<ReturnType<typeof useCustomerUsers>["data"]>["data"][number];
 
 export function CustomerUsersPage() {
   const { id = "" } = useParams({ strict: false });
   const slug = useTenantSlug();
+  const { search, setFilters } = useFilterSearch<PageOnlySearch>();
+  const page = search.page ?? 1;
   const { data: customer } = useCustomer(id);
-  const { data, isLoading } = useCustomerUsers(id);
+  const { data, isLoading } = useCustomerUsers(id, { page, pageSize: PAGE_SIZE });
   const invite = useInviteCustomerUser(id);
   const resend = useResendCustomerUserInvite(id);
   const remove = useDeleteUser();
@@ -42,7 +48,8 @@ export function CustomerUsersPage() {
     );
   }
 
-  const users = data?.users ?? [];
+  const users = data?.data ?? [];
+  const total = data?.total ?? 0;
 
   const columns: ResponsiveTableColumn<CustomerUserRow>[] = [
     {
@@ -102,35 +109,43 @@ export function CustomerUsersPage() {
           <p className="p-6 text-sm text-muted-foreground">Δεν έχουν προσκληθεί χρήστες ακόμα.</p>
         </Card>
       ) : (
-        <ResponsiveTable
-          data={users}
-          columns={columns}
-          getRowKey={(u) => u.id}
-          renderMobileItem={(u) => (
-            <>
-              <div className="min-w-0">
-                <div className="font-medium">
-                  {u.name}
-                  {!u.emailVerified && <InvitationStatusBadge className="ml-2" />}
-                </div>
-                <div className="text-sm text-muted-foreground">{u.email}</div>
-                {u.invitedByName && (
-                  <div className="text-sm text-muted-foreground">
-                    Προσκλήθηκε από {u.invitedByName}
+        <>
+          <ResponsiveTable
+            data={users}
+            columns={columns}
+            getRowKey={(u) => u.id}
+            renderMobileItem={(u) => (
+              <>
+                <div className="min-w-0">
+                  <div className="font-medium">
+                    {u.name}
+                    {!u.emailVerified && <InvitationStatusBadge className="ml-2" />}
                   </div>
-                )}
-              </div>
-              <UserInviteActions
-                user={u}
-                feedback={feedback}
-                resendPendingId={resendPendingId}
-                onResend={handleResend}
-                onDelete={del.request}
-                align="start"
-              />
-            </>
-          )}
-        />
+                  <div className="text-sm text-muted-foreground">{u.email}</div>
+                  {u.invitedByName && (
+                    <div className="text-sm text-muted-foreground">
+                      Προσκλήθηκε από {u.invitedByName}
+                    </div>
+                  )}
+                </div>
+                <UserInviteActions
+                  user={u}
+                  feedback={feedback}
+                  resendPendingId={resendPendingId}
+                  onResend={handleResend}
+                  onDelete={del.request}
+                  align="start"
+                />
+              </>
+            )}
+          />
+          <PaginationControls
+            page={page}
+            pageSize={PAGE_SIZE}
+            total={total}
+            onPageChange={(p) => setFilters({ page: p })}
+          />
+        </>
       )}
 
       <InviteUserDialog

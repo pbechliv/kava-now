@@ -8,9 +8,10 @@ import {
   updateCustomerBrandPricingSchema,
   inviteCustomerUserSchema,
   adminCustomersQuerySchema,
+  paginationQuerySchema,
   type Customer,
   type CustomerBrandPrice,
-  type CustomerLinkedUsersResponse,
+  type CustomerLinkedUser,
   type PaginatedResponse,
   API_ERROR_CODES,
   type SuccessResponse,
@@ -465,6 +466,12 @@ customersRouter.get("/:id/users", async (c) => {
   const id = c.req.param("id");
   const inviterAlias = alias(users, "inviter");
 
+  const parsed = paginationQuerySchema.safeParse(c.req.query());
+  if (!parsed.success) {
+    return validationError(c, parsed.error);
+  }
+  const { page, pageSize } = parsed.data;
+
   const [customer] = await db
     .select({ id: customers.id })
     .from(customers)
@@ -474,6 +481,17 @@ customersRouter.get("/:id/users", async (c) => {
   if (!customer) {
     return c.json({ error: "Customer not found" }, 404);
   }
+
+  const whereClause = and(
+    eq(tenantMemberships.customerId, id),
+    eq(tenantMemberships.tenantId, tenantId),
+  );
+
+  const [countRow] = await db
+    .select({ total: sql<number>`count(*)::int` })
+    .from(tenantMemberships)
+    .where(whereClause);
+  const total = countRow?.total ?? 0;
 
   const rows = await db
     .select({
@@ -488,10 +506,17 @@ customersRouter.get("/:id/users", async (c) => {
     .from(tenantMemberships)
     .innerJoin(users, eq(users.id, tenantMemberships.userId))
     .leftJoin(inviterAlias, eq(tenantMemberships.invitedById, inviterAlias.id))
-    .where(and(eq(tenantMemberships.customerId, id), eq(tenantMemberships.tenantId, tenantId)))
-    .orderBy(tenantMemberships.createdAt);
+    .where(whereClause)
+    .orderBy(tenantMemberships.createdAt)
+    .limit(pageSize)
+    .offset((page - 1) * pageSize);
 
-  const body = { users: rows } satisfies PreSerialize<CustomerLinkedUsersResponse>;
+  const body = {
+    data: rows,
+    total,
+    page,
+    pageSize,
+  } satisfies PreSerialize<PaginatedResponse<CustomerLinkedUser>>;
   return c.json(body);
 });
 

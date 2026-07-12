@@ -16,7 +16,7 @@ interface Props {
  */
 export function AssignedUsersField({ value, onChange }: Props) {
   const { data, isLoading } = useUsers();
-  const users = data?.users ?? [];
+  const users = data?.data ?? [];
   const [search, setSearch] = useState("");
 
   const filtered = useMemo(() => {
