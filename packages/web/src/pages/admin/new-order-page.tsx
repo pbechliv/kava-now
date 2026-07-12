@@ -68,10 +68,13 @@ export function NewOrderPage() {
   const [deliveryDate, setDeliveryDate] = useState("");
   const [poReference, setPoReference] = useState("");
   const [catalogOpen, setCatalogOpen] = useState(false);
-  // On touch, Base UI focuses the popup itself (an overflow-hidden shell) rather
-  // than a tabbable child — which leaves iOS Safari tying the first swipe to a
-  // non-scrollable element, so scrolling only starts after a stray tap. Point
-  // touch-open focus at the scroll region instead so the first swipe scrolls it.
+  // This dialog is opened programmatically (no Base UI trigger), so Base UI's
+  // openMethod stays null and its default initial focus lands on the first
+  // tabbable element — the search input. On iOS, a focused text input eats the
+  // first touch (dismissing/blurring it) instead of scrolling, which is the
+  // "tap once to make swiping work" bug. On touch devices we send initial focus
+  // to the scroll region (a non-input, tabIndex=-1) instead, so there's nothing
+  // to blur and the first swipe scrolls. Non-touch keeps the search autofocus.
   const catalogScrollRef = useRef<HTMLDivElement>(null);
 
   const debouncedSearch = useDebouncedValue(search);
@@ -448,7 +451,9 @@ export function NewOrderPage() {
           <Dialog open={catalogOpen} onOpenChange={setCatalogOpen}>
             <DialogContent
               className="flex h-[85dvh] flex-col gap-0 overflow-hidden p-0 sm:max-w-3xl"
-              initialFocus={(type) => (type === "touch" ? catalogScrollRef.current : true)}
+              initialFocus={() =>
+                window.matchMedia("(pointer: coarse)").matches ? catalogScrollRef.current : true
+              }
             >
               <DialogHeader className="border-b p-4 pr-12">
                 <DialogTitle>Προσθήκη προϊόντων</DialogTitle>
