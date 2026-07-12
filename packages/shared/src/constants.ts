@@ -1,7 +1,7 @@
 import type { OrderStatus, MembershipRole, ProductUnit, ErpStatus, OrderOrigin } from "./types";
 
 /** Rows per page for all paginated list views — one value for API + web. */
-export const DEFAULT_PAGE_SIZE = 50;
+export const DEFAULT_PAGE_SIZE = 30;
 
 /** Max quantity per order line — enforced by the API schemas and mirrored by
  * the web's steppers/inputs so the cap is visible before submit. */
