@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from "react";
+import { useMemo, useState } from "react";
 import { Link, useNavigate } from "@tanstack/react-router";
 import { toast } from "sonner";
 import { ArrowLeft, Loader2, Minus, Plus, Trash2 } from "lucide-react";
@@ -68,14 +68,6 @@ export function NewOrderPage() {
   const [deliveryDate, setDeliveryDate] = useState("");
   const [poReference, setPoReference] = useState("");
   const [catalogOpen, setCatalogOpen] = useState(false);
-  // This dialog is opened programmatically (no Base UI trigger), so Base UI's
-  // openMethod stays null and its default initial focus lands on the first
-  // tabbable element — the search input. On iOS, a focused text input eats the
-  // first touch (dismissing/blurring it) instead of scrolling, which is the
-  // "tap once to make swiping work" bug. On touch devices we send initial focus
-  // to the scroll region (a non-input, tabIndex=-1) instead, so there's nothing
-  // to blur and the first swipe scrolls. Non-touch keeps the search autofocus.
-  const catalogScrollRef = useRef<HTMLDivElement>(null);
 
   const debouncedSearch = useDebouncedValue(search);
   const createOrder = useAdminCreateOrder();
@@ -449,12 +441,7 @@ export function NewOrderPage() {
           {/* Catalog picker — the long, scrollable browse lives here, off the
               main flow, so the order summary + submit are never buried. */}
           <Dialog open={catalogOpen} onOpenChange={setCatalogOpen}>
-            <DialogContent
-              className="flex h-[85dvh] flex-col gap-0 overflow-hidden p-0 sm:max-w-3xl"
-              initialFocus={() =>
-                window.matchMedia("(pointer: coarse)").matches ? catalogScrollRef.current : true
-              }
-            >
+            <DialogContent className="flex h-[85dvh] flex-col gap-0 overflow-hidden p-0 sm:max-w-3xl">
               <DialogHeader className="border-b p-4 pr-12">
                 <DialogTitle>Προσθήκη προϊόντων</DialogTitle>
                 <DialogDescription>Τιμές για {customer.name}</DialogDescription>
@@ -493,11 +480,7 @@ export function NewOrderPage() {
                 </div>
               </DialogHeader>
 
-              <div
-                ref={catalogScrollRef}
-                tabIndex={-1}
-                className="flex-1 overflow-y-auto p-4 outline-none"
-              >
+              <div className="flex-1 overflow-y-auto p-4">
                 {isLoading ? (
                   <div className="flex justify-center py-12">
                     <Spinner />
