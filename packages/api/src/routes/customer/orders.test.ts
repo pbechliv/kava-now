@@ -39,6 +39,7 @@ suite("customer orders (server-side pricing + customer scoping)", () => {
 
   let tenantId = "";
   let productId = "";
+  let custAId = "";
   const cookies: Record<string, string> = {};
 
   const api = (cookie: string, path: string, init?: Omit<RequestInit, "headers">) =>
@@ -105,7 +106,7 @@ suite("customer orders (server-side pricing + customer scoping)", () => {
     });
     tenantId = created.tenantId;
 
-    const customerAId = await provisionCustomerUser(custAEmail, "Customer A");
+    custAId = await provisionCustomerUser(custAEmail, "Customer A");
     await provisionCustomerUser(custBEmail, "Customer B");
 
     // Product priced to hit the float-rounding regression (2.01 at 50% must
@@ -118,7 +119,7 @@ suite("customer orders (server-side pricing + customer scoping)", () => {
       productId = must(p).id;
       await db.insert(schema.customerBrandPricing).values({
         tenantId,
-        customerId: customerAId,
+        customerId: custAId,
         brand: "TBrand",
         discountPct: "50.00",
       });
@@ -188,6 +189,44 @@ suite("customer orders (server-side pricing + customer scoping)", () => {
     const numbers = (list.data as { id: string; orderNumber: number }[]).map((o) => o.orderNumber);
     expect(numbers).toContain(first.order.orderNumber);
     expect(numbers).toContain(second.order.orderNumber);
+  });
+
+  it("filters order history by status and date range (#178)", async () => {
+    // A delivered order dated in the distant past — isolates it from the other
+    // orders this customer placed above (all pending, dated today).
+    const pastOrderId = await runWithTenant(tenantId, async () => {
+      const [order] = await db
+        .insert(schema.orders)
+        .values({
+          tenantId,
+          customerId: custAId,
+          orderNumber: 90001,
+          status: "delivered",
+          createdAt: new Date("2020-06-15T12:00:00Z"),
+        })
+        .returning({ id: schema.orders.id });
+      const oid = must(order).id;
+      await db
+        .insert(schema.orderItems)
+        .values({ orderId: oid, productId, quantity: 1, unitPrice: "1.01", productName: "Gin" });
+      return oid;
+    });
+
+    const ids = async (query: string) => {
+      const list = await (await api(must(cookies.a), `/orders${query}`)).json();
+      return new Set((list.data as { id: string }[]).map((r) => r.id));
+    };
+
+    // Status: the delivered order matches; a status it isn't excludes it.
+    expect((await ids("?status=delivered")).has(pastOrderId)).toBe(true);
+    expect((await ids("?status=pending")).has(pastOrderId)).toBe(false);
+
+    // Date range: 2020 window includes it; a 2019 window excludes it.
+    expect((await ids("?dateFrom=2020-01-01&dateTo=2020-12-31")).has(pastOrderId)).toBe(true);
+    expect((await ids("?dateFrom=2019-01-01&dateTo=2019-12-31")).has(pastOrderId)).toBe(false);
+
+    // Garbage date is rejected at the boundary, not surfaced as a 500 (#55).
+    expect((await api(must(cookies.a), "/orders?dateFrom=garbage")).status).toBe(400);
   });
 
   it("catalog/resolve returns the customer's current price and availability", async () => {

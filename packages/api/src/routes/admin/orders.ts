@@ -1,8 +1,9 @@
 import { validationError } from "../../validation";
 import { Hono } from "hono";
-import { eq, ne, and, sql, gte, lte, desc, notInArray, inArray } from "drizzle-orm";
+import { eq, ne, and, or, sql, gte, lte, desc, notInArray, inArray, exists } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
 import { afterTenantCommit, db } from "../../db/connection";
+import { accentInsensitiveLike } from "../../db/search";
 import {
   orders,
   orderItems,
@@ -225,12 +226,32 @@ ordersRouter.get("/", async (c) => {
   if (!parsed.success) {
     return validationError(c, parsed.error);
   }
-  const { status, erpStatus, customerId, dateFrom, dateTo, page, pageSize } = parsed.data;
+  const { status, erpStatus, customerId, dateFrom, dateTo, search, page, pageSize } = parsed.data;
 
   const conditions: ReturnType<typeof eq>[] = [eq(orders.tenantId, tenantId)];
 
   if (status) {
     conditions.push(eq(orders.status, status));
+  }
+  if (search) {
+    // Match the order's own note or any of its line items' product names. The
+    // product-name match is an EXISTS subquery, NOT a join predicate — filtering
+    // the aggregation join would drop non-matching lines from the totals/counts.
+    const match = or(
+      accentInsensitiveLike(orders.notes, search),
+      exists(
+        db
+          .select({ one: sql`1` })
+          .from(orderItems)
+          .where(
+            and(
+              eq(orderItems.orderId, orders.id),
+              accentInsensitiveLike(orderItems.productName, search),
+            ),
+          ),
+      ),
+    );
+    if (match) conditions.push(match);
   }
   if (erpStatus) {
     conditions.push(eq(orders.erpStatus, erpStatus));

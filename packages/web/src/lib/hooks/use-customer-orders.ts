@@ -8,12 +8,12 @@ import type {
   CustomerOrderListItem,
   CustomerOrderDetailResponse,
   ReorderPreviewResponse,
-  PageOnlySearch,
+  CustomerOrdersSearch,
   PaginatedResponse,
 } from "@kava-now/shared";
 import { useCartStore } from "../store/cart";
 
-type CustomerOrdersFilters = PageOnlySearch & { pageSize?: number };
+type CustomerOrdersFilters = CustomerOrdersSearch & { pageSize?: number };
 
 export function useCustomerOrders(filters?: CustomerOrdersFilters) {
   const slug = useTenantSlug();

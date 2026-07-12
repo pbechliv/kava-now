@@ -1,9 +1,9 @@
 import { validationError } from "../../validation";
 import { Hono } from "hono";
-import { eq, and, desc, sql, inArray } from "drizzle-orm";
+import { eq, and, desc, sql, inArray, gte, lte } from "drizzle-orm";
 import {
   createOrderSchema,
-  paginationQuerySchema,
+  customerOrdersQuerySchema,
   API_ERROR_CODES,
   type CustomerOrderListItem,
   type CustomerOrderDetailResponse,
@@ -197,16 +197,27 @@ ordersRouter.get("/", async (c) => {
   const tenantId = getTenantId(c);
   const customerId = getCustomerId(c);
 
-  const pagination = paginationQuerySchema.safeParse({
-    page: c.req.query("page"),
-    pageSize: c.req.query("pageSize"),
-  });
-  if (!pagination.success) {
-    return validationError(c, pagination.error);
+  const parsed = customerOrdersQuerySchema.safeParse(c.req.query());
+  if (!parsed.success) {
+    return validationError(c, parsed.error);
   }
-  const { page, pageSize } = pagination.data;
+  const { status, dateFrom, dateTo, page, pageSize } = parsed.data;
 
-  const whereClause = and(eq(orders.tenantId, tenantId), eq(orders.customerId, customerId));
+  const conditions = [eq(orders.tenantId, tenantId), eq(orders.customerId, customerId)];
+  if (status) {
+    conditions.push(eq(orders.status, status));
+  }
+  if (dateFrom) {
+    conditions.push(gte(orders.createdAt, new Date(dateFrom)));
+  }
+  if (dateTo) {
+    // Include the entire dateTo day (mirrors the admin orders list).
+    const endDate = new Date(dateTo);
+    endDate.setDate(endDate.getDate() + 1);
+    conditions.push(lte(orders.createdAt, endDate));
+  }
+
+  const whereClause = and(...conditions);
 
   const [countRow] = await db
     .select({ total: sql<number>`count(*)::int` })
