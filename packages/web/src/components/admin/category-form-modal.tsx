@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Loader2 } from "lucide-react";
@@ -26,27 +26,25 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+  CategoryPickerCombobox,
+  type CategoryPickerValue,
+} from "@/components/admin/category-picker-combobox";
 import { useCreateCategory, useUpdateCategory } from "@/lib/hooks/use-categories";
 
 interface Props {
   open: boolean;
   /** The category being edited; `undefined` opens the modal in create mode. */
   category?: CategoryWithParentName;
-  /** All categories, used to populate the parent picker. */
-  categories: CategoryWithParentName[];
   onClose: () => void;
 }
 
-export function CategoryFormModal({ open, category, categories, onClose }: Props) {
+export function CategoryFormModal({ open, category, onClose }: Props) {
   const isEdit = !!category;
   const createMutation = useCreateCategory();
   const updateMutation = useUpdateCategory();
+  // The picker needs the parent's name for its label; the form field holds only
+  // the id, so mirror the selection here (seeded from the category on edit).
+  const [parentSel, setParentSel] = useState<CategoryPickerValue | null>(null);
 
   const form = useForm<CreateCategoryInput>({
     resolver: zodResolver(createCategorySchema),
@@ -54,19 +52,15 @@ export function CategoryFormModal({ open, category, categories, onClose }: Props
 
   useEffect(() => {
     if (!open) return;
+    setParentSel(
+      category?.parentId ? { id: category.parentId, name: category.parentName ?? "" } : null,
+    );
     form.reset({
       name: category?.name ?? "",
       parentId: category?.parentId ?? null,
       sortOrder: category?.sortOrder ?? 0,
     });
   }, [open, category, form]);
-
-  // A category can't be its own parent.
-  const parentOptions = categories.filter((c) => c.id !== category?.id);
-  const parentItems = [
-    { value: "none", label: "Καμία" },
-    ...parentOptions.map((c) => ({ value: c.id, label: c.name })),
-  ];
 
   const onSubmit = (data: CreateCategoryInput) => {
     const payload = {
@@ -126,25 +120,17 @@ export function CategoryFormModal({ open, category, categories, onClose }: Props
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Γονική κατηγορία</FormLabel>
-                  <Select
-                    items={parentItems}
-                    value={field.value || "none"}
-                    onValueChange={(v) => field.onChange(v && v !== "none" ? v : null)}
-                  >
-                    <FormControl>
-                      <SelectTrigger className="w-full">
-                        <SelectValue placeholder="Καμία" />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      <SelectItem value="none">Καμία</SelectItem>
-                      {parentOptions.map((c) => (
-                        <SelectItem key={c.id} value={c.id}>
-                          {c.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <FormControl>
+                    <CategoryPickerCombobox
+                      placeholder="Καμία"
+                      selected={parentSel}
+                      excludeId={category?.id}
+                      onSelect={(parent) => {
+                        setParentSel(parent);
+                        field.onChange(parent?.id ?? null);
+                      }}
+                    />
+                  </FormControl>
                   <FormMessage />
                 </FormItem>
               )}

@@ -18,7 +18,7 @@ import { ConfirmDialog } from "@/components/confirm-dialog";
 import { PaginationControls } from "@/components/pagination-controls";
 import { useFilterSearch } from "@/lib/hooks/use-filter-search";
 import { useDeleteConfirmation } from "@/lib/hooks/use-delete-confirmation";
-import { useCategories, useCategoriesList, useDeleteCategory } from "@/lib/hooks/use-categories";
+import { useCategoriesList, useDeleteCategory } from "@/lib/hooks/use-categories";
 import { CategoryFormModal } from "@/components/admin/category-form-modal";
 import { PAGE_SIZE } from "@/lib/constants";
 
@@ -28,9 +28,6 @@ export function CategoriesPage() {
   const { data, isLoading } = useCategoriesList({ page, pageSize: PAGE_SIZE });
   const categories = data?.data ?? [];
   const total = data?.total ?? 0;
-  // Full list (unpaginated) so the form's parent-category dropdown offers every
-  // category, not just the current page.
-  const { data: allCategories } = useCategories();
   const deleteMutation = useDeleteCategory();
   const del = useDeleteConfirmation(deleteMutation);
 
@@ -147,7 +144,6 @@ export function CategoriesPage() {
       <CategoryFormModal
         open={modalOpen}
         category={editTarget}
-        categories={allCategories ?? []}
         onClose={() => {
           setModalOpen(false);
           setEditTarget(undefined);

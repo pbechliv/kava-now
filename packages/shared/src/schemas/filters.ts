@@ -64,6 +64,10 @@ export const adminCustomersFiltersSchema = z.object({
   search: optionalSearch,
 });
 
+export const adminCategoriesFiltersSchema = z.object({
+  search: optionalSearch,
+});
+
 export const catalogFiltersSchema = z.object({
   search: optionalSearch,
   categoryId: optionalUuid,
@@ -81,6 +85,7 @@ export const adminOrdersQuerySchema = adminOrdersFiltersSchema.merge(paginationQ
 export const customerOrdersQuerySchema = customerOrdersFiltersSchema.merge(paginationQuerySchema);
 export const adminProductsQuerySchema = adminProductsFiltersSchema.merge(paginationQuerySchema);
 export const adminCustomersQuerySchema = adminCustomersFiltersSchema.merge(paginationQuerySchema);
+export const adminCategoriesQuerySchema = adminCategoriesFiltersSchema.merge(paginationQuerySchema);
 export const catalogQuerySchema = catalogFiltersSchema.merge(paginationQuerySchema);
 export const adminCatalogQuerySchema = adminCatalogFiltersSchema.merge(paginationQuerySchema);
 

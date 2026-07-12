@@ -4,14 +4,14 @@ import { eq, and, sql, asc } from "drizzle-orm";
 import {
   createCategorySchema,
   updateCategorySchema,
-  optionalPaginationQuerySchema,
-  DEFAULT_PAGE_SIZE,
+  adminCategoriesQuerySchema,
   type CategoryWithParentName,
   type PaginatedResponse,
   API_ERROR_CODES,
   type SuccessResponse,
 } from "@kava-now/shared";
 import { db } from "../../db/connection";
+import { accentInsensitiveLike } from "../../db/search";
 import { categories, products } from "../../db/schema/index";
 import { isUniqueViolation, UNIQUE_CONSTRAINTS } from "../../db/errors";
 import type { AppEnv } from "../../types";
@@ -62,22 +62,24 @@ async function createsParentCycle(
   return false;
 }
 
-// GET / — list categories ordered by sortOrder, include parent info.
-// Serves two callers from one route: with `page` it returns a paginated slice
-// (the admin list view); without it, the full list — the category dropdowns
-// (products filter, product form) need every option, which a single page can't
-// give. Response shape is identical either way.
+// GET / — paginated categories ordered by sortOrder, include parent info.
+// Optional accent-insensitive `search` on the name backs the category picker
+// combobox (server-side search, so no fetch-all list exists anywhere).
 categoriesRouter.get("/", async (c) => {
   const tenantId = getTenantId(c);
 
-  const parsed = optionalPaginationQuerySchema.safeParse(c.req.query());
+  const parsed = adminCategoriesQuerySchema.safeParse(c.req.query());
   if (!parsed.success) {
     return validationError(c, parsed.error);
   }
-  const { page } = parsed.data;
-  const pageSize = parsed.data.pageSize ?? DEFAULT_PAGE_SIZE;
+  const { search, page, pageSize } = parsed.data;
 
-  const whereClause = eq(categories.tenantId, tenantId);
+  const conditions = [eq(categories.tenantId, tenantId)];
+  if (search) {
+    const match = accentInsensitiveLike(categories.name, search);
+    if (match) conditions.push(match);
+  }
+  const whereClause = and(...conditions);
 
   const [countRow] = await db
     .select({ total: sql<number>`count(*)::int` })
@@ -85,7 +87,7 @@ categoriesRouter.get("/", async (c) => {
     .where(whereClause);
   const total = countRow?.total ?? 0;
 
-  const baseQuery = db
+  const rows = await db
     .select({
       id: categories.id,
       tenantId: categories.tenantId,
@@ -100,18 +102,45 @@ categoriesRouter.get("/", async (c) => {
     .leftJoin(parentCategory, eq(categories.parentId, parentCategory.id))
     .where(whereClause)
     .orderBy(asc(categories.sortOrder), asc(categories.name))
-    .$dynamic();
-
-  const rows = page
-    ? await baseQuery.limit(pageSize).offset((page - 1) * pageSize)
-    : await baseQuery;
+    .limit(pageSize)
+    .offset((page - 1) * pageSize);
 
   const body = {
     data: rows,
     total,
-    page: page ?? 1,
-    pageSize: page ? pageSize : total,
+    page,
+    pageSize,
   } satisfies PreSerialize<PaginatedResponse<CategoryWithParentName>>;
+  return c.json(body);
+});
+
+// GET /:id — one category (with parent name). Lets the category picker resolve
+// a selected id back to its label after a reload, without loading every row.
+categoriesRouter.get("/:id", async (c) => {
+  const tenantId = getTenantId(c);
+  const id = c.req.param("id");
+
+  const [category] = await db
+    .select({
+      id: categories.id,
+      tenantId: categories.tenantId,
+      name: categories.name,
+      parentId: categories.parentId,
+      sortOrder: categories.sortOrder,
+      createdAt: categories.createdAt,
+      updatedAt: categories.updatedAt,
+      parentName: parentCategory.name,
+    })
+    .from(categories)
+    .leftJoin(parentCategory, eq(categories.parentId, parentCategory.id))
+    .where(and(eq(categories.id, id), eq(categories.tenantId, tenantId)))
+    .limit(1);
+
+  if (!category) {
+    return c.json({ error: "Category not found" }, 404);
+  }
+
+  const body = category satisfies PreSerialize<CategoryWithParentName>;
   return c.json(body);
 });
 

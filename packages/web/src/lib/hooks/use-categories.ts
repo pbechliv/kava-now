@@ -12,21 +12,11 @@ import type {
 
 type CategoryWithParent = CategoryWithParentName;
 
-// Every category in the tenant (no pagination) — feeds the category dropdowns
-// in the products filter and the product/category forms, which need all options.
-export function useCategories() {
-  const slug = useTenantSlug();
-  const tApi = useTenantApi();
-  return useQuery({
-    queryKey: ["admin", slug, "categories"],
-    queryFn: () =>
-      tApi.get<PaginatedResponse<CategoryWithParent>>("/admin/categories").then((r) => r.data),
-  });
-}
+type CategoryFilters = PageOnlySearch & { search?: string; pageSize?: number };
 
-type CategoryFilters = PageOnlySearch & { pageSize?: number };
-
-// Paginated slice for the admin categories list view.
+// Paginated categories — the admin list view (page/pageSize) and the category
+// picker combobox (server-side `search`) both read from here. No fetch-all
+// variant exists; every consumer paginates.
 export function useCategoriesList(filters?: CategoryFilters) {
   const slug = useTenantSlug();
   const tApi = useTenantApi();
@@ -35,6 +25,18 @@ export function useCategoriesList(filters?: CategoryFilters) {
     queryKey: ["admin", slug, "categories", "list", filters],
     queryFn: () => tApi.get<PaginatedResponse<CategoryWithParent>>(path),
     placeholderData: keepPreviousData,
+  });
+}
+
+// One category by id — lets the picker resolve a selected id back to its label
+// (e.g. a bookmarked products filter) without loading the whole list.
+export function useCategory(id: string | undefined) {
+  const slug = useTenantSlug();
+  const tApi = useTenantApi();
+  return useQuery({
+    queryKey: ["admin", slug, "categories", id],
+    queryFn: () => tApi.get<CategoryWithParent>(`/admin/categories/${id}`),
+    enabled: !!id,
   });
 }
 
