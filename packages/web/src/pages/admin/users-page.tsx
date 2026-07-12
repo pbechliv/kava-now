@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
-import { ROLE_LABELS } from "@kava-now/shared";
+import { ROLE_LABELS, type PageOnlySearch } from "@kava-now/shared";
 import {
   useUsers,
   useInviteUser,
@@ -17,14 +17,19 @@ import { InvitationStatusBadge } from "@/components/admin/invitation-status-badg
 import { ResponsiveTable, type ResponsiveTableColumn } from "@/components/ui/responsive-table";
 import { Spinner } from "@/components/spinner";
 import { ConfirmDialog } from "@/components/confirm-dialog";
+import { PaginationControls } from "@/components/pagination-controls";
+import { useFilterSearch } from "@/lib/hooks/use-filter-search";
 import { InviteUserDialog } from "@/components/admin/invite-user-dialog";
 import { UserInviteActions, useResendInviteFeedback } from "@/components/admin/user-invite-actions";
+import { PAGE_SIZE } from "@/lib/constants";
 
-type UserRow = NonNullable<ReturnType<typeof useUsers>["data"]>["users"][number];
+type UserRow = NonNullable<ReturnType<typeof useUsers>["data"]>["data"][number];
 
 export function UsersPage() {
   const { user: me, currentMembership } = useAuth();
-  const { data, isLoading } = useUsers();
+  const { search, setFilters } = useFilterSearch<PageOnlySearch>();
+  const page = search.page ?? 1;
+  const { data, isLoading } = useUsers({ page, pageSize: PAGE_SIZE });
   const invite = useInviteUser();
   const remove = useDeleteUser();
   const resend = useResendInvite();
@@ -42,7 +47,8 @@ export function UsersPage() {
     );
   }
 
-  const users = data?.users ?? [];
+  const users = data?.data ?? [];
+  const total = data?.total ?? 0;
   const canPromote = currentMembership?.role === "owner";
 
   const promoteButton = (u: { id: string; role: string }) =>
@@ -173,6 +179,13 @@ export function UsersPage() {
             )}
           </>
         )}
+      />
+
+      <PaginationControls
+        page={page}
+        pageSize={PAGE_SIZE}
+        total={total}
+        onPageChange={(p) => setFilters({ page: p })}
       />
 
       <InviteUserDialog

@@ -314,6 +314,7 @@ const categoriesRoute = createRoute({
   getParentRoute: () => tenantAdminRoute,
   path: "categories",
   component: CategoriesPage,
+  validateSearch: pageOnlySearchSchema,
 });
 const customersRoute = createRoute({
   getParentRoute: () => tenantAdminRoute,
@@ -325,6 +326,7 @@ const customerUsersRoute = createRoute({
   getParentRoute: () => tenantAdminRoute,
   path: "customers/$id/users",
   component: CustomerUsersPage,
+  validateSearch: pageOnlySearchSchema,
 });
 const customerBrandPricingRoute = createRoute({
   getParentRoute: () => tenantAdminRoute,
@@ -335,6 +337,7 @@ const usersRoute = createRoute({
   getParentRoute: () => tenantAdminRoute,
   path: "users",
   component: UsersPage,
+  validateSearch: pageOnlySearchSchema,
 });
 const ordersRoute = createRoute({
   getParentRoute: () => tenantAdminRoute,

@@ -5,8 +5,11 @@ import { alias } from "drizzle-orm/pg-core";
 import {
   API_ERROR_CODES,
   inviteStaffUserSchema,
+  optionalPaginationQuerySchema,
+  DEFAULT_PAGE_SIZE,
   type SuccessResponse,
-  type UsersListResponse,
+  type AdminUserListItem,
+  type PaginatedResponse,
 } from "@kava-now/shared";
 import { db } from "../../db/connection";
 import { accounts, tenantMemberships, users } from "../../db/schema/index";
@@ -21,12 +24,33 @@ import { getMembership, getTenant, getTenantId, getUser } from "../../context";
 
 const usersRouter = new Hono<AppEnv>();
 
-// GET / — list users with a non-customer membership in this tenant (owners + staff)
+// GET / — list owners + staff (non-customer memberships) in this tenant.
+// With `page` it returns a paginated slice (the admin users list); without it,
+// the full list — the assigned-users picker filters every staff/owner
+// client-side and can't work off a single page. Same response shape either way.
 usersRouter.get("/", async (c) => {
   const tenantId = getTenantId(c);
   const inviter = alias(users, "inviter");
 
-  const rows = await db
+  const parsed = optionalPaginationQuerySchema.safeParse(c.req.query());
+  if (!parsed.success) {
+    return validationError(c, parsed.error);
+  }
+  const { page } = parsed.data;
+  const pageSize = parsed.data.pageSize ?? DEFAULT_PAGE_SIZE;
+
+  const whereClause = and(
+    eq(tenantMemberships.tenantId, tenantId),
+    ne(tenantMemberships.role, "customer"),
+  );
+
+  const [countRow] = await db
+    .select({ total: sql<number>`count(*)::int` })
+    .from(tenantMemberships)
+    .where(whereClause);
+  const total = countRow?.total ?? 0;
+
+  const baseQuery = db
     .select({
       id: users.id,
       email: users.email,
@@ -41,10 +65,20 @@ usersRouter.get("/", async (c) => {
     .from(tenantMemberships)
     .innerJoin(users, eq(users.id, tenantMemberships.userId))
     .leftJoin(inviter, eq(tenantMemberships.invitedById, inviter.id))
-    .where(and(eq(tenantMemberships.tenantId, tenantId), ne(tenantMemberships.role, "customer")))
-    .orderBy(tenantMemberships.createdAt);
+    .where(whereClause)
+    .orderBy(tenantMemberships.createdAt)
+    .$dynamic();
 
-  const body = { users: rows } satisfies PreSerialize<UsersListResponse>;
+  const rows = page
+    ? await baseQuery.limit(pageSize).offset((page - 1) * pageSize)
+    : await baseQuery;
+
+  const body = {
+    data: rows,
+    total,
+    page: page ?? 1,
+    pageSize: page ? pageSize : total,
+  } satisfies PreSerialize<PaginatedResponse<AdminUserListItem>>;
   return c.json(body);
 });
 

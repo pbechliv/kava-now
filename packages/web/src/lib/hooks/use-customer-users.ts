@@ -1,22 +1,27 @@
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient, keepPreviousData } from "@tanstack/react-query";
 import { useTenantApi, useTenantSlug } from "./use-tenant-api";
+import { withQuery } from "../utils";
 import type {
   InviteCustomerUserInput,
-  CustomerLinkedUsersResponse,
+  CustomerLinkedUser,
+  PageOnlySearch,
+  PaginatedResponse,
   SuccessResponse,
 } from "@kava-now/shared";
 
 export type { InviteCustomerUserInput };
 
-type CustomerUsersResponse = CustomerLinkedUsersResponse;
+type CustomerUsersFilters = PageOnlySearch & { pageSize?: number };
 
-export function useCustomerUsers(customerId: string | undefined) {
+export function useCustomerUsers(customerId: string | undefined, filters?: CustomerUsersFilters) {
   const slug = useTenantSlug();
   const tApi = useTenantApi();
+  const path = withQuery(`/admin/customers/${customerId}/users`, filters);
   return useQuery({
-    queryKey: ["admin", slug, "customer-users", customerId],
-    queryFn: () => tApi.get<CustomerUsersResponse>(`/admin/customers/${customerId}/users`),
+    queryKey: ["admin", slug, "customer-users", customerId, filters],
+    queryFn: () => tApi.get<PaginatedResponse<CustomerLinkedUser>>(path),
     enabled: !!customerId,
+    placeholderData: keepPreviousData,
   });
 }
 

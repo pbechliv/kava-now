@@ -4,7 +4,10 @@ import { eq, and, sql, asc } from "drizzle-orm";
 import {
   createCategorySchema,
   updateCategorySchema,
+  optionalPaginationQuerySchema,
+  DEFAULT_PAGE_SIZE,
   type CategoryWithParentName,
+  type PaginatedResponse,
   API_ERROR_CODES,
   type SuccessResponse,
 } from "@kava-now/shared";
@@ -59,11 +62,30 @@ async function createsParentCycle(
   return false;
 }
 
-// GET / — list categories ordered by sortOrder, include parent info
+// GET / — list categories ordered by sortOrder, include parent info.
+// Serves two callers from one route: with `page` it returns a paginated slice
+// (the admin list view); without it, the full list — the category dropdowns
+// (products filter, product form) need every option, which a single page can't
+// give. Response shape is identical either way.
 categoriesRouter.get("/", async (c) => {
   const tenantId = getTenantId(c);
 
-  const rows = await db
+  const parsed = optionalPaginationQuerySchema.safeParse(c.req.query());
+  if (!parsed.success) {
+    return validationError(c, parsed.error);
+  }
+  const { page } = parsed.data;
+  const pageSize = parsed.data.pageSize ?? DEFAULT_PAGE_SIZE;
+
+  const whereClause = eq(categories.tenantId, tenantId);
+
+  const [countRow] = await db
+    .select({ total: sql<number>`count(*)::int` })
+    .from(categories)
+    .where(whereClause);
+  const total = countRow?.total ?? 0;
+
+  const baseQuery = db
     .select({
       id: categories.id,
       tenantId: categories.tenantId,
@@ -76,10 +98,20 @@ categoriesRouter.get("/", async (c) => {
     })
     .from(categories)
     .leftJoin(parentCategory, eq(categories.parentId, parentCategory.id))
-    .where(eq(categories.tenantId, tenantId))
-    .orderBy(asc(categories.sortOrder), asc(categories.name));
+    .where(whereClause)
+    .orderBy(asc(categories.sortOrder), asc(categories.name))
+    .$dynamic();
 
-  const body = rows satisfies PreSerialize<CategoryWithParentName[]>;
+  const rows = page
+    ? await baseQuery.limit(pageSize).offset((page - 1) * pageSize)
+    : await baseQuery;
+
+  const body = {
+    data: rows,
+    total,
+    page: page ?? 1,
+    pageSize: page ? pageSize : total,
+  } satisfies PreSerialize<PaginatedResponse<CategoryWithParentName>>;
   return c.json(body);
 });
 
