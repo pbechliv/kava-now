@@ -26,11 +26,24 @@ import { useProducts, useUpdateProduct, useDeleteProduct } from "@/lib/hooks/use
 import { useCategories } from "@/lib/hooks/use-categories";
 import { useDeleteConfirmation } from "@/lib/hooks/use-delete-confirmation";
 import { ProductFormModal } from "@/components/admin/product-form-modal";
-import { UNIT_LABELS, type AdminProductsSearch, type ImportProductsResult } from "@kava-now/shared";
+import {
+  UNIT_LABELS,
+  type AdminProductsSearch,
+  type ImportProductsResult,
+  type ProductActiveFilter,
+} from "@kava-now/shared";
 import { PAGE_SIZE } from "@/lib/constants";
 import { formatMoney } from "@/lib/format";
 
 type ProductRow = NonNullable<ReturnType<typeof useProducts>["data"]>["data"][number];
+
+// Base UI's <Select.Value> needs this value→label map to render the selected
+// label in the trigger; without `items` it falls back to the raw value.
+const ACTIVE_FILTER_ITEMS: { value: ProductActiveFilter; label: string }[] = [
+  { value: "active", label: "Ενεργά" },
+  { value: "inactive", label: "Ανενεργά" },
+  { value: "all", label: "Όλα" },
+];
 
 export function ProductsPage() {
   const navigate = useNavigate();
@@ -40,6 +53,8 @@ export function ProductsPage() {
   const importResult = location.state.importResult ?? null;
   const { search: urlSearch, setFilters } = useFilterSearch<AdminProductsSearch>();
   const categoryFilter = urlSearch.categoryId ?? "";
+  // Absent = the default "active only" view (#170).
+  const activeFilter: ProductActiveFilter = urlSearch.active ?? "active";
   const page = urlSearch.page ?? 1;
   // Local mirror of the search box for responsive typing; debounced into the URL.
   const [search, setSearch] = useState(urlSearch.search ?? "");
@@ -73,6 +88,7 @@ export function ProductsPage() {
   const { data, isLoading } = useProducts({
     search: urlSearch.search,
     categoryId: urlSearch.categoryId,
+    active: urlSearch.active,
     page,
     pageSize: PAGE_SIZE,
   });
@@ -99,6 +115,11 @@ export function ProductsPage() {
   const columns: ResponsiveTableColumn<ProductRow>[] = [
     { header: "Όνομα", cellClassName: "font-medium", cell: (p) => p.name },
     { header: "Brand", cellClassName: "text-muted-foreground", cell: (p) => p.brand ?? "-" },
+    {
+      header: "ERP",
+      cellClassName: "text-muted-foreground font-mono text-xs",
+      cell: (p) => p.erpRef ?? "-",
+    },
     {
       header: "Κατηγορία",
       cellClassName: "text-muted-foreground",
@@ -200,14 +221,34 @@ export function ProductsPage() {
       <FilterBar
         search={
           <SearchInput
-            placeholder="Αναζήτηση με όνομα ή brand..."
+            placeholder="Αναζήτηση με όνομα, brand ή ERP..."
             value={search}
             onValueChange={setSearch}
           />
         }
-        activeCount={categoryFilter ? 1 : 0}
-        onClear={() => setFilters({ categoryId: undefined })}
+        activeCount={(categoryFilter ? 1 : 0) + (activeFilter !== "active" ? 1 : 0)}
+        onClear={() => setFilters({ categoryId: undefined, active: undefined })}
       >
+        <FilterField label="Κατάσταση" className="md:w-44">
+          <Select
+            items={ACTIVE_FILTER_ITEMS}
+            value={activeFilter}
+            onValueChange={(v) =>
+              setFilters({ active: v === "active" ? undefined : (v as ProductActiveFilter) })
+            }
+          >
+            <SelectTrigger className="w-full" aria-label="Κατάσταση">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {ACTIVE_FILTER_ITEMS.map((item) => (
+                <SelectItem key={item.value} value={item.value}>
+                  {item.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </FilterField>
         <FilterField label="Κατηγορία">
           <Select
             items={[
@@ -256,6 +297,11 @@ export function ProductsPage() {
                     <div className="text-sm text-muted-foreground">
                       {[product.brand, product.categoryName].filter(Boolean).join(" · ") || "-"}
                     </div>
+                    {product.erpRef && (
+                      <div className="font-mono text-xs text-muted-foreground">
+                        ERP: {product.erpRef}
+                      </div>
+                    )}
                   </div>
                   <button
                     type="button"
