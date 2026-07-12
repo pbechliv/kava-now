@@ -529,6 +529,46 @@ suite("admin order mutations (HTTP, hard lock + soft-cancel totals)", () => {
     expect(filtered.status).toBe(400);
   });
 
+  it("free-text search matches the order note and line-item product names, totals stay whole (#178)", async () => {
+    const tag = `find${suffix}`;
+    const orderId = await runWithTenant(tenantId, async () => {
+      const [order] = await db
+        .insert(schema.orders)
+        .values({ tenantId, customerId, orderNumber: ++orderSeq, notes: `note-${tag}` })
+        .returning({ id: schema.orders.id });
+      const oid = must(order).id;
+      await db.insert(schema.orderItems).values([
+        {
+          orderId: oid,
+          productId: p1,
+          quantity: 2,
+          unitPrice: "10.00",
+          productName: `Widget-${tag}`,
+        },
+        { orderId: oid, productId: p2, quantity: 3, unitPrice: "5.00", productName: "Plain" },
+      ]);
+      return oid;
+    });
+
+    const row = async (query: string) => {
+      const list = await (await api(`/orders${query}`)).json();
+      return list.data.find((r: { id: string }) => r.id === orderId);
+    };
+
+    // Match by note — and the total must span BOTH lines (2×10 + 3×5 = 35),
+    // proving the product-name match is an EXISTS subquery, not a join predicate
+    // that would drop the non-matching sibling line from the aggregate.
+    const byNote = await row(`?search=note-${tag}`);
+    expect(byNote).toBeTruthy();
+    expect(byNote.total).toBe(35);
+
+    // Match by a line-item product name.
+    expect(await row(`?search=Widget-${tag}`)).toBeTruthy();
+
+    // No match for an unrelated term.
+    expect(await row(`?search=zzz-${tag}-nope`)).toBeUndefined();
+  });
+
   it("customer/product deletion never destroys order history (no-action FK)", async () => {
     await createOrder();
 

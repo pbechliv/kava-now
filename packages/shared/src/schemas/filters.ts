@@ -39,6 +39,16 @@ export const adminOrdersFiltersSchema = z.object({
   customerId: optionalUuid,
   dateFrom: optionalIsoDate,
   dateTo: optionalIsoDate,
+  // Free-text search across the order's note and its line-item product names.
+  search: optionalSearch,
+});
+
+// Customer order history filters (#178): status + date range. No customer/erp
+// filter — the list is already scoped to the one signed-in customer.
+export const customerOrdersFiltersSchema = z.object({
+  status: z.enum(ORDER_STATUSES).optional().catch(undefined),
+  dateFrom: optionalIsoDate,
+  dateTo: optionalIsoDate,
 });
 
 export const adminProductsFiltersSchema = z.object({
@@ -65,6 +75,7 @@ export const adminCatalogFiltersSchema = catalogFiltersSchema.extend({
 
 /** Merged filters + pagination schemas the API handlers validate against. */
 export const adminOrdersQuerySchema = adminOrdersFiltersSchema.merge(paginationQuerySchema);
+export const customerOrdersQuerySchema = customerOrdersFiltersSchema.merge(paginationQuerySchema);
 export const adminProductsQuerySchema = adminProductsFiltersSchema.merge(paginationQuerySchema);
 export const adminCustomersQuerySchema = adminCustomersFiltersSchema.merge(paginationQuerySchema);
 export const catalogQuerySchema = catalogFiltersSchema.merge(paginationQuerySchema);
@@ -83,6 +94,14 @@ export const adminOrdersSearchSchema = z.object({
   status: z.enum(ORDER_STATUSES).optional().catch(undefined),
   erpStatus: z.enum(ERP_STATUS_VALUES).optional().catch(undefined),
   customerId: z.string().optional().catch(undefined),
+  dateFrom: z.string().optional().catch(undefined),
+  dateTo: z.string().optional().catch(undefined),
+  search: z.string().optional().catch(undefined),
+  page: pageSearchField,
+});
+
+export const customerOrdersSearchSchema = z.object({
+  status: z.enum(ORDER_STATUSES).optional().catch(undefined),
   dateFrom: z.string().optional().catch(undefined),
   dateTo: z.string().optional().catch(undefined),
   page: pageSearchField,
@@ -111,6 +130,7 @@ export const pageOnlySearchSchema = z.object({
 });
 
 export type AdminOrdersSearch = z.infer<typeof adminOrdersSearchSchema>;
+export type CustomerOrdersSearch = z.infer<typeof customerOrdersSearchSchema>;
 export type AdminProductsSearch = z.infer<typeof adminProductsSearchSchema>;
 export type AdminCustomersSearch = z.infer<typeof adminCustomersSearchSchema>;
 export type CatalogSearch = z.infer<typeof catalogSearchSchema>;

@@ -13,6 +13,7 @@ import {
   adminProductsSearchSchema,
   adminCustomersSearchSchema,
   catalogSearchSchema,
+  customerOrdersSearchSchema,
   pageOnlySearchSchema,
   type ImportProductsResult,
 } from "@kava-now/shared";
@@ -391,7 +392,7 @@ const customerOrdersRoute = createRoute({
   getParentRoute: () => tenantCustomerLayoutRoute,
   path: "orders",
   component: OrderHistoryPage,
-  validateSearch: pageOnlySearchSchema,
+  validateSearch: customerOrdersSearchSchema,
 });
 const customerOrderDetailRoute = createRoute({
   getParentRoute: () => tenantCustomerLayoutRoute,

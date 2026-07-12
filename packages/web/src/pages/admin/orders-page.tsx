@@ -1,9 +1,11 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Link } from "@tanstack/react-router";
 import { Plus } from "lucide-react";
 import { useFilterSearch } from "@/lib/hooks/use-filter-search";
+import { useDebouncedValue } from "@/lib/hooks/use-debounced-value";
 import { buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { SearchInput } from "@/components/ui/search-input";
 import { useTenantSlug } from "@/lib/hooks/use-tenant-api";
 import { cn } from "@/lib/utils";
 import { FilterBar, FilterField } from "@/components/ui/filter-bar";
@@ -73,12 +75,22 @@ export function OrdersPage() {
   const dateTo = search.dateTo ?? "";
   const page = search.page ?? 1;
 
+  // Local mirror of the search box for responsive typing; debounced into the URL.
+  const [searchText, setSearchText] = useState(search.search ?? "");
+  const debouncedSearch = useDebouncedValue(searchText);
+  useEffect(() => {
+    if (debouncedSearch !== (search.search ?? "")) {
+      setFilters({ search: debouncedSearch || undefined });
+    }
+  }, [debouncedSearch, search.search, setFilters]);
+
   const { data, isLoading } = useAdminOrders({
     status: search.status,
     erpStatus: search.erpStatus,
     customerId: search.customerId,
     dateFrom: search.dateFrom,
     dateTo: search.dateTo,
+    search: search.search,
     page,
     pageSize: PAGE_SIZE,
   });
@@ -115,6 +127,13 @@ export function OrdersPage() {
       </Tabs>
 
       <FilterBar
+        search={
+          <SearchInput
+            placeholder="Αναζήτηση με προϊόν ή σημείωση..."
+            value={searchText}
+            onValueChange={setSearchText}
+          />
+        }
         activeCount={
           (search.customerId ? 1 : 0) +
           (dateFrom ? 1 : 0) +
