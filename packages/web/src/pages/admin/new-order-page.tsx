@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { Link, useNavigate } from "@tanstack/react-router";
 import { toast } from "sonner";
 import { ArrowLeft, Loader2, Minus, Plus, Trash2 } from "lucide-react";
@@ -68,6 +68,11 @@ export function NewOrderPage() {
   const [deliveryDate, setDeliveryDate] = useState("");
   const [poReference, setPoReference] = useState("");
   const [catalogOpen, setCatalogOpen] = useState(false);
+  // On touch, Base UI focuses the popup itself (an overflow-hidden shell) rather
+  // than a tabbable child — which leaves iOS Safari tying the first swipe to a
+  // non-scrollable element, so scrolling only starts after a stray tap. Point
+  // touch-open focus at the scroll region instead so the first swipe scrolls it.
+  const catalogScrollRef = useRef<HTMLDivElement>(null);
 
   const debouncedSearch = useDebouncedValue(search);
   const createOrder = useAdminCreateOrder();
@@ -441,7 +446,10 @@ export function NewOrderPage() {
           {/* Catalog picker — the long, scrollable browse lives here, off the
               main flow, so the order summary + submit are never buried. */}
           <Dialog open={catalogOpen} onOpenChange={setCatalogOpen}>
-            <DialogContent className="flex h-[85dvh] flex-col gap-0 overflow-hidden p-0 sm:max-w-3xl">
+            <DialogContent
+              className="flex h-[85dvh] flex-col gap-0 overflow-hidden p-0 sm:max-w-3xl"
+              initialFocus={(type) => (type === "touch" ? catalogScrollRef.current : true)}
+            >
               <DialogHeader className="border-b p-4 pr-12">
                 <DialogTitle>Προσθήκη προϊόντων</DialogTitle>
                 <DialogDescription>Τιμές για {customer.name}</DialogDescription>
@@ -480,7 +488,7 @@ export function NewOrderPage() {
                 </div>
               </DialogHeader>
 
-              <div className="flex-1 overflow-y-auto p-4">
+              <div ref={catalogScrollRef} tabIndex={-1} className="flex-1 overflow-y-auto p-4 outline-none">
                 {isLoading ? (
                   <div className="flex justify-center py-12">
                     <Spinner />
