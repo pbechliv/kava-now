@@ -99,14 +99,17 @@ productsRouter.get("/", async (c) => {
     const match = or(
       accentInsensitiveLike(products.name, search),
       accentInsensitiveLike(products.brand, search),
+      accentInsensitiveLike(products.erpRef, search),
     );
     if (match) conditions.push(match);
   }
 
-  if (active === "true") {
-    conditions.push(eq(products.active, true));
-  } else if (active === "false") {
+  // Default (active undefined) hides deactivated products (#170). "all" shows
+  // both; "inactive" shows only deactivated.
+  if (active === "inactive") {
     conditions.push(eq(products.active, false));
+  } else if (active !== "all") {
+    conditions.push(eq(products.active, true));
   }
 
   const whereClause = and(...conditions);

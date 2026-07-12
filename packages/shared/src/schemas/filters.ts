@@ -10,7 +10,10 @@ import { paginationQuerySchema } from "./pagination";
 
 // --- shared field primitives ---
 const ERP_STATUS_VALUES = ["pending", "transmitted"] as const;
-const ACTIVE_VALUES = ["true", "false"] as const;
+// Three-way active filter. Absent (the default) means "active only" — the
+// products list hides deactivated products unless the user opts in (#170).
+// "all" shows both; "inactive" shows only deactivated.
+export const PRODUCT_ACTIVE_VALUES = ["active", "inactive", "all"] as const;
 
 // Empty string (HTML form / cleared URL param) counts as absent.
 const optionalUuid = z
@@ -54,7 +57,7 @@ export const customerOrdersFiltersSchema = z.object({
 export const adminProductsFiltersSchema = z.object({
   search: optionalSearch,
   categoryId: optionalUuid,
-  active: z.enum(ACTIVE_VALUES).optional().catch(undefined),
+  active: z.enum(PRODUCT_ACTIVE_VALUES).optional().catch(undefined),
 });
 
 export const adminCustomersFiltersSchema = z.object({
@@ -110,7 +113,7 @@ export const customerOrdersSearchSchema = z.object({
 export const adminProductsSearchSchema = z.object({
   search: z.string().optional().catch(undefined),
   categoryId: z.string().optional().catch(undefined),
-  active: z.enum(ACTIVE_VALUES).optional().catch(undefined),
+  active: z.enum(PRODUCT_ACTIVE_VALUES).optional().catch(undefined),
   page: pageSearchField,
 });
 
@@ -132,6 +135,7 @@ export const pageOnlySearchSchema = z.object({
 export type AdminOrdersSearch = z.infer<typeof adminOrdersSearchSchema>;
 export type CustomerOrdersSearch = z.infer<typeof customerOrdersSearchSchema>;
 export type AdminProductsSearch = z.infer<typeof adminProductsSearchSchema>;
+export type ProductActiveFilter = (typeof PRODUCT_ACTIVE_VALUES)[number];
 export type AdminCustomersSearch = z.infer<typeof adminCustomersSearchSchema>;
 export type CatalogSearch = z.infer<typeof catalogSearchSchema>;
 export type PageOnlySearch = z.infer<typeof pageOnlySearchSchema>;
