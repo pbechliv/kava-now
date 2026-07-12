@@ -488,7 +488,11 @@ export function NewOrderPage() {
                 </div>
               </DialogHeader>
 
-              <div ref={catalogScrollRef} tabIndex={-1} className="flex-1 overflow-y-auto p-4 outline-none">
+              <div
+                ref={catalogScrollRef}
+                tabIndex={-1}
+                className="flex-1 overflow-y-auto p-4 outline-none"
+              >
                 {isLoading ? (
                   <div className="flex justify-center py-12">
                     <Spinner />
