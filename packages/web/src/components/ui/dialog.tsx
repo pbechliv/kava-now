@@ -40,14 +40,29 @@ function DialogContent({
   className,
   children,
   showCloseButton = true,
+  initialFocus,
   ...props
 }: DialogPrimitive.Popup.Props & {
   showCloseButton?: boolean;
 }) {
+  const popupRef = React.useRef<HTMLDivElement>(null);
+  // Our dialogs are opened programmatically (controlled `open`, no
+  // <DialogTrigger>), so Base UI's `openMethod` stays null and its default
+  // initial focus lands on the first tabbable element — usually a text input.
+  // On iOS a focused text input swallows the first touch (blurring it) instead
+  // of scrolling, so the dialog "won't scroll until you tap once". On coarse
+  // pointers, focus the popup itself instead (a non-input) so there's nothing
+  // to blur; non-touch keeps the default first-field autofocus. Callers can
+  // still override `initialFocus` (e.g. to target a specific scroll region).
+  const resolvedInitialFocus =
+    initialFocus ??
+    (() => (window.matchMedia("(pointer: coarse)").matches ? popupRef.current : true));
   return (
     <DialogPortal>
       <DialogOverlay />
       <DialogPrimitive.Popup
+        ref={popupRef}
+        initialFocus={resolvedInitialFocus}
         data-slot="dialog-content"
         className={cn(
           "fixed top-1/2 left-1/2 z-50 grid max-h-[calc(100dvh-2rem)] w-full max-w-[calc(100%-2rem)] -translate-x-1/2 -translate-y-1/2 gap-6 overflow-y-auto rounded-xl bg-popover p-6 text-sm text-popover-foreground ring-1 ring-foreground/10 duration-100 outline-none sm:max-w-md data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95 data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-95",
