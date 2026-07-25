@@ -159,6 +159,8 @@ Auth instance in [packages/api/src/auth/index.ts](packages/api/src/auth/index.ts
 
 `InviteConflict` fires when the user already has a membership in this tenant. Email send failures are non-fatal — the membership is persisted regardless.
 
+**"Invite pending" is `activated`, never `users.emailVerified`.** The admin user lists ([users.ts](packages/api/src/routes/admin/users.ts), [customer-users.ts](packages/api/src/routes/admin/customer-users.ts)) report `activated` — a correlated `exists` on `accounts` ([db/user-activated.ts](packages/api/src/db/user-activated.ts)) — and the badge plus resend button key off it. `emailVerified` is not a substitute: email verification is off and better-auth's `resetPassword` never sets it, so it stays `false` after someone activates by setting a password. Nor is a credential-only check: a user who activated through Google has no credential row. `/api/auth/me`'s `hasPassword` *is* credential-only on purpose — it drives "set a password" UI, where a Google-only account genuinely has none.
+
 ### Notifications (email + Web Push)
 
 New orders notify the staff/owner users responsible for that customer. Recipients come from `customer_assigned_users` (plus anyone opted into all-order notifications), and each recipient gets both an email and — for every registered `push_subscriptions` endpoint — a Web Push message. Push is gated on `config.push.enabled` (VAPID env vars present) and degrades to email-only when disabled. The web side registers/unregisters device endpoints through [lib/push.ts](packages/web/src/lib/push.ts) against the `/api/auth/push/*` endpoints.
@@ -173,7 +175,7 @@ New orders notify the staff/owner users responsible for that customer. Recipient
 packages/api/src/routes/
 ├── auth.ts                 # /api/auth/{me, set-password}
 ├── admin/                  # owner + staff (requireAuth + requireRole("owner","staff"))
-│   ├── products, categories, customers, users, orders, dashboard, settings
+│   ├── products, categories, customers, customer-users, users, orders, dashboard, settings
 ├── customer/               # requireRole("customer")
 │   ├── catalog, orders, profile
 └── superadmin/             # requireAuth + requireSuperAdmin

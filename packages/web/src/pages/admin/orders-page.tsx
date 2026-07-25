@@ -22,12 +22,9 @@ import { Spinner } from "@/components/spinner";
 import { EmptyState } from "@/components/empty-state";
 import { PaginationControls } from "@/components/pagination-controls";
 import { useAdminOrders } from "@/lib/hooks/use-admin-orders";
-import { useCustomer } from "@/lib/hooks/use-customers";
+import { useCustomerFilter } from "@/lib/hooks/use-customer-filter";
 import { OrdersTable } from "@/components/admin/orders-table";
-import {
-  CustomerPickerCombobox,
-  type CustomerPickerValue,
-} from "@/components/admin/customer-picker-combobox";
+import { CustomerPickerCombobox } from "@/components/admin/customer-picker-combobox";
 import {
   ERP_STATUS_LABELS,
   type AdminOrdersSearch,
@@ -59,15 +56,9 @@ export function OrdersPage() {
   const slug = useTenantSlug();
   const { search, setFilters } = useFilterSearch<AdminOrdersSearch>();
 
-  // Only `customerId` lives in the URL; the picker needs the name to render its
-  // label, so we keep that display value locally. After a reload the local value
-  // is gone but the URL still filters — fetch the customer so the combobox shows
-  // who the list is filtered by instead of its placeholder (#176).
-  const [customerDisplay, setCustomerDisplay] = useState<CustomerPickerValue | null>(null);
-  const { data: urlCustomer } = useCustomer(customerDisplay ? undefined : search.customerId);
-  const selectedCustomer =
-    customerDisplay ??
-    (search.customerId && urlCustomer ? { id: urlCustomer.id, name: urlCustomer.name } : null);
+  const { selected: selectedCustomer, setDisplay: setCustomerDisplay } = useCustomerFilter(
+    search.customerId,
+  );
 
   const statusFilter = search.status ?? "all";
   const erpFilter = search.erpStatus ?? "all";

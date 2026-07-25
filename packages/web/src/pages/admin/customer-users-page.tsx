@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import type { AdminCustomerUsersSearch } from "@kava-now/shared";
 import { useCustomerUsers, useInviteCustomerUser } from "@/lib/hooks/use-customer-users";
-import { useCustomer } from "@/lib/hooks/use-customers";
+import { useCustomerFilter } from "@/lib/hooks/use-customer-filter";
 import { useDeleteUser, useResendInvite } from "@/lib/hooks/use-users";
 import { useDebouncedValue } from "@/lib/hooks/use-debounced-value";
 import { useFilterSearch } from "@/lib/hooks/use-filter-search";
@@ -44,14 +44,9 @@ export function CustomerUsersPage() {
     }
   }, [debouncedSearch, urlSearch.search, setFilters]);
 
-  // Only `customerId` lives in the URL; the picker needs the name for its label,
-  // so keep that locally and fall back to fetching it when arriving by deep link
-  // (same pattern as the orders filter).
-  const [customerDisplay, setCustomerDisplay] = useState<CustomerPickerValue | null>(null);
-  const { data: urlCustomer } = useCustomer(customerDisplay ? undefined : urlSearch.customerId);
-  const selectedCustomer =
-    customerDisplay ??
-    (urlSearch.customerId && urlCustomer ? { id: urlCustomer.id, name: urlCustomer.name } : null);
+  const { selected: selectedCustomer, setDisplay: setCustomerDisplay } = useCustomerFilter(
+    urlSearch.customerId,
+  );
 
   const { data, isLoading } = useCustomerUsers({
     search: urlSearch.search,

@@ -9,8 +9,6 @@ import type {
   SuccessResponse,
 } from "@kava-now/shared";
 
-export type { InviteCustomerUserInput };
-
 type CustomerUsersFilters = AdminCustomerUsersSearch & { pageSize?: number };
 
 /**
