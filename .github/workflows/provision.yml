@@ -11,6 +11,7 @@ on:
           - plan
           - apply # terraform apply, then bootstrap the VM
           - bootstrap # skip Terraform changes, (re)run the VM bootstrap only
+          - maintenance # only re-apply infra/maintenance/ (no secrets touched)
 
 # Serialize with deploy/migrate — bootstrap rewrites .env.production and must
 # not interleave with a running deploy.
@@ -48,9 +49,10 @@ jobs:
 
       - run: terraform init
 
-      - if: ${{ inputs.action != 'bootstrap' }}
+      # bootstrap/maintenance only need the vm_ipv4 output, not a plan.
+      - if: ${{ inputs.action == 'plan' || inputs.action == 'apply' }}
         run: terraform plan -out=tfplan
-      - if: ${{ inputs.action != 'bootstrap' }}
+      - if: ${{ inputs.action == 'plan' || inputs.action == 'apply' }}
         run: terraform show -no-color tfplan >> "$GITHUB_STEP_SUMMARY"
 
       - if: ${{ inputs.action == 'apply' }}
@@ -72,10 +74,12 @@ jobs:
 
   # Post-provision VM bootstrap — replaces the old interactive scripts/bootstrap-vm.sh.
   # Wires the operational secrets that deliberately stay out of Terraform state:
-  # Cloudflare Origin CA cert, /srv/kavanow/.env.production.
+  # Cloudflare Origin CA cert, /srv/kavanow/.env.production, plus the OS
+  # maintenance config from infra/maintenance/.
   # Idempotent: safe to re-run via action=bootstrap (e.g. after rotating a secret).
+  # action=maintenance runs the maintenance step alone and leaves secrets untouched.
   bootstrap:
-    if: ${{ inputs.action == 'apply' || inputs.action == 'bootstrap' }}
+    if: ${{ inputs.action == 'apply' || inputs.action == 'bootstrap' || inputs.action == 'maintenance' }}
     needs: terraform
     runs-on: ubuntu-latest
     timeout-minutes: 30
@@ -83,6 +87,8 @@ jobs:
     env:
       VM_IP: ${{ needs.terraform.outputs.vm_ipv4 }}
     steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+
       - name: Guard — VM IP available
         run: |
           if [ -z "$VM_IP" ]; then
@@ -129,6 +135,7 @@ jobs:
       # ephemeral GITHUB_TOKEN (packages:read), so no long-lived PAT exists.
 
       - name: Install Cloudflare Origin CA cert
+        if: ${{ inputs.action != 'maintenance' }}
         env:
           ORIGIN_CERT: ${{ secrets.CF_ORIGIN_CERT }}
           ORIGIN_KEY: ${{ secrets.CF_ORIGIN_KEY }}
@@ -149,6 +156,7 @@ jobs:
           '
 
       - name: Write .env.production
+        if: ${{ inputs.action != 'maintenance' }}
         env:
           POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD }}
           APP_DB_PASSWORD: ${{ secrets.APP_DB_PASSWORD }}
@@ -203,16 +211,29 @@ jobs:
           ssh vm 'chmod 600 /srv/kavanow/.env.production'
           rm -f envfile
 
+      # OS package maintenance: unattended-upgrades origins + reboot window and
+      # the monthly dist-upgrade timer. Runs for every action so a fresh VM and
+      # a long-running one converge on the same config. See infra/maintenance/.
+      - name: Configure OS maintenance
+        run: infra/maintenance/apply.sh vm
+
       - name: Summary
+        env:
+          ACTION: ${{ inputs.action }}
         run: |
           {
-            echo "## Bootstrap complete — $VM_IP"
+            echo "## ${ACTION^} complete — $VM_IP"
             echo
-            echo '- Origin CA cert (validated) + `.env.production` written. GHCR login happens per-deploy.'
-            echo '- If this is a new/rebuilt VM, refresh the deploy secrets:'
-            echo '  ```'
-            echo "  gh secret set HETZNER_HOST --body '$VM_IP'"
-            echo "  ssh-keyscan $VM_IP | gh secret set HETZNER_SSH_KNOWN_HOSTS"
-            echo '  ```'
-            echo '- Next: run deploy.yml.'
+            echo '- OS maintenance: daily unattended-upgrades 03:00 UTC (reboot 03:30 if required), full sweep first Sunday 04:00 UTC.'
+            if [ "$ACTION" = maintenance ]; then
+              echo '- Secrets left untouched.'
+            else
+              echo '- Origin CA cert (validated) + `.env.production` written. GHCR login happens per-deploy.'
+              echo '- If this is a new/rebuilt VM, refresh the deploy secrets:'
+              echo '  ```'
+              echo "  gh secret set HETZNER_HOST --body '$VM_IP'"
+              echo "  ssh-keyscan $VM_IP | gh secret set HETZNER_SSH_KNOWN_HOSTS"
+              echo '  ```'
+              echo '- Next: run deploy.yml.'
+            fi
           } >> "$GITHUB_STEP_SUMMARY"

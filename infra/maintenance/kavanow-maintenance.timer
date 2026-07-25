@@ -1,0 +1,16 @@
+[Unit]
+Description=KavaNow monthly full package sweep
+
+[Timer]
+# First Sunday of the month, 04:00 UTC (07:00 Athens). Deliberately clear of
+# the 02:17 nightly backup and the 03:00±15m daily unattended-upgrades run.
+OnCalendar=Sun *-*-01..07 04:00:00
+RandomizedDelaySec=0
+# Deliberately NOT persistent: this sweep reboots immediately when a reboot is
+# required, and a catch-up run firing mid-afternoon after downtime would take
+# production with it. Missing one month is the cheaper failure — the daily
+# unattended-upgrades run still covers security patches.
+Persistent=false
+
+[Install]
+WantedBy=timers.target

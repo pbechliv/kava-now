@@ -1,0 +1,24 @@
+// Managed by infra/maintenance/apply.sh — do not edit on the VM.
+//
+// Ubuntu's stock 50unattended-upgrades only allows the "-security" origin, so
+// ordinary bugfix updates never get installed. APT list options accumulate
+// across conf.d files, so this ADDS "-updates" to the existing list rather
+// than replacing it. Scalars below win over 50unattended-upgrades by file
+// order (50 is read before 52).
+Unattended-Upgrade::Allowed-Origins {
+    "${distro_id}:${distro_codename}-updates";
+};
+
+Unattended-Upgrade::Remove-Unused-Kernel-Packages "true";
+Unattended-Upgrade::Remove-New-Unused-Dependencies "true";
+
+// Reboot when a package (kernel, glibc, …) asks for it. 03:30 UTC = 06:30
+// Athens — the quietest slot for a kava bar. Every compose service is
+// restart:unless-stopped, so the stack comes back on its own; expect a
+// 30–60 s outage. The apt-daily-upgrade.timer drop-in shifts the upgrade run
+// to 03:00 so this reboot lands the same night rather than ~20 h later.
+Unattended-Upgrade::Automatic-Reboot "true";
+Unattended-Upgrade::Automatic-Reboot-Time "03:30";
+
+// Keep a record of what the daily run did — /var/log/unattended-upgrades/.
+Unattended-Upgrade::SyslogEnable "true";
