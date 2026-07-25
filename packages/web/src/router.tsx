@@ -12,6 +12,7 @@ import {
   adminOrdersSearchSchema,
   adminProductsSearchSchema,
   adminCustomersSearchSchema,
+  adminCustomerUsersSearchSchema,
   catalogSearchSchema,
   customerOrdersSearchSchema,
   pageOnlySearchSchema,
@@ -94,6 +95,10 @@ const CustomersPage = lazyRouteComponent(
 const CustomerUsersPage = lazyRouteComponent(
   () => import("./pages/admin/customer-users-page"),
   "CustomerUsersPage",
+);
+const AllCustomerUsersPage = lazyRouteComponent(
+  () => import("./pages/admin/all-customer-users-page"),
+  "AllCustomerUsersPage",
 );
 const CustomerBrandPricingPage = lazyRouteComponent(
   () => import("./pages/admin/customer-brand-pricing-page"),
@@ -322,6 +327,12 @@ const customersRoute = createRoute({
   component: CustomersPage,
   validateSearch: adminCustomersSearchSchema,
 });
+const allCustomerUsersRoute = createRoute({
+  getParentRoute: () => tenantAdminRoute,
+  path: "customer-users",
+  component: AllCustomerUsersPage,
+  validateSearch: adminCustomerUsersSearchSchema,
+});
 const customerUsersRoute = createRoute({
   getParentRoute: () => tenantAdminRoute,
   path: "customers/$id/users",
@@ -431,6 +442,7 @@ const routeTree = rootRoute.addChildren([
       productsImportRoute,
       categoriesRoute,
       customersRoute,
+      allCustomerUsersRoute,
       customerUsersRoute,
       customerBrandPricingRoute,
       usersRoute,

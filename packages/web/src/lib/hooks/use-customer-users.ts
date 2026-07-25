@@ -2,6 +2,8 @@ import { useQuery, useMutation, useQueryClient, keepPreviousData } from "@tansta
 import { useTenantApi, useTenantSlug } from "./use-tenant-api";
 import { withQuery } from "../utils";
 import type {
+  AdminCustomerUserListItem,
+  AdminCustomerUsersSearch,
   InviteCustomerUserInput,
   CustomerLinkedUser,
   PageOnlySearch,
@@ -12,6 +14,7 @@ import type {
 export type { InviteCustomerUserInput };
 
 type CustomerUsersFilters = PageOnlySearch & { pageSize?: number };
+type AllCustomerUsersFilters = AdminCustomerUsersSearch & { pageSize?: number };
 
 export function useCustomerUsers(customerId: string | undefined, filters?: CustomerUsersFilters) {
   const slug = useTenantSlug();
@@ -21,6 +24,22 @@ export function useCustomerUsers(customerId: string | undefined, filters?: Custo
     queryKey: ["admin", slug, "customer-users", customerId, filters],
     queryFn: () => tApi.get<PaginatedResponse<CustomerLinkedUser>>(path),
     enabled: !!customerId,
+    placeholderData: keepPreviousData,
+  });
+}
+
+/**
+ * Every customer-linked user in the tenant, each row tagged with its customer.
+ * Keyed under the same "customer-users" prefix as the per-customer list so the
+ * existing invalidations (invite, delete) refresh it too.
+ */
+export function useAllCustomerUsers(filters?: AllCustomerUsersFilters) {
+  const slug = useTenantSlug();
+  const tApi = useTenantApi();
+  const path = withQuery("/admin/customer-users", filters);
+  return useQuery({
+    queryKey: ["admin", slug, "customer-users", "all", filters],
+    queryFn: () => tApi.get<PaginatedResponse<AdminCustomerUserListItem>>(path),
     placeholderData: keepPreviousData,
   });
 }

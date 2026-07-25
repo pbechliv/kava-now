@@ -5,6 +5,7 @@ import {
   Tag,
   Users,
   UserCog,
+  Contact,
   Settings,
   type LucideIcon,
 } from "lucide-react";
@@ -55,6 +56,13 @@ export const ADMIN_MANAGE_SECTIONS: AdminManageSection[] = [
     icon: Users,
     group: "Πελάτες",
     description: "Πελάτες, χρήστες τους και ειδική τιμολόγηση",
+  },
+  {
+    path: "customer-users",
+    label: "Χρήστες πελατών",
+    icon: Contact,
+    group: "Πελάτες",
+    description: "Όλοι οι χρήστες πελατών με τον πελάτη τους",
   },
   {
     path: "users",

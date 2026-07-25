@@ -214,6 +214,15 @@ export interface CustomerLinkedUser {
   invitedByEmail: string | null;
 }
 
+/**
+ * A customer-linked user in the tenant-wide list (every customer's users at
+ * once), tagged with the customer it belongs to.
+ */
+export interface AdminCustomerUserListItem extends CustomerLinkedUser {
+  customerId: string;
+  customerName: string;
+}
+
 // ---- Dashboard ----
 
 export interface DashboardStatsResponse {
