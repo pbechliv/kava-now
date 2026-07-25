@@ -6,12 +6,11 @@ allowBuilds:
   "@sentry/cli": true
   esbuild: true
 catalog:
-  vite: npm:@voidzero-dev/vite-plus-core@^0.2.4
+  vite: npm:@voidzero-dev/vite-plus-core@^0.2.6
+  # Keep in sync with the vitest version Vite+ bundles (0.2.6 ships 4.1.10) —
+  # a mismatch loads two vitest copies through the `vitest` override below.
   vitest: ^4.1.10
-  vite-plus: ^0.2.4
-minimumReleaseAgeExclude:
-  - "@base-ui/react@1.6.0"
-  - "@base-ui/utils@0.3.1"
+  vite-plus: ^0.2.6
 overrides:
   vite: "catalog:"
   vitest: "catalog:"
