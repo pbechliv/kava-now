@@ -201,10 +201,16 @@ export interface AdminUserListItem {
 }
 
 // User lists are returned as PaginatedResponse<AdminUserListItem> /
-// PaginatedResponse<CustomerLinkedUser> — see the admin users/customer-users
-// routes.
+// PaginatedResponse<AdminCustomerUserListItem> — see the admin
+// users/customer-users routes.
 
-export interface CustomerLinkedUser {
+/**
+ * A customer-linked user, tagged with the customer it belongs to. One shape for
+ * both customer-user lists: the tenant-wide one (every customer's users) and a
+ * single customer's — the latter just ignores the customer columns, which are
+ * constant there.
+ */
+export interface AdminCustomerUserListItem {
   id: string;
   email: string;
   emailVerified: boolean;
@@ -212,13 +218,6 @@ export interface CustomerLinkedUser {
   createdAt: string;
   invitedByName: string | null;
   invitedByEmail: string | null;
-}
-
-/**
- * A customer-linked user in the tenant-wide list (every customer's users at
- * once), tagged with the customer it belongs to.
- */
-export interface AdminCustomerUserListItem extends CustomerLinkedUser {
   customerId: string;
   customerName: string;
 }

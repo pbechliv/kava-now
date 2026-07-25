@@ -64,10 +64,13 @@ export const adminCustomersFiltersSchema = z.object({
   search: optionalSearch,
 });
 
-// Tenant-wide list of every customer's users. Search spans the user's name and
-// email plus the customer's name.
+// Customer users. Without `customerId` this is the tenant-wide list (every
+// customer's users, each tagged with its customer); with it, the one customer's
+// users — the same query, so one endpoint serves both pages. Search spans the
+// user's name and email plus the customer's name.
 export const adminCustomerUsersFiltersSchema = z.object({
   search: optionalSearch,
+  customerId: optionalUuid,
 });
 
 export const adminCategoriesFiltersSchema = z.object({

@@ -5,7 +5,6 @@ import type {
   AdminCustomerUserListItem,
   AdminCustomerUsersSearch,
   InviteCustomerUserInput,
-  CustomerLinkedUser,
   PageOnlySearch,
   PaginatedResponse,
   SuccessResponse,
@@ -16,30 +15,33 @@ export type { InviteCustomerUserInput };
 type CustomerUsersFilters = PageOnlySearch & { pageSize?: number };
 type AllCustomerUsersFilters = AdminCustomerUsersSearch & { pageSize?: number };
 
+type CustomerUsersResponse = PaginatedResponse<AdminCustomerUserListItem>;
+
+// Both hooks hit the same endpoint — `customerId` narrows it to one customer.
+// They stay separate so each page's query key (and cache entry) is its own, both
+// under the "customer-users" prefix the invite/delete mutations invalidate.
+
+/** One customer's users. */
 export function useCustomerUsers(customerId: string | undefined, filters?: CustomerUsersFilters) {
   const slug = useTenantSlug();
   const tApi = useTenantApi();
-  const path = withQuery(`/admin/customers/${customerId}/users`, filters);
+  const path = withQuery("/admin/customer-users", { ...filters, customerId });
   return useQuery({
     queryKey: ["admin", slug, "customer-users", customerId, filters],
-    queryFn: () => tApi.get<PaginatedResponse<CustomerLinkedUser>>(path),
+    queryFn: () => tApi.get<CustomerUsersResponse>(path),
     enabled: !!customerId,
     placeholderData: keepPreviousData,
   });
 }
 
-/**
- * Every customer-linked user in the tenant, each row tagged with its customer.
- * Keyed under the same "customer-users" prefix as the per-customer list so the
- * existing invalidations (invite, delete) refresh it too.
- */
+/** Every customer-linked user in the tenant, each row tagged with its customer. */
 export function useAllCustomerUsers(filters?: AllCustomerUsersFilters) {
   const slug = useTenantSlug();
   const tApi = useTenantApi();
   const path = withQuery("/admin/customer-users", filters);
   return useQuery({
     queryKey: ["admin", slug, "customer-users", "all", filters],
-    queryFn: () => tApi.get<PaginatedResponse<AdminCustomerUserListItem>>(path),
+    queryFn: () => tApi.get<CustomerUsersResponse>(path),
     placeholderData: keepPreviousData,
   });
 }

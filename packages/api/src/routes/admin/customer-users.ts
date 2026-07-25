@@ -16,10 +16,10 @@ import { getTenantId } from "../../context";
 
 const customerUsersRouter = new Hono<AppEnv>();
 
-// GET / — every customer-linked user in this tenant, tagged with its customer.
-// The per-customer slice lives at /admin/customers/:id/users; this is the
-// tenant-wide view. Invite / resend / delete stay on the existing endpoints
-// (/admin/customers/:id/users/invite, /admin/users/:id/*).
+// GET / — customer-linked users in this tenant, each tagged with its customer.
+// Serves both customer-user lists: unfiltered it's the tenant-wide view, with
+// `?customerId=` it's one customer's users. Invite / resend / delete stay on the
+// existing endpoints (/admin/customers/:id/users/invite, /admin/users/:id/*).
 customerUsersRouter.get("/", async (c) => {
   const tenantId = getTenantId(c);
   const inviterAlias = alias(users, "inviter");
@@ -28,12 +28,29 @@ customerUsersRouter.get("/", async (c) => {
   if (!parsed.success) {
     return validationError(c, parsed.error);
   }
-  const { search, page, pageSize } = parsed.data;
+  const { search, customerId, page, pageSize } = parsed.data;
+
+  // An unknown customer is a 404, not an empty list — otherwise a stale or
+  // typo'd id reads as "this customer has no users".
+  if (customerId) {
+    const [customer] = await db
+      .select({ id: customers.id })
+      .from(customers)
+      .where(and(eq(customers.id, customerId), eq(customers.tenantId, tenantId)))
+      .limit(1);
+    if (!customer) {
+      return c.json({ error: "Customer not found" }, 404);
+    }
+  }
 
   const conditions = [
     eq(tenantMemberships.tenantId, tenantId),
     eq(tenantMemberships.role, "customer"),
   ];
+
+  if (customerId) {
+    conditions.push(eq(tenantMemberships.customerId, customerId));
+  }
 
   if (search) {
     const match = or(

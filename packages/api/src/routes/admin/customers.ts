@@ -1,17 +1,14 @@
 import { validationError } from "../../validation";
 import { Hono } from "hono";
 import { eq, and, or, ne, inArray, sql } from "drizzle-orm";
-import { alias } from "drizzle-orm/pg-core";
 import {
   createCustomerSchema,
   updateCustomerSchema,
   updateCustomerBrandPricingSchema,
   inviteCustomerUserSchema,
   adminCustomersQuerySchema,
-  paginationQuerySchema,
   type Customer,
   type CustomerBrandPrice,
-  type CustomerLinkedUser,
   type PaginatedResponse,
   API_ERROR_CODES,
   type SuccessResponse,
@@ -25,7 +22,6 @@ import {
   customerAssignedUsers,
   orders,
   tenantMemberships,
-  users,
 } from "../../db/schema/index";
 import {
   inviteUserToTenant,
@@ -460,65 +456,9 @@ customersRouter.put("/:id/brand-pricing", async (c) => {
   return c.json({ success: true } satisfies SuccessResponse);
 });
 
-// GET /:id/users — list users linked to a customer in this tenant
-customersRouter.get("/:id/users", async (c) => {
-  const tenantId = getTenantId(c);
-  const id = c.req.param("id");
-  const inviterAlias = alias(users, "inviter");
-
-  const parsed = paginationQuerySchema.safeParse(c.req.query());
-  if (!parsed.success) {
-    return validationError(c, parsed.error);
-  }
-  const { page, pageSize } = parsed.data;
-
-  const [customer] = await db
-    .select({ id: customers.id })
-    .from(customers)
-    .where(and(eq(customers.id, id), eq(customers.tenantId, tenantId)))
-    .limit(1);
-
-  if (!customer) {
-    return c.json({ error: "Customer not found" }, 404);
-  }
-
-  const whereClause = and(
-    eq(tenantMemberships.customerId, id),
-    eq(tenantMemberships.tenantId, tenantId),
-  );
-
-  const [countRow] = await db
-    .select({ total: sql<number>`count(*)::int` })
-    .from(tenantMemberships)
-    .where(whereClause);
-  const total = countRow?.total ?? 0;
-
-  const rows = await db
-    .select({
-      id: users.id,
-      email: users.email,
-      emailVerified: users.emailVerified,
-      name: users.name,
-      createdAt: tenantMemberships.createdAt,
-      invitedByName: inviterAlias.name,
-      invitedByEmail: inviterAlias.email,
-    })
-    .from(tenantMemberships)
-    .innerJoin(users, eq(users.id, tenantMemberships.userId))
-    .leftJoin(inviterAlias, eq(tenantMemberships.invitedById, inviterAlias.id))
-    .where(whereClause)
-    .orderBy(tenantMemberships.createdAt)
-    .limit(pageSize)
-    .offset((page - 1) * pageSize);
-
-  const body = {
-    data: rows,
-    total,
-    page,
-    pageSize,
-  } satisfies PreSerialize<PaginatedResponse<CustomerLinkedUser>>;
-  return c.json(body);
-});
+// Listing a customer's users lives on the shared customer-users endpoint
+// (GET /admin/customer-users?customerId=…) — same query as the tenant-wide
+// list, so it isn't duplicated here.
 
 // POST /:customerId/users/:userId/resend-invite — re-issue the set-password invite
 customersRouter.post("/:customerId/users/:userId/resend-invite", async (c) => {

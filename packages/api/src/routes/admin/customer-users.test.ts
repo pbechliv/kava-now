@@ -45,6 +45,9 @@ suite("GET /admin/customer-users (tenant-wide customer users list)", () => {
   let tenantId = "";
   let otherTenantId = "";
   let ownerUserId = "";
+  let zetaCustomerId = "";
+  let alphaCustomerId = "";
+  let otherCustomerId = "";
   let cookie = "";
   const userEmails: string[] = [ownerEmail, zetaEmail, alphaEmail, otherTenantEmail];
 
@@ -86,9 +89,9 @@ suite("GET /admin/customer-users (tenant-wide customer users list)", () => {
           .returning({ id: schema.customers.id });
         return must(row).id;
       });
-    const zetaCustomerId = await insertCustomer(tenantId, "Ζήτα Καφετέρια");
-    const alphaCustomerId = await insertCustomer(tenantId, "Άλφα Μπαρ");
-    const otherCustomerId = await insertCustomer(otherTenantId, "Ξένος Πελάτης");
+    zetaCustomerId = await insertCustomer(tenantId, "Ζήτα Καφετέρια");
+    alphaCustomerId = await insertCustomer(tenantId, "Άλφα Μπαρ");
+    otherCustomerId = await insertCustomer(otherTenantId, "Ξένος Πελάτης");
 
     await inviteUserToTenant({
       c: fakeContext,
@@ -171,6 +174,30 @@ suite("GET /admin/customer-users (tenant-wide customer users list)", () => {
 
     const noMatch = await list("?search=zzz-no-such-thing");
     expect((await noMatch.json()).total).toBe(0);
+  });
+
+  it("?customerId= narrows to one customer's users (the per-customer list)", async () => {
+    const res = await list(`?customerId=${alphaCustomerId}`);
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.total).toBe(1);
+    expect(body.data[0]).toMatchObject({ email: alphaEmail, customerName: "Άλφα Μπαρ" });
+
+    // Combines with search.
+    const filtered = await list(`?customerId=${alphaCustomerId}&search=zzz`);
+    expect((await filtered.json()).total).toBe(0);
+
+    // A customer in another tenant is a 404, not this tenant's list.
+    const foreign = await list(`?customerId=${otherCustomerId}`);
+    expect(foreign.status).toBe(404);
+
+    // So is an id that matches no customer at all.
+    const missing = await list("?customerId=00000000-0000-0000-0000-000000000000");
+    expect(missing.status).toBe(404);
+
+    // A malformed id is rejected at the boundary.
+    const malformed = await list("?customerId=not-a-uuid");
+    expect(malformed.status).toBe(400);
   });
 
   it("paginates, with the total counting every match", async () => {
