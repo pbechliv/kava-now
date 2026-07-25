@@ -84,7 +84,7 @@ export function CustomerUsersPage() {
       cell: (u) => (
         <>
           {u.name}
-          {!u.emailVerified && <InvitationStatusBadge className="ml-2" />}
+          {!u.activated && <InvitationStatusBadge className="ml-2" />}
         </>
       ),
     },
@@ -185,7 +185,7 @@ export function CustomerUsersPage() {
                 <div className="min-w-0">
                   <div className="font-medium">
                     {u.name}
-                    {!u.emailVerified && <InvitationStatusBadge className="ml-2" />}
+                    {!u.activated && <InvitationStatusBadge className="ml-2" />}
                   </div>
                   <div className="text-sm text-muted-foreground">{u.email}</div>
                   <div className="text-sm">{u.customerName}</div>

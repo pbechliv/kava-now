@@ -188,10 +188,18 @@ export interface CustomerBrandPrice {
 
 // ---- Users (admin) ----
 
+/**
+ * Whether the invitee has a way to sign in yet — any `accounts` row, credential
+ * or OAuth. This is what "invite pending" is derived from; `users.emailVerified`
+ * is NOT a substitute: nothing flips it when someone activates by setting a
+ * password (email verification is off, and better-auth's resetPassword leaves it
+ * alone), so it reads "pending" forever. A Google-activated user has no
+ * credential row either, so a password-only check would mislabel them too.
+ */
 export interface AdminUserListItem {
   id: string;
   email: string;
-  emailVerified: boolean;
+  activated: boolean;
   name: string;
   role: "owner" | "staff" | "customer";
   createdAt: string;
@@ -213,7 +221,8 @@ export interface AdminUserListItem {
 export interface AdminCustomerUserListItem {
   id: string;
   email: string;
-  emailVerified: boolean;
+  /** See AdminUserListItem.activated. */
+  activated: boolean;
   name: string;
   createdAt: string;
   invitedByName: string | null;

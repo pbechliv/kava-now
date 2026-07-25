@@ -1,5 +1,6 @@
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
-import { inArray } from "drizzle-orm";
+import { eq, inArray } from "drizzle-orm";
+import { hashPassword } from "better-auth/crypto";
 import type { Context } from "hono";
 import type { AppEnv } from "../../types";
 import { must } from "../../test-utils";
@@ -152,7 +153,8 @@ suite("GET /admin/customer-users (tenant-wide customer users list)", () => {
       email: alphaEmail,
       customerName: "Άλφα Μπαρ",
       invitedByName: "Customer Users Tenant",
-      emailVerified: false,
+      // Invited, no sign-in method yet — the "pending" badge's signal.
+      activated: false,
     });
     expect(body.data[0].customerId).toBeTruthy();
     // Staff/owner memberships and other tenants' customer users stay out.
@@ -198,6 +200,54 @@ suite("GET /admin/customer-users (tenant-wide customer users list)", () => {
     // A malformed id is rejected at the boundary.
     const malformed = await list("?customerId=not-a-uuid");
     expect(malformed.status).toBe(400);
+  });
+
+  it("`activated` covers password AND social sign-in, not users.emailVerified", async () => {
+    const userIdFor = async (emailAddr: string) => {
+      const [row] = await baseDb
+        .select({ id: schema.users.id })
+        .from(schema.users)
+        .where(eq(schema.users.email, emailAddr));
+      return must(row).id;
+    };
+    const activatedFor = async (emailAddr: string) => {
+      const body = await (await list()).json();
+      return body.data.find((u: { email: string }) => u.email === emailAddr)?.activated;
+    };
+
+    const alphaId = await userIdFor(alphaEmail);
+    const zetaId = await userIdFor(zetaEmail);
+
+    // emailVerified stays false through activation (nothing flips it here), so
+    // it must not be what the list reports.
+    const [beforeRow] = await baseDb
+      .select({ emailVerified: schema.users.emailVerified })
+      .from(schema.users)
+      .where(eq(schema.users.id, alphaId));
+    expect(must(beforeRow).emailVerified).toBe(false);
+    expect(await activatedFor(alphaEmail)).toBe(false);
+
+    // Password activation → credential account row.
+    await baseDb.insert(schema.accounts).values({
+      accountId: alphaId,
+      providerId: "credential",
+      userId: alphaId,
+      password: await hashPassword(ownerPassword),
+    });
+    expect(await activatedFor(alphaEmail)).toBe(true);
+
+    // Google activation → no credential row, but still activated. A
+    // password-only check would keep showing this user as "pending" forever.
+    await baseDb.insert(schema.accounts).values({
+      accountId: `google-${zetaId}`,
+      providerId: "google",
+      userId: zetaId,
+    });
+    expect(await activatedFor(zetaEmail)).toBe(true);
+
+    // Leave the fixtures as the other cases found them.
+    await baseDb.delete(schema.accounts).where(inArray(schema.accounts.userId, [alphaId, zetaId]));
+    expect(await activatedFor(alphaEmail)).toBe(false);
   });
 
   it("paginates, with the total counting every match", async () => {

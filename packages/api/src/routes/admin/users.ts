@@ -12,6 +12,7 @@ import {
   type PaginatedResponse,
 } from "@kava-now/shared";
 import { db } from "../../db/connection";
+import { userActivated } from "../../db/user-activated";
 import { accounts, tenantMemberships, users } from "../../db/schema/index";
 import {
   inviteUserToTenant,
@@ -54,7 +55,7 @@ usersRouter.get("/", async (c) => {
     .select({
       id: users.id,
       email: users.email,
-      emailVerified: users.emailVerified,
+      activated: userActivated,
       name: users.name,
       role: tenantMemberships.role,
       createdAt: tenantMemberships.createdAt,

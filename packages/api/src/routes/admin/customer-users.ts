@@ -9,6 +9,7 @@ import {
 } from "@kava-now/shared";
 import { db } from "../../db/connection";
 import { accentInsensitiveLike } from "../../db/search";
+import { userActivated } from "../../db/user-activated";
 import { customers, tenantMemberships, users } from "../../db/schema/index";
 import type { AppEnv } from "../../types";
 import type { PreSerialize } from "../../serialize";
@@ -78,7 +79,7 @@ customerUsersRouter.get("/", async (c) => {
     .select({
       id: users.id,
       email: users.email,
-      emailVerified: users.emailVerified,
+      activated: userActivated,
       name: users.name,
       createdAt: tenantMemberships.createdAt,
       invitedByName: inviterAlias.name,

@@ -59,7 +59,7 @@ export function UserInviteActions({
   align = "end",
   children,
 }: {
-  user: { id: string; name: string; emailVerified: boolean };
+  user: { id: string; name: string; activated: boolean };
   feedback: ResendFeedback | null;
   resendPendingId: string | null;
   onResend: (id: string) => void;
@@ -79,7 +79,7 @@ export function UserInviteActions({
           {feedback.message}
         </span>
       )}
-      {!user.emailVerified && (
+      {!user.activated && (
         <Button
           variant="ghost"
           size="sm"

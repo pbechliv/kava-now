@@ -99,7 +99,7 @@ export function UsersPage() {
         <>
           {u.name}
           {u.id === me?.id && <span className="ml-2 text-xs text-muted-foreground">(εσείς)</span>}
-          {!u.emailVerified && <InvitationStatusBadge className="ml-2" />}
+          {!u.activated && <InvitationStatusBadge className="ml-2" />}
         </>
       ),
     },
@@ -156,7 +156,7 @@ export function UsersPage() {
                 {u.id === me?.id && (
                   <span className="ml-2 text-xs text-muted-foreground">(εσείς)</span>
                 )}
-                {!u.emailVerified && <InvitationStatusBadge className="ml-2" />}
+                {!u.activated && <InvitationStatusBadge className="ml-2" />}
               </div>
               <div className="text-sm text-muted-foreground">{u.email}</div>
               <div className="text-sm text-muted-foreground">
