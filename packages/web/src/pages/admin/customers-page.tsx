@@ -77,18 +77,6 @@ export function CustomersPage() {
           <Button
             variant="ghost"
             size="sm"
-            onClick={() =>
-              navigate({
-                to: `${adminBase}/customer-users`,
-                search: { customerId: customer.id },
-              })
-            }
-          >
-            Χρήστες
-          </Button>
-          <Button
-            variant="ghost"
-            size="sm"
             onClick={() => navigate({ to: `${adminBase}/customers/${customer.id}/brand-pricing` })}
           >
             Τιμολόγηση
@@ -152,18 +140,6 @@ export function CustomersPage() {
                 <div className="-mx-2 flex flex-wrap">
                   <Button variant="ghost" size="sm" onClick={() => handleEdit(customer.id)}>
                     Επεξεργασία
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() =>
-                      navigate({
-                        to: `${adminBase}/customer-users`,
-                        search: { customerId: customer.id },
-                      })
-                    }
-                  >
-                    Χρήστες
                   </Button>
                   <Button
                     variant="ghost"
