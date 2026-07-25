@@ -1,0 +1,12 @@
+[Unit]
+Description=KavaNow monthly full package sweep
+Documentation=https://github.com/pbechliv/kava-now/blob/main/infra/maintenance/README.md
+Wants=network-online.target
+After=network-online.target docker.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/sbin/kavanow-maintenance
+# pg_dump + dist-upgrade on a 2 vCPU box. Generous, but bounded so a wedged
+# apt lock can't leave the unit running forever.
+TimeoutStartSec=45min

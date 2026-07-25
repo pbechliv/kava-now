@@ -48,8 +48,12 @@ runcmd:
   - printf '[sshd]\nenabled = true\nport = ssh\nmaxretry = 5\nfindtime = 10m\nbantime = 10m\n' > /etc/fail2ban/jail.d/sshd.local
   - systemctl enable --now fail2ban
   - systemctl restart fail2ban
+  # Package only — the unattended-upgrades *configuration* (allowed origins,
+  # reboot window, timer schedule, monthly dist-upgrade sweep) is owned by
+  # infra/maintenance/, applied by provision.yml's bootstrap job so that fresh
+  # and long-running VMs get the same thing. runcmd is first-boot only, so
+  # configuring it here would silently drift the moment we changed anything.
   - systemctl enable --now unattended-upgrades
-  - printf 'Unattended-Upgrade::Automatic-Reboot "true";\nUnattended-Upgrade::Automatic-Reboot-Time "03:30";\n' >> /etc/apt/apt.conf.d/50unattended-upgrades
   - timedatectl set-timezone UTC
   - mkdir -p /srv/kavanow /etc/kavanow/tls
   - chown deploy:deploy /srv/kavanow
