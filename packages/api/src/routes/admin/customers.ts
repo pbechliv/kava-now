@@ -23,11 +23,7 @@ import {
   orders,
   tenantMemberships,
 } from "../../db/schema/index";
-import {
-  inviteUserToTenant,
-  resendSetPasswordInvite,
-  InviteConflict,
-} from "../../services/invite-user";
+import { inviteUserToTenant, InviteConflict } from "../../services/invite-user";
 import {
   isUniqueViolation,
   isForeignKeyViolation,
@@ -36,7 +32,7 @@ import {
 } from "../../db/errors";
 import type { AppEnv } from "../../types";
 import type { PreSerialize } from "../../serialize";
-import { getTenant, getTenantId, getUser } from "../../context";
+import { getTenantId, getUser } from "../../context";
 
 const DUPLICATE_ERP_REF_RESPONSE = {
   code: API_ERROR_CODES.DUPLICATE_CUSTOMER_ERP_REF,
@@ -456,24 +452,9 @@ customersRouter.put("/:id/brand-pricing", async (c) => {
   return c.json({ success: true } satisfies SuccessResponse);
 });
 
-// Listing a customer's users lives on the shared customer-users endpoint
-// (GET /admin/customer-users?customerId=…) — same query as the tenant-wide
-// list, so it isn't duplicated here.
-
-// POST /:customerId/users/:userId/resend-invite — re-issue the set-password invite
-customersRouter.post("/:customerId/users/:userId/resend-invite", async (c) => {
-  const result = await resendSetPasswordInvite({
-    c,
-    tenantId: getTenantId(c),
-    tenantSlug: getTenant(c).slug,
-    userId: c.req.param("userId"),
-    customerId: c.req.param("customerId"),
-  });
-  if (!result.ok) {
-    return c.json({ code: result.code, error: result.error }, result.status);
-  }
-  return c.json({ success: true } satisfies SuccessResponse);
-});
+// A customer's users are listed by GET /admin/customer-users?customerId=… and
+// their invites re-sent via POST /admin/users/:id/resend-invite — both are
+// tenant-scoped, so neither is duplicated here.
 
 // POST /:id/users/invite — add another user account to an existing customer
 customersRouter.post("/:id/users/invite", async (c) => {

@@ -140,6 +140,7 @@ export const adminCustomersSearchSchema = z.object({
 
 export const adminCustomerUsersSearchSchema = z.object({
   search: z.string().optional().catch(undefined),
+  customerId: z.string().optional().catch(undefined),
   page: pageSearchField,
 });
 

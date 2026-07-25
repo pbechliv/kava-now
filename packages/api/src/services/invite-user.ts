@@ -188,29 +188,22 @@ export type ResendInviteResult =
 
 /**
  * Re-issue the set-password invite for a not-yet-activated member of this
- * tenant. Shared by the staff and customer-user resend endpoints; returns a
- * result object the routes map onto their HTTP responses.
+ * tenant — staff and customer users alike, since a membership is unique per
+ * (user, tenant). Returns a result object the route maps onto its HTTP response.
  */
 export async function resendSetPasswordInvite(opts: {
   c: Context<AppEnv>;
   tenantId: string;
   tenantSlug: string;
   userId: string;
-  customerId?: string;
 }): Promise<ResendInviteResult> {
-  const conditions = [
-    eq(tenantMemberships.userId, opts.userId),
-    eq(tenantMemberships.tenantId, opts.tenantId),
-  ];
-  if (opts.customerId) {
-    conditions.push(eq(tenantMemberships.customerId, opts.customerId));
-  }
-
   const [target] = await db
     .select({ id: users.id, email: users.email })
     .from(tenantMemberships)
     .innerJoin(users, eq(users.id, tenantMemberships.userId))
-    .where(and(...conditions))
+    .where(
+      and(eq(tenantMemberships.userId, opts.userId), eq(tenantMemberships.tenantId, opts.tenantId)),
+    )
     .limit(1);
 
   if (!target) {

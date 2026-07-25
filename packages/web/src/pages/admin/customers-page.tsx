@@ -77,7 +77,12 @@ export function CustomersPage() {
           <Button
             variant="ghost"
             size="sm"
-            onClick={() => navigate({ to: `${adminBase}/customers/${customer.id}/users` })}
+            onClick={() =>
+              navigate({
+                to: `${adminBase}/customer-users`,
+                search: { customerId: customer.id },
+              })
+            }
           >
             Χρήστες
           </Button>
@@ -151,7 +156,12 @@ export function CustomersPage() {
                   <Button
                     variant="ghost"
                     size="sm"
-                    onClick={() => navigate({ to: `${adminBase}/customers/${customer.id}/users` })}
+                    onClick={() =>
+                      navigate({
+                        to: `${adminBase}/customer-users`,
+                        search: { customerId: customer.id },
+                      })
+                    }
                   >
                     Χρήστες
                   </Button>

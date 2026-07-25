@@ -1,55 +1,81 @@
-import { useState } from "react";
-import { Link, useParams } from "@tanstack/react-router";
-import { ArrowLeft } from "lucide-react";
+import { useEffect, useState } from "react";
 import { toast } from "sonner";
-import type { PageOnlySearch } from "@kava-now/shared";
-import {
-  useCustomerUsers,
-  useInviteCustomerUser,
-  useResendCustomerUserInvite,
-} from "@/lib/hooks/use-customer-users";
+import type { AdminCustomerUsersSearch } from "@kava-now/shared";
+import { useCustomerUsers, useInviteCustomerUser } from "@/lib/hooks/use-customer-users";
 import { useCustomer } from "@/lib/hooks/use-customers";
-import { useTenantSlug } from "@/lib/hooks/use-tenant-api";
-import { useDeleteUser } from "@/lib/hooks/use-users";
+import { useDeleteUser, useResendInvite } from "@/lib/hooks/use-users";
+import { useDebouncedValue } from "@/lib/hooks/use-debounced-value";
+import { useFilterSearch } from "@/lib/hooks/use-filter-search";
+import { useDeleteConfirmation } from "@/lib/hooks/use-delete-confirmation";
 import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
+import { SearchInput } from "@/components/ui/search-input";
+import { FilterBar, FilterField } from "@/components/ui/filter-bar";
 import { InvitationStatusBadge } from "@/components/admin/invitation-status-badge";
+import {
+  CustomerPickerCombobox,
+  type CustomerPickerValue,
+} from "@/components/admin/customer-picker-combobox";
 import { ResponsiveTable, type ResponsiveTableColumn } from "@/components/ui/responsive-table";
 import { Spinner } from "@/components/spinner";
+import { EmptyState } from "@/components/empty-state";
 import { ConfirmDialog } from "@/components/confirm-dialog";
 import { PaginationControls } from "@/components/pagination-controls";
-import { useFilterSearch } from "@/lib/hooks/use-filter-search";
 import { InviteUserDialog } from "@/components/admin/invite-user-dialog";
 import { UserInviteActions, useResendInviteFeedback } from "@/components/admin/user-invite-actions";
-import { useDeleteConfirmation } from "@/lib/hooks/use-delete-confirmation";
 import { PAGE_SIZE } from "@/lib/constants";
 
 type CustomerUserRow = NonNullable<ReturnType<typeof useCustomerUsers>["data"]>["data"][number];
 
+/**
+ * Every customer's users in one list, each row tagged with its customer. The
+ * customer filter covers what the old per-customer page did (the Πελάτες list
+ * deep-links here with `?customerId=`), and invites pick their customer, so
+ * there's one place to see and manage customer logins.
+ */
 export function CustomerUsersPage() {
-  const { id = "" } = useParams({ strict: false });
-  const slug = useTenantSlug();
-  const { search, setFilters } = useFilterSearch<PageOnlySearch>();
-  const page = search.page ?? 1;
-  const { data: customer } = useCustomer(id);
-  const { data, isLoading } = useCustomerUsers(id, { page, pageSize: PAGE_SIZE });
-  const invite = useInviteCustomerUser(id);
-  const resend = useResendCustomerUserInvite(id);
+  const { search: urlSearch, setFilters } = useFilterSearch<AdminCustomerUsersSearch>();
+  const page = urlSearch.page ?? 1;
+  const [search, setSearch] = useState(urlSearch.search ?? "");
+
+  const debouncedSearch = useDebouncedValue(search);
+  useEffect(() => {
+    if (debouncedSearch !== (urlSearch.search ?? "")) {
+      setFilters({ search: debouncedSearch || undefined });
+    }
+  }, [debouncedSearch, urlSearch.search, setFilters]);
+
+  // Only `customerId` lives in the URL; the picker needs the name for its label,
+  // so keep that locally and fall back to fetching it when arriving by deep link
+  // (same pattern as the orders filter).
+  const [customerDisplay, setCustomerDisplay] = useState<CustomerPickerValue | null>(null);
+  const { data: urlCustomer } = useCustomer(customerDisplay ? undefined : urlSearch.customerId);
+  const selectedCustomer =
+    customerDisplay ??
+    (urlSearch.customerId && urlCustomer ? { id: urlCustomer.id, name: urlCustomer.name } : null);
+
+  const { data, isLoading } = useCustomerUsers({
+    search: urlSearch.search,
+    customerId: urlSearch.customerId,
+    page,
+    pageSize: PAGE_SIZE,
+  });
+  const users = data?.data ?? [];
+  const total = data?.total ?? 0;
+
+  const invite = useInviteCustomerUser();
   const remove = useDeleteUser();
-  const [inviteOpen, setInviteOpen] = useState(false);
+  const resend = useResendInvite();
   const del = useDeleteConfirmation(remove);
   const { feedback, handleResend, resendPendingId } = useResendInviteFeedback(resend);
 
-  if (isLoading) {
-    return (
-      <div className="flex justify-center py-12">
-        <Spinner />
-      </div>
-    );
-  }
+  const [inviteOpen, setInviteOpen] = useState(false);
+  // The invite's target customer: defaults to whatever the list is filtered by.
+  const [inviteCustomer, setInviteCustomer] = useState<CustomerPickerValue | null>(null);
 
-  const users = data?.data ?? [];
-  const total = data?.total ?? 0;
+  const openInvite = () => {
+    setInviteCustomer(selectedCustomer);
+    setInviteOpen(true);
+  };
 
   const columns: ResponsiveTableColumn<CustomerUserRow>[] = [
     {
@@ -64,9 +90,29 @@ export function CustomerUsersPage() {
     },
     { header: "Email", cellClassName: "text-muted-foreground", cell: (u) => u.email },
     {
+      header: "Πελάτης",
+      cell: (u) => (
+        <button
+          type="button"
+          className="text-primary hover:underline"
+          onClick={() => {
+            setCustomerDisplay({ id: u.customerId, name: u.customerName });
+            setFilters({ customerId: u.customerId });
+          }}
+        >
+          {u.customerName}
+        </button>
+      ),
+    },
+    {
       header: "Προσκλήθηκε από",
       cellClassName: "text-muted-foreground",
-      cell: (u) => u.invitedByName ?? "—",
+      cell: (u) =>
+        u.invitedByName ? (
+          <span title={u.invitedByEmail ?? ""}>{u.invitedByName}</span>
+        ) : (
+          <span className="text-muted-foreground/60">—</span>
+        ),
     },
     {
       header: undefined,
@@ -86,28 +132,48 @@ export function CustomerUsersPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-        <div>
-          <Link
-            to="/k/$slug/admin/customers"
-            params={{ slug }}
-            className="inline-flex items-center gap-1 text-sm font-medium text-primary hover:underline"
-          >
-            <ArrowLeft className="h-4 w-4" /> Πίσω στους πελάτες
-          </Link>
-          <h1 className="mt-2 text-2xl font-bold tracking-tight">
-            Χρήστες — {customer?.name ?? "…"}
-          </h1>
-        </div>
-        <Button onClick={() => setInviteOpen(true)} className="self-start sm:self-auto">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <h1 className="text-2xl font-bold tracking-tight">Χρήστες πελατών</h1>
+        <Button onClick={openInvite} className="self-start sm:self-auto">
           + Προσθήκη χρήστη
         </Button>
       </div>
 
-      {users.length === 0 ? (
-        <Card className="overflow-hidden">
-          <p className="p-6 text-sm text-muted-foreground">Δεν έχουν προσκληθεί χρήστες ακόμα.</p>
-        </Card>
+      <FilterBar
+        search={
+          <SearchInput
+            placeholder="Αναζήτηση με όνομα, email ή πελάτη..."
+            value={search}
+            onValueChange={setSearch}
+          />
+        }
+        activeCount={urlSearch.customerId ? 1 : 0}
+        onClear={() => {
+          setCustomerDisplay(null);
+          setFilters({ customerId: undefined });
+        }}
+      >
+        <FilterField label="Πελάτης" className="md:w-64">
+          <CustomerPickerCombobox
+            selected={selectedCustomer}
+            onSelect={(c) => {
+              setCustomerDisplay(c);
+              setFilters({ customerId: c?.id });
+            }}
+          />
+        </FilterField>
+      </FilterBar>
+
+      {isLoading ? (
+        <div className="flex justify-center py-12">
+          <Spinner />
+        </div>
+      ) : users.length === 0 ? (
+        <EmptyState
+          message="Δεν βρέθηκαν χρήστες πελατών"
+          actionLabel="+ Προσθήκη χρήστη"
+          onAction={openInvite}
+        />
       ) : (
         <>
           <ResponsiveTable
@@ -122,6 +188,7 @@ export function CustomerUsersPage() {
                     {!u.emailVerified && <InvitationStatusBadge className="ml-2" />}
                   </div>
                   <div className="text-sm text-muted-foreground">{u.email}</div>
+                  <div className="text-sm">{u.customerName}</div>
                   {u.invitedByName && (
                     <div className="text-sm text-muted-foreground">
                       Προσκλήθηκε από {u.invitedByName}
@@ -151,18 +218,28 @@ export function CustomerUsersPage() {
       <InviteUserDialog
         open={inviteOpen}
         onOpenChange={setInviteOpen}
-        title="Προσθήκη χρήστη"
+        title="Προσθήκη χρήστη πελάτη"
         description="Θα σταλεί email με σύνδεσμο για να ορίσει τον κωδικό του στον χρήστη."
+        prefix={
+          <FilterField label="Πελάτης">
+            <CustomerPickerCombobox selected={inviteCustomer} onSelect={setInviteCustomer} />
+          </FilterField>
+        }
+        submitDisabled={!inviteCustomer}
         pending={invite.isPending}
         error={invite.error}
-        onSubmit={(values) =>
-          invite.mutate(values, {
-            onSuccess: () => {
-              setInviteOpen(false);
-              toast.success("Η πρόσκληση στάλθηκε");
+        onSubmit={(values) => {
+          if (!inviteCustomer) return;
+          invite.mutate(
+            { ...values, customerId: inviteCustomer.id },
+            {
+              onSuccess: () => {
+                setInviteOpen(false);
+                toast.success("Η πρόσκληση στάλθηκε");
+              },
             },
-          })
-        }
+          );
+        }}
       />
 
       <ConfirmDialog
