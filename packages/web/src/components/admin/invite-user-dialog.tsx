@@ -29,6 +29,14 @@ interface InviteUserDialogProps {
   description: string;
   /** Extra hint rendered between the fields and the error/footer. */
   footnote?: React.ReactNode;
+  /**
+   * Caller-owned control rendered above name/email — the customer-users page
+   * puts its customer picker here. Its value lives in the caller's state (it's
+   * outside this form's schema), so pair it with `submitDisabled`.
+   */
+  prefix?: React.ReactNode;
+  /** Blocks submit while a `prefix` control is still incomplete. */
+  submitDisabled?: boolean;
   pending: boolean;
   error: unknown;
   /** Close the dialog from the caller's onSuccess — the form resets on close. */
@@ -46,6 +54,8 @@ export function InviteUserDialog({
   title,
   description,
   footnote,
+  prefix,
+  submitDisabled = false,
   pending,
   error,
   onSubmit,
@@ -69,6 +79,7 @@ export function InviteUserDialog({
         </DialogHeader>
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+            {prefix}
             <FormField
               control={form.control}
               name="name"
@@ -105,7 +116,7 @@ export function InviteUserDialog({
               <Button type="button" variant="ghost" onClick={() => onOpenChange(false)}>
                 Άκυρο
               </Button>
-              <Button type="submit" disabled={pending}>
+              <Button type="submit" disabled={pending || submitDisabled}>
                 {pending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 Αποστολή
               </Button>

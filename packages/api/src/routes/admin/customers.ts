@@ -1,17 +1,14 @@
 import { validationError } from "../../validation";
 import { Hono } from "hono";
 import { eq, and, or, ne, inArray, sql } from "drizzle-orm";
-import { alias } from "drizzle-orm/pg-core";
 import {
   createCustomerSchema,
   updateCustomerSchema,
   updateCustomerBrandPricingSchema,
   inviteCustomerUserSchema,
   adminCustomersQuerySchema,
-  paginationQuerySchema,
   type Customer,
   type CustomerBrandPrice,
-  type CustomerLinkedUser,
   type PaginatedResponse,
   API_ERROR_CODES,
   type SuccessResponse,
@@ -25,13 +22,8 @@ import {
   customerAssignedUsers,
   orders,
   tenantMemberships,
-  users,
 } from "../../db/schema/index";
-import {
-  inviteUserToTenant,
-  resendSetPasswordInvite,
-  InviteConflict,
-} from "../../services/invite-user";
+import { inviteUserToTenant, InviteConflict } from "../../services/invite-user";
 import {
   isUniqueViolation,
   isForeignKeyViolation,
@@ -40,7 +32,7 @@ import {
 } from "../../db/errors";
 import type { AppEnv } from "../../types";
 import type { PreSerialize } from "../../serialize";
-import { getTenant, getTenantId, getUser } from "../../context";
+import { getTenantId, getUser } from "../../context";
 
 const DUPLICATE_ERP_REF_RESPONSE = {
   code: API_ERROR_CODES.DUPLICATE_CUSTOMER_ERP_REF,
@@ -460,80 +452,9 @@ customersRouter.put("/:id/brand-pricing", async (c) => {
   return c.json({ success: true } satisfies SuccessResponse);
 });
 
-// GET /:id/users — list users linked to a customer in this tenant
-customersRouter.get("/:id/users", async (c) => {
-  const tenantId = getTenantId(c);
-  const id = c.req.param("id");
-  const inviterAlias = alias(users, "inviter");
-
-  const parsed = paginationQuerySchema.safeParse(c.req.query());
-  if (!parsed.success) {
-    return validationError(c, parsed.error);
-  }
-  const { page, pageSize } = parsed.data;
-
-  const [customer] = await db
-    .select({ id: customers.id })
-    .from(customers)
-    .where(and(eq(customers.id, id), eq(customers.tenantId, tenantId)))
-    .limit(1);
-
-  if (!customer) {
-    return c.json({ error: "Customer not found" }, 404);
-  }
-
-  const whereClause = and(
-    eq(tenantMemberships.customerId, id),
-    eq(tenantMemberships.tenantId, tenantId),
-  );
-
-  const [countRow] = await db
-    .select({ total: sql<number>`count(*)::int` })
-    .from(tenantMemberships)
-    .where(whereClause);
-  const total = countRow?.total ?? 0;
-
-  const rows = await db
-    .select({
-      id: users.id,
-      email: users.email,
-      emailVerified: users.emailVerified,
-      name: users.name,
-      createdAt: tenantMemberships.createdAt,
-      invitedByName: inviterAlias.name,
-      invitedByEmail: inviterAlias.email,
-    })
-    .from(tenantMemberships)
-    .innerJoin(users, eq(users.id, tenantMemberships.userId))
-    .leftJoin(inviterAlias, eq(tenantMemberships.invitedById, inviterAlias.id))
-    .where(whereClause)
-    .orderBy(tenantMemberships.createdAt)
-    .limit(pageSize)
-    .offset((page - 1) * pageSize);
-
-  const body = {
-    data: rows,
-    total,
-    page,
-    pageSize,
-  } satisfies PreSerialize<PaginatedResponse<CustomerLinkedUser>>;
-  return c.json(body);
-});
-
-// POST /:customerId/users/:userId/resend-invite — re-issue the set-password invite
-customersRouter.post("/:customerId/users/:userId/resend-invite", async (c) => {
-  const result = await resendSetPasswordInvite({
-    c,
-    tenantId: getTenantId(c),
-    tenantSlug: getTenant(c).slug,
-    userId: c.req.param("userId"),
-    customerId: c.req.param("customerId"),
-  });
-  if (!result.ok) {
-    return c.json({ code: result.code, error: result.error }, result.status);
-  }
-  return c.json({ success: true } satisfies SuccessResponse);
-});
+// A customer's users are listed by GET /admin/customer-users?customerId=… and
+// their invites re-sent via POST /admin/users/:id/resend-invite — both are
+// tenant-scoped, so neither is duplicated here.
 
 // POST /:id/users/invite — add another user account to an existing customer
 customersRouter.post("/:id/users/invite", async (c) => {

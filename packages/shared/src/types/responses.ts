@@ -188,10 +188,18 @@ export interface CustomerBrandPrice {
 
 // ---- Users (admin) ----
 
+/**
+ * Whether the invitee has a way to sign in yet — any `accounts` row, credential
+ * or OAuth. This is what "invite pending" is derived from; `users.emailVerified`
+ * is NOT a substitute: nothing flips it when someone activates by setting a
+ * password (email verification is off, and better-auth's resetPassword leaves it
+ * alone), so it reads "pending" forever. A Google-activated user has no
+ * credential row either, so a password-only check would mislabel them too.
+ */
 export interface AdminUserListItem {
   id: string;
   email: string;
-  emailVerified: boolean;
+  activated: boolean;
   name: string;
   role: "owner" | "staff" | "customer";
   createdAt: string;
@@ -201,17 +209,26 @@ export interface AdminUserListItem {
 }
 
 // User lists are returned as PaginatedResponse<AdminUserListItem> /
-// PaginatedResponse<CustomerLinkedUser> — see the admin users/customer-users
-// routes.
+// PaginatedResponse<AdminCustomerUserListItem> — see the admin
+// users/customer-users routes.
 
-export interface CustomerLinkedUser {
+/**
+ * A customer-linked user, tagged with the customer it belongs to. One shape for
+ * both customer-user lists: the tenant-wide one (every customer's users) and a
+ * single customer's — the latter just ignores the customer columns, which are
+ * constant there.
+ */
+export interface AdminCustomerUserListItem {
   id: string;
   email: string;
-  emailVerified: boolean;
+  /** See AdminUserListItem.activated. */
+  activated: boolean;
   name: string;
   createdAt: string;
   invitedByName: string | null;
   invitedByEmail: string | null;
+  customerId: string;
+  customerName: string;
 }
 
 // ---- Dashboard ----

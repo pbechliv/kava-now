@@ -12,6 +12,7 @@ import {
   adminOrdersSearchSchema,
   adminProductsSearchSchema,
   adminCustomersSearchSchema,
+  adminCustomerUsersSearchSchema,
   catalogSearchSchema,
   customerOrdersSearchSchema,
   pageOnlySearchSchema,
@@ -324,9 +325,9 @@ const customersRoute = createRoute({
 });
 const customerUsersRoute = createRoute({
   getParentRoute: () => tenantAdminRoute,
-  path: "customers/$id/users",
+  path: "customer-users",
   component: CustomerUsersPage,
-  validateSearch: pageOnlySearchSchema,
+  validateSearch: adminCustomerUsersSearchSchema,
 });
 const customerBrandPricingRoute = createRoute({
   getParentRoute: () => tenantAdminRoute,

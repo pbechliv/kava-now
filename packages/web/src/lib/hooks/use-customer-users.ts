@@ -2,46 +2,40 @@ import { useQuery, useMutation, useQueryClient, keepPreviousData } from "@tansta
 import { useTenantApi, useTenantSlug } from "./use-tenant-api";
 import { withQuery } from "../utils";
 import type {
+  AdminCustomerUserListItem,
+  AdminCustomerUsersSearch,
   InviteCustomerUserInput,
-  CustomerLinkedUser,
-  PageOnlySearch,
   PaginatedResponse,
   SuccessResponse,
 } from "@kava-now/shared";
 
-export type { InviteCustomerUserInput };
+type CustomerUsersFilters = AdminCustomerUsersSearch & { pageSize?: number };
 
-type CustomerUsersFilters = PageOnlySearch & { pageSize?: number };
-
-export function useCustomerUsers(customerId: string | undefined, filters?: CustomerUsersFilters) {
+/**
+ * Customer-linked users across the tenant, each row tagged with its customer;
+ * `customerId` narrows the list to one customer.
+ */
+export function useCustomerUsers(filters?: CustomerUsersFilters) {
   const slug = useTenantSlug();
   const tApi = useTenantApi();
-  const path = withQuery(`/admin/customers/${customerId}/users`, filters);
+  const path = withQuery("/admin/customer-users", filters);
   return useQuery({
-    queryKey: ["admin", slug, "customer-users", customerId, filters],
-    queryFn: () => tApi.get<PaginatedResponse<CustomerLinkedUser>>(path),
-    enabled: !!customerId,
+    queryKey: ["admin", slug, "customer-users", filters],
+    queryFn: () => tApi.get<PaginatedResponse<AdminCustomerUserListItem>>(path),
     placeholderData: keepPreviousData,
   });
 }
 
-export function useInviteCustomerUser(customerId: string) {
+/** Invite a user into a customer — the target customer is picked per invite. */
+export function useInviteCustomerUser() {
   const slug = useTenantSlug();
   const tApi = useTenantApi();
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (input: InviteCustomerUserInput) =>
+    mutationFn: ({ customerId, ...input }: InviteCustomerUserInput & { customerId: string }) =>
       tApi.post<SuccessResponse>(`/admin/customers/${customerId}/users/invite`, input),
     onSuccess: () => {
-      void qc.invalidateQueries({ queryKey: ["admin", slug, "customer-users", customerId] });
+      void qc.invalidateQueries({ queryKey: ["admin", slug, "customer-users"] });
     },
-  });
-}
-
-export function useResendCustomerUserInvite(customerId: string) {
-  const tApi = useTenantApi();
-  return useMutation({
-    mutationFn: (userId: string) =>
-      tApi.post<SuccessResponse>(`/admin/customers/${customerId}/users/${userId}/resend-invite`),
   });
 }

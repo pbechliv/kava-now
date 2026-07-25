@@ -64,6 +64,15 @@ export const adminCustomersFiltersSchema = z.object({
   search: optionalSearch,
 });
 
+// Customer users. Without `customerId` this is the tenant-wide list (every
+// customer's users, each tagged with its customer); with it, the one customer's
+// users — the same query, so one endpoint serves both pages. Search spans the
+// user's name and email plus the customer's name.
+export const adminCustomerUsersFiltersSchema = z.object({
+  search: optionalSearch,
+  customerId: optionalUuid,
+});
+
 export const adminCategoriesFiltersSchema = z.object({
   search: optionalSearch,
 });
@@ -85,6 +94,8 @@ export const adminOrdersQuerySchema = adminOrdersFiltersSchema.merge(paginationQ
 export const customerOrdersQuerySchema = customerOrdersFiltersSchema.merge(paginationQuerySchema);
 export const adminProductsQuerySchema = adminProductsFiltersSchema.merge(paginationQuerySchema);
 export const adminCustomersQuerySchema = adminCustomersFiltersSchema.merge(paginationQuerySchema);
+export const adminCustomerUsersQuerySchema =
+  adminCustomerUsersFiltersSchema.merge(paginationQuerySchema);
 export const adminCategoriesQuerySchema = adminCategoriesFiltersSchema.merge(paginationQuerySchema);
 export const catalogQuerySchema = catalogFiltersSchema.merge(paginationQuerySchema);
 export const adminCatalogQuerySchema = adminCatalogFiltersSchema.merge(paginationQuerySchema);
@@ -127,6 +138,12 @@ export const adminCustomersSearchSchema = z.object({
   page: pageSearchField,
 });
 
+export const adminCustomerUsersSearchSchema = z.object({
+  search: z.string().optional().catch(undefined),
+  customerId: z.string().optional().catch(undefined),
+  page: pageSearchField,
+});
+
 export const catalogSearchSchema = z.object({
   search: z.string().optional().catch(undefined),
   categoryId: z.string().optional().catch(undefined),
@@ -142,5 +159,6 @@ export type CustomerOrdersSearch = z.infer<typeof customerOrdersSearchSchema>;
 export type AdminProductsSearch = z.infer<typeof adminProductsSearchSchema>;
 export type ProductActiveFilter = (typeof PRODUCT_ACTIVE_VALUES)[number];
 export type AdminCustomersSearch = z.infer<typeof adminCustomersSearchSchema>;
+export type AdminCustomerUsersSearch = z.infer<typeof adminCustomerUsersSearchSchema>;
 export type CatalogSearch = z.infer<typeof catalogSearchSchema>;
 export type PageOnlySearch = z.infer<typeof pageOnlySearchSchema>;
