@@ -240,8 +240,8 @@ Fulfillment status transition rules live in `ORDER_STATUS_TRANSITIONS` ([package
 
 ### Environment
 
-- Node >= 24 (`.node-version`: `24.16.0`). `.node-version` is the only Node pin — read by `vp env`, nodenv, asdf, fnm, and nvm-as-fallback.
-- pnpm > 11 (declared via `packageManager` in root [package.json](package.json); corepack-managed)
+- Node >= 24 (`.node-version`: `24.18.0`) — read by `vp env`, nodenv, asdf, fnm, and nvm-as-fallback, and by CI via `setup-node`'s `node-version-file`. The [Dockerfile](Dockerfile) pins the same version separately (`FROM node:24.18-alpine`, two stages); dependabot's docker ecosystem `ignore`s `node` so the two can't drift apart from a one-sided bump — **bump both by hand together**.
+- pnpm > 11 (declared via `packageManager` in root [package.json](package.json); corepack-managed). Stay off pnpm 11.13.1–11.16.0 — those tarballs shipped without most of their compiled files ([pnpm#13164](https://github.com/pnpm/pnpm/issues/13164)); 11.17.0 republished them all.
 - Config in [packages/api/src/config.ts](packages/api/src/config.ts); env loaded by [packages/api/src/load-env.ts](packages/api/src/load-env.ts) from the repo-root `.env`
 - [.env.example](.env.example) documents `DATABASE_URL`, `APP_ORIGIN`, `BETTER_AUTH_SECRET`, `SMTP_*`, `RESEND_*`, `API_PORT`, `SUPERADMIN_*`, `DEMO_CUSTOMER_*`, plus the optional integrations: `SENTRY_DSN_API` / `SENTRY_DSN_WEB` / `SENTRY_ENVIRONMENT` / `SENTRY_RELEASE` (error reporting), `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` ("Continue with Google"), and `VAPID_PUBLIC_KEY` / `VAPID_PRIVATE_KEY` / `VAPID_SUBJECT` (Web Push). Each integration self-disables when its vars are absent
 - Env is validated through Zod at boot ([config.ts](packages/api/src/config.ts)): dev falls back to local defaults; production refuses to start if `BETTER_AUTH_SECRET`, `APP_ORIGIN`, or the database URL are missing or left at dev defaults
