@@ -6,11 +6,11 @@ allowBuilds:
   "@sentry/cli": true
   esbuild: true
 catalog:
-  vite: npm:@voidzero-dev/vite-plus-core@^0.2.6
-  # Keep in sync with the vitest version Vite+ bundles (0.2.6 ships 4.1.10) —
+  vite: npm:@voidzero-dev/vite-plus-core@^0.2.7
+  # Keep in sync with the vitest version Vite+ bundles (0.2.7 ships 4.1.10) —
   # a mismatch loads two vitest copies through the `vitest` override below.
   vitest: ^4.1.10
-  vite-plus: ^0.2.6
+  vite-plus: ^0.2.7
 overrides:
   vite: "catalog:"
   vitest: "catalog:"
@@ -19,6 +19,12 @@ overrides:
   # DEFAULT_MIGRATION_{LOCK_,}TABLE, which 0.29 removed — bundling the API
   # fails with MISSING_EXPORT. Pin to 0.28.x until upstream fixes the adapter.
   kysely: ^0.28.17
+# pnpm 11.18 made GitHub Actions checks opt-in for every command — without
+# this, `pnpm outdated -r` silently stops reporting the SHA-pinned actions in
+# .github/workflows/ and they drift. Reading them runs `git ls-remote` per
+# referenced repo, which is fine for public github.com.
+update:
+  githubActions: true
 peerDependencyRules:
   allowAny:
     - vite
