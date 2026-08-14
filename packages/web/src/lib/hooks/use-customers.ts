@@ -3,6 +3,7 @@ import { useTenantApi, useTenantSlug } from "./use-tenant-api";
 import { withQuery } from "../utils";
 import type {
   Customer,
+  AdminCustomerListItem,
   CreateCustomerInput,
   UpdateCustomerInput,
   AdminCustomersSearch,
@@ -18,7 +19,8 @@ export function useCustomers(filters?: CustomerFilters) {
 
   return useQuery({
     queryKey: ["admin", slug, "customers", filters],
-    queryFn: () => tApi.get<PaginatedResponse<Customer>>(path),
+    // Rows carry the unpaid-orders roll-up (#218) alongside the customer.
+    queryFn: () => tApi.get<PaginatedResponse<AdminCustomerListItem>>(path),
     placeholderData: keepPreviousData,
   });
 }

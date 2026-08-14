@@ -20,6 +20,10 @@ export const productUnitEnum = pgEnum("product_unit", ["bottle", "case", "keg"])
 
 export const erpStatusEnum = pgEnum("erp_status", ["pending", "transmitted"]);
 
+// Whether the customer has settled the order (#218). An indicator alongside the
+// fulfillment status, not one of its values — and orthogonal to erp_status too.
+export const paymentStatusEnum = pgEnum("payment_status", ["unpaid", "paid"]);
+
 export const orderItemStatusEnum = pgEnum("order_item_status", ["active", "cancelled"]);
 
 // Where an order came from: `portal` = the customer placed it themselves through

@@ -14,6 +14,7 @@ import type {
   OrderStatus,
   OrderOrigin,
   ErpStatus,
+  PaymentStatus,
   ProductUnit,
   Product,
   TenantMembership,
@@ -31,6 +32,7 @@ export interface AdminOrderListItem {
   createdAt: string;
   customerName: string | null;
   erpStatus: ErpStatus;
+  paymentStatus: PaymentStatus;
   itemCount: number;
   total: number;
 }
@@ -73,6 +75,11 @@ export interface AdminOrderDetailResponse {
   erpMarkCorrectedByName: string | null;
   erpMarkCorrectedByEmail: string | null;
   erpMarkCorrectionReason: string | null;
+  paymentStatus: PaymentStatus;
+  paidAt: string | null;
+  paidBy: string | null;
+  paidByName: string | null;
+  paidByEmail: string | null;
   items: AdminOrderItemWithProduct[];
   total: number;
 }
@@ -177,6 +184,20 @@ export interface CatalogPriceResolution {
   available: boolean;
   /** Current customer-resolved price; null when the product is unavailable. */
   resolvedPrice: number | null;
+}
+
+// ---- Customers (admin) ----
+
+/**
+ * A customers-list row: the customer plus its unpaid-orders roll-up (#218), so
+ * "who owes us what" is answerable from the list instead of by opening every
+ * order. Both fields exclude cancelled orders and cancelled/replaced line items
+ * (`PAYMENT_EXEMPT_STATUSES`, `order_items.status = 'active'`).
+ */
+export interface AdminCustomerListItem extends Customer {
+  /** Sum of the customer's unpaid orders' active line totals. SQL-cast, so a number. */
+  outstandingAmount: number;
+  unpaidOrderCount: number;
 }
 
 // ---- Customer brand pricing ----

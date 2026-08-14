@@ -6,11 +6,13 @@ import { copyToClipboard } from "@/lib/copy";
 import { Spinner } from "@/components/spinner";
 import { OrderStatusBadge } from "@/components/order-status-badge";
 import { ErpStatusBadge } from "@/components/admin/erp-status-badge";
+import { PaymentStatusBadge } from "@/components/admin/payment-status-badge";
 import { OrderOriginBadge } from "@/components/admin/order-origin-badge";
 import { OrderStatusCard } from "@/components/admin/order-detail/order-status-card";
 import { OrderBillingCard } from "@/components/admin/order-detail/order-billing-card";
 import { OrderItemsSection } from "@/components/admin/order-detail/order-items-section";
 import { OrderErpCard } from "@/components/admin/order-detail/order-erp-card";
+import { OrderPaymentCard } from "@/components/admin/order-detail/order-payment-card";
 import { OrderCancellationCard } from "@/components/admin/order-detail/order-cancellation-card";
 import { OrderInternalNotesCard } from "@/components/admin/order-detail/order-internal-notes-card";
 import { useAdminOrder } from "@/lib/hooks/use-admin-orders";
@@ -48,6 +50,7 @@ export function OrderDetailPage() {
         <div className="flex flex-wrap items-center gap-3">
           <h1 className="text-2xl font-bold tracking-tight">Παραγγελία #{order.orderNumber}</h1>
           <OrderStatusBadge status={order.status} />
+          <PaymentStatusBadge status={order.paymentStatus} />
           <ErpStatusBadge status={order.erpStatus} prefix="ERP: " />
           <OrderOriginBadge origin={order.origin} />
         </div>
@@ -115,6 +118,8 @@ export function OrderDetailPage() {
       <OrderBillingCard order={order} />
 
       <OrderItemsSection order={order} />
+
+      <OrderPaymentCard order={order} />
 
       <OrderErpCard order={order} />
 

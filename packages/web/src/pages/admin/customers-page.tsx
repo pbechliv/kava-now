@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useNavigate } from "@tanstack/react-router";
+import { Link, useNavigate } from "@tanstack/react-router";
 import { toast } from "sonner";
 import type { AdminCustomersSearch } from "@kava-now/shared";
 import { useTenantSlug } from "@/lib/hooks/use-tenant-api";
@@ -16,6 +16,7 @@ import { useCustomers, useDeleteCustomer } from "@/lib/hooks/use-customers";
 import { useDeleteConfirmation } from "@/lib/hooks/use-delete-confirmation";
 import { CustomerFormModal } from "@/components/admin/customer-form-modal";
 import { PAGE_SIZE } from "@/lib/constants";
+import { formatMoney } from "@/lib/format";
 
 type CustomerRow = NonNullable<ReturnType<typeof useCustomers>["data"]>["data"][number];
 
@@ -56,6 +57,27 @@ export function CustomersPage() {
     setModalOpen(true);
   };
 
+  // Outstanding balance (#218): what this customer still owes across their
+  // unpaid, non-cancelled orders. Links straight into that filtered order list,
+  // which is the next thing anyone asks after seeing a number here.
+  const renderOutstanding = (customer: CustomerRow) =>
+    customer.outstandingAmount > 0 ? (
+      <Link
+        to="/k/$slug/admin/orders"
+        params={{ slug }}
+        search={{ customerId: customer.id, paymentStatus: "unpaid" }}
+        className="font-medium text-primary hover:underline"
+        onClick={(e) => e.stopPropagation()}
+      >
+        {formatMoney(customer.outstandingAmount)}
+        <span className="ml-1 text-xs font-normal text-muted-foreground">
+          ({customer.unpaidOrderCount})
+        </span>
+      </Link>
+    ) : (
+      <span className="text-muted-foreground">—</span>
+    );
+
   const columns: ResponsiveTableColumn<CustomerRow>[] = [
     { header: "Όνομα", cellClassName: "font-medium", cell: (c) => c.name },
     { header: "Email", cellClassName: "text-muted-foreground", cell: (c) => c.email ?? "-" },
@@ -64,6 +86,12 @@ export function CustomersPage() {
       header: "Υπεύθυνος",
       cellClassName: "text-muted-foreground",
       cell: (c) => c.contactPerson ?? "-",
+    },
+    {
+      header: "Ανεξόφλητα",
+      headClassName: "text-right",
+      cellClassName: "text-right",
+      cell: renderOutstanding,
     },
     {
       header: "Ενέργειες",
@@ -134,6 +162,12 @@ export function CustomersPage() {
                   {customer.contactPerson && (
                     <div className="text-sm text-muted-foreground">
                       Υπεύθυνος: {customer.contactPerson}
+                    </div>
+                  )}
+                  {customer.outstandingAmount > 0 && (
+                    <div className="mt-1 text-sm">
+                      <span className="text-muted-foreground">Ανεξόφλητα: </span>
+                      {renderOutstanding(customer)}
                     </div>
                   )}
                 </div>

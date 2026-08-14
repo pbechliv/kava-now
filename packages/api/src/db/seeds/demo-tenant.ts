@@ -146,6 +146,9 @@ interface DemoOrder {
   status: OrderStatus;
   // Intake channel (#159); defaults to portal when omitted.
   origin?: OrderOrigin;
+  // Payment indicator (#218); defaults to unpaid, so the customers list shows a
+  // non-zero outstanding balance for the orders left unmarked here.
+  paid?: boolean;
   notes: string | null;
   internalNotes?: string | null;
   // Structured B2B checkout metadata (#175) — set on a couple of demo orders so
@@ -159,6 +162,7 @@ const DEMO_ORDERS: DemoOrder[] = [
   {
     customerName: "Ταβέρνα Ο Νίκος",
     status: "delivered",
+    paid: true,
     notes: "Παραδόθηκε χωρίς ζημιές",
     items: [
       { productName: "Μύθος", brand: "Olympic Brewery", quantity: 48 },
@@ -180,6 +184,7 @@ const DEMO_ORDERS: DemoOrder[] = [
   {
     customerName: "Καφέ Αγορά",
     status: "shipped",
+    paid: true,
     notes: "Αναμένεται παράδοση αύριο 09:00",
     internalNotes: "Ο οδηγός να καλέσει 10' πριν — δύσκολη πρόσβαση φορτηγού.",
     requestedDeliveryDate: "2026-07-15",
@@ -470,6 +475,9 @@ export async function seedDemoTenant(outerDb: PostgresJsDatabase): Promise<void>
           erpMark: isTransmitted ? `4000${String(transmittedSeq).padStart(4, "0")}` : null,
           erpTransmittedAt: isTransmitted ? new Date() : null,
           erpTransmittedBy: isTransmitted ? superadminUser.id : null,
+          paymentStatus: order.paid ? "paid" : "unpaid",
+          paidAt: order.paid ? new Date() : null,
+          paidBy: order.paid ? superadminUser.id : null,
         })
         .returning({ id: orders.id });
 

@@ -1,11 +1,12 @@
 import { Link, useNavigate } from "@tanstack/react-router";
 import { OrderStatusBadge } from "@/components/order-status-badge";
 import { ErpStatusBadge } from "@/components/admin/erp-status-badge";
+import { PaymentStatusBadge } from "@/components/admin/payment-status-badge";
 import { OrderOriginBadge } from "@/components/admin/order-origin-badge";
 import { ResponsiveTable, type ResponsiveTableColumn } from "@/components/ui/responsive-table";
 import { useTenantSlug } from "@/lib/hooks/use-tenant-api";
 import { formatMoney, formatDate } from "@/lib/format";
-import type { ErpStatus, OrderOrigin, OrderStatus } from "@kava-now/shared";
+import type { ErpStatus, OrderOrigin, OrderStatus, PaymentStatus } from "@kava-now/shared";
 
 export interface OrdersTableOrder {
   id: string;
@@ -15,8 +16,9 @@ export interface OrdersTableOrder {
   customerName: string | null;
   itemCount: number;
   total: number;
-  // Only the full admin orders list surfaces ERP status.
+  // Only the full admin orders list surfaces ERP + payment status.
   erpStatus?: ErpStatus;
+  paymentStatus?: PaymentStatus;
   // Intake channel (#159). Absent on the compact dashboard variant.
   origin?: OrderOrigin;
 }
@@ -27,6 +29,7 @@ interface OrdersTableProps {
   // The compact dashboard variant hides these; the full orders list shows them.
   showId?: boolean;
   showErp?: boolean;
+  showPayment?: boolean;
   showActions?: boolean;
 }
 
@@ -37,6 +40,7 @@ export function OrdersTable({
   emptyMessage,
   showId = false,
   showErp = false,
+  showPayment = false,
   showActions = false,
 }: OrdersTableProps) {
   const navigate = useNavigate();
@@ -83,6 +87,15 @@ export function OrdersTable({
         </div>
       ),
     },
+    ...(showPayment
+      ? [
+          {
+            header: "Πληρωμή",
+            cell: (order: OrdersTableOrder) =>
+              order.paymentStatus ? <PaymentStatusBadge status={order.paymentStatus} /> : null,
+          },
+        ]
+      : []),
     ...(showErp
       ? [
           {
@@ -140,6 +153,9 @@ export function OrdersTable({
           <div className="flex flex-wrap items-center gap-2">
             <OrderStatusBadge status={order.status} />
             {order.origin === "manual" && <OrderOriginBadge origin="manual" size="sm" />}
+            {showPayment && order.paymentStatus && (
+              <PaymentStatusBadge status={order.paymentStatus} />
+            )}
             {showErp && order.erpStatus && <ErpStatusBadge status={order.erpStatus} />}
           </div>
         </>
