@@ -17,10 +17,23 @@ export const ORDER_STATUSES = [
   "cancelled_by_customer",
 ] as const;
 
+export const PAYMENT_STATUSES = ["unpaid", "paid"] as const;
+
 /** Body of PUT /admin/orders/:id/status — the transition rules live server-side. */
 export const updateOrderStatusSchema = z.object({
   status: z.enum(ORDER_STATUSES),
 });
+
+/**
+ * Body of PATCH /admin/orders/:id/payment (#218). Both directions go through
+ * the same endpoint: `paid` stamps who/when, `unpaid` clears the stamp — a
+ * payment recorded on the wrong order has to be retractable.
+ */
+export const updateOrderPaymentSchema = z.object({
+  paymentStatus: z.enum(PAYMENT_STATUSES),
+});
+
+export type UpdateOrderPaymentInput = z.infer<typeof updateOrderPaymentSchema>;
 
 /** Body of POST /admin/orders/:id/cancellation-request — staff resolution of a customer request. */
 export const resolveCancellationRequestSchema = z.object({

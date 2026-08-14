@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { ORDER_STATUSES } from "./orders";
+import { ORDER_STATUSES, PAYMENT_STATUSES } from "./orders";
 import { paginationQuerySchema } from "./pagination";
 
 // Single source of truth for list-filter query params, shared by the API
@@ -39,6 +39,7 @@ const optionalSearch = z
 export const adminOrdersFiltersSchema = z.object({
   status: z.enum(ORDER_STATUSES).optional().catch(undefined),
   erpStatus: z.enum(ERP_STATUS_VALUES).optional().catch(undefined),
+  paymentStatus: z.enum(PAYMENT_STATUSES).optional().catch(undefined),
   customerId: optionalUuid,
   dateFrom: optionalIsoDate,
   dateTo: optionalIsoDate,
@@ -112,6 +113,7 @@ const pageSearchField = z.coerce.number().int().min(1).optional().catch(undefine
 export const adminOrdersSearchSchema = z.object({
   status: z.enum(ORDER_STATUSES).optional().catch(undefined),
   erpStatus: z.enum(ERP_STATUS_VALUES).optional().catch(undefined),
+  paymentStatus: z.enum(PAYMENT_STATUSES).optional().catch(undefined),
   customerId: z.string().optional().catch(undefined),
   dateFrom: z.string().optional().catch(undefined),
   dateTo: z.string().optional().catch(undefined),

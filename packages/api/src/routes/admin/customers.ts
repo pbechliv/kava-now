@@ -1,13 +1,14 @@
 import { validationError } from "../../validation";
 import { Hono } from "hono";
-import { eq, and, or, ne, inArray, sql } from "drizzle-orm";
+import { eq, and, or, ne, inArray, notInArray, sql } from "drizzle-orm";
 import {
   createCustomerSchema,
   updateCustomerSchema,
   updateCustomerBrandPricingSchema,
   inviteCustomerUserSchema,
   adminCustomersQuerySchema,
-  type Customer,
+  PAYMENT_EXEMPT_STATUSES,
+  type AdminCustomerListItem,
   type CustomerBrandPrice,
   type PaginatedResponse,
   API_ERROR_CODES,
@@ -21,6 +22,7 @@ import {
   customerBrandPricing,
   customerAssignedUsers,
   orders,
+  orderItems,
   tenantMemberships,
 } from "../../db/schema/index";
 import { inviteUserToTenant, InviteConflict } from "../../services/invite-user";
@@ -101,6 +103,33 @@ customersRouter.get("/", async (c) => {
     .where(whereClause);
   const total = countRow?.total ?? 0;
 
+  // Per-customer unpaid roll-up (#218): "what does each customer still owe us?".
+  // Aggregated once for the whole tenant and joined, rather than a correlated
+  // subquery per listed row. Cancelled orders owe nothing (PAYMENT_EXEMPT_STATUSES)
+  // and cancelled/replaced lines don't count toward a total — same rules as the
+  // orders list. The left join to order_items means an order with no active line
+  // contributes 0 to the amount but still counts as an unpaid order.
+  const unpaid = db
+    .select({
+      customerId: orders.customerId,
+      amount:
+        sql<number>`coalesce(round(sum(${orderItems.quantity} * ${orderItems.unitPrice}::numeric) filter (where ${orderItems.status} = 'active'), 2), 0)::float8`.as(
+          "amount",
+        ),
+      orderCount: sql<number>`count(distinct ${orders.id})::int`.as("order_count"),
+    })
+    .from(orders)
+    .leftJoin(orderItems, eq(orders.id, orderItems.orderId))
+    .where(
+      and(
+        eq(orders.tenantId, tenantId),
+        eq(orders.paymentStatus, "unpaid"),
+        notInArray(orders.status, PAYMENT_EXEMPT_STATUSES),
+      ),
+    )
+    .groupBy(orders.customerId)
+    .as("unpaid");
+
   const rows = await db
     .select({
       id: customers.id,
@@ -118,8 +147,11 @@ customersRouter.get("/", async (c) => {
       erpRef: customers.erpRef,
       createdAt: customers.createdAt,
       updatedAt: customers.updatedAt,
+      outstandingAmount: sql<number>`coalesce(${unpaid.amount}, 0)::float8`,
+      unpaidOrderCount: sql<number>`coalesce(${unpaid.orderCount}, 0)::int`,
     })
     .from(customers)
+    .leftJoin(unpaid, eq(unpaid.customerId, customers.id))
     .where(whereClause)
     .orderBy(customers.name, customers.id)
     .limit(pageSize)
@@ -130,7 +162,7 @@ customersRouter.get("/", async (c) => {
     total,
     page,
     pageSize,
-  } satisfies PreSerialize<PaginatedResponse<Customer>>;
+  } satisfies PreSerialize<PaginatedResponse<AdminCustomerListItem>>;
   return c.json(body);
 });
 

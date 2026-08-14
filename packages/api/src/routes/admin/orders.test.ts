@@ -427,6 +427,161 @@ suite("admin order mutations (HTTP, hard lock + soft-cancel totals)", () => {
     expect(pendingIds.has(transmitted)).toBe(false);
   });
 
+  it("payment marking round-trips, stamps who/when, and never locks the order (#218)", async () => {
+    const { orderId, itemIds } = await createOrder();
+
+    // Starts unpaid.
+    expect((await (await api(`/orders/${orderId}`)).json()).paymentStatus).toBe("unpaid");
+
+    const pay = await api(`/orders/${orderId}/payment`, {
+      method: "PATCH",
+      body: JSON.stringify({ paymentStatus: "paid" }),
+    });
+    expect(pay.status).toBe(200);
+
+    const paid = await (await api(`/orders/${orderId}`)).json();
+    expect(paid.paymentStatus).toBe("paid");
+    expect(paid.paidAt).not.toBeNull();
+    expect(paid.paidByEmail).toBe(ownerEmail);
+
+    // Re-marking is a no-op: the original stamp survives rather than being
+    // refreshed to "now" by a stray second click.
+    const again = await api(`/orders/${orderId}/payment`, {
+      method: "PATCH",
+      body: JSON.stringify({ paymentStatus: "paid" }),
+    });
+    expect(again.status).toBe(200);
+    expect((await again.json()).paidAt).toBe(paid.paidAt);
+
+    // Payment is an indicator, not a lock — item mutations still pass (contrast
+    // with the ERP transmission above, which 409s them).
+    const mutate = await api(`/orders/${orderId}/items/${itemIds[0]}`, {
+      method: "PATCH",
+      body: JSON.stringify({ quantity: 9 }),
+    });
+    expect(mutate.status).toBe(200);
+
+    // Retracting clears the stamp — that's how a payment logged on the wrong
+    // order gets fixed.
+    const retract = await api(`/orders/${orderId}/payment`, {
+      method: "PATCH",
+      body: JSON.stringify({ paymentStatus: "unpaid" }),
+    });
+    expect(retract.status).toBe(200);
+    const unpaid = await (await api(`/orders/${orderId}`)).json();
+    expect(unpaid.paymentStatus).toBe("unpaid");
+    expect(unpaid.paidAt).toBeNull();
+    expect(unpaid.paidBy).toBeNull();
+  });
+
+  it("filters the orders list by paymentStatus, excluding cancelled from unpaid (#218)", async () => {
+    const { orderId: paidOrder } = await createOrder();
+    const { orderId: unpaidOrder } = await createOrder();
+    const { orderId: cancelledOrder } = await createOrder();
+    await setStatus(cancelledOrder, "cancelled");
+
+    const pay = await api(`/orders/${paidOrder}/payment`, {
+      method: "PATCH",
+      body: JSON.stringify({ paymentStatus: "paid" }),
+    });
+    expect(pay.status).toBe(200);
+
+    const ids = async (query: string) => {
+      const list = await (await api(`/orders${query}`)).json();
+      return new Set(list.data.map((r: { id: string }) => r.id));
+    };
+
+    const paidIds = await ids("?paymentStatus=paid");
+    expect(paidIds.has(paidOrder)).toBe(true);
+    expect(paidIds.has(unpaidOrder)).toBe(false);
+
+    const unpaidIds = await ids("?paymentStatus=unpaid");
+    expect(unpaidIds.has(unpaidOrder)).toBe(true);
+    expect(unpaidIds.has(paidOrder)).toBe(false);
+    // A cancelled order owes nothing, so it isn't "awaiting payment".
+    expect(unpaidIds.has(cancelledOrder)).toBe(false);
+  });
+
+  it("a cancelled order cannot be marked paid, but can be un-marked (#218)", async () => {
+    const { orderId } = await createOrder();
+
+    // Paid first, then cancelled — a refunded cancellation must still be
+    // retractable even though it can no longer be marked.
+    const pay = await api(`/orders/${orderId}/payment`, {
+      method: "PATCH",
+      body: JSON.stringify({ paymentStatus: "paid" }),
+    });
+    expect(pay.status).toBe(200);
+    await setStatus(orderId, "cancelled_by_customer");
+
+    const retract = await api(`/orders/${orderId}/payment`, {
+      method: "PATCH",
+      body: JSON.stringify({ paymentStatus: "unpaid" }),
+    });
+    expect(retract.status).toBe(200);
+
+    const remark = await api(`/orders/${orderId}/payment`, {
+      method: "PATCH",
+      body: JSON.stringify({ paymentStatus: "paid" }),
+    });
+    expect(remark.status).toBe(409);
+    expect((await remark.json()).code).toBe("ORDER_LOCKED_BY_STATUS");
+    expect((await (await api(`/orders/${orderId}`)).json()).paymentStatus).toBe("unpaid");
+  });
+
+  it("the customers list rolls up each customer's unpaid balance (#218)", async () => {
+    // Own customer so the roll-up isn't perturbed by other tests' orders.
+    const isolatedCustomerId = await runWithTenant(tenantId, async () => {
+      const [row] = await db
+        .insert(schema.customers)
+        .values({ tenantId, name: `Balance Customer ${suffix}` })
+        .returning({ id: schema.customers.id });
+      return must(row).id;
+    });
+
+    const order = async (items: { productId: string; quantity: number; unitPrice: string }[]) =>
+      runWithTenant(tenantId, async () => {
+        const [created] = await db
+          .insert(schema.orders)
+          .values({ tenantId, customerId: isolatedCustomerId, orderNumber: ++orderSeq })
+          .returning({ id: schema.orders.id });
+        const orderId = must(created).id;
+        await db
+          .insert(schema.orderItems)
+          .values(items.map((i) => ({ orderId, ...i, productName: "P" })));
+        return orderId;
+      });
+
+    const outstanding = async () => {
+      const query = encodeURIComponent(`Balance Customer ${suffix}`);
+      const list = await (await api(`/customers?search=${query}`)).json();
+      return list.data.find((r: { id: string }) => r.id === isolatedCustomerId);
+    };
+
+    expect((await outstanding()).outstandingAmount).toBe(0);
+
+    const first = await order([{ productId: p1, quantity: 2, unitPrice: "10.00" }]); // 20
+    await order([{ productId: p2, quantity: 3, unitPrice: "5.00" }]); // 15
+    const afterTwo = await outstanding();
+    expect(afterTwo.outstandingAmount).toBe(35);
+    expect(afterTwo.unpaidOrderCount).toBe(2);
+
+    // Marking one paid drops it out of the balance.
+    const pay = await api(`/orders/${first}/payment`, {
+      method: "PATCH",
+      body: JSON.stringify({ paymentStatus: "paid" }),
+    });
+    expect(pay.status).toBe(200);
+    const afterPayment = await outstanding();
+    expect(afterPayment.outstandingAmount).toBe(15);
+    expect(afterPayment.unpaidOrderCount).toBe(1);
+
+    // A cancelled order owes nothing either — same exclusion as the list filter.
+    const cancelled = await order([{ productId: p1, quantity: 5, unitPrice: "10.00" }]);
+    await setStatus(cancelled, "cancelled");
+    expect((await outstanding()).outstandingAmount).toBe(15);
+  });
+
   it("fulfillment status past 'confirmed' locks item mutations; invalid transitions 400", async () => {
     const { orderId, itemIds } = await createOrder();
 

@@ -10,6 +10,7 @@ import type {
   CreateOrderResponse,
   OrderStatus,
   PaginatedResponse,
+  PaymentStatus,
 } from "@kava-now/shared";
 
 // Wire contracts live in @kava-now/shared (one definition for API + web).
@@ -84,6 +85,24 @@ export function useUpdateOrderInternalNotes() {
       tApi.patch(`/admin/orders/${id}/internal-notes`, { internalNotes }),
     onSuccess: (_data, { id }) => {
       void qc.invalidateQueries({ queryKey: ["admin", slug, "orders", id] });
+    },
+  });
+}
+
+// Record or retract the customer's payment (#218). Invalidates the customers
+// list too — its per-customer outstanding balance is derived from unpaid orders.
+export function useUpdateOrderPayment() {
+  const slug = useTenantSlug();
+  const tApi = useTenantApi();
+  const qc = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ id, paymentStatus }: { id: string; paymentStatus: PaymentStatus }) =>
+      tApi.patch(`/admin/orders/${id}/payment`, { paymentStatus }),
+    onSuccess: (_data, { id }) => {
+      void qc.invalidateQueries({ queryKey: ["admin", slug, "orders", id] });
+      void qc.invalidateQueries({ queryKey: ["admin", slug, "orders"] });
+      void qc.invalidateQueries({ queryKey: ["admin", slug, "customers"] });
     },
   });
 }

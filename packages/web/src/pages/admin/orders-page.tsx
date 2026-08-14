@@ -27,9 +27,11 @@ import { OrdersTable } from "@/components/admin/orders-table";
 import { CustomerPickerCombobox } from "@/components/admin/customer-picker-combobox";
 import {
   ERP_STATUS_LABELS,
+  PAYMENT_STATUS_LABELS,
   type AdminOrdersSearch,
   type ErpStatus,
   type OrderStatus,
+  type PaymentStatus,
 } from "@kava-now/shared";
 import { PAGE_SIZE } from "@/lib/constants";
 
@@ -52,6 +54,12 @@ const ERP_FILTER_ITEMS = [
   { value: "transmitted", label: ERP_STATUS_LABELS.transmitted },
 ];
 
+const PAYMENT_FILTER_ITEMS = [
+  { value: "all", label: "Όλες" },
+  { value: "unpaid", label: PAYMENT_STATUS_LABELS.unpaid },
+  { value: "paid", label: PAYMENT_STATUS_LABELS.paid },
+];
+
 export function OrdersPage() {
   const slug = useTenantSlug();
   const { search, setFilters } = useFilterSearch<AdminOrdersSearch>();
@@ -62,6 +70,7 @@ export function OrdersPage() {
 
   const statusFilter = search.status ?? "all";
   const erpFilter = search.erpStatus ?? "all";
+  const paymentFilter = search.paymentStatus ?? "all";
   const dateFrom = search.dateFrom ?? "";
   const dateTo = search.dateTo ?? "";
   const page = search.page ?? 1;
@@ -78,6 +87,7 @@ export function OrdersPage() {
   const { data, isLoading } = useAdminOrders({
     status: search.status,
     erpStatus: search.erpStatus,
+    paymentStatus: search.paymentStatus,
     customerId: search.customerId,
     dateFrom: search.dateFrom,
     dateTo: search.dateTo,
@@ -129,7 +139,8 @@ export function OrdersPage() {
           (search.customerId ? 1 : 0) +
           (dateFrom ? 1 : 0) +
           (dateTo ? 1 : 0) +
-          (erpFilter !== "all" ? 1 : 0)
+          (erpFilter !== "all" ? 1 : 0) +
+          (paymentFilter !== "all" ? 1 : 0)
         }
         onClear={() => {
           setCustomerDisplay(null);
@@ -138,9 +149,28 @@ export function OrdersPage() {
             dateFrom: undefined,
             dateTo: undefined,
             erpStatus: undefined,
+            paymentStatus: undefined,
           });
         }}
       >
+        <FilterField label="Πληρωμή" className="md:w-44">
+          <Select
+            value={paymentFilter}
+            items={PAYMENT_FILTER_ITEMS}
+            onValueChange={(v) =>
+              setFilters({ paymentStatus: v === "all" ? undefined : (v as PaymentStatus) })
+            }
+          >
+            <SelectTrigger className="w-full" aria-label="Πληρωμή">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Όλες</SelectItem>
+              <SelectItem value="unpaid">{PAYMENT_STATUS_LABELS.unpaid}</SelectItem>
+              <SelectItem value="paid">{PAYMENT_STATUS_LABELS.paid}</SelectItem>
+            </SelectContent>
+          </Select>
+        </FilterField>
         <FilterField label="ERP" className="md:w-48">
           <Select
             value={erpFilter}
@@ -199,6 +229,7 @@ export function OrdersPage() {
             emptyMessage="Δεν βρέθηκαν παραγγελίες"
             showId
             showErp
+            showPayment
             showActions
           />
           <PaginationControls

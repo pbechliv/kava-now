@@ -193,7 +193,7 @@ The `postgres` driver (not `pg`) is used. RLS is enforced at the DB level for te
 
 Postgres `numeric` columns (`basePrice`, `unitPrice`, `alcoholPct`, `discountPct`) serialize as **strings** through postgres-js — the shared types model them as `string` and the web converts with `Number(...)` at display/calculation sites.
 
-### Orders + ERP transmission
+### Orders + ERP transmission + payment
 
 `erp_status` (`pending | transmitted`) on `orders` is **orthogonal** to fulfillment `status` — an order can be `delivered` and `transmitted` independently. Transmission is recorded via `PATCH /api/k/:slug/admin/orders/:id/erp` with the AADE MARK; the endpoint is one-shot (409 on retry). `products.erpRef` is the ERP-side code; the name is **intentionally abstract** (not `galaxyCode`) so a future ERP swap doesn't require renaming.
 
@@ -202,6 +202,10 @@ Postgres `numeric` columns (`basePrice`, `unitPrice`, `alcoholPct`, `discountPct
 `order_items.status` (`active | cancelled`) + `replacedByItemId` form a soft-cancel/replacement chain: cancelled lines stay in the table for audit. Totals and item counts must filter `status='active'` — see the SQL `filter (where ... = 'active')` clauses in the orders list query.
 
 Fulfillment status transition rules live in `ORDER_STATUS_TRANSITIONS` ([packages/shared/src/constants.ts](packages/shared/src/constants.ts)) — the API enforces them, the web reads them to drive the status picker. Don't redeclare them locally.
+
+`payment_status` (`unpaid | paid`) + `paid_at` / `paid_by` on `orders` is a **third orthogonal axis** (#218): an indicator, not a fulfillment status value, and independent of `erp_status`. Set via `PATCH /api/k/:slug/admin/orders/:id/payment` — both directions through the same endpoint, since a payment recorded on the wrong order must be retractable. It is **not** a lock: item mutations stay allowed on a paid order (contrast `erp_status='transmitted'`). Re-marking an already-paid order is a no-op so a second click can't overwrite the original stamp, and a cancelled order can't be marked paid (409 `ORDER_LOCKED_BY_STATUS`) — `PAYMENT_EXEMPT_STATUSES` in [constants.ts](packages/shared/src/constants.ts) is the single definition of "owes nothing", used by that guard, the `?paymentStatus=unpaid` list filter, and the roll-up below. It deliberately excludes `cancellation_requested`: the order is still live until staff resolve the request.
+
+The customers list (`GET /admin/customers`) carries a per-customer outstanding balance — `outstandingAmount` + `unpaidOrderCount` over that customer's unpaid, non-cancelled orders' **active** lines. It's one tenant-wide aggregate subquery joined to the page of customers, not a correlated subquery per row. Mutations that change payment state must invalidate the `["admin", slug, "customers"]` query prefix too, or the balance goes stale.
 
 ### Frontend structure
 

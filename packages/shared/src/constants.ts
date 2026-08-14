@@ -1,4 +1,11 @@
-import type { OrderStatus, MembershipRole, ProductUnit, ErpStatus, OrderOrigin } from "./types";
+import type {
+  OrderStatus,
+  MembershipRole,
+  ProductUnit,
+  ErpStatus,
+  OrderOrigin,
+  PaymentStatus,
+} from "./types";
 
 /** Rows per page for all paginated list views — one value for API + web. */
 export const DEFAULT_PAGE_SIZE = 30;
@@ -32,6 +39,11 @@ export const UNIT_LABELS: Record<ProductUnit, string> = {
 export const ERP_STATUS_LABELS: Record<ErpStatus, string> = {
   pending: "Εκκρεμεί",
   transmitted: "Διαβιβασμένη",
+};
+
+export const PAYMENT_STATUS_LABELS: Record<PaymentStatus, string> = {
+  unpaid: "Ανεξόφλητη",
+  paid: "Εξοφλημένη",
 };
 
 export const ORDER_ORIGIN_LABELS: Record<OrderOrigin, string> = {
@@ -69,3 +81,12 @@ export const ERP_UNTRANSMITTABLE_STATUSES: OrderStatus[] = [
   "cancelled_by_customer",
   "cancellation_requested",
 ];
+
+/**
+ * Fulfillment statuses that owe nothing (#218): a cancelled order carries no
+ * outstanding balance, so it's excluded from the per-customer unpaid roll-up
+ * and can't be marked as paid. `cancellation_requested` is deliberately NOT
+ * here — the order is still live until staff resolve the request, so it is
+ * still owed.
+ */
+export const PAYMENT_EXEMPT_STATUSES: OrderStatus[] = ["cancelled", "cancelled_by_customer"];

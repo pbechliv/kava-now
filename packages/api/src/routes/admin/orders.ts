@@ -29,9 +29,11 @@ import {
   correctOrderMarkSchema,
   updateOrderStatusSchema,
   updateOrderInternalNotesSchema,
+  updateOrderPaymentSchema,
   resolveCancellationRequestSchema,
   ORDER_STATUS_TRANSITIONS,
   ERP_UNTRANSMITTABLE_STATUSES,
+  PAYMENT_EXEMPT_STATUSES,
   addOrderItemSchema,
   updateOrderItemSchema,
   replaceOrderItemSchema,
@@ -48,9 +50,10 @@ import {
 
 const ordersRouter = new Hono<AppEnv>();
 
-// Second users join for the order detail: the user who corrected the MARK,
-// distinct from erpTransmittedBy (which uses the base `users` alias).
+// Extra users joins for the order detail, distinct from erpTransmittedBy (which
+// uses the base `users` alias): who corrected the MARK, and who recorded payment.
 const correctedByUser = alias(users, "corrected_by_user");
+const paidByUser = alias(users, "paid_by_user");
 
 type MutableGuard = { ok: true } | { ok: false; code: ApiErrorCode; error: string };
 
@@ -226,7 +229,8 @@ ordersRouter.get("/", async (c) => {
   if (!parsed.success) {
     return validationError(c, parsed.error);
   }
-  const { status, erpStatus, customerId, dateFrom, dateTo, search, page, pageSize } = parsed.data;
+  const { status, erpStatus, paymentStatus, customerId, dateFrom, dateTo, search, page, pageSize } =
+    parsed.data;
 
   const conditions: ReturnType<typeof eq>[] = [eq(orders.tenantId, tenantId)];
 
@@ -262,6 +266,14 @@ ordersRouter.get("/", async (c) => {
       conditions.push(notInArray(orders.status, ERP_UNTRANSMITTABLE_STATUSES));
     }
   }
+  if (paymentStatus) {
+    conditions.push(eq(orders.paymentStatus, paymentStatus));
+    // A cancelled order owes nothing, so it isn't "awaiting payment" — same
+    // exclusion the per-customer outstanding roll-up applies (#218).
+    if (paymentStatus === "unpaid") {
+      conditions.push(notInArray(orders.status, PAYMENT_EXEMPT_STATUSES));
+    }
+  }
   if (customerId) {
     conditions.push(eq(orders.customerId, customerId));
   }
@@ -294,6 +306,7 @@ ordersRouter.get("/", async (c) => {
       createdAt: orders.createdAt,
       customerName: customers.name,
       erpStatus: orders.erpStatus,
+      paymentStatus: orders.paymentStatus,
       itemCount: sql<number>`(count(${orderItems.id}) filter (where ${orderItems.status} = 'active'))::int`,
       // Totals contract: JSON number, 2 decimals. Sum exactly in numeric,
       // round, then one float8 cast — `::numeric` alone serializes as a
@@ -355,11 +368,17 @@ ordersRouter.get("/:id", async (c) => {
       erpMarkCorrectedByName: correctedByUser.name,
       erpMarkCorrectedByEmail: correctedByUser.email,
       erpMarkCorrectionReason: orders.erpMarkCorrectionReason,
+      paymentStatus: orders.paymentStatus,
+      paidAt: orders.paidAt,
+      paidBy: orders.paidBy,
+      paidByName: paidByUser.name,
+      paidByEmail: paidByUser.email,
     })
     .from(orders)
     .leftJoin(customers, eq(orders.customerId, customers.id))
     .leftJoin(users, eq(orders.erpTransmittedBy, users.id))
     .leftJoin(correctedByUser, eq(orders.erpMarkCorrectedBy, correctedByUser.id))
+    .leftJoin(paidByUser, eq(orders.paidBy, paidByUser.id))
     .where(and(eq(orders.id, id), eq(orders.tenantId, tenantId)))
     .limit(1);
 
@@ -485,6 +504,70 @@ ordersRouter.patch("/:id/internal-notes", async (c) => {
   }
 
   return c.json(updated);
+});
+
+// PATCH /:id/payment — record (or retract) the customer's payment (#218). Both
+// directions live here: `paid` stamps who/when, `unpaid` clears the stamp.
+// Unlike the ERP MARK this is reversible and does NOT lock the order — payment
+// is an indicator, orthogonal to fulfillment status and ERP transmission.
+ordersRouter.patch("/:id/payment", async (c) => {
+  const tenantId = getTenantId(c);
+  const user = getUser(c);
+  const id = c.req.param("id");
+  const body = await c.req.json();
+  const parsed = updateOrderPaymentSchema.safeParse(body);
+  if (!parsed.success) {
+    return validationError(c, parsed.error);
+  }
+
+  const { paymentStatus } = parsed.data;
+  const paid = paymentStatus === "paid";
+
+  // The guards live in the UPDATE's WHERE so this is race-safe:
+  // - `ne(paymentStatus)` makes a repeat click a no-op instead of overwriting
+  //   the original paidAt/paidBy with a fresh (misleading) stamp.
+  // - a cancelled order owes nothing, so it can't be marked paid. Retracting is
+  //   always allowed — that's how a payment logged on the wrong order is fixed.
+  const conditions = [
+    eq(orders.id, id),
+    eq(orders.tenantId, tenantId),
+    ne(orders.paymentStatus, paymentStatus),
+  ];
+  if (paid) conditions.push(notInArray(orders.status, PAYMENT_EXEMPT_STATUSES));
+
+  const [updated] = await db
+    .update(orders)
+    .set({
+      paymentStatus,
+      paidAt: paid ? new Date() : null,
+      paidBy: paid ? user.id : null,
+    })
+    .where(and(...conditions))
+    .returning();
+
+  if (updated) return c.json(updated);
+
+  // Nothing updated: either the order is gone, already in the requested state
+  // (no-op — return it as-is), or cancelled and therefore unpayable.
+  const [existing] = await db
+    .select()
+    .from(orders)
+    .where(and(eq(orders.id, id), eq(orders.tenantId, tenantId)))
+    .limit(1);
+
+  if (!existing) {
+    return c.json({ error: "Order not found" }, 404);
+  }
+  if (existing.paymentStatus === paymentStatus) {
+    return c.json(existing);
+  }
+  return c.json(
+    {
+      code: API_ERROR_CODES.ORDER_LOCKED_BY_STATUS,
+      error: "A cancelled order cannot be marked as paid",
+    },
+    409,
+  );
 });
 
 // POST /:id/cancellation-request — staff approve/reject a customer's request to

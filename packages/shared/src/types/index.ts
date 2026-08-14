@@ -13,6 +13,14 @@ export type OrderStatus =
   | "cancelled_by_customer";
 export type ProductUnit = "bottle" | "case" | "keg";
 export type ErpStatus = "pending" | "transmitted";
+/**
+ * Whether the customer has settled an order (#218). An indicator, not a
+ * fulfillment status — orthogonal to both `OrderStatus` and `ErpStatus`, so a
+ * `delivered` + `transmitted` order can still be `unpaid`. Reversible (unlike
+ * the one-shot ERP MARK): recording a payment on the wrong order is a mistake
+ * staff must be able to take back.
+ */
+export type PaymentStatus = "unpaid" | "paid";
 export type OrderItemStatus = "active" | "cancelled";
 /** Intake channel of an order (#159): customer self-service vs staff-entered. */
 export type OrderOrigin = "portal" | "manual";
@@ -102,6 +110,8 @@ export interface Order {
   erpStatus: ErpStatus;
   erpMark: string | null;
   erpTransmittedAt: string | null;
+  paymentStatus: PaymentStatus;
+  paidAt: string | null;
 }
 
 export interface OrderItem {
