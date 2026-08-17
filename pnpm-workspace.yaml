@@ -10,7 +10,7 @@ catalog:
   # Keep in sync with the vitest version Vite+ bundles (0.2.7 ships 4.1.10) —
   # a mismatch loads two vitest copies through the `vitest` override below.
   vitest: ^4.1.10
-  vite-plus: ^0.2.7
+  vite-plus: ^0.2.9
 overrides:
   vite: "catalog:"
   vitest: "catalog:"
