@@ -23,7 +23,7 @@
     "better-auth": "^1.6.25",
     "drizzle-orm": "^0.45.2",
     "hono": "^4.12.32",
-    "nodemailer": "^9.0.3",
+    "nodemailer": "^9.1.1",
     "postgres": "^3.4.9",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",
