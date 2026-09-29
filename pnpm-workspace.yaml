@@ -9,7 +9,7 @@ catalog:
   vite: npm:@voidzero-dev/vite-plus-core@^0.2.7
   # Keep in sync with the vitest version Vite+ bundles (0.2.7 ships 4.1.10) —
   # a mismatch loads two vitest copies through the `vitest` override below.
-  vitest: ^4.1.10
+  vitest: ^5.0.2
   vite-plus: ^0.2.7
 overrides:
   vite: "catalog:"
