@@ -16,7 +16,7 @@
     "email:dev": "email dev --dir src/emails --port 3001"
   },
   "dependencies": {
-    "@hono/node-server": "^2.0.12",
+    "@hono/node-server": "^2.1.0",
     "@kava-now/shared": "workspace:*",
     "@react-email/render": "^2.1.0",
     "@sentry/node": "^10.69.0",
